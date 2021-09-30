@@ -40,7 +40,7 @@ PD_DATA_FRAME = pd.DataFrame(
             "dt_tz": datetime.now(timezone.utc),
         },
     ]
-)  # TODO other types
+)
 
 PD_DATA_FRAME_INDEX = PD_DATA_FRAME.set_index("int")
 PD_DATA_FRAME_MULTIINDEX = PD_DATA_FRAME.set_index(["int", "str"])

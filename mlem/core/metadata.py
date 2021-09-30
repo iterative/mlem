@@ -138,7 +138,7 @@ def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
     except FileNotFoundError:
         # now search for objects in .mlem
         # TODO: exceptions thrown here doesn't explain that
-        # direct search by path was also failed. Need to clarify
+        #  direct search by path was also failed. Need to clarify
         mlem_root = find_mlem_root(path=path, fs=fs)
         _, path = find_object(path, fs=fs, mlem_root=mlem_root)
 

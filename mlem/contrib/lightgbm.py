@@ -107,7 +107,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
                 "predict": Signature(
                     name="_predict",
                     args=[Argument(key="data", type=UnspecifiedDatasetType())],
-                    returns=UnspecifiedDatasetType(),
+                    returns=UnspecifiedDatasetType(),  # TODO: https://github.com/iterative/mlem/issues/21
                 )
             },
         )

@@ -83,18 +83,6 @@ class NumpyNumberType(LibRequirementsMixin, DatasetType, DatasetHook):
         raise NotImplementedError()
 
 
-# class NumpyDTypeSerializer(Serializer):
-#     """
-#     PyJackson :class:`.Serializer` for `numpy` data types: stores types in JSON as their names.
-#     """
-#
-#     def deserialize(self, obj: str):
-#         return getattr(np, obj)
-#
-#     def serialize(self, instance) -> str:
-#         return str(instance)
-
-
 class NumpyNdarrayType(
     LibRequirementsMixin, DatasetType, DatasetHook, DatasetSerializer
 ):
@@ -137,35 +125,15 @@ class NumpyNdarrayType(
         self._check_shape(ret, DeserializationError)
         return ret
 
-    # real_type = np.ndarray
-
-    # def __init__(self, shape: Tuple[int, ...], dtype: str):
-    #     # TODO assert shape and dtypes len
-    #     self.shape = (None,) + shape[1:]
-    #     self.dtype = dtype
-
-    # def list_size(self):
-    #     return self.shape[0]
-
-    # def _get_subtype(self, shape):
-    #     if len(shape) == 0:
-    #         return python_type_from_np_string_repr(self.dtype)
-    #     elif len(shape) == 1:
-    #         subtype = python_type_from_np_string_repr(self.dtype)
-    #     else:
-    #         subtype = self._get_subtype(shape[1:])
-    #     return SizedTypedListType(shape[0], subtype)
-
-    # def get_spec(self) -> ArgList:
-    #     return [Field(None, self._get_subtype(self.shape[1:]), False)]
     def _subtype(self, subshape: Tuple[Optional[int], ...]):
         if len(subshape) == 0:
             return python_type_from_np_string_repr(self.dtype)
         return conlist(self._subtype(subshape[1:]))
 
     def get_model(self) -> Type[BaseModel]:
+        # TODO: https://github.com/iterative/mlem/issues/33
         return create_model(
-            "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore # TODO
+            "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
         )
 
     def serialize(self, instance: np.ndarray):

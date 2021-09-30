@@ -104,7 +104,7 @@ class DMatrixDatasetType(
         return DMatrixDatasetType.from_dmatrix(obj)
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        raise NotImplementedError()  # todo
+        raise NotImplementedError()  # todo: https://github.com/iterative/mlem/issues/35
 
 
 class XGBoostModelIO(ModelIO):
@@ -153,7 +153,7 @@ class XGBoostModel(
             "predict": Signature(
                 name="_predict",
                 args=[Argument(key="data", type=UnspecifiedDatasetType())],
-                returns=UnspecifiedDatasetType(),
+                returns=UnspecifiedDatasetType(),  # TODO: https://github.com/iterative/mlem/issues/21
             )
         }
         return XGBoostModel(model=obj, methods=methods)

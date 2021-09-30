@@ -66,12 +66,16 @@ class DockerModelDirectory(BaseModel):
     debug: bool
     path: str
 
-    fs: ClassVar[AbstractFileSystem] = LocalFileSystem()  # todo
+    fs: ClassVar[
+        AbstractFileSystem
+    ] = (
+        LocalFileSystem()
+    )  # todo: https://github.com/iterative/mlem/issues/38 fs
 
     def get_requirements(self) -> Requirements:
         return (
             self.model.requirements + self.server.get_requirements()
-        )  # todo tmp
+        )  # todo: tmp
 
     def get_env_vars(self) -> Dict[str, str]:
         """Get env variables for image"""
@@ -85,13 +89,16 @@ class DockerModelDirectory(BaseModel):
 
         envs.update(self.server.get_env_vars())
 
-        # modules = set(self.get_requirements().modules)
-        #
-        # from mlem.ext import ExtensionLoader
-        # extensions = ExtensionLoader.loaded_extensions.keys()
-        # used_extensions = [e.module for e in extensions if all(r in modules for r in e.reqs)]
-        # if len(used_extensions) > 0:
-        #     envs['MLEM_EXTENSIONS'] = ','.join(used_extensions)
+        modules = set(self.get_requirements().modules)
+
+        from mlem.ext import ExtensionLoader
+
+        extensions = ExtensionLoader.loaded_extensions().keys()
+        used_extensions = [
+            e.module for e in extensions if all(r in modules for r in e.reqs)
+        ]
+        if len(used_extensions) > 0:
+            envs["MLEM_EXTENSIONS"] = ",".join(used_extensions)
         return envs
 
     def get_python_version(self):
@@ -118,10 +125,10 @@ class DockerModelDirectory(BaseModel):
                 "Auto-determined requirements for model: %s.",
                 requirements.to_pip(),
             )
-            # if mlem_from_pip() is False:
+            # if mlem_from_pip() is False: # TODO: https://github.com/iterative/mlem/issues/39
             #     cwd = os.getcwd()
             #     try:
-            #         from setup import setup_args  # FIXME only for development
+            #         from setup import setup_args  # only for development
             #         requirements += list(setup_args['install_requires'])
             #         logger.debug('Adding MLEM requirements as local installation is employed...')
             #         logger.debug('Overall requirements for model: %s.', requirements.to_pip())

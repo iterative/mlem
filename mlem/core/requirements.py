@@ -17,11 +17,11 @@ from typing import (
     Union,
 )
 
-# TODO i dont know how to do this better
 from pydantic import BaseModel
 
 from mlem.core.base import MlemObject
 
+# I dont know how to do this better
 MODULE_PACKAGE_MAPPING = {
     "sklearn": "scikit-learn",
     "skimage": "scikit-image",

@@ -105,7 +105,9 @@ class RemoteRegistry(DockerRegistry):
 
     :param host: adress of the registry"""
 
-    host: Optional[str] = None  # TODO credentials?
+    host: Optional[
+        str
+    ] = None  # TODO: https://github.com/iterative/mlem/issues/38 credentials
 
     def login(self, client):
         """
@@ -189,7 +191,7 @@ class DockerDaemon(MlemObject):
 
     :param host: adress of the docker daemon (empty string for local)"""
 
-    host: str  # TODO credentials
+    host: str  # TODO: https://github.com/iterative/mlem/issues/38 credentials
 
     @contextlib.contextmanager
     def client(self) -> Iterator[docker.DockerClient]:
@@ -281,7 +283,7 @@ class DockerDirPackager(Packager):
             path=out,
             docker_args=self.args,
             debug=True,
-        )  # todo fs
+        )  # todo: https://github.com/iterative/mlem/issues/38 fs
         dir.write_distribution()
 
 

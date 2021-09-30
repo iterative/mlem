@@ -16,13 +16,15 @@ def _get_dataset(dataset: Any) -> Any:
     if isinstance(dataset, str):
         return load(dataset)
     elif isinstance(dataset, DatasetMeta):
-        # TODO: fix discrepancies between model and data meta objects
+        # TODO: https://github.com/iterative/mlem/issues/29
+        #  fix discrepancies between model and data meta objects
         if not hasattr(dataset.dataset, "data"):
             dataset.load_value()
         return dataset.data
     else:
-        # TODO: should we check whether this dataset is parseable by MLEM?
-        # I guess not cause one may have a model with data input of unknown format/type
+        # TODO: https://github.com/iterative/mlem/issues/29
+        #  should we check whether this dataset is parseable by MLEM?
+        #  I guess not cause one may have a model with data input of unknown format/type
         return dataset
 
 
@@ -69,7 +71,8 @@ def apply(
         If `output=None`, returns results for given data.
             Otherwise returns None.
 
-    TODO: one may want to pass several objects instead of one as `data`
+    # TODO https://github.com/iterative/mlem/issues/25
+    # one may want to pass several objects instead of one as `data`
     We may do this by using `*data` or work with `data` being an iterable.
     """
     model = _get_model_meta(model)
@@ -159,11 +162,12 @@ def link(
     Returns:
         MlemLink: Link object to the `source`.
     """
-    # TODO: right now this only works when source and target are on local FS
+    # TODO: https://github.com/iterative/mlem/issues/12
+    # right now this only works when source and target are on local FS
     # (we don't even throw an NotImplementedError yet)
     # need to support other cases, like `source="github://..."`
     if repo is not None:
-        raise NotImplementedError()  # TODO
+        raise NotImplementedError()
     if isinstance(source, MlemMeta):
         if source.name is None:
             raise ValueError("Cannot link not saved meta object")

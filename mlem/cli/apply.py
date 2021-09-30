@@ -30,7 +30,7 @@ def apply(
 @click.argument("args", nargs=-1)
 def apply_remote(model: ModelMeta, output, method, args):
     click.echo("applying remote")
-    raise NotImplementedError()
+    raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/30
     # if meta.is_data:
     #     click.echo('nothing to do here')
     #     return
@@ -41,7 +41,7 @@ def apply_remote(model: ModelMeta, output, method, args):
     #
     # client = meta.deployment.get_client()
     #
-    # # method = meta.model.resolve_method(method) # TODO
+    # # method = meta.model.resolve_method(method)
     #
     # res = getattr(client, method)(load(args[0]))
     #

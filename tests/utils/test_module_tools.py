@@ -25,7 +25,7 @@ class Obj:
     pass
 
 
-# def test_analyze_module_imports(): #TODO
+# def test_analyze_module_imports(): #TODO: https://github.com/iterative/mlem/issues/44
 #     reqs = analyze_module_imports('tests.utils.test_module_tools')
 #     assert reqs == {get_module_repr(pytest)}
 
@@ -130,7 +130,9 @@ def test_is_local_module():
     assert not is_local_module(sys)
     assert not is_local_module(pickle)
     assert not is_local_module(requests)
-    # assert is_local_module(sys.modules[__name__]) TODO explore why it fails
+    # assert is_local_module(sys.modules[__name__])
+    # TODO: https://github.com/iterative/mlem/issues/44
+    #  explore why it fails
     assert not is_local_module(sys.modules["__future__"])
     assert not is_local_module(sys.modules[is_local_module.__module__])
 
@@ -155,7 +157,8 @@ def test_module_version():
     assert get_module_version(import_module("numpy")) is not None
     assert get_module_version(import_module("dill")) is not None
     # responses doesn't have __version__ attr, thus heuristics should be applied here
-    # assert get_module_version(import_module('responses')) is not None TODO
+    # assert get_module_version(import_module('responses')) is not None
+    # TODO: https://github.com/iterative/mlem/issues/44
 
 
 class Clazz:

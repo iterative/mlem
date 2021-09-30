@@ -30,6 +30,7 @@ class MlemConfig(BaseSettings):
         default="", env="MLEM_ADDITIONAL_EXTENSIONS"
     )
     AUTOLOAD_EXTS: bool = True
+    DEFAULT_BRANCH: str = "main"
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:

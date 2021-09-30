@@ -100,7 +100,7 @@ def test_deserialize__df(dtype_df, df_payload):
     assert ds.data.equals(df_payload)
 
 
-# def test_np__schema(dtype_np): TODO
+# def test_np__schema(dtype_np): TODO: https://github.com/iterative/mlem/issues/44
 #     schema = spec.type_to_schema(dtype_np)
 #
 #     assert schema == {'items': {'items': {'type': 'number'},
@@ -139,7 +139,8 @@ def test_model__predict_not_dataset(model):
 
 
 def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
-    expected_requirements = {"lightgbm"}  # , 'numpy'} todo methods
+    expected_requirements = {"lightgbm"}  # , 'numpy'}
+    # todo: https://github.com/iterative/mlem/issues/21 methods
     assert set(model.get_requirements().modules) == expected_requirements
 
     model.dump(local_fs, tmpdir)
