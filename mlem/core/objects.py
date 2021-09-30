@@ -1,3 +1,7 @@
+"""
+Base classes for meta objects in MLEM:
+MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
+"""
 import os
 import shutil
 from abc import ABC, abstractmethod

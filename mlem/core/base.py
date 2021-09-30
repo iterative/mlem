@@ -48,6 +48,11 @@ def load_impl_ext(
 
 
 class MlemObject(PolyModel):
+    """
+    Base class for all MLEM Python objects
+    which should be serialized and deserialized
+    """
+
     abs_name: ClassVar[str]
 
     @classmethod

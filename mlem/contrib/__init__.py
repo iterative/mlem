@@ -1,0 +1,3 @@
+"""
+Officially supported extensions
+"""

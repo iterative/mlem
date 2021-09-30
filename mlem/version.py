@@ -1,3 +1,6 @@
+"""
+Providing MLEM version under different circumstances
+"""
 # Used in setup.py, so don't pull any additional dependencies
 #
 # Based on:

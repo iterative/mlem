@@ -1,3 +1,7 @@
+"""
+Classes and functions to load and work with out-of-the-box included extensions
+as well with the custom ones
+"""
 import glob
 import importlib
 import os

@@ -1,3 +1,6 @@
+"""
+Base classes for working with datasets in MLEM
+"""
 import builtins
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -20,7 +23,7 @@ class DatasetType(ABC, MlemObject, WithRequirements):
     """
 
     __type_root__: ClassVar[bool] = True
-    abs_name: ClassVar = "dataset_type"
+    abs_name: ClassVar[str] = "dataset_type"
 
     @staticmethod
     def _check_type(obj, exp_type, exc_type):
@@ -214,7 +217,7 @@ class TupleLikeListDatasetType(_TupleLikeDatasetType):
     """
 
     actual_type: ClassVar = list
-    type: ClassVar = "tuple_like_list"
+    type: ClassVar[str] = "tuple_like_list"
 
 
 class TupleDatasetType(_TupleLikeDatasetType):
@@ -223,7 +226,7 @@ class TupleDatasetType(_TupleLikeDatasetType):
     """
 
     actual_type: ClassVar = tuple
-    type: ClassVar = "tuple"
+    type: ClassVar[str] = "tuple"
 
 
 class OrderedCollectionHookDelegator(DatasetHook):

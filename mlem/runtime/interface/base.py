@@ -25,7 +25,7 @@ class InterfaceDescriptor(BaseModel):
 
 class Interface(ABC, MlemObject):
     __type_root__: ClassVar[bool] = True
-    abs_name: ClassVar = "interface"
+    abs_name: ClassVar[str] = "interface"
 
     @abstractmethod
     def get_method_executor(self, method_name: str):

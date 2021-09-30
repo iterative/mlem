@@ -1,3 +1,6 @@
+"""
+MLEM's command-line interface
+"""
 from mlem.cli.apply import apply
 from mlem.cli.deploy import deploy
 from mlem.cli.env import environment

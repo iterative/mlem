@@ -1,3 +1,6 @@
+"""
+Base classes to work with ML models in MLEM
+"""
 import os
 import pickle
 from abc import ABC, abstractmethod

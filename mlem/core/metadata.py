@@ -1,3 +1,7 @@
+"""
+Functions to work with metadata: saving, loading,
+searching for MLEM object by given path.
+"""
 from typing import Any, Optional, Union
 
 from fsspec import AbstractFileSystem

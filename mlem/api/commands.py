@@ -1,3 +1,6 @@
+"""
+MLEM's Python API
+"""
 import os
 from typing import Any, Optional, Union
 

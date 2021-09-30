@@ -1,3 +1,6 @@
+"""
+Base classes to work with requirements which come with ML models and datasets
+"""
 import base64
 import glob
 import itertools

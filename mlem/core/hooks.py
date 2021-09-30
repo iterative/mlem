@@ -1,3 +1,9 @@
+"""
+Base classes for Hook and Analyzer.
+Hook identifies whether the object matches the hook and processes it.
+Analyzer keeps track of all imported hooks and applies them to the object
+    to find suitable one.
+"""
 import inspect
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, List, Tuple, Type, TypeVar
