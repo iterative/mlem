@@ -1,0 +1,39 @@
+name: Test
+on:
+  push:
+  pull_request:
+  schedule:
+  - cron: '0 9 * * 1'  # M H d m w (Mondays at 9:00)
+jobs:
+  run-pre-commit:
+    if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v2
+    - name: set PYSHA
+      run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+    - uses: actions/cache@v1
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
+    - run: pip install -U pre-commit tox
+    - run: pre-commit run -a --show-diff-on-failure
+  run-tests:
+    if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
+    name: Test py${{ matrix.python }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v2
+    - run: pip install -U tox
+    - run: tox
+      env:
+        GITHUB_USERNAME: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # - uses: codecov/codecov-action@v1

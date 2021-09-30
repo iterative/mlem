@@ -1,0 +1,12 @@
+FROM {{ base_image }}
+WORKDIR /app
+{% include "pre_install.j2" ignore missing %}
+{% if packages %}RUN {{ package_install_cmd }} {{ packages|join(" ")  }}{% endif %}
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+{{ mlem_install }}
+{% include "post_install.j2" ignore missing %}
+COPY . ./
+{% for name, value in env.items() %}ENV {{ name }}={{ value }}{% endfor %}
+{% include "post_copy.j2" ignore missing %}
+{% if run_cmd is not false %}CMD {{ run_cmd }}{% endif %}
