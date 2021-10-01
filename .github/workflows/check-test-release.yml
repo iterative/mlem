@@ -4,6 +4,7 @@ on:
   pull_request:
   schedule:
   - cron: '0 9 * * 1'  # M H d m w (Mondays at 9:00)
+  release:
 jobs:
   run-pre-commit:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
