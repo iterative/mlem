@@ -44,9 +44,9 @@ def test_meta_loading(model_path):
     "url",
     [
         "github://iterative:example-mlem@main/data/model",
-        "github://iterative:example-mlem/data/model/mlem.yaml",
+        "github://iterative:example-mlem@main/data/model/mlem.yaml",
         "github://iterative:example-mlem@main/.mlem/model/data/model.mlem.yaml",
-        "github://iterative:example-mlem/.mlem/model/latest.mlem.yaml",
+        "github://iterative:example-mlem@main/.mlem/model/latest.mlem.yaml",
     ],
 )
 def test_model_loading_from_github_with_fsspec(url):
