@@ -116,7 +116,7 @@ setup_args = dict(  # noqa: C408
     ).read(),
     author="Mikhail Sveshnikov",
     author_email="mike0sv@iterative.ai",
-    download_url="https://github.com/iterative/mlem-prototype",
+    download_url="https://github.com/iterative/mlem",
     license="Apache License 2.0",
     install_requires=install_requires,
     extras_require={
