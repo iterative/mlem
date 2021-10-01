@@ -9,7 +9,7 @@ from tests.conftest import resource_path
     [
         (resource_path(__file__, "file.txt"), "a"),
         (
-            "github://iterative:mlem@main/README.md",
+            "github://iterative:example-mlem@main/README.md",
             "#",
         ),
     ],
