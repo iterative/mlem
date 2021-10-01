@@ -230,7 +230,7 @@ class MlemLink(MlemMeta):
         check_extension: bool = True,
         absolute: bool = False,
     ):
-        # TODO: use `fs` everywhere instead of `os`?
+        # TODO: use `fs` everywhere instead of `os`? https://github.com/iterative/mlem/issues/26
         fs = resolve_fs(fs)
         if mlem_root:
             mlem_root = find_mlem_root(mlem_root, fs=fs)
@@ -245,7 +245,8 @@ class MlemLink(MlemMeta):
                 obj_type=self.link_type,
                 mlem_root=mlem_root,
             )
-        # TODO: maybe this should be done on serialisation step?
+        # TODO: maybe this should be done on serialization step?
+        # https://github.com/iterative/mlem/issues/48
         if not absolute:
             try:
                 mlem_root_for_path = find_mlem_root(path)
@@ -322,6 +323,7 @@ class _ExternalMeta(ABC, MlemMeta):
         :return: New meta file
         """
         if how != "hard":
+            # TODO: https://github.com/iterative/mlem/issues/37
             raise NotImplementedError()
         new: _ExternalMeta = deserialize(
             serialize(self, MlemMeta), _ExternalMeta
@@ -332,7 +334,7 @@ class _ExternalMeta(ABC, MlemMeta):
         new.name = path
         if isinstance(
             self.fs, GithubFileSystem
-        ):  # fixme move to actual git fs
+        ):  # fixme: https://github.com/iterative/mlem/issues/37 move to actual git fs
             get_with_dvc(self.fs, self.name, path)
         else:  # old impl, does not support dvc tracked files
             os.makedirs(new.art_dir, exist_ok=True)
@@ -341,13 +343,14 @@ class _ExternalMeta(ABC, MlemMeta):
         new.artifacts = [
             os.path.relpath(os.path.join(new.art_dir, f), root)
             for f in os.listdir(new.art_dir)
-        ]  # todo #blobs_from_path(new.art_dir).blobs
+        ]  # TODO: https://github.com/iterative/mlem/issues/37
+        #     blobs_from_path(new.art_dir).blobs
         super(_ExternalMeta, new).dump(
             name,
             link=link,
             mlem_root=new.name if link else None,
             check_extension=False,
-        )  # only dump meta TODO
+        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
 
@@ -366,26 +369,15 @@ class ModelMeta(_ExternalMeta):
         if self.model.model is not None:
             artifacts = self.model.io.dump(self.fs, path, self.model.model)
         else:
-            raise NotImplementedError()  # todo
+            raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
             # self.get_artifacts().materialize(path)
         return artifacts
 
     def load_value(self):
         self.model.load(self.fs, self.art_dir)
-        # with tempfile.TemporaryDirectory(prefix='mlem_mount_') as path:
-        #     # todo temporary workaround. we need to integrate fsspec into ModelIO
-        #     if isinstance(self.fs, GithubFileSystem):
-        #         get_with_dvc(self.fs, self.art_dir, path)
-        #     else:
-        #         self.fs.get(self.art_dir, path, recursive=True)
-        #     self.model.model.load(path)
 
     def get_value(self):
         return self.model.model
-
-    # def get_artifacts(self) -> ArtifactCollection:
-    #     self.ensure_saved()
-    #     return blobs_from_path(self.art_dir, self.fs)
 
 
 class DatasetMeta(_ExternalMeta):
@@ -416,7 +408,7 @@ class DatasetMeta(_ExternalMeta):
             )
             self.reader = reader
         else:
-            raise NotImplementedError()  # todo
+            raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
             # artifacts = self.get_artifacts()
         return artifacts
 
@@ -459,13 +451,13 @@ class DeployMeta(MlemMeta):
     model_path: str
     deployment: Deployment
 
-    @property  # todo cached
+    @property  # TODO cached
     def env(self):
-        return TargetEnvMeta.read(self.env_path)
+        return TargetEnvMeta.read(self.env_path, self.fs)
 
-    @property  # todo cached
+    @property  # TODO cached
     def model(self):
-        return ModelMeta.read(self.model_path)
+        return ModelMeta.read(self.model_path, self.fs)
 
     @classmethod
     def find(

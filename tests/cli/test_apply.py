@@ -36,4 +36,5 @@ def test_apply_fails_without_mlem_dir(model_path, data_path):
             [model_path, data_path, "-m", "predict", "-o", dir, "--link"],
         )
         assert result.exit_code == 1, (result.output, result.exception)
-        # TODO: add specific check for Exception/text in Exception
+        # TODO: https://github.com/iterative/mlem/issues/44
+        #  add specific check for Exception/text in Exception

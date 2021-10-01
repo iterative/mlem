@@ -73,7 +73,7 @@ class CatBoostModel(ModelType, ModelHook, LibRequirementsMixin):
                 name="predict",
                 args=[
                     Argument(key="data", type=UnspecifiedDatasetType())
-                ],  # TODO args
+                ],  # TODO: https://github.com/iterative/mlem/issues/21
                 returns=UnspecifiedDatasetType(),
             )
         }
@@ -81,7 +81,7 @@ class CatBoostModel(ModelType, ModelHook, LibRequirementsMixin):
             methods["predict_proba"] = Signature(
                 name="predict_proba",
                 args=[Argument(key="data", type=UnspecifiedDatasetType())],
-                # TODO args
+                # TODO: https://github.com/iterative/mlem/issues/21
                 returns=UnspecifiedDatasetType(),
             )
         return CatBoostModel(model=obj, methods=methods)
