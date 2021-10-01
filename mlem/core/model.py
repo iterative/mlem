@@ -79,7 +79,7 @@ class ModelType(ABC, MlemObject, WithRequirements):
     io: ModelIO
     methods: Dict[
         str, Signature
-    ]  # todo: https://github.com/iterative/mlem/issues/21
+    ]  # TODO: https://github.com/iterative/mlem/issues/21
 
     def load(self, fs: AbstractFileSystem, path: str):
         self.model = self.io.load(fs, path)

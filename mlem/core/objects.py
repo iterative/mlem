@@ -230,7 +230,7 @@ class MlemLink(MlemMeta):
         check_extension: bool = True,
         absolute: bool = False,
     ):
-        # TODO: use `fs` everywhere instead of `os`?
+        # TODO: use `fs` everywhere instead of `os`? https://github.com/iterative/mlem/issues/26
         fs = resolve_fs(fs)
         if mlem_root:
             mlem_root = find_mlem_root(mlem_root, fs=fs)
@@ -246,6 +246,7 @@ class MlemLink(MlemMeta):
                 mlem_root=mlem_root,
             )
         # TODO: maybe this should be done on serialization step?
+        # https://github.com/iterative/mlem/issues/48
         if not absolute:
             try:
                 mlem_root_for_path = find_mlem_root(path)
@@ -342,7 +343,7 @@ class _ExternalMeta(ABC, MlemMeta):
         new.artifacts = [
             os.path.relpath(os.path.join(new.art_dir, f), root)
             for f in os.listdir(new.art_dir)
-        ]  # todo: https://github.com/iterative/mlem/issues/37
+        ]  # TODO: https://github.com/iterative/mlem/issues/37
         #     blobs_from_path(new.art_dir).blobs
         super(_ExternalMeta, new).dump(
             name,
@@ -368,7 +369,7 @@ class ModelMeta(_ExternalMeta):
         if self.model.model is not None:
             artifacts = self.model.io.dump(self.fs, path, self.model.model)
         else:
-            raise NotImplementedError()  # todo: https://github.com/iterative/mlem/issues/37
+            raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
             # self.get_artifacts().materialize(path)
         return artifacts
 
@@ -407,7 +408,7 @@ class DatasetMeta(_ExternalMeta):
             )
             self.reader = reader
         else:
-            raise NotImplementedError()  # todo: https://github.com/iterative/mlem/issues/37
+            raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
             # artifacts = self.get_artifacts()
         return artifacts
 
@@ -450,11 +451,11 @@ class DeployMeta(MlemMeta):
     model_path: str
     deployment: Deployment
 
-    @property  # todo cached
+    @property  # TODO cached
     def env(self):
         return TargetEnvMeta.read(self.env_path, self.fs)
 
-    @property  # todo cached
+    @property  # TODO cached
     def model(self):
         return ModelMeta.read(self.model_path, self.fs)
 

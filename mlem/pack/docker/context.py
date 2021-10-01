@@ -70,12 +70,12 @@ class DockerModelDirectory(BaseModel):
         AbstractFileSystem
     ] = (
         LocalFileSystem()
-    )  # todo: https://github.com/iterative/mlem/issues/38 fs
+    )  # TODO: https://github.com/iterative/mlem/issues/38 fs
 
     def get_requirements(self) -> Requirements:
         return (
             self.model.requirements + self.server.get_requirements()
-        )  # todo: tmp
+        )  # TODO: tmp
 
     def get_env_vars(self) -> Dict[str, str]:
         """Get env variables for image"""

@@ -48,7 +48,7 @@ class build_py(_build_py):
 install_requires = [
     "dill",
     "requests",
-    "isort==4.3.21",  # todo: https://github.com/iterative/mlem/issues/45 version
+    "isort==4.3.21",  # TODO: https://github.com/iterative/mlem/issues/45 version
     "docker",
     "pydantic<2",
     "click<9",

@@ -22,6 +22,7 @@ ART_DIR = "artifacts"
 def get_git_kwargs(uri: str):
     """Parse URI to git repo to get dict with all URI parts"""
     # TODO: do we lose URL to the site, like https://github.com?
+    # should be resolved as part of https://github.com/iterative/mlem/issues/4
     parsed = urlparse(uri)
     parts = pathlib.Path(parsed.path).parts
     org, repo, *path = parts[1:]
@@ -48,6 +49,7 @@ def resolve_fs(
 ):
     """Try to resolve fs from given fs or URI"""
     # TODO: do we really need this function?
+    # address in https://github.com/iterative/mlem/issues/4
     if fs is None:
         return LocalFileSystem()
     elif isinstance(fs, AbstractFileSystem):

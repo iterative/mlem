@@ -283,7 +283,7 @@ class DockerDirPackager(Packager):
             path=out,
             docker_args=self.args,
             debug=True,
-        )  # todo: https://github.com/iterative/mlem/issues/38 fs
+        )  # TODO: https://github.com/iterative/mlem/issues/38 fs
         dir.write_distribution()
 
 

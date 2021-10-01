@@ -153,7 +153,7 @@ class SeriesType(_PandasDatasetType, DatasetHook):
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return False  # isinstance(obj, pd.Series) todo https://github.com/iterative/mlem/issues/32
+        return False  # isinstance(obj, pd.Series) TODO https://github.com/iterative/mlem/issues/32
 
     def deserialize(self, obj):
         return pd.Series(obj)

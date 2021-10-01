@@ -107,7 +107,7 @@ class PrimitiveType(DatasetType, DatasetHook):
         return instance
 
     def get_writer(self):
-        raise NotImplementedError()  # todo: https://github.com/iterative/mlem/issues/35
+        raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
 
     def get_requirements(self) -> Requirements:
         return super().get_requirements()
@@ -190,7 +190,7 @@ class _TupleLikeDatasetType(DatasetType):
         return self.actual_type(
             t.serialize(o)
             for t, o in zip(self.items, instance)  # type: ignore
-            # todo: https://github.com/iterative/mlem/issues/33 inspect non-iterable sized
+            # TODO: https://github.com/iterative/mlem/issues/33 inspect non-iterable sized
         )
 
     def get_requirements(self) -> Requirements:

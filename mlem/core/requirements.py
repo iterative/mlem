@@ -113,6 +113,7 @@ class InstallableRequirement(PythonRequirement):
             ">=",
             "<=",
         ]:  # TODO for now we interpret everything as exact version
+            # https://github.com/iterative/mlem/issues/49
             if rel in name:
                 package, version = name.split(rel)
                 return InstallableRequirement(module=package, version=version)
@@ -355,7 +356,7 @@ class Requirements(BaseModel):
                         break
                 else:
                     self.__root__.append(requirement)
-        else:  # TODO better checks here
+        else:  # TODO better checks here https://github.com/iterative/mlem/issues/49
             if requirement not in self.__root__:
                 self.__root__.append(requirement)
 
