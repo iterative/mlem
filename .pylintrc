@@ -3,7 +3,7 @@
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code.
-extension-pkg-allow-list=
+extension-pkg-allow-list=pydantic,pytest-lazy-fixture,pytest
 
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
@@ -154,7 +154,19 @@ disable=print-statement,
         exception-escape,
         comprehension-escape,
         # all above are defaults; below is what was added manually
-        missing-module-docstring
+        fixme,
+        missing-module-docstring, # TODO: https://github.com/iterative/mlem/pull/36
+        missing-function-docstring, # TODO: https://github.com/iterative/mlem/pull/36
+        missing-class-docstring, # TODO: https://github.com/iterative/mlem/pull/36
+        bad-continuation, # TODO: https://github.com/iterative/mlem/pull/36 possible conflict with black
+        line-too-long, # TODO: https://github.com/iterative/mlem/pull/36
+        no-name-in-module, # TODO: https://github.com/iterative/mlem/pull/36 looks like dependency problem
+        too-many-arguments,
+        too-few-public-methods,
+        invalid-name,
+        redefined-outer-name,
+        redefined-builtin, # TODO: https://github.com/iterative/mlem/pull/36
+        import-outside-toplevel,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
