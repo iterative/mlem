@@ -1,4 +1,4 @@
-name: Test
+name: Check, test and release
 on:
   push:
   pull_request:
@@ -37,3 +37,18 @@ jobs:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
     # - uses: codecov/codecov-action@v1
+  deploy:
+    name: PyPI Deploy
+    needs: [run-pre-commit, run-tests]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v2
+    - id: dist
+      uses: casperdcl/deploy-pypi@v2
+      with:
+        build: true
+        password: ${{ secrets.PYPI_TOKEN }}
+        upload: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags') }}
