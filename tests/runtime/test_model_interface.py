@@ -37,7 +37,8 @@ def pd_model(data, prediction):
 
 def test_interface_types(pd_model: ModelMeta, data, prediction):
     interface = ModelInterface.from_model(pd_model)
-    # assert interface.exposed_method_docs('predict') == pd_model.description # TODO?
+    # assert interface.exposed_method_docs('predict') == pd_model.description
+    # TODO: https://github.com/iterative/mlem/issues/43
     pred = interface.execute("predict", {"X": data})
     assert (pred == prediction).all()
 

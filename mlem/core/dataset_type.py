@@ -42,7 +42,7 @@ class DatasetType(ABC, MlemObject, WithRequirements):
 
     @abstractmethod
     def get_requirements(self) -> Requirements:
-        """"""  # TODO docs
+        """"""  # TODO: https://github.com/iterative/mlem/issues/16 docs
         return get_object_requirements(self)
 
     @abstractmethod
@@ -110,7 +110,7 @@ class PrimitiveType(DatasetType, DatasetHook):
         return instance
 
     def get_writer(self):
-        raise NotImplementedError()  # todo
+        raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
 
     def get_requirements(self) -> Requirements:
         return super().get_requirements()
@@ -191,7 +191,9 @@ class _TupleLikeDatasetType(DatasetType):
             instance, self.actual_type, len(self.items), SerializationError
         )
         return self.actual_type(
-            t.serialize(o) for t, o in zip(self.items, instance)  # type: ignore # todo inspect non-iterable sized
+            t.serialize(o)
+            for t, o in zip(self.items, instance)  # type: ignore
+            # TODO: https://github.com/iterative/mlem/issues/33 inspect non-iterable sized
         )
 
     def get_requirements(self) -> Requirements:

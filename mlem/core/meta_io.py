@@ -24,7 +24,8 @@ ART_DIR = "artifacts"
 
 def get_git_kwargs(uri: str):
     """Parse URI to git repo to get dict with all URI parts"""
-    # TODO: do we loose URL to the site, like https://github.com?
+    # TODO: do we lose URL to the site, like https://github.com?
+    # should be resolved as part of https://github.com/iterative/mlem/issues/4
     parsed = urlparse(uri)
     parts = pathlib.Path(parsed.path).parts
     org, repo, *path = parts[1:]
@@ -37,7 +38,7 @@ def get_git_kwargs(uri: str):
         sha = path[1]
         path = path[2:]
     else:
-        sha = "main"  # todo master?
+        sha = CONFIG.DEFAULT_BRANCH
     return {
         "org": org,
         "repo": repo,
@@ -51,6 +52,7 @@ def resolve_fs(
 ):
     """Try to resolve fs from given fs or URI"""
     # TODO: do we really need this function?
+    # address in https://github.com/iterative/mlem/issues/4
     if fs is None:
         return LocalFileSystem()
     elif isinstance(fs, AbstractFileSystem):
@@ -61,7 +63,6 @@ def resolve_fs(
 
 def get_envs() -> Dict:
     """Get authentification envs"""
-    # TODO: refactor
     kwargs = {}
     if CONFIG.GITHUB_TOKEN is not None:
         kwargs["username"] = CONFIG.GITHUB_USERNAME
@@ -76,7 +77,6 @@ def get_fs(uri: str, protocol: str = None) -> Tuple[AbstractFileSystem, str]:
     #     protocol = "github"
     #     uri, git_kwargs = _get_git_kwargs(uri)
     #     kwargs.update(git_kwargs)
-    # TODO: better work with env vars
     kwargs = get_envs()
     fs, _, (path,) = get_fs_token_paths(
         uri, protocol=protocol, storage_options=kwargs

@@ -30,7 +30,7 @@ def test_catboost_model(catboost_model, pandas_data, tmpdir, request):
     cbmw = ModelAnalyzer.analyze(catboost_model, test_data=pandas_data)
     expected_requirements = {
         "catboost",
-    }  # 'pandas', 'numpy'} # TODO when better catboost methods
+    }  # 'pandas', 'numpy'} # TODO: https://github.com/iterative/mlem/issues/21 methods
     assert set(cbmw.get_requirements().modules) == expected_requirements
     assert cbmw.model is catboost_model
 

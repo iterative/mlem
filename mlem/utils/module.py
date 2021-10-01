@@ -426,7 +426,8 @@ def add_closure_inspection(f):
                     f"Detected local import in {obj.__module__}.{obj.__name__}"
                 )
                 if node.level == 0:
-                    mod = importing.import_module(node.module)  # type: ignore # TODO
+                    # TODO: https://github.com/iterative/mlem/issues/33
+                    mod = importing.import_module(node.module)  # type: ignore
                 else:
                     mod = importing.import_module(
                         "." + node.module, get_object_module(obj).__package__  # type: ignore
@@ -459,7 +460,7 @@ class RequirementAnalyzer(dill.Pickler):
     ignoring = (
         "dill",
         "mlem",
-        "pydantic",  # todo?
+        "pydantic",
         "tests",  # pytest scans all test modules and all their imports are treated as requirements
     )
     dispatch = dill.Pickler.dispatch.copy()
@@ -481,9 +482,7 @@ class RequirementAnalyzer(dill.Pickler):
     dispatch[ModelMetaclass] = save_type_with_classvars
 
     def __init__(self, *args, **kwargs):
-        super().__init__(
-            io.BytesIO(), *args, **kwargs
-        )  # TODO maybe patch memo and other stuff too
+        super().__init__(io.BytesIO(), *args, **kwargs)
         self.framer.write = self.skip_write
         self.write = self.skip_write
         self.memoize = self.skip_write

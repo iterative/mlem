@@ -43,10 +43,10 @@ def test_meta_loading(model_path):
 @pytest.mark.parametrize(
     "url",
     [
-        "github://iterative:mlem-prototype@committed-data/examples/dvc-pipeline/data/model",
-        "github://iterative:mlem-prototype@committed-data/examples/dvc-pipeline/data/model/mlem.yaml",
-        "github://iterative:mlem-prototype@committed-data/examples/dvc-pipeline/.mlem/model/data/model.mlem.yaml",
-        "github://iterative:mlem-prototype@committed-data/examples/dvc-pipeline/.mlem/model/latest.mlem.yaml",
+        "github://iterative:example-mlem@main/data/model",
+        "github://iterative:example-mlem@main/data/model/mlem.yaml",
+        "github://iterative:example-mlem@main/.mlem/model/data/model.mlem.yaml",
+        "github://iterative:example-mlem@main/.mlem/model/latest.mlem.yaml",
     ],
 )
 def test_model_loading_from_github_with_fsspec(url):
@@ -60,18 +60,18 @@ def test_model_loading_from_github_with_fsspec(url):
 @pytest.mark.parametrize(
     "path",
     [
-        "examples/dvc-pipeline/data/model",
-        "examples/dvc-pipeline/data/model/mlem.yaml",
-        "examples/dvc-pipeline/.mlem/model/data/model.mlem.yaml",
-        "examples/dvc-pipeline/.mlem/model/latest.mlem.yaml",
+        "data/model",
+        "data/model/mlem.yaml",
+        ".mlem/model/data/model.mlem.yaml",
+        ".mlem/model/latest.mlem.yaml",
     ],
 )
 def test_model_loading_from_github(path):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(
         path,
-        repo="https://github.com/iterative/mlem-prototype",
-        rev="committed-data",
+        repo="https://github.com/iterative/example-mlem",
+        rev="main",
     )
     X, y = load_iris(return_X_y=True)
     model.predict(X)
@@ -80,7 +80,7 @@ def test_model_loading_from_github(path):
 def test_load_link_with_fsspec_path():
     link_contents = {
         "link_type": "model",
-        "mlem_link": "github://iterative:mlem-prototype@committed-data/examples/dvc-pipeline/data/model/mlem.yaml",
+        "mlem_link": "github://iterative:example-mlem@main/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:

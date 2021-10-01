@@ -122,7 +122,8 @@ def test_model__predict_not_dmatrix(model):
 
 
 def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
-    expected_requirements = {"xgboost"}  # , 'numpy'} todo methods
+    expected_requirements = {"xgboost"}  # , 'numpy'}
+    # TODO: https://github.com/iterative/mlem/issues/21 methods
     assert set(model.get_requirements().modules) == expected_requirements
 
     model.dump(local_fs, tmpdir)

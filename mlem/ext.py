@@ -127,17 +127,20 @@ class ExtensionLoader:
         existing = [
             h
             for h in sys.meta_path
-            if isinstance(h, _ImportLoadExtInterceptor)  # type: ignore # TODO
+            if isinstance(h, _ImportLoadExtInterceptor)  # type: ignore
+            # TODO: https://github.com/iterative/mlem/issues/33
         ]
         if len(existing) == 1:
             hook = existing[0]
-            hook.module_to_extension.update(  # type: ignore # TODO
+            hook.module_to_extension.update(  # type: ignore
+                # TODO: https://github.com/iterative/mlem/issues/33
                 {req: e for e in extensions for req in e.reqs}
             )
         elif len(existing) > 1:
             raise ValueError("Multiple import hooks, that is impossible")
         else:
-            hook = _ImportLoadExtInterceptor(  # type: ignore # TODO
+            hook = _ImportLoadExtInterceptor(  # type: ignore
+                # TODO: https://github.com/iterative/mlem/issues/33
                 module_to_extension={
                     req: e for e in extensions for req in e.reqs
                 }

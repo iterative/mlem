@@ -120,7 +120,7 @@ class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
             index_cols=index_cols,
         )
 
-    @property  # TODO cached property
+    @property
     def actual_dtypes(self):
         """List of pandas dtypes for columns"""
         return [pd_type_from_string(s) for s in self.dtypes]
@@ -153,7 +153,7 @@ class SeriesType(_PandasDatasetType, DatasetHook):
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return False  # isinstance(obj, pd.Series) todo
+        return False  # isinstance(obj, pd.Series) TODO https://github.com/iterative/mlem/issues/32
 
     def deserialize(self, obj):
         return pd.Series(obj)
@@ -208,7 +208,8 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         return isinstance(obj, pd.DataFrame)
 
     def get_model(self) -> Type[BaseModel]:
-        return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore # TODO
+        # TODO: https://github.com/iterative/mlem/issues/33
+        return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
     def deserialize(self, obj):
         self._check_type(obj, dict, DeserializationError)

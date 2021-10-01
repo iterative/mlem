@@ -25,9 +25,7 @@ class ModelIO(MlemObject):
     abs_name: ClassVar = "model_io"
 
     @abstractmethod
-    def dump(
-        self, fs: AbstractFileSystem, path, model
-    ) -> Artifacts:  # todo type
+    def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
         """ """
         raise NotImplementedError()
 
@@ -82,7 +80,9 @@ class ModelType(ABC, MlemObject, WithRequirements):
     model: Any = None
 
     io: ModelIO
-    methods: Dict[str, Signature]  # todo ????
+    methods: Dict[
+        str, Signature
+    ]  # TODO: https://github.com/iterative/mlem/issues/21
 
     def load(self, fs: AbstractFileSystem, path: str):
         self.model = self.io.load(fs, path)
@@ -133,10 +133,6 @@ class ModelType(ABC, MlemObject, WithRequirements):
         self._check_method(method_name)
         return method_name
 
-    #
-    # @abstractmethod
-    # def get_writer(self):
-    #     """"""  # TODO docs
     def unbind(self):
         self.model = None
         return self

@@ -17,7 +17,7 @@ def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
     """Convert given object to appropriate MlemMeta subclass"""
     try:
         return DatasetMeta.from_data(obj)
-    except ValueError:  # todo need separate analysis exception
+    except ValueError:  # TODO need separate analysis exception
         return ModelMeta.from_obj(obj, test_data=tmp_sample_data)
 
 
@@ -48,7 +48,7 @@ def save(
     meta = get_object_metadata(obj, tmp_sample_data)
     meta.dump(path, fs=fs, link=link)
     if dvc:
-        """TODO dvc add ./%name%"""
+        # TODO dvc add ./%name% https://github.com/iterative/mlem/issues/47
         raise NotImplementedError()
     return meta
 
@@ -127,7 +127,7 @@ def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
     Returns:
         str: Path to located object
 
-    TODO
+    TODO https://github.com/iterative/mlem/issues/4
     We should do all the following types of addressing to object
     * data/model # by original binary (good for autocomplition)
     * .mlem/models/data/model.mlem.yaml # by path to metafile in mlem
@@ -142,7 +142,7 @@ def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
     except FileNotFoundError:
         # now search for objects in .mlem
         # TODO: exceptions thrown here doesn't explain that
-        # direct search by path was also failed. Need to clarify
+        #  direct search by path was also failed. Need to clarify
         mlem_root = find_mlem_root(path=path, fs=fs)
         _, path = find_object(path, fs=fs, mlem_root=mlem_root)
 

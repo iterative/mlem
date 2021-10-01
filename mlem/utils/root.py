@@ -25,9 +25,10 @@ def find_mlem_root(
     while True:
         if fs.exists(os.path.join(_path, MLEM_DIR)):
             return _path
-        _path = os.path.dirname(_path)
-        if _path in ("/", "", None, "."):
+        if _path == os.path.dirname(_path):
             break
+        else:
+            _path = os.path.dirname(_path)
     if raise_on_missing:
         raise MlemRootNotFound(path, fs)
     return None

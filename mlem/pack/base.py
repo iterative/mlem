@@ -9,7 +9,7 @@ from mlem.core.objects import ModelMeta
 
 class EnvDescriptor(MlemObject, ABC):
     __type_root__ = True
-    abs_name: ClassVar = "env_descriptor"
+    abs_name: ClassVar[str] = "env_descriptor"
 
     @abstractmethod
     def write_files(self, path: str, fs: AbstractFileSystem):
@@ -21,10 +21,10 @@ class EnvDescriptor(MlemObject, ABC):
 
 class Packager(MlemObject):
     __type_root__: ClassVar[bool] = True
-    abs_name: ClassVar = "packager"
+    abs_name: ClassVar[str] = "packager"
 
     @abstractmethod
     def package(
         self, obj: ModelMeta, out: str
-    ):  # todo maybe we can also pack datsets?
+    ):  # TODO maybe we can also pack datasets?
         raise NotImplementedError()
