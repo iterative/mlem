@@ -34,6 +34,7 @@ jobs:
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
+    # legacy-resolver makes install faster by order of magnitude
     - run: pip install -U .[tests] --use-deprecated=legacy-resolver
     - run: pytest
       env:
