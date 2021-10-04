@@ -34,7 +34,7 @@ jobs:
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
-    - run: pip install -U .[tests]
+    - run: pip install -U .[tests] --use-feature=fast-deps
     - run: pytest
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
