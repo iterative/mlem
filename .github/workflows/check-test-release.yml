@@ -4,7 +4,6 @@ on:
   pull_request:
   schedule:
   - cron: '0 9 * * 1'  # M H d m w (Mondays at 9:00)
-  release:
 jobs:
   run-pre-commit:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
@@ -27,13 +26,17 @@ jobs:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
     name: Test py${{ matrix.python }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.6, 3.7, 3.8, 3.9]
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
-    - run: pip install -U tox
-    - run: tox
+    # legacy-resolver makes install faster by order of magnitude
+    - run: pip install -U .[tests] --use-deprecated=legacy-resolver
+    - run: pytest
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
