@@ -1,64 +1,41 @@
-# mlem-prototype
-Project to share code ideas and concepts, track tasks and issues for upcoming MLEM tool
+MLEM is in early alpha. Thank you for trying it out! 👋
 
-## Examples
-[DVC Pipeline with mlem](examples/dvc-pipeline/README.md)
+Alpha include model registry functionality, and upcoming beta will add model deployment functionality.
 
-## Current state
-Implemented mlem cli & api
+## What is MLEM 🐶
 
-### API
-#### mlem.api.save
-Saves object to fs in format of `<name>.mlem` file and `<name>` dir with artifacts. .mlem file contains all metadata needed to restore objects and some other fields, like requirements for models or columns and types for data frames
-#### mlem.api.load
-Loads object which was saved with `mlem.api.save`
-### CLI
-#### mlem apply
-Usage: `mlem apply -m <method name> <model> <output> <inputs>`
-Loads model and input data, applies `model.method` to it and saves result to output path in mlem format.
+MLEM is a tool to help you version and deploy your Machine Learning models. At the top level, MLEM consists of two parts:
 
-#### mlem deploy
-##### mlem deploy `<model>` heroku
-Deploys model to heroku. Needs HEROKU_API_KEY env (get it from heroku.com) and
-and also this
+1. Model registry part:
+    1. Storing model along with information required to use it: environment, methods, input data schema.
+    2. Turning your Git repo into a model registry.
+2. Deployment part:
+    1. Packing a model to use in any **serving scenario. 
+    2. Provider-agnostic deployment.
+
+Speaking generally, the goal of MLEM is to enable easy and error-safe way to transition ML model from training to serving **environment.
+
+## Key features
+
+- **MLEM is not intrusive.** It doesn't ask you to rewrite your training code. Just add two lines to your python script: one to import the library and one to save the model.
+- **MLEM turns your Git repository into an easy-to-use model registry.** Have a centralized place to store your models along with all metainformation. You don't need to set up a separate backend server to use it as a model registry.
+- **Stick to your workflow.** Use Gitflow or any other Git workflow you like. Because MLEM models are saved as mere artifacts, treat them as any other artifact your produce. Commit metainformation to your repo and store model binaries in any other way you usually do.
+- Use your model whatever your like:
+    - **Turn your model to a python package** with one command. You find that helpful if you use your model embedded in some other Python application.
+    - **Use your model for batch scoring.** You can use MLEM CLI to get predictions for a data file or folder with files. The docker container you build will be capable of this by default.
+    - **Turn your model to a REST API application** with Dockerfile prepared with one command. If you like, treat it as a separate git repo or build a Docker container from a model directly.
+    - **Deploy your model. MLEM is a provider-agnostic deployment tool.** You don't have to learn new providers when you deploy models to a different cloud or PaaS. MLEM abstracts that for you and simplifies the model deployment tasks. If your provider is not listed yet, you can write a simple plugin to work with MLEM or upvote the issue for creating one.
+
+## Installation
+
+Install MLEM with pip:
+
+```bash
+% pip install mlem
 ```
-REGISTRY_HEROKU_COM_PASSWORD=${HEROKU_API_KEY}
-REGISTRY_HEROKU_COM_USERNAME=_
+
+To install the development version, run:
+
+```bash
+% pip install git+git://github.com/iterative/mlem
 ```
-Deployment metadata is written to .mlem model file (subject to change in future)
-
-##### mlem deploy `<model>` sagemaker --method predict
-Deploys model to sagemaker. Need to set aws envs:
-```
-export AWS_ACCESS_KEY_ID=
-export AWS_SECRET_ACCESS_KEY=
-export AWS_DEFAULT_REGION=us-east-1
-```
-
-##### mlem deploy `<model>` status
-Checks status of deployment. For now there is no conventions what it will return
-
-##### mlem deploy `<model>` destroy
-Undeploy deployed model. Deployment meta is removed from .mlem file
-
-#### mlem apply-remote
-Same as `mlem apply`, but actually sends data to deployed model
-
-#### mlem pack `<model>` `<path>`
-Generate model package to `<path>`
-
-
-### API2
-#### mlem env create `<name>` `<type>`
-creates new target environment
-type is one of `[sagemaker, heroku]`
-
-#### mlem deploy2 `<model>` `<env_name>`
-deploys model to chosen taget env
-deploy metadata is saved to `<model>-<env_name>.deployed.yaml`
-
-#### mlem destory2 `<deploy-name>`
-destroy deploy described in some `<model>-<env_name>.deployed.yaml` file
-
-#### mlem status2 `<deploy-name>`
-get deployment status
