@@ -10,10 +10,10 @@ MLEM is a tool to help you version and deploy your Machine Learning models. At t
     1. Storing model along with information required to use it: environment, methods, input data schema.
     2. Turning your Git repo into a model registry.
 2. Deployment part:
-    1. Packing a model to use in any **serving scenario. 
+    1. Packing a model to use in any serving scenario.
     2. Provider-agnostic deployment.
 
-Speaking generally, the goal of MLEM is to enable easy and error-safe way to transition ML model from training to serving **environment.
+Speaking generally, the goal of MLEM is to enable easy and error-safe way to transition ML model from training to serving environment.
 
 ## Key features
 
