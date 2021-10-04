@@ -50,7 +50,7 @@ TYPE_ALIASES = {
 @cli.command()
 @click.argument("type", default="all")
 def ls(type: str):
-    """List MLEM objects in current mlem_root."""
+    """List MLEM objects of {type} in current mlem_root."""
     if type == "all":
         for tp in MlemMeta.subtype_mapping():
             _print_objects_of_type(tp)
@@ -62,7 +62,12 @@ def ls(type: str):
 @cli.command("pprint")
 @click.argument("obj")
 @click.option(
-    "-f", "--follow-links", default=False, type=click.BOOL, is_flag=True
+    "-f",
+    "--follow-links",
+    default=False,
+    type=click.BOOL,
+    is_flag=True,
+    help="If specified, follow the link to the actual object.",
 )
 def pretty_print(obj: str, follow_links: bool):
     """Print __str__ for the specified MLEM object."""

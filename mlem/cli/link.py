@@ -9,20 +9,39 @@ from mlem.core.meta_io import MLEM_DIR
 
 @cli.command("link")
 @click.argument("source")
-@click.option("--repo", default=None)
-@click.option("--rev", default=None)
+@click.option(
+    "--repo", default=None, help="Repo in which {source} can be found."
+)
+@click.option("--rev", default=None, help="Repo revision to use.")
 @click.argument("target")
-@click.option("--mlem-root", default=None)
+@click.option(
+    "--mlem-root",
+    default=None,
+    help="Save link to mlem dir found in {mlem_root} path.",
+)
 @click.option(
     "--no-mlem-root",
     "-o",
     default=False,
     is_flag=True,
-    help=f"Save link not in {MLEM_DIR}, but as a plain file",
+    help=f"Save link not in {MLEM_DIR}, but as a plain file.",
 )
-@click.option("--follow-links/--no-follow-links", default=True)
-@click.option("--check-extension/--no-check-extension", default=True)
-@click.option("--absolute/--relative", "--abs/--rel", default=False)
+@click.option(
+    "--follow-links/--no-follow-links",
+    default=True,
+    help="If True, first follow links while reading {source} before creating this link.",
+)
+@click.option(
+    "--check-extension/--no-check-extension",
+    default=True,
+    help="If True and --no-mlem-root specified, check that {target} endswith MLEM extension.",
+)
+@click.option(
+    "--absolute/--relative",
+    "--abs/--rel",
+    default=False,
+    help="Which path to linked object to specify: absolute or relative.",
+)
 def link(
     source: str,
     repo: Optional[str],
@@ -40,7 +59,7 @@ def link(
     if no_mlem_root:
         if mlem_root is not None:
             raise InvalidArgumentError(
-                "--mlem-root and --no-mlem-root are mitually exclusive"
+                "--mlem-root and --no-mlem-root are mitually exclusive."
             )
         mlem_root = None
     elif mlem_root is None:

@@ -1,3 +1,7 @@
+"""
+Helper functions and wrappers for CLI commands created with click.
+These define reused functionality and configuration of complex objects in command line.
+"""
 import shlex
 from functools import wraps
 from typing import Any, Dict, List, Optional, Type, TypeVar

@@ -9,14 +9,25 @@ from mlem.core.objects import ModelMeta
 
 @cli.command("apply")
 @with_model_meta
-@click.option("-o", "--output", default=None)
-@click.option("-m", "--method", default=None)
+@click.option(
+    "-o", "--output", default=None, help="Where to store the outputs."
+)
+@click.option(
+    "-m",
+    "--method",
+    default=None,
+    help="Which model method is to apply (if the model is instance of class).",
+)
 @click.argument("args", nargs=-1)
-@click.option("--link/--no-link", default=False)
+@click.option(
+    "--link/--no-link",
+    default=False,
+    help="Whether to create links for outputs in .mlem directory.",
+)
 def apply(
     model: ModelMeta, output: str, method: str, args: Tuple[Any], link: bool
 ):
-    """Apply a model to supplied args."""
+    """Apply a model to supplied data."""
     from mlem.api import apply
 
     click.echo("applying")
@@ -26,7 +37,12 @@ def apply(
 @cli.command()
 @with_model_meta
 @click.argument("output")
-@click.option("-m", "--method", default=None)
+@click.option(
+    "-m",
+    "--method",
+    default=None,
+    help="Which model method is to apply (if the model is instance of class).",
+)
 @click.argument("args", nargs=-1)
 def apply_remote(
     model: ModelMeta, output, method, args

@@ -155,10 +155,10 @@ disable=print-statement,
         comprehension-escape,
         # all above are defaults; below is what was added manually
         fixme,
-        missing-module-docstring, # TODO: https://github.com/iterative/mlem/pull/36
-        missing-function-docstring, # TODO: https://github.com/iterative/mlem/pull/36
-        missing-class-docstring, # TODO: https://github.com/iterative/mlem/pull/36
-        empty-docstring, # TODO: https://github.com/iterative/mlem/pull/36
+        missing-module-docstring, # TODO: https://github.com/iterative/mlem/issues/16
+        missing-function-docstring, # TODO: https://github.com/iterative/mlem/issues/16
+        missing-class-docstring, # TODO: https://github.com/iterative/mlem/issues/16
+        empty-docstring, # TODO: https://github.com/iterative/mlem/issues/16
         bad-continuation, # TODO: https://github.com/iterative/mlem/pull/36 possible conflict with black
         line-too-long, # TODO: https://github.com/iterative/mlem/pull/36
         no-name-in-module, # TODO: https://github.com/iterative/mlem/pull/36 looks like dependency problem
