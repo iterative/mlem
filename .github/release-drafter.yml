@@ -1,0 +1,22 @@
+# Config for https://github.com/apps/release-drafter
+name-template: "$RESOLVED_VERSION 🐶"
+tag-template: "$RESOLVED_VERSION"
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+version-resolver:
+  major:
+    labels:
+      - "major"
+  minor:
+    labels:
+      - "minor"
+  patch:
+    labels:
+      - "patch"
+  default: patch
+exclude-labels:
+  - "skip-changelog"
+template: |
+
+  ## Changes
+
+  $CHANGES
