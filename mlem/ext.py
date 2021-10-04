@@ -193,9 +193,10 @@ class _ImportLoadExtRegisterer(importlib.abc.PathEntryFinder):
     def __init__(self):
         self.imported = []
 
-    def find_module(self, fullname, path=None):
+    def find_module(
+        self, fullname, path=None
+    ):  # pylint: disable=unused-argument
         self.imported.append(fullname)
-        return None
 
 
 class _ImportLoadExtInterceptor(
@@ -210,7 +211,9 @@ class _ImportLoadExtInterceptor(
     def __init__(self, module_to_extension: Dict[str, Extension]):
         self.module_to_extension = module_to_extension
 
-    def find_module(self, fullname, path=None):
+    def find_module(
+        self, fullname, path=None
+    ):  # pylint: disable=unused-argument
         # hijack importing machinery
         return self
 
@@ -237,6 +240,9 @@ class _ImportLoadExtInterceptor(
                 ExtensionLoader.load(extension)
 
         return module
+
+    def module_repr(self, module: ModuleType) -> str:
+        return super().module_repr(module)
 
 
 def load_extensions(*exts: str):
@@ -307,14 +313,14 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
                 isinstance(obj, type)
                 and obj.__module__ == module.__name__
                 and issubclass(obj, MlemObject)
-                and not obj._is_root()
+                and not obj.__is_root__()
                 and not isabstract(obj)
             ):
                 impls[obj] = f"{obj.__module__}:{obj.__name__}"
 
     return {
         MLEM_ENTRY_POINT: [
-            f"{obj.abs_name}.{obj._get_alias()} = {name}"
+            f"{obj.abs_name}.{obj.__get_alias__()} = {name}"
             for obj, name in impls.items()
         ]
     }

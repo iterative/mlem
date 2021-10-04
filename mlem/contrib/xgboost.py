@@ -77,10 +77,10 @@ class DMatrixDatasetType(
     def deserialize(self, obj: Dict[Any, Any]) -> xgboost.DMatrix:
         try:
             return xgboost.DMatrix(obj)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
             raise DeserializationError(
                 f"given object: {obj} could not be converted to xgboost matrix"
-            )
+            ) from e
 
     @classmethod
     def from_dmatrix(cls, dmatrix: xgboost.DMatrix):
@@ -103,7 +103,7 @@ class DMatrixDatasetType(
     def process(cls, obj: xgboost.DMatrix, **kwargs) -> DatasetType:
         return DMatrixDatasetType.from_dmatrix(obj)
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
+    def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
 
 

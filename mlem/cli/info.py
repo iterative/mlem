@@ -52,7 +52,7 @@ TYPE_ALIASES = {
 def ls(type: str):
     """List MLEM objects in current mlem_root."""
     if type == "all":
-        for tp in MlemMeta.subtype_mapping().keys():
+        for tp in MlemMeta.subtype_mapping():
             _print_objects_of_type(tp)
     else:
         type = TYPE_ALIASES.get(type, type)

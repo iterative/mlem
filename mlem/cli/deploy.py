@@ -1,8 +1,10 @@
 import os
 
 import click
+from fsspec.implementations.local import LocalFileSystem
 
 from mlem.cli.main import cli
+from mlem.core.metadata import load_meta
 from mlem.core.objects import (
     DeployMeta,
     ModelMeta,
@@ -22,8 +24,8 @@ DEPLOY_EXT = ".deployed.yaml"
 @click.argument("target_environment")
 @click.argument("deploy_args", nargs=-1, type=click.UNPROCESSED)
 def deploy(model, target_environment, deploy_args):
-    model_meta = ModelMeta.read(model)
-    env_meta = TargetEnvMeta.read(target_environment)
+    model_meta = load_meta(model, force_type=ModelMeta)
+    env_meta = load_meta(target_environment, force_type=TargetEnvMeta)
     if len(env_meta.additional_args) != len(deploy_args):
         raise ValueError(
             f"Invalid arguments for {env_meta.alias} deploy: {env_meta.additional_args} needed"
@@ -41,8 +43,10 @@ def deploy(model, target_environment, deploy_args):
     else:
         deployment = env_meta.deploy(model_meta, **args)
 
-    deploy_meta = DeployMeta(target_environment, model, deployment)
-    deploy_meta.dump_meta(os.path.join(target_environment, model))
+    deploy_meta = DeployMeta(
+        env_path=target_environment, model_path=model, deployment=deployment
+    )
+    deploy_meta.dump(os.path.join(target_environment, model))
 
 
 @cli.command()
@@ -50,9 +54,9 @@ def deploy(model, target_environment, deploy_args):
 @click.argument("model")
 def destroy(target_environment, model):
     deployed = os.path.join(target_environment, model)
-    deploy_meta = DeployMeta.read(deployed)
+    deploy_meta = load_meta(deployed, force_type=DeployMeta)
     deploy_meta.deployment.destroy()
-    os.unlink(mlem_dir_path(deployed, obj_type=DeployMeta))
+    os.unlink(mlem_dir_path(deployed, LocalFileSystem(), obj_type=DeployMeta))
 
 
 @cli.command()

@@ -55,7 +55,7 @@ def resolve_fs(
     # address in https://github.com/iterative/mlem/issues/4
     if fs is None:
         return LocalFileSystem()
-    elif isinstance(fs, AbstractFileSystem):
+    if isinstance(fs, AbstractFileSystem):
         return fs
     fs, _ = get_fs(uri=fs, protocol=protocol)
     return fs
@@ -91,7 +91,9 @@ def read(uri: str, mode: str = "r"):
         return f.read()
 
 
-def serialize(obj, as_class: Type = None):
+def serialize(
+    obj, as_class: Type = None
+):  # pylint: disable=unused-argument # todo remove later
     if not isinstance(obj, MlemObject):
         raise ValueError(f"{type(obj)} is not a subclass of MlemObject")
     return obj.dict(exclude_unset=True)
@@ -115,16 +117,15 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     """
     if os.path.basename(uri) == META_FILE_NAME and fs.isfile(uri):
         return uri
-    elif is_mlem_dir(uri, fs):
+    if is_mlem_dir(uri, fs):
         return os.path.join(uri, META_FILE_NAME)
-    elif MLEM_DIR in uri and fs.isfile(uri):
+    if MLEM_DIR in uri and fs.isfile(uri):
         return uri
-    elif fs.exists(uri):
+    if fs.exists(uri):
         raise Exception(
             f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or dataset"
         )
-    else:
-        raise FileNotFoundError(uri)
+    raise FileNotFoundError(uri)
 
 
 # def blobs_from_path(path: str, fs: AbstractFileSystem = None):

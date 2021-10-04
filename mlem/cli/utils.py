@@ -82,7 +82,7 @@ def build_model(
 
     for file in file_conf:
         keys, path = smart_split(file, "=")
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
         _set_recursively(model_dict, smart_split(keys, "."), value)
 
@@ -109,7 +109,7 @@ def config_arg(name: str, model: Type[MlemObject], **kwargs):
             **inner_kwargs,
         ):
             if load is not None:
-                with open(load, "r") as of:
+                with open(load, "r", encoding="utf8") as of:
                     obj = deserialize(safe_load(of), model)
             else:
                 obj = build_model(model, subtype, conf, file_conf)
@@ -138,8 +138,8 @@ def create_configurable(
             args[field.name] = cast(
                 click.prompt(f"{field.name} value?", default=default)
             )
-        except ValueError:
+        except ValueError as e:
             raise NotImplementedError(
                 f"Not yet implemented for type {field.type_}"
-            )
+            ) from e
     return deserialize(args, cls)

@@ -19,11 +19,14 @@ from mlem.core.objects import MlemLink, ModelMeta
             pytest.lazy_fixture("model_meta_saved"),
             pytest.lazy_fixture("dataset_meta_saved"),
         ),
-        (pytest.lazy_fixture("model_meta_saved"), pytest.lazy_fixture("X")),
+        (
+            pytest.lazy_fixture("model_meta_saved"),
+            pytest.lazy_fixture("train"),
+        ),
         (pytest.lazy_fixture("model_path"), pytest.lazy_fixture("data_path")),
     ],
 )
-def test_apply(m, d, request):
+def test_apply(m, d):
     res = apply(m, d, method="predict")
     assert isinstance(res, ndarray)
 

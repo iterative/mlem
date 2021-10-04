@@ -57,24 +57,22 @@ def check_pypi_module(
     :param warn_on_error: print a warning if module is not found in PyPi
     :return: `True` if module found in PyPi, `False` otherwise
     """
-    r = requests.get("https://pypi.org/pypi/{}/json".format(module_name))
+    r = requests.get(f"https://pypi.org/pypi/{module_name}/json")
     if r.status_code != 200:
-        msg = "Cant find package {} in PyPi".format(module_name)
+        msg = f"Cant find package {module_name} in PyPi"
         if raise_on_error:
             raise ValueError(msg)
-        elif warn_on_error:
+        if warn_on_error:
             warnings.warn(msg)
         return False
     if (
         module_version is not None
         and module_version not in r.json()["releases"]
     ):
-        msg = "Cant find package version {}=={} in PyPi".format(
-            module_name, module_version
-        )
+        msg = f"Cant find package version {module_name}=={module_version} in PyPi"
         if raise_on_error:
             raise ImportError(msg)
-        elif warn_on_error:
+        if warn_on_error:
             warnings.warn(msg)
         return False
     return True
@@ -222,7 +220,7 @@ def is_extension_module(mod: ModuleType):
     """
     try:
         path = mod.__file__
-        return any(path.endswith(ext) for ext in {".so", ".pyd"})
+        return any(path.endswith(ext) for ext in (".so", ".pyd"))
     except AttributeError:
         return True
 
@@ -285,8 +283,7 @@ def is_from_installable_module(obj: object):
     mod = get_object_base_module(obj)
     if mod is None:
         return False
-    else:
-        return is_installable_module(mod)
+    return is_installable_module(mod)
 
 
 def get_module_version(mod: ModuleType):
@@ -537,11 +534,11 @@ class RequirementAnalyzer(dill.Pickler):
 
     def save(self, obj, save_persistent_id=True):
         if id(obj) in self.seen:
-            return
+            return None
         self.seen.add(id(obj))
         self.add_requirement(obj)
         try:
-            return super(dill.Pickler, self).save(obj, save_persistent_id)
+            return super().save(obj, save_persistent_id)
         except (ValueError, TypeError, PickleError) as e:
             # if object cannot be serialized, it's probably a C object and we don't need to go deeper
             logger.debug(

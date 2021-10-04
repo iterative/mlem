@@ -5,7 +5,6 @@ import tempfile
 from typing import ClassVar, Dict, Iterator, Optional
 
 import docker
-import docker.errors
 import requests
 from docker import errors
 from docker.models.images import Image
@@ -59,7 +58,7 @@ class DockerRegistry(MlemObject):
         try:
             client.images.get(image.uri)
             return True
-        except docker.errors.ImageNotFound:
+        except errors.ImageNotFound:
             return False
 
     def delete_image(
@@ -77,7 +76,7 @@ class DockerRegistry(MlemObject):
         """
         try:
             client.images.remove(image.uri, force=force, **kwargs)
-        except docker.errors.ImageNotFound:
+        except errors.ImageNotFound:
             pass
 
 
@@ -97,7 +96,7 @@ class DockerIORegistry(DockerRegistry):
     def delete_image(
         self, client, image: "DockerImage", force=False, **kwargs
     ):
-        logger.warn("Skipping deleting image %s from docker.io", image.name)
+        logger.warning("Skipping deleting image %s from docker.io", image.name)
 
 
 class RemoteRegistry(DockerRegistry):
@@ -297,7 +296,7 @@ class DockerImagePackager(DockerDirPackager):
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
                 self.args.prebuild_hook(self.args.python_version)
-            super(DockerImagePackager, self).package(obj, tempdir)
+            super().package(obj, tempdir)
             return self.build(tempdir, out)
 
     def build(self, context_dir: str, image_name: str) -> Image:

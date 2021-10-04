@@ -23,7 +23,7 @@ class PolyModel(BaseModel):
     parent: ClassVar[Optional[Type["PolyModel"]]] = None
 
     @classmethod
-    def _is_root(cls):
+    def __is_root__(cls):
         return cls.__dict__.get("__type_root__", False)
 
     @classmethod
@@ -38,8 +38,8 @@ class PolyModel(BaseModel):
     @wraps(BaseModel.dict)
     def dict(self, **kwargs):
         """Add alias field"""
-        result = super(PolyModel, self).dict(**kwargs)
-        result[self.__type_field__] = self._get_alias()
+        result = super().dict(**kwargs)
+        result[self.__type_field__] = self.__get_alias__()
         return result
 
     @wraps(BaseModel._calculate_keys)
@@ -48,15 +48,15 @@ class PolyModel(BaseModel):
         kwargs["exclude"] = (
             kwargs.get("exclude", None) or set()
         ) | self.__transient_fields__
-        return super(PolyModel, self)._calculate_keys(*args, **kwargs)
+        return super()._calculate_keys(*args, **kwargs)
 
     def __iter__(self):
         """Add alias field"""
-        yield from super(PolyModel, self).__iter__()
-        yield self.__type_field__, self._get_alias()
+        yield from super().__iter__()
+        yield self.__type_field__, self.__get_alias__()
 
     @classmethod
-    def _get_alias(cls):
+    def __get_alias__(cls):
         return cls.__dict__.get(
             cls.__type_field__, f"{cls.__module__}.{cls.__name__}"
         )
@@ -66,22 +66,24 @@ class PolyModel(BaseModel):
         if key in self.__transient_fields__:
             self.__dict__[key] = value
             return
-        super(PolyModel, self).__setattr__(key, value)
+        super().__setattr__(key, value)
 
     def __init_subclass__(cls: Type["PolyModel"]):
         """Register subtypes to __type_map__"""
-        if cls._is_root():  # Parent model initialization
+        if cls.__is_root__():  # Parent model initialization
             cls.__type_map__ = {}
-            cls.__annotations__[cls.__type_field__] = ClassVar[str]
+            cls.__annotations__[cls.__type_field__] = ClassVar[
+                str
+            ]  # pylint: disable=no-member
             cls.__class_vars__.add(cls.__type_field__)
 
         for parent in cls.mro():  # Looking for parent model
             if not issubclass(parent, PolyModel):
                 continue
-            if parent._is_root():
+            if parent.__is_root__():
                 if parent == PolyModel:
                     break
-                alias = cls._get_alias()
+                alias = cls.__get_alias__()
                 if alias is not None and alias is not ...:
                     parent.__type_map__[alias] = cls
                     setattr(cls, cls.__type_field__, alias)

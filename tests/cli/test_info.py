@@ -19,7 +19,7 @@ def test_ls(mlem_root, obj_type):
 
 
 def test_pretty_print(model_path_mlem_root):
-    model_path, mlem_root = model_path_mlem_root
+    model_path, _ = model_path_mlem_root
     runner = CliRunner()
     result = runner.invoke(
         pretty_print,

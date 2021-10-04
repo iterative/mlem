@@ -65,11 +65,11 @@ def pd_type_from_string(string_repr):
     """Creates pandas dtype from string representation"""
     try:
         return np_type_from_string(string_repr)
-    except ValueError:
+    except ValueError as e:
         for dtype, pattern in PD_EXT_TYPES.items():
             if pattern.match(string_repr) is not None:
                 return dtype.construct_from_string(string_repr)
-        raise ValueError(f"unknown pandas dtype {string_repr}")
+        raise ValueError(f"unknown pandas dtype {string_repr}") from e
 
 
 def python_type_from_pd_type(pd_type: Union[np.dtype, Type]):
@@ -212,13 +212,13 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
     def deserialize(self, obj):
-        self._check_type(obj, dict, DeserializationError)
+        self.check_type(obj, dict, DeserializationError)
         try:
             ret = pd.DataFrame.from_records(obj["values"])
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
             raise DeserializationError(
                 f"given object: {obj} could not be converted to dataframe"
-            )
+            ) from e
 
         self._validate_columns(
             ret, DeserializationError
@@ -247,7 +247,7 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         return self.align_index(self.align_types(df))
 
     def serialize(self, instance: pd.DataFrame):
-        self._check_type(instance, pd.DataFrame, SerializationError)
+        self.check_type(instance, pd.DataFrame, SerializationError)
         is_copied, instance = reset_index(instance, return_copied=True)
 
         self._validate_columns(instance, SerializationError)

@@ -42,8 +42,7 @@ def link(
             raise InvalidArgumentError(
                 "--mlem-root and --no-mlem-root are mitually exclusive"
             )
-        else:
-            mlem_root = None
+        mlem_root = None
     elif mlem_root is None:
         mlem_root = "."
 

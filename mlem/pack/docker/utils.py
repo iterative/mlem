@@ -120,8 +120,7 @@ def repository_tags_at_dockerhub(repo):
     time.sleep(1)  # rate limiting
     if resp.status_code != 200:
         return {}
-    else:
-        return {tag["name"] for tag in resp.json()}
+    return {tag["name"] for tag in resp.json()}
 
 
 # Copyright 2019 Zyfra

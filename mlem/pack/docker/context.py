@@ -141,7 +141,9 @@ class DockerModelDirectory(BaseModel):
 
     def write_dockerfile(self, requirements: Requirements):
         env = self.get_env_vars()
-        with open(os.path.join(self.path, "Dockerfile"), "w") as df:
+        with open(
+            os.path.join(self.path, "Dockerfile"), "w", encoding="utf8"
+        ) as df:
             unix_packages = requirements.of_type(UnixPackageRequirement)
             dockerfile = _DockerfileGenerator(self.docker_args).generate(
                 env, unix_packages
@@ -198,7 +200,7 @@ class DockerModelDirectory(BaseModel):
             f"cd {repo_path} && python setup.py bdist_wheel", shell=True
         )
         whl_name = re.search(
-            "creating '(dist/.*\.whl)", res.decode("utf8")  # noqa: W605
+            r"creating '(dist/.*\.whl)", res.decode("utf8")  # noqa: W605
         ).group(1)
         whl_path = os.path.join(repo_path, whl_name)
         whl_name = os.path.basename(whl_name)

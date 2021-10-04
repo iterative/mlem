@@ -28,7 +28,9 @@ def apply(
 @click.argument("output")
 @click.option("-m", "--method", default=None)
 @click.argument("args", nargs=-1)
-def apply_remote(model: ModelMeta, output, method, args):
+def apply_remote(
+    model: ModelMeta, output, method, args
+):  # pylint: disable=unused-argument
     click.echo("applying remote")
     raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/30
     # if meta.is_data:

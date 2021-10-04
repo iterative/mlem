@@ -23,7 +23,7 @@ class Container(DatasetType):
     def get_requirements(self) -> Requirements:
         return Requirements.new([])
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
+    def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
 

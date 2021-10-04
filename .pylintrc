@@ -45,7 +45,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python module names) to load,
 # usually to register additional checkers.
-load-plugins=
+load-plugins=pylint_pytest
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -158,6 +158,7 @@ disable=print-statement,
         missing-module-docstring, # TODO: https://github.com/iterative/mlem/pull/36
         missing-function-docstring, # TODO: https://github.com/iterative/mlem/pull/36
         missing-class-docstring, # TODO: https://github.com/iterative/mlem/pull/36
+        empty-docstring, # TODO: https://github.com/iterative/mlem/pull/36
         bad-continuation, # TODO: https://github.com/iterative/mlem/pull/36 possible conflict with black
         line-too-long, # TODO: https://github.com/iterative/mlem/pull/36
         no-name-in-module, # TODO: https://github.com/iterative/mlem/pull/36 looks like dependency problem
@@ -165,7 +166,9 @@ disable=print-statement,
         too-few-public-methods,
         invalid-name,
         redefined-outer-name,
+        too-many-ancestors,
         redefined-builtin, # TODO: https://github.com/iterative/mlem/pull/36
+        no-self-use, # TODO: https://github.com/iterative/mlem/pull/36 maybe leave it
         import-outside-toplevel,
 
 # Enable the message, report, category or checker with the given id(s). You can
@@ -391,7 +394,7 @@ ignore-imports=no
 ignore-signatures=no
 
 # Minimum lines number of a similarity.
-min-similarity-lines=4
+min-similarity-lines=15
 
 
 [BASIC]

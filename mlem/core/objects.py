@@ -292,7 +292,7 @@ class _ExternalMeta(ABC, MlemMeta):
             name = os.path.join(name, META_FILE_NAME)
         self.name = name
         self.artifacts = self.write_value()
-        super(_ExternalMeta, self).dump(
+        super().dump(
             name=name,
             fs=fs,
             link=link,
@@ -521,7 +521,7 @@ def find_object(
     source_paths = [p for p in source_paths if fs.exists(p[1])]
     if len(source_paths) == 0:
         raise ValueError(f"Object {path} not found, search of fs {fs}")
-    elif len(source_paths) > 1:
+    if len(source_paths) > 1:
         raise ValueError(f"Ambiguous object {path}: {source_paths}")
     type, source_path = source_paths[0]
     return type, source_path

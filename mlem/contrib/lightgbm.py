@@ -37,17 +37,17 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     inner: DatasetType
 
     def serialize(self, instance: Any) -> dict:
-        self._check_type(instance, lgb.Dataset, SerializationError)
+        self.check_type(instance, lgb.Dataset, SerializationError)
         return self.inner.serialize(instance.data)
 
     def deserialize(self, obj: dict) -> Any:
         v = self.inner.deserialize(obj)
         try:
             return lgb.Dataset(v, free_raw_data=False)
-        except ValueError:
+        except ValueError as e:
             raise DeserializationError(
                 f"object: {obj} could not be converted to lightgbm dataset"
-            )
+            ) from e
 
     def get_requirements(self) -> Requirements:
         return (
@@ -56,7 +56,7 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
             + LGB_REQUIREMENT
         )
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
+    def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
     @classmethod
