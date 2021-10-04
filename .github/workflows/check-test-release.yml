@@ -37,7 +37,6 @@ jobs:
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-    # - uses: codecov/codecov-action@v1
   deploy:
     name: PyPI Deploy
     needs: [run-pre-commit, run-tests]
