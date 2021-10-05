@@ -40,9 +40,11 @@ jobs:
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-    - uses: codecov/codecov-action@v1
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: "Upload coverage to Codecov"
+      uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
   deploy:
     name: PyPI Deploy
     needs: [check, test]
