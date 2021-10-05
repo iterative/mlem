@@ -5,7 +5,7 @@ on:
   schedule:
   - cron: '0 9 * * 1'  # M H d m w (Mondays at 9:00)
 jobs:
-  run-pre-commit:
+  check:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
     name: Check
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
         key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
     - run: pip install -U pre-commit tox
     - run: pre-commit run -a --show-diff-on-failure
-  run-tests:
+  test:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
     name: Test py${{ matrix.python }}
     runs-on: ubuntu-latest
@@ -40,9 +40,10 @@ jobs:
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+    - uses: codecov/codecov-action@v1
   deploy:
     name: PyPI Deploy
-    needs: [run-pre-commit, run-tests]
+    needs: [check, test]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
