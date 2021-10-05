@@ -2,6 +2,8 @@ MLEM is in early alpha. Thank you for trying it out! 👋
 
 Alpha include model registry functionality, and upcoming beta will add model deployment functionality.
 
+[![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
+
 ## What is MLEM 🐶
 
 MLEM is a tool to help you version and deploy your Machine Learning models. At the top level, MLEM consists of two parts:
@@ -30,12 +32,12 @@ Speaking generally, the goal of MLEM is to enable easy and error-safe way to tra
 
 Install MLEM with pip:
 
-```bash
-% pip install mlem
+```
+$ pip install mlem
 ```
 
 To install the development version, run:
 
-```bash
-% pip install git+git://github.com/iterative/mlem
+```
+$ pip install git+git://github.com/iterative/mlem
 ```

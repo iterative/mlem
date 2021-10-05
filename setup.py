@@ -96,6 +96,7 @@ all_libs = (
 
 tests = [
     "pytest",
+    "pytest-cov",
     # we use this to suppress pytest-related false positives in our tests.
     "pylint-pytest",
     # we use this to suppress some messages in tests, eg: foo/bar naming,
