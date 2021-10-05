@@ -100,20 +100,21 @@ all_libs = (
 tests = [
     "pytest",
     "pytest-cov",
+    "pytest-lazy-fixture==0.6.3",
+    "pytest-mock",
+    "pylint",
     # we use this to suppress pytest-related false positives in our tests.
     "pylint-pytest",
     # we use this to suppress some messages in tests, eg: foo/bar naming,
     # and, protected method calls in our tests
     "pylint-plugin-utils",
-    "pytest-lazy-fixture==0.6.3",
-    "pytest-mock",
 ] + all_libs
 
 
 setup_args = dict(  # noqa: C408
     name="mlem",
     version=version,
-    description="Version and deploy your models following GitOps",
+    description="Version and deploy your models following GitOps principles",
     long_description=(Path(__file__).parent / "README.md").read_text(
         encoding="utf8"
     ),
