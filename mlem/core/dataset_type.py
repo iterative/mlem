@@ -148,7 +148,7 @@ class ListDatasetType(SizedTypedListType):
     DatasetType for list type
     """
 
-    type: ClassVar = "list"
+    type: ClassVar[str] = "list"
 
     def get_requirements(self) -> Requirements:
         return self.dtype.get_requirements()
@@ -266,7 +266,7 @@ class DictDatasetType(DatasetType):
     DatasetType for dict type
     """
 
-    type: ClassVar = "dict"
+    type: ClassVar[str] = "dict"
     item_types: Dict[str, DatasetType]
 
     def deserialize(self, obj):
@@ -343,7 +343,7 @@ class Dataset:
 class DatasetReader(MlemObject, ABC):
     __type_root__ = True
     dataset_type: DatasetType
-    abs_name: ClassVar = "dataset_reader"
+    abs_name: ClassVar[str] = "dataset_reader"
 
     @abstractmethod
     def read(self, fs: AbstractFileSystem, path: str) -> Dataset:
@@ -352,7 +352,7 @@ class DatasetReader(MlemObject, ABC):
 
 class DatasetWriter(MlemObject):
     __type_root__ = True
-    abs_name: ClassVar = "dataset_writer"
+    abs_name: ClassVar[str] = "dataset_writer"
 
     @abstractmethod
     def write(

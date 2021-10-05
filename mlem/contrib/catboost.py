@@ -17,7 +17,7 @@ class CatBoostModelIO(ModelIO):
     :class:`mlem.core.model.ModelIO` for CatBoost models.
     """
 
-    type: ClassVar = "catboost_io"
+    type: ClassVar[str] = "catboost_io"
     classifier_file_name = "clf.cb"
     regressor_file_name = "rgr.cb"
 
@@ -59,7 +59,7 @@ class CatBoostModel(ModelType, ModelHook, LibRequirementsMixin):
     """
 
     libraries: ClassVar = [catboost]
-    type: ClassVar = "catboost"
+    type: ClassVar[str] = "catboost"
     io: ModelIO = CatBoostModelIO()
 
     @classmethod

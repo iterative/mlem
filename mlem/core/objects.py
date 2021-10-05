@@ -40,7 +40,7 @@ from mlem.utils.root import find_mlem_root
 
 class Deployment(MlemObject):
     __type_root__ = True
-    abs_name: ClassVar = "deployment"
+    abs_name: ClassVar[str] = "deployment"
 
     # @abstractmethod
     # def get_client(self) -> BaseClient:

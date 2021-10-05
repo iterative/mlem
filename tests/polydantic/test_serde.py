@@ -11,7 +11,7 @@ def test_poly_model_dict():
         __type_field__ = "type1"
 
     class ChildA(Parent):
-        type1: ClassVar = "a"
+        type1: ClassVar[str] = "a"
         a: int
 
     class ChildB(Parent):
@@ -57,14 +57,14 @@ def test_nested_poly():
         field: str
 
     class InnerChild(InnerParent):
-        type: ClassVar = "ic"
+        type: ClassVar[str] = "ic"
 
     class OuterParent(PolyModel):
         __type_root__: ClassVar = True
         inner: InnerParent
 
     class OuterChild(OuterParent):
-        type: ClassVar = "oc"
+        type: ClassVar[str] = "oc"
 
     obj = OuterChild(inner=InnerChild(field="a"))
     payload = {"type": "oc", "inner": {"type": "ic", "field": "a"}}
@@ -99,7 +99,7 @@ def test_multi_parent():
         field2: str
 
     class Child(Parent1, Parent2):
-        type: ClassVar = "child"
+        type: ClassVar[str] = "child"
 
     obj = Child(field2="2", field1="1")
     assert obj.field1 == "1"

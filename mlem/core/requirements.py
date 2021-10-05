@@ -40,7 +40,7 @@ class Requirement(MlemObject):
     """
 
     __type_root__ = True
-    abs_name: ClassVar = "requirement"
+    abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...
 
 
@@ -131,7 +131,7 @@ class CustomRequirement(PythonRequirement):
     :param is_package: whether this code should be in %name%/__init__.py
     """
 
-    type: ClassVar = "custom"
+    type: ClassVar[str] = "custom"
 
     name: str
     source64zip: str
@@ -247,7 +247,7 @@ class CustomRequirement(PythonRequirement):
 
 
 class FileRequirement(CustomRequirement):
-    type: ClassVar = "file"
+    type: ClassVar[str] = "file"
     is_package: bool = False
     module: str = ""
 
@@ -268,7 +268,7 @@ class FileRequirement(CustomRequirement):
 
 
 class UnixPackageRequirement(Requirement):
-    type: ClassVar = "unix"
+    type: ClassVar[str] = "unix"
     package_name: str
 
 

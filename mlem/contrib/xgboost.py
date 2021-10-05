@@ -48,7 +48,7 @@ class DMatrixDatasetType(
     :param feature_names: list of feature names
     """
 
-    type: ClassVar = "xgboost_dmatrix"
+    type: ClassVar[str] = "xgboost_dmatrix"
     types: ClassVar = (xgboost.DMatrix,)
 
     is_from_list: bool
@@ -112,7 +112,7 @@ class XGBoostModelIO(ModelIO):
     :class:`~.ModelIO` implementation for XGBoost models
     """
 
-    type: ClassVar = "xgboost_io"
+    type: ClassVar[str] = "xgboost_io"
     model_file_name = "model.xgb"
 
     def dump(
@@ -142,7 +142,7 @@ class XGBoostModel(
     :class:`~.ModelType` implementation for XGBoost models
     """
 
-    type: ClassVar = "xgboost"
+    type: ClassVar[str] = "xgboost"
     types: ClassVar = (xgboost.Booster,)
 
     io: ModelIO = XGBoostModelIO()

@@ -149,7 +149,7 @@ class SeriesType(_PandasDatasetType, DatasetHook):
 
     """
 
-    type: ClassVar = "series"
+    type: ClassVar[str] = "series"
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
@@ -491,7 +491,7 @@ class _PandasIO(BaseModel):
 class PandasReader(_PandasIO, DatasetReader):
     """DatasetReader for pandas dataframes"""
 
-    type: ClassVar = "pandas"
+    type: ClassVar[str] = "pandas"
     dataset_type: DataFrameType
 
     def read(self, fs: AbstractFileSystem, path: str) -> Dataset:
@@ -503,7 +503,7 @@ class PandasReader(_PandasIO, DatasetReader):
 class PandasWriter(DatasetWriter, _PandasIO):
     """DatasetWriter for pandas dataframes"""
 
-    type: ClassVar = "pandas"
+    type: ClassVar[str] = "pandas"
 
     def write(
         self, dataset: Dataset, fs: AbstractFileSystem, path: str

@@ -11,7 +11,7 @@ from mlem.runtime.interface.base import SimpleInterface, expose
 
 
 class Container(DatasetType):
-    type: ClassVar = "test_container"
+    type: ClassVar[str] = "test_container"
     field: int
 
     def serialize(self, instance: Any) -> dict:

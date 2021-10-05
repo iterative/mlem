@@ -32,7 +32,7 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     :param inner: :class:`.DatasetType` instance for underlying data
     """
 
-    type: ClassVar = "lightgbm"
+    type: ClassVar[str] = "lightgbm"
     types: ClassVar = (lgb.Dataset,)
     inner: DatasetType
 
@@ -69,7 +69,7 @@ class LightGBMModelIO(ModelIO):
     :class:`.ModelIO` implementation for `lightgbm.Booster` type
     """
 
-    type: ClassVar = "lightgbm_io"
+    type: ClassVar[str] = "lightgbm_io"
     model_file_name = "model.lgb"
 
     def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
@@ -95,7 +95,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     :class:`.ModelType` implementation for `lightgbm.Booster` type
     """
 
-    type: ClassVar = "lightgbm"
+    type: ClassVar[str] = "lightgbm"
     types: ClassVar = (lgb.Booster,)
     io: ModelIO = LightGBMModelIO()
 
