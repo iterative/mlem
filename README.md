@@ -2,7 +2,9 @@ MLEM is in early alpha. Thank you for trying it out! 👋
 
 Alpha include model registry functionality, and upcoming beta will add model deployment functionality.
 
+[![tests](https://github.com/iterative/tpi/workflows/Test/badge.svg)](https://github.com/iterative/mlem/actions)
 [![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
+[![PyPi](https://img.shields.io/pypi/v/mlem.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/mlem)
 
 ## What is MLEM 🐶
 
