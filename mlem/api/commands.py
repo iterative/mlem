@@ -166,7 +166,7 @@ def link(
     # right now this only works when source and target are on local FS
     # (we don't even throw an NotImplementedError yet)
     # need to support other cases, like `source="github://..."`
-    if repo is not None:
+    if repo is not None or rev is not None:
         raise NotImplementedError()
     if isinstance(source, MlemMeta):
         if source.name is None:

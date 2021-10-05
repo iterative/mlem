@@ -126,7 +126,7 @@ class MlemMeta(MlemObject):
         link: bool = True,
         mlem_root: Optional[str] = ".",
         check_extension: bool = True,
-        absolute: bool = False,
+        absolute: bool = False,  # pylint: disable=unused-argument
     ):
         fs = resolve_fs(fs)
         if mlem_root:
@@ -186,8 +186,15 @@ class MlemMeta(MlemObject):
     # def get_artifacts(self) -> ArtifactCollection:
     #     return Blobs({})
 
-    def clone(self, name: str, how: str = "hard"):
+    def clone(
+        self,
+        name: str,
+        how: str = "hard",
+        root: str = ".",  # pylint: disable=unused-argument
+        link: bool = True,
+    ):
         """
+        Clone object to `name`.
 
         :param name: new name
         :param how:
@@ -201,7 +208,12 @@ class MlemMeta(MlemObject):
         new: MlemMeta = deserialize(
             serialize(self, MlemMeta), MlemMeta
         )  # easier than deep copy bc of possible attached objects
-        new.dump(name)
+        new.dump(
+            name,
+            link=link,
+            mlem_root=new.name if link else None,
+            check_extension=False,
+        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
 

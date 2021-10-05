@@ -85,7 +85,7 @@ def test_load_link_with_fsspec_path():
     }
     with tempfile.TemporaryDirectory() as dir:
         path = os.path.join(dir, "link.mlem.yaml")
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(yaml.safe_dump(link_contents))
         model = load(path)
         train, _ = load_iris(return_X_y=True)

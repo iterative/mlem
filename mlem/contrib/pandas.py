@@ -478,7 +478,9 @@ class _PandasIO(BaseModel):
     format: str
 
     @validator("format")
-    def is_valid_format(cls, value):  # noqa: B902
+    def is_valid_format(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
         if value not in PANDAS_FORMATS:
             raise ValueError(f"format {value} is not supported")
         return value

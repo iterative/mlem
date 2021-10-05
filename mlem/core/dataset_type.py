@@ -50,8 +50,8 @@ class DatasetType(ABC, MlemObject, WithRequirements):
         raise NotImplementedError()
 
     def get_serializer(
-        self, **kwargs
-    ) -> "DatasetSerializer":  # pylint: disable=unused-argument
+        self, **kwargs  # pylint: disable=unused-argument
+    ) -> "DatasetSerializer":
         if isinstance(self, DatasetSerializer):
             return self
         raise NotImplementedError()

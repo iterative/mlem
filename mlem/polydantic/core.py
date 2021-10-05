@@ -72,9 +72,9 @@ class PolyModel(BaseModel):
         """Register subtypes to __type_map__"""
         if cls.__is_root__():  # Parent model initialization
             cls.__type_map__ = {}
-            cls.__annotations__[cls.__type_field__] = ClassVar[
-                str
-            ]  # pylint: disable=no-member
+            cls.__annotations__[  # pylint: disable=no-member
+                cls.__type_field__
+            ] = ClassVar[str]
             cls.__class_vars__.add(cls.__type_field__)
 
         for parent in cls.mro():  # Looking for parent model

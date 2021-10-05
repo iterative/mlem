@@ -72,7 +72,7 @@ def ls(type: str):
 def pretty_print(obj: str, follow_links: bool):
     """Print __str__ for the specified MLEM object."""
     fs = LocalFileSystem()  # TODO: https://github.com/iterative/mlem/issues/31
-    tp, path = find_object(obj, fs)
+    tp, _ = find_object(obj, fs)
     pprint(
         MlemMeta.subtype_mapping()[tp].read(
             obj, follow_links=follow_links, fs=fs

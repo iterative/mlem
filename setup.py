@@ -112,7 +112,7 @@ tests = [
 setup_args = dict(  # noqa: C408
     name="mlem",
     version=version,
-    description="MLEM Prototype deployment tool",
+    description="Version and deploy your models following GitOps",
     long_description=(Path(__file__).parent / "README.md").read_text(
         encoding="utf8"
     ),

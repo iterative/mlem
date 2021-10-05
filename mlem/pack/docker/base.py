@@ -134,7 +134,7 @@ class RemoteRegistry(DockerRegistry):
         else:
             logger.warning(
                 "Skipped logging in to remote registry at host %s because no credentials given. "
-                + "You could specify credentials as %s and %s environment variables.",
+                "You could specify credentials as %s and %s environment variables.",
                 self.host,
                 username_var,
                 password_var,
@@ -160,7 +160,7 @@ class RemoteRegistry(DockerRegistry):
             },
         )
         if r.status_code != 200:
-            return
+            return None
         return r.headers["Docker-Content-Digest"]
 
     def image_exists(self, client, image: "DockerImage"):
@@ -171,7 +171,7 @@ class RemoteRegistry(DockerRegistry):
         r = requests.head(f"http://{self.host}/v2/{name}/manifests/{digest}")
         if r.status_code == 404:
             return False
-        elif r.status_code == 200:
+        if r.status_code == 200:
             return True
         r.raise_for_status()
 
