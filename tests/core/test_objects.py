@@ -28,7 +28,7 @@ def test_model_cloning(model_path):
     with tempfile.TemporaryDirectory() as dir:
         model.clone(dir, link=False)
         cloned_model = load(dir)
-        X, y = load_iris(return_X_y=True)
+        X, _ = load_iris(return_X_y=True)
         cloned_model.predict(X)
 
 

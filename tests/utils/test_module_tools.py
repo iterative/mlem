@@ -48,14 +48,14 @@ def test_module_representation():
     from setup import setup_args
 
     for module in setup_args["install_requires"]:
-        mod_name = module.split("==")[0]
+        mod_name = module.split("==", maxsplit=1)[0]
         try:
             mod = import_module(mod_name)
             repr = get_module_repr(mod)
             if "=" in module:
                 assert module == repr
             else:
-                assert module == repr.split("==")[0]
+                assert module == repr.split("==", maxsplit=1)[0]
         except (ImportError, NameError):
             continue
 

@@ -36,8 +36,8 @@ def python_type_from_np_type(np_type: Union[Type, np.dtype]):
 def np_type_from_string(string_repr) -> np.dtype:
     try:
         return np.dtype(string_repr)
-    except TypeError:
-        raise ValueError("Unknown numpy type {}".format(string_repr))
+    except TypeError as e:
+        raise ValueError(f"Unknown numpy type {string_repr}") from e
 
 
 class NumpyNumberType(LibRequirementsMixin, DatasetType, DatasetHook):
@@ -56,14 +56,14 @@ class NumpyNumberType(LibRequirementsMixin, DatasetType, DatasetHook):
     #     return [Field(None, python_type_from_np_string_repr(self.dtype), False)]
 
     def deserialize(self, obj: dict) -> Any:
-        return self.actual_type(obj)
+        return self.actual_type(obj)  # pylint: disable=not-callable
 
     def serialize(self, instance: np.number) -> object:  # type: ignore
-        self._check_type(instance, np.number, ValueError)
+        self.check_type(instance, np.number, ValueError)
         return instance.item()
 
     @property
-    def actual_type(self):
+    def actual_type(self) -> np.dtype:
         return np_type_from_string(self.dtype)
 
     # def get_writer(self):
@@ -76,7 +76,7 @@ class NumpyNumberType(LibRequirementsMixin, DatasetType, DatasetHook):
     def process(cls, obj: np.number, **kwargs) -> "NumpyNumberType":
         return NumpyNumberType(dtype=obj.dtype.name)
 
-    def get_writer(self):
+    def get_writer(self, **kwargs):
         raise NotImplementedError()
 
     def get_model(self):
@@ -117,11 +117,11 @@ class NumpyNdarrayType(
     def deserialize(self, obj):
         try:
             ret = np.array(obj, dtype=np_type_from_string(self.dtype))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
             raise DeserializationError(
                 f"given object: {obj} could not be converted to array "
                 f"of type: {np_type_from_string(self.dtype)}"
-            )
+            ) from e
         self._check_shape(ret, DeserializationError)
         return ret
 
@@ -137,7 +137,7 @@ class NumpyNdarrayType(
         )
 
     def serialize(self, instance: np.ndarray):
-        self._check_type(instance, np.ndarray, SerializationError)
+        self.check_type(instance, np.ndarray, SerializationError)
         exp_type = np_type_from_string(self.dtype)
         if instance.dtype != exp_type:
             raise SerializationError(
@@ -152,7 +152,7 @@ class NumpyNdarrayType(
                 f"given array is of shape: {(None,) + tuple(array.shape)[1:]}, expected: {self.shape}"
             )
 
-    def get_writer(self):
+    def get_writer(self, **kwargs):
         return NumpyArrayWriter()
 
 

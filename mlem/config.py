@@ -1,3 +1,6 @@
+"""
+Configuration management for MLEM
+"""
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -20,7 +23,7 @@ def mlem_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     config_file = Path(mlem_root) / CONFIG_FILE
     if not config_file.exists():
         return {}
-    return yaml.safe_load((config_file).read_text(encoding))
+    return yaml.safe_load(config_file.read_text(encoding=encoding))
 
 
 class MlemConfig(BaseSettings):
@@ -36,8 +39,7 @@ class MlemConfig(BaseSettings):
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:
         if self.ADDITIONAL_EXTENSIONS_RAW == "":
             return []
-        else:
-            return self.ADDITIONAL_EXTENSIONS_RAW.split(",")
+        return self.ADDITIONAL_EXTENSIONS_RAW.split(",")
 
     class Config:
         env_file_encoding = "utf-8"

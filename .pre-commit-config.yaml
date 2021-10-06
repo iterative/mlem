@@ -45,6 +45,13 @@ repos:
           - types-six
           - types-PyYAML
           - pydantic
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [ python ]
   # - repo: https://github.com/PyCQA/bandit
   #   rev: '1.7.0'
   #   hooks:

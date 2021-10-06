@@ -1,3 +1,9 @@
+"""
+Base classes for Hook and Analyzer.
+Hook identifies whether the object matches the hook and processes it.
+Analyzer keeps track of all imported hooks and applies them to the object
+    to find suitable one.
+"""
 import inspect
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, List, Tuple, Type, TypeVar
@@ -47,7 +53,7 @@ class Hook(ABC, Generic[T]):
         """
         raise NotImplementedError()
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, *args, **kwargs):
         if not inspect.isabstract(cls):
             analyzer = cls.analyzer
             if analyzer is not None:
@@ -57,9 +63,10 @@ class Hook(ABC, Generic[T]):
                 )
         else:
             logger.debug(
-                f"Not registerting {cls.__name__} to any Analyzer because it's an abstract class"
+                "Not registerting %s to any Analyzer because it's an abstract class",
+                cls.__name__,
             )
-        super(Hook, cls).__init_subclass__(**kwargs)
+        super(Hook, cls).__init_subclass__(*args, **kwargs)
 
 
 class IsInstanceHookMixin(Hook, ABC):
@@ -139,10 +146,10 @@ class Analyzer(Generic[T]):
 
     hooks: List[Type[Hook[T]]]
 
-    def __init_subclass__(cls):
+    def __init_subclass__(cls, *args, **kwargs):
         cls.base_hook_class.analyzer = cls
         cls.hooks = []
-        super(Analyzer, cls).__init_subclass__()
+        super(Analyzer, cls).__init_subclass__(*args, **kwargs)
 
     @classmethod
     def analyze(cls, obj, **kwargs) -> T:
@@ -169,23 +176,20 @@ class Analyzer(Generic[T]):
                         hook.__class__.__name__,
                     )
                     return hook
-                elif hook_priority == LOW_PRIORITY_VALUE:
+                if hook_priority == LOW_PRIORITY_VALUE:
                     lp_hooks.append(hook)
                 else:
                     hooks.append((hook_priority, hook))
 
         if len(hooks) == 0:
-
             if len(lp_hooks) == 1:
                 return lp_hooks[0]
-            elif len(lp_hooks) > 1:
+            if len(lp_hooks) > 1:
                 raise ValueError(
                     f"Multiple suitable hooks for object {obj} ({lp_hooks})"
                 )
-            else:
-                raise ValueError(
-                    f"No suitable {cls.base_hook_class.__name__} for object of type "
-                    f"[{type(obj).__name__}]. Registered hooks: {cls.hooks}"
-                )
-        else:
-            return max(hooks, key=lambda x: x[0])[1]
+            raise ValueError(
+                f"No suitable {cls.base_hook_class.__name__} for object of type "
+                f"[{type(obj).__name__}]. Registered hooks: {cls.hooks}"
+            )
+        return max(hooks, key=lambda x: x[0])[1]

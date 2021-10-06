@@ -39,15 +39,19 @@ def load_impl_ext(
             if not issubclass(obj, MlemObject):
                 raise ValueError(f"{obj} is not subclass of MlemObject")
             return obj
-    else:
-        if raise_on_missing:
-            raise ValueError(
-                f'Unknown implementation of "{abs_name}": {type_name}'
-            )
+    if raise_on_missing:
+        raise ValueError(
+            f'Unknown implementation of "{abs_name}": {type_name}'
+        )
     return None
 
 
 class MlemObject(PolyModel):
+    """
+    Base class for all MLEM Python objects
+    which should be serialized and deserialized
+    """
+
     abs_name: ClassVar[str]
 
     @classmethod

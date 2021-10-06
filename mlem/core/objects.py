@@ -1,3 +1,7 @@
+"""
+Base classes for meta objects in MLEM:
+MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
+"""
 import os
 import shutil
 from abc import ABC, abstractmethod
@@ -36,7 +40,7 @@ from mlem.utils.root import find_mlem_root
 
 class Deployment(MlemObject):
     __type_root__ = True
-    abs_name: ClassVar = "deployment"
+    abs_name: ClassVar[str] = "deployment"
 
     # @abstractmethod
     # def get_client(self) -> BaseClient:
@@ -122,7 +126,7 @@ class MlemMeta(MlemObject):
         link: bool = True,
         mlem_root: Optional[str] = ".",
         check_extension: bool = True,
-        absolute: bool = False,
+        absolute: bool = False,  # pylint: disable=unused-argument
     ):
         fs = resolve_fs(fs)
         if mlem_root:
@@ -182,8 +186,15 @@ class MlemMeta(MlemObject):
     # def get_artifacts(self) -> ArtifactCollection:
     #     return Blobs({})
 
-    def clone(self, name: str, how: str = "hard"):
+    def clone(
+        self,
+        name: str,
+        how: str = "hard",
+        root: str = ".",  # pylint: disable=unused-argument
+        link: bool = True,
+    ):
         """
+        Clone object to `name`.
 
         :param name: new name
         :param how:
@@ -197,7 +208,12 @@ class MlemMeta(MlemObject):
         new: MlemMeta = deserialize(
             serialize(self, MlemMeta), MlemMeta
         )  # easier than deep copy bc of possible attached objects
-        new.dump(name)
+        new.dump(
+            name,
+            link=link,
+            mlem_root=new.name if link else None,
+            check_extension=False,
+        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
 
@@ -288,7 +304,7 @@ class _ExternalMeta(ABC, MlemMeta):
             name = os.path.join(name, META_FILE_NAME)
         self.name = name
         self.artifacts = self.write_value()
-        super(_ExternalMeta, self).dump(
+        super().dump(
             name=name,
             fs=fs,
             link=link,
@@ -517,7 +533,7 @@ def find_object(
     source_paths = [p for p in source_paths if fs.exists(p[1])]
     if len(source_paths) == 0:
         raise ValueError(f"Object {path} not found, search of fs {fs}")
-    elif len(source_paths) > 1:
+    if len(source_paths) > 1:
         raise ValueError(f"Ambiguous object {path}: {source_paths}")
     type, source_path = source_paths[0]
     return type, source_path

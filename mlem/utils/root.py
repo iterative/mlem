@@ -3,9 +3,8 @@ import os
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
+from mlem.constants import MLEM_DIR
 from mlem.core.errors import MlemRootNotFound
-
-MLEM_DIR = ".mlem"
 
 
 def find_mlem_root(
@@ -27,8 +26,8 @@ def find_mlem_root(
             return _path
         if _path == os.path.dirname(_path):
             break
-        else:
-            _path = os.path.dirname(_path)
+
+        _path = os.path.dirname(_path)
     if raise_on_missing:
         raise MlemRootNotFound(path, fs)
     return None

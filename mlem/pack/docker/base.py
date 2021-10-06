@@ -5,7 +5,6 @@ import tempfile
 from typing import ClassVar, Dict, Iterator, Optional
 
 import docker
-import docker.errors
 import requests
 from docker import errors
 from docker.models.images import Image
@@ -59,7 +58,7 @@ class DockerRegistry(MlemObject):
         try:
             client.images.get(image.uri)
             return True
-        except docker.errors.ImageNotFound:
+        except errors.ImageNotFound:
             return False
 
     def delete_image(
@@ -77,7 +76,7 @@ class DockerRegistry(MlemObject):
         """
         try:
             client.images.remove(image.uri, force=force, **kwargs)
-        except docker.errors.ImageNotFound:
+        except errors.ImageNotFound:
             pass
 
 
@@ -97,7 +96,7 @@ class DockerIORegistry(DockerRegistry):
     def delete_image(
         self, client, image: "DockerImage", force=False, **kwargs
     ):
-        logger.warn("Skipping deleting image %s from docker.io", image.name)
+        logger.warning("Skipping deleting image %s from docker.io", image.name)
 
 
 class RemoteRegistry(DockerRegistry):
@@ -135,7 +134,7 @@ class RemoteRegistry(DockerRegistry):
         else:
             logger.warning(
                 "Skipped logging in to remote registry at host %s because no credentials given. "
-                + "You could specify credentials as %s and %s environment variables.",
+                "You could specify credentials as %s and %s environment variables.",
                 self.host,
                 username_var,
                 password_var,
@@ -161,7 +160,7 @@ class RemoteRegistry(DockerRegistry):
             },
         )
         if r.status_code != 200:
-            return
+            return None
         return r.headers["Docker-Content-Digest"]
 
     def image_exists(self, client, image: "DockerImage"):
@@ -172,9 +171,12 @@ class RemoteRegistry(DockerRegistry):
         r = requests.head(f"http://{self.host}/v2/{name}/manifests/{digest}")
         if r.status_code == 404:
             return False
-        elif r.status_code == 200:
+        if r.status_code == 200:
             return True
         r.raise_for_status()
+        raise ValueError(
+            "Response did not return code 200, but not raised an exception"
+        )
 
     def delete_image(
         self, client, image: "DockerImage", force=False, **kwargs
@@ -296,8 +298,10 @@ class DockerImagePackager(DockerDirPackager):
     def package(self, obj: ModelMeta, out: str):
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
-                self.args.prebuild_hook(self.args.python_version)
-            super(DockerImagePackager, self).package(obj, tempdir)
+                self.args.prebuild_hook(  # pylint: disable=not-callable # but it is
+                    self.args.python_version
+                )
+            super().package(obj, tempdir)
             return self.build(tempdir, out)
 
     def build(self, context_dir: str, image_name: str) -> Image:

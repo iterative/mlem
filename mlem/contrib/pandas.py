@@ -65,11 +65,11 @@ def pd_type_from_string(string_repr):
     """Creates pandas dtype from string representation"""
     try:
         return np_type_from_string(string_repr)
-    except ValueError:
+    except ValueError as e:
         for dtype, pattern in PD_EXT_TYPES.items():
             if pattern.match(string_repr) is not None:
                 return dtype.construct_from_string(string_repr)
-        raise ValueError(f"unknown pandas dtype {string_repr}")
+        raise ValueError(f"unknown pandas dtype {string_repr}") from e
 
 
 def python_type_from_pd_type(pd_type: Union[np.dtype, Type]):
@@ -149,7 +149,7 @@ class SeriesType(_PandasDatasetType, DatasetHook):
 
     """
 
-    type: ClassVar = "series"
+    type: ClassVar[str] = "series"
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
@@ -212,13 +212,13 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
     def deserialize(self, obj):
-        self._check_type(obj, dict, DeserializationError)
+        self.check_type(obj, dict, DeserializationError)
         try:
             ret = pd.DataFrame.from_records(obj["values"])
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
             raise DeserializationError(
                 f"given object: {obj} could not be converted to dataframe"
-            )
+            ) from e
 
         self._validate_columns(
             ret, DeserializationError
@@ -247,7 +247,7 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         return self.align_index(self.align_types(df))
 
     def serialize(self, instance: pd.DataFrame):
-        self._check_type(instance, pd.DataFrame, SerializationError)
+        self.check_type(instance, pd.DataFrame, SerializationError)
         is_copied, instance = reset_index(instance, return_copied=True)
 
         self._validate_columns(instance, SerializationError)
@@ -478,7 +478,9 @@ class _PandasIO(BaseModel):
     format: str
 
     @validator("format")
-    def is_valid_format(cls, value):  # noqa: B902
+    def is_valid_format(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
         if value not in PANDAS_FORMATS:
             raise ValueError(f"format {value} is not supported")
         return value
@@ -491,7 +493,7 @@ class _PandasIO(BaseModel):
 class PandasReader(_PandasIO, DatasetReader):
     """DatasetReader for pandas dataframes"""
 
-    type: ClassVar = "pandas"
+    type: ClassVar[str] = "pandas"
     dataset_type: DataFrameType
 
     def read(self, fs: AbstractFileSystem, path: str) -> Dataset:
@@ -503,7 +505,7 @@ class PandasReader(_PandasIO, DatasetReader):
 class PandasWriter(DatasetWriter, _PandasIO):
     """DatasetWriter for pandas dataframes"""
 
-    type: ClassVar = "pandas"
+    type: ClassVar[str] = "pandas"
 
     def write(
         self, dataset: Dataset, fs: AbstractFileSystem, path: str

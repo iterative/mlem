@@ -48,7 +48,7 @@ class DMatrixDatasetType(
     :param feature_names: list of feature names
     """
 
-    type: ClassVar = "xgboost_dmatrix"
+    type: ClassVar[str] = "xgboost_dmatrix"
     types: ClassVar = (xgboost.DMatrix,)
 
     is_from_list: bool
@@ -77,10 +77,10 @@ class DMatrixDatasetType(
     def deserialize(self, obj: Dict[Any, Any]) -> xgboost.DMatrix:
         try:
             return xgboost.DMatrix(obj)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
             raise DeserializationError(
                 f"given object: {obj} could not be converted to xgboost matrix"
-            )
+            ) from e
 
     @classmethod
     def from_dmatrix(cls, dmatrix: xgboost.DMatrix):
@@ -103,7 +103,7 @@ class DMatrixDatasetType(
     def process(cls, obj: xgboost.DMatrix, **kwargs) -> DatasetType:
         return DMatrixDatasetType.from_dmatrix(obj)
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
+    def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
 
 
@@ -112,7 +112,7 @@ class XGBoostModelIO(ModelIO):
     :class:`~.ModelIO` implementation for XGBoost models
     """
 
-    type: ClassVar = "xgboost_io"
+    type: ClassVar[str] = "xgboost_io"
     model_file_name = "model.xgb"
 
     def dump(
@@ -142,7 +142,7 @@ class XGBoostModel(
     :class:`~.ModelType` implementation for XGBoost models
     """
 
-    type: ClassVar = "xgboost"
+    type: ClassVar[str] = "xgboost"
     types: ClassVar = (xgboost.Booster,)
 
     io: ModelIO = XGBoostModelIO()

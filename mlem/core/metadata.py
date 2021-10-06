@@ -1,7 +1,12 @@
-from typing import Any, Optional, Union
+"""
+Functions to work with metadata: saving, loading,
+searching for MLEM object by given path.
+"""
+from typing import Any, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.github import GithubFileSystem
+from typing_extensions import Literal
 from yaml import safe_load
 
 from mlem.core.meta_io import get_envs, get_fs, get_git_kwargs, get_meta_path
@@ -72,13 +77,31 @@ def load(
     return meta.get_value()
 
 
+T = TypeVar("T", bound=MlemMeta)
+
+
+@overload
 def load_meta(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
+    *,
+    force_type: Literal[None] = None,
 ) -> MlemMeta:
+    ...
+
+
+def load_meta(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    follow_links: bool = True,
+    load_value: bool = False,
+    *,
+    force_type: Optional[Type[T]] = None,
+) -> T:
     """Load MlemMeta object
 
     Args:
@@ -87,7 +110,7 @@ def load_meta(
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
         follow_links (bool, optional): If object we read is a MLEM link, whether to load the actual object link points to. Defaults to True.
         load_value (bool, optional): Load actual python object incorporated in MlemMeta object. Defaults to False.
-
+        force_type: type of meta to be loaded. Defaults to MlemMeta (any mlem meta)
     Returns:
         MlemMeta: Saved MlemMeta object
     """
@@ -110,7 +133,9 @@ def load_meta(
     meta = cls.read(path, fs=fs, follow_links=follow_links)
     if load_value:
         meta.load_value()
-    return meta
+    if not isinstance(meta, force_type or MlemMeta):
+        raise ValueError(f"Wrong type of meta loaded, {meta} is not {cls}")
+    return meta  # type: ignore[return-value]
 
 
 def find_meta_path(path: str, fs: AbstractFileSystem) -> str:

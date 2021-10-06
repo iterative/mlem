@@ -9,7 +9,7 @@ from mlem.runtime.interface.base import Interface
 
 class Server(MlemObject, ABC, WithRequirements):
     __type_root__: ClassVar[bool] = True
-    abs_name: ClassVar = "server"
+    abs_name: ClassVar[str] = "server"
     env_vars: ClassVar[Optional[Dict[str, str]]] = None
     additional_source_files: ClassVar[Optional[List[str]]] = None
 

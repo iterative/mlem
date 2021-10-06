@@ -1,4 +1,5 @@
 """Exceptions raised by the MLEM."""
+from mlem.constants import MLEM_DIR
 
 
 class MlemError(Exception):
@@ -26,7 +27,6 @@ class MlemRootNotFound(MlemError):
         path,
         fs,
     ) -> None:
-        from mlem.utils.root import MLEM_DIR  # circular imports
 
         self.path = path
         self.fs = fs

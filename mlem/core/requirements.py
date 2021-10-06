@@ -1,3 +1,6 @@
+"""
+Base classes to work with requirements which come with ML models and datasets
+"""
 import base64
 import glob
 import itertools
@@ -5,6 +8,7 @@ import json
 import os
 import zlib
 from abc import ABC
+from pathlib import Path
 from types import ModuleType
 from typing import (
     ClassVar,
@@ -30,18 +34,13 @@ MODULE_PACKAGE_MAPPING = {
 PACKAGE_MODULE_MAPPING = {v: k for k, v in MODULE_PACKAGE_MAPPING.items()}
 
 
-def read(path, bin=False):
-    with open(path, "r" if not bin else "rb") as f:
-        return f.read()
-
-
 class Requirement(MlemObject):
     """
     Base class for python requirement
     """
 
     __type_root__ = True
-    abs_name: ClassVar = "requirement"
+    abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...
 
 
@@ -78,7 +77,7 @@ class InstallableRequirement(PythonRequirement):
         pip installable representation of this module
         """
         if self.version is not None:
-            return "{}=={}".format(self.package, self.version)
+            return f"{self.package}=={self.version}"
         return self.package
 
     @classmethod
@@ -132,7 +131,7 @@ class CustomRequirement(PythonRequirement):
     :param is_package: whether this code should be in %name%/__init__.py
     """
 
-    type: ClassVar = "custom"
+    type: ClassVar[str] = "custom"
 
     name: str
     source64zip: str
@@ -151,7 +150,7 @@ class CustomRequirement(PythonRequirement):
             pkg_dir = os.path.dirname(mod.__file__)
             par = os.path.dirname(pkg_dir)
             sources = {
-                os.path.relpath(p, par): read(p, bin=True)
+                os.path.relpath(p, par): Path(p).read_bytes()
                 for p in glob.glob(
                     os.path.join(pkg_dir, "**", "*"), recursive=True
                 )
@@ -159,7 +158,9 @@ class CustomRequirement(PythonRequirement):
             }
             src = CustomRequirement.compress_package(sources)
         else:
-            src = CustomRequirement.compress(read(mod.__file__))
+            src = CustomRequirement.compress(
+                Path(mod.__file__).read_text(encoding="utf8")
+            )
         return CustomRequirement(
             name=mod.__name__, source64zip=src, is_package=is_package
         )
@@ -242,13 +243,13 @@ class CustomRequirement(PythonRequirement):
         """
         if self.is_package:
             return self.sources
-        else:
-            return {self.name.replace(".", "/") + ".py": self.source}
+        return {self.name.replace(".", "/") + ".py": self.source}
 
 
 class FileRequirement(CustomRequirement):
-    type: ClassVar = "file"
+    type: ClassVar[str] = "file"
     is_package: bool = False
+    module: str = ""
 
     def to_sources_dict(self):
         """
@@ -260,11 +261,14 @@ class FileRequirement(CustomRequirement):
 
     @classmethod
     def from_path(cls, path: str):
-        return FileRequirement(name=path, source64zip=cls.compress(read(path)))
+        return FileRequirement(
+            name=path,
+            source64zip=cls.compress(Path(path).read_text(encoding="utf8")),
+        )
 
 
 class UnixPackageRequirement(Requirement):
-    type: ClassVar = "unix"
+    type: ClassVar[str] = "unix"
     package_name: str
 
 
@@ -308,6 +312,48 @@ class Requirements(BaseModel):
         """
         return [r.module for r in self.of_type(PythonRequirement)]
 
+    def _add_installable(self, requirement: InstallableRequirement):
+        for req in self.installable:
+            if req.package == requirement.package:
+                if req.version == requirement.version:
+                    break
+                if (
+                    req.version is not None
+                    and req.version != requirement.version
+                ):
+                    raise ValueError(
+                        f"Conflicting versions for package {req.package}: {req.version} and {requirement.version}"
+                    )
+        else:
+            self.__root__.append(requirement)
+
+    def _add_custom_package(self, requirement: CustomRequirement):
+        for c_req in self.custom:
+            if (
+                c_req.name.startswith(requirement.name + ".")
+                or c_req.name == requirement.name
+            ):
+                # existing req is subpackage or equals to new req
+                self.__root__.remove(c_req)
+            if requirement.name.startswith(c_req.name + "."):
+                # new req is subpackage of existing
+                break
+        else:
+            self.__root__.append(requirement)
+
+    def _add_custom(self, requirement: CustomRequirement):
+        for c_req in self.custom:
+            if c_req.is_package and requirement.name.startswith(
+                c_req.name + "."
+            ):
+                # new req is from existing package
+                break
+            if not c_req.is_package and c_req.name == requirement.name:
+                # new req equals to existing
+                break
+        else:
+            self.__root__.append(requirement)
+
     def add(self, requirement: Requirement):
         """
         Adds requirement to this collection
@@ -315,47 +361,12 @@ class Requirements(BaseModel):
         :param requirement: :class:`Requirement` instance to add
         """
         if isinstance(requirement, InstallableRequirement):
-            for req in self.installable:
-                if req.package == requirement.package:
-                    if req.version == requirement.version:
-                        break
-                    if (
-                        req.version is not None
-                        and req.version != requirement.version
-                    ):
-                        raise ValueError(
-                            "Conflicting versions for package {}: {} and {}".format(
-                                req.package, req.version, requirement.version
-                            )
-                        )
-            else:
-                self.__root__.append(requirement)
+            self._add_installable(requirement)
         elif isinstance(requirement, CustomRequirement):
             if requirement.is_package:
-                for c_req in self.custom:
-                    if (
-                        c_req.name.startswith(requirement.name + ".")
-                        or c_req.name == requirement.name
-                    ):
-                        # existing req is subpackage or equals to new req
-                        self.__root__.remove(c_req)
-                    if requirement.name.startswith(c_req.name + "."):
-                        # new req is subpackage of existing
-                        break
-                else:
-                    self.__root__.append(requirement)
+                self._add_custom_package(requirement)
             else:
-                for c_req in self.custom:
-                    if c_req.is_package and requirement.name.startswith(
-                        c_req.name + "."
-                    ):
-                        # new req is from existing package
-                        break
-                    if not c_req.is_package and c_req.name == requirement.name:
-                        # new req equals to existing
-                        break
-                else:
-                    self.__root__.append(requirement)
+                self._add_custom(requirement)
         else:  # TODO better checks here https://github.com/iterative/mlem/issues/49
             if requirement not in self.__root__:
                 self.__root__.append(requirement)

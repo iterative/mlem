@@ -1,3 +1,6 @@
+"""
+MLEM's Python API
+"""
 from ..core.metadata import load, load_meta, save
 from .commands import apply, get, init, link, pack
 

@@ -50,9 +50,9 @@ TYPE_ALIASES = {
 @cli.command()
 @click.argument("type", default="all")
 def ls(type: str):
-    """List MLEM objects in current mlem_root."""
+    """List MLEM objects of {type} in current mlem_root."""
     if type == "all":
-        for tp in MlemMeta.subtype_mapping().keys():
+        for tp in MlemMeta.subtype_mapping():
             _print_objects_of_type(tp)
     else:
         type = TYPE_ALIASES.get(type, type)
@@ -62,12 +62,17 @@ def ls(type: str):
 @cli.command("pprint")
 @click.argument("obj")
 @click.option(
-    "-f", "--follow-links", default=False, type=click.BOOL, is_flag=True
+    "-f",
+    "--follow-links",
+    default=False,
+    type=click.BOOL,
+    is_flag=True,
+    help="If specified, follow the link to the actual object.",
 )
 def pretty_print(obj: str, follow_links: bool):
     """Print __str__ for the specified MLEM object."""
     fs = LocalFileSystem()  # TODO: https://github.com/iterative/mlem/issues/31
-    tp, path = find_object(obj, fs)
+    tp, _ = find_object(obj, fs)
     pprint(
         MlemMeta.subtype_mapping()[tp].read(
             obj, follow_links=follow_links, fs=fs

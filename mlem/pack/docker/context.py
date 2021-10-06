@@ -43,14 +43,20 @@ class DockerBuildArgs(BaseModel):
     def get_base_image(self):
         if self.base_image is None:
             return f"python:{self.python_version}-slim"
-        return (
-            self.base_image
-            if isinstance(self.base_image, str)
-            else self.base_image(self.python_version)
+        if isinstance(self.base_image, str):
+            return self.base_image
+        if not callable(self.base_image):
+            raise ValueError(f"Invalid value {self.base_image} for base_image")
+        return self.base_image(  # pylint: disable=not-callable # but it is
+            self.python_version
         )
 
     def update(self, other: "DockerBuildArgs"):
-        for field in DockerBuildArgs.__fields_set__:
+        for (
+            field
+        ) in (
+            DockerBuildArgs.__fields_set__  # pylint: disable=not-an-iterable # dunno, it is Set[str]
+        ):
             if field == "templates_dir":
                 self.templates_dir += other.templates_dir
             else:
@@ -141,7 +147,9 @@ class DockerModelDirectory(BaseModel):
 
     def write_dockerfile(self, requirements: Requirements):
         env = self.get_env_vars()
-        with open(os.path.join(self.path, "Dockerfile"), "w") as df:
+        with open(
+            os.path.join(self.path, "Dockerfile"), "w", encoding="utf8"
+        ) as df:
             unix_packages = requirements.of_type(UnixPackageRequirement)
             dockerfile = _DockerfileGenerator(self.docker_args).generate(
                 env, unix_packages
@@ -198,7 +206,7 @@ class DockerModelDirectory(BaseModel):
             f"cd {repo_path} && python setup.py bdist_wheel", shell=True
         )
         whl_name = re.search(
-            "creating '(dist/.*\.whl)", res.decode("utf8")  # noqa: W605
+            r"creating '(dist/.*\.whl)", res.decode("utf8")  # noqa: W605
         ).group(1)
         whl_path = os.path.join(repo_path, whl_name)
         whl_name = os.path.basename(whl_name)

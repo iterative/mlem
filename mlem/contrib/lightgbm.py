@@ -32,22 +32,22 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     :param inner: :class:`.DatasetType` instance for underlying data
     """
 
-    type: ClassVar = "lightgbm"
+    type: ClassVar[str] = "lightgbm"
     types: ClassVar = (lgb.Dataset,)
     inner: DatasetType
 
     def serialize(self, instance: Any) -> dict:
-        self._check_type(instance, lgb.Dataset, SerializationError)
+        self.check_type(instance, lgb.Dataset, SerializationError)
         return self.inner.serialize(instance.data)
 
     def deserialize(self, obj: dict) -> Any:
         v = self.inner.deserialize(obj)
         try:
             return lgb.Dataset(v, free_raw_data=False)
-        except ValueError:
+        except ValueError as e:
             raise DeserializationError(
                 f"object: {obj} could not be converted to lightgbm dataset"
-            )
+            ) from e
 
     def get_requirements(self) -> Requirements:
         return (
@@ -56,7 +56,7 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
             + LGB_REQUIREMENT
         )
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
+    def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
     @classmethod
@@ -69,7 +69,7 @@ class LightGBMModelIO(ModelIO):
     :class:`.ModelIO` implementation for `lightgbm.Booster` type
     """
 
-    type: ClassVar = "lightgbm_io"
+    type: ClassVar[str] = "lightgbm_io"
     model_file_name = "model.lgb"
 
     def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
@@ -95,7 +95,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     :class:`.ModelType` implementation for `lightgbm.Booster` type
     """
 
-    type: ClassVar = "lightgbm"
+    type: ClassVar[str] = "lightgbm"
     types: ClassVar = (lgb.Booster,)
     io: ModelIO = LightGBMModelIO()
 

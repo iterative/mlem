@@ -16,7 +16,7 @@ def environment():
 def create(name, type):
     ENV_CLASSES = {
         cls.alias: type
-        for type, cls in TargetEnvMeta._subtypes.items()
+        for type, cls in TargetEnvMeta.__type_map__.items()
         if cls.alias is not ...
     }
     env_meta = create_configurable(TargetEnvMeta, type, ENV_CLASSES)

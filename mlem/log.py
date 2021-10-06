@@ -1,3 +1,6 @@
+"""
+Loggers used in other parts of MLEM
+"""
 import logging.config
 
 LOG_LEVEL = logging.DEBUG

@@ -29,18 +29,18 @@ def local_fs():
 
 
 @pytest.fixture(params=["numpy", "pandas"])
-def model_X_y(request):
+def model_train_target(request):
     """Note that in tests we often use both model and data,
     so having them compatible is a requirement for now.
     Though in future we may want to add tests with incompatible models and data
     """
     if request.param == "numpy":
-        X, y = load_iris(return_X_y=True)
+        train, target = load_iris(return_X_y=True)
     elif request.param == "pandas":
-        X, y = load_iris(return_X_y=True)
-        X = pd.DataFrame(X)
-    model = DecisionTreeClassifier().fit(X, y)
-    return model, X, y
+        train, target = load_iris(return_X_y=True)
+        train = pd.DataFrame(train)
+    model = DecisionTreeClassifier().fit(train, target)
+    return model, train, target
 
 
 @pytest.fixture
@@ -49,20 +49,18 @@ def pandas_data():
 
 
 @pytest.fixture
-def X(model_X_y):
-    model, X, y = model_X_y
-    return X
+def train(model_train_target):
+    return model_train_target[1]
 
 
 @pytest.fixture
-def model(model_X_y):
-    model, X, y = model_X_y
-    return model
+def model(model_train_target):
+    return model_train_target[0]
 
 
 @pytest.fixture
-def dataset_meta(X):
-    return DatasetMeta.from_data(X)
+def dataset_meta(train):
+    return DatasetMeta.from_data(train)
 
 
 @pytest.fixture
@@ -71,19 +69,19 @@ def model_meta(model):
 
 
 @pytest.fixture
-def model_path(model_X_y, tmpdir_factory):
+def model_path(model_train_target, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-model"))
-    model, X, y = model_X_y
+    model, train, _ = model_train_target
     # because of link=False we test reading by path here
     # reading by link name is not tested
-    save(model, temp_dir, tmp_sample_data=X, link=False)
+    save(model, temp_dir, tmp_sample_data=train, link=False)
     yield temp_dir
 
 
 @pytest.fixture
-def data_path(X, tmpdir_factory):
+def data_path(train, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data"))
-    save(X, temp_dir, link=False)
+    save(train, temp_dir, link=False)
     yield temp_dir
 
 
@@ -105,12 +103,12 @@ def mlem_root(tmpdir_factory):
 
 
 @pytest.fixture
-def model_path_mlem_root(model_X_y, tmpdir_factory):
-    model, X, y = model_X_y
+def model_path_mlem_root(model_train_target, tmpdir_factory):
+    model, train, _ = model_train_target
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, tmp_sample_data=X, link=True)
+    save(model, model_dir, tmp_sample_data=train, link=True)
     yield model_dir, dir
 
 
@@ -125,7 +123,7 @@ def dataset_write_read_check(
         writer = writer or dataset.dataset_type.get_writer()
 
         fs = LocalFileSystem()
-        reader, artifacts = writer.write(dataset, fs, tmpdir)
+        reader, _ = writer.write(dataset, fs, tmpdir)
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 

@@ -19,8 +19,10 @@ def import_string(path):
     mod = import_module(module_name)
     try:
         return getattr(mod, object_name)
-    except AttributeError:
-        raise ImportError(f"No object {object_name} in module {module_name}")
+    except AttributeError as e:
+        raise ImportError(
+            f"No object {object_name} in module {module_name}"
+        ) from e
 
 
 def module_importable(module_name):

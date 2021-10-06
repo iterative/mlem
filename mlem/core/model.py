@@ -1,3 +1,6 @@
+"""
+Base classes to work with ML models in MLEM
+"""
 import os
 import pickle
 from abc import ABC, abstractmethod
@@ -19,7 +22,7 @@ class ModelIO(MlemObject):
     """
 
     __type_root__ = True
-    abs_name: ClassVar = "model_io"
+    abs_name: ClassVar[str] = "model_io"
 
     @abstractmethod
     def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
@@ -72,7 +75,7 @@ class ModelType(ABC, MlemObject, WithRequirements):
     """
 
     __type_root__: ClassVar[bool] = True
-    abs_name: ClassVar = "model_type"
+    abs_name: ClassVar[str] = "model_type"
     __transient_fields__ = {"model"}
     model: Any = None
 

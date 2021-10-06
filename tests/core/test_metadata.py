@@ -17,26 +17,26 @@ def test_model_saving_without_sample_data(model, tmpdir_factory):
     save(model, dir, link=False)
 
 
-def test_model_saving_in_mlem_root(model_X_y, tmpdir_factory):
+def test_model_saving_in_mlem_root(model_train_target, tmpdir_factory):
     mlem_root = str(tmpdir_factory.mktemp("mlem-root"))
     init(mlem_root)
     model_dir = os.path.join(mlem_root, "generated-model")
-    model, X, y = model_X_y
-    save(model, model_dir, tmp_sample_data=X, link=True)
+    model, train, _ = model_train_target
+    save(model, model_dir, tmp_sample_data=train, link=True)
 
 
 def test_model_loading(model_path):
     model = load(model_path)
     assert isinstance(model, DecisionTreeClassifier)
-    X, y = load_iris(return_X_y=True)
-    model.predict(X)
+    train, _ = load_iris(return_X_y=True)
+    model.predict(train)
 
 
 def test_meta_loading(model_path):
     model = load_meta(model_path, load_value=True)
     assert isinstance(model.model.model, DecisionTreeClassifier)
-    X, y = load_iris(return_X_y=True)
-    model.model.model.predict(X)
+    train, _ = load_iris(return_X_y=True)
+    model.model.model.predict(train)
 
 
 @long
@@ -52,8 +52,8 @@ def test_meta_loading(model_path):
 def test_model_loading_from_github_with_fsspec(url):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(url)
-    X, y = load_iris(return_X_y=True)
-    model.predict(X)
+    train, _ = load_iris(return_X_y=True)
+    model.predict(train)
 
 
 @long
@@ -73,8 +73,8 @@ def test_model_loading_from_github(path):
         repo="https://github.com/iterative/example-mlem",
         rev="main",
     )
-    X, y = load_iris(return_X_y=True)
-    model.predict(X)
+    train, _ = load_iris(return_X_y=True)
+    model.predict(train)
 
 
 def test_load_link_with_fsspec_path():
@@ -85,8 +85,8 @@ def test_load_link_with_fsspec_path():
     }
     with tempfile.TemporaryDirectory() as dir:
         path = os.path.join(dir, "link.mlem.yaml")
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(yaml.safe_dump(link_contents))
         model = load(path)
-        X, y = load_iris(return_X_y=True)
-        model.predict(X)
+        train, _ = load_iris(return_X_y=True)
+        model.predict(train)

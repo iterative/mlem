@@ -1,3 +1,6 @@
+"""
+MLEM's Python API
+"""
 import os
 from typing import Any, Optional, Union
 
@@ -15,26 +18,25 @@ from mlem.runtime.server.base import Server
 def _get_dataset(dataset: Any) -> Any:
     if isinstance(dataset, str):
         return load(dataset)
-    elif isinstance(dataset, DatasetMeta):
+    if isinstance(dataset, DatasetMeta):
         # TODO: https://github.com/iterative/mlem/issues/29
         #  fix discrepancies between model and data meta objects
         if not hasattr(dataset.dataset, "data"):
             dataset.load_value()
         return dataset.data
-    else:
-        # TODO: https://github.com/iterative/mlem/issues/29
-        #  should we check whether this dataset is parseable by MLEM?
-        #  I guess not cause one may have a model with data input of unknown format/type
-        return dataset
+
+    # TODO: https://github.com/iterative/mlem/issues/29
+    #  should we check whether this dataset is parseable by MLEM?
+    #  I guess not cause one may have a model with data input of unknown format/type
+    return dataset
 
 
 def _get_model_meta(model: Any) -> ModelMeta:
-    print(model, type(model))
     if isinstance(model, ModelMeta):
         if model.get_value() is None:
             model.load_value()
         return model
-    elif isinstance(model, str):
+    if isinstance(model, str):
         model = load_meta(model)
         if not isinstance(model, ModelMeta):
             raise InvalidArgumentError(
@@ -42,10 +44,9 @@ def _get_model_meta(model: Any) -> ModelMeta:
             )
         model.load_value()
         return model
-    else:
-        raise InvalidArgumentError(
-            f"The object {model} is neither ModelMeta nor path to it"
-        )
+    raise InvalidArgumentError(
+        f"The object {model} is neither ModelMeta nor path to it"
+    )
 
 
 def apply(
@@ -84,14 +85,13 @@ def apply(
     if output is None:
         if len(res) == 1:
             return res[0]
-        else:
-            return res
+        return res
     if len(res) == 1:
         return save(res[0], output, link=link)
-    else:
-        raise NotImplementedError(
-            "Saving several input data objects is not implemented yet"
-        )
+
+    raise NotImplementedError(
+        "Saving several input data objects is not implemented yet"
+    )
 
 
 def get(
@@ -166,7 +166,7 @@ def link(
     # right now this only works when source and target are on local FS
     # (we don't even throw an NotImplementedError yet)
     # need to support other cases, like `source="github://..."`
-    if repo is not None:
+    if repo is not None or rev is not None:
         raise NotImplementedError()
     if isinstance(source, MlemMeta):
         if source.name is None:
