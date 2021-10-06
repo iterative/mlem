@@ -174,6 +174,9 @@ class RemoteRegistry(DockerRegistry):
         if r.status_code == 200:
             return True
         r.raise_for_status()
+        raise ValueError(
+            "Response did not return code 200, but not raised an exception"
+        )
 
     def delete_image(
         self, client, image: "DockerImage", force=False, **kwargs
@@ -295,7 +298,9 @@ class DockerImagePackager(DockerDirPackager):
     def package(self, obj: ModelMeta, out: str):
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
-                self.args.prebuild_hook(self.args.python_version)
+                self.args.prebuild_hook(  # pylint: disable=not-callable # but it is
+                    self.args.python_version
+                )
             super().package(obj, tempdir)
             return self.build(tempdir, out)
 

@@ -547,6 +547,7 @@ class RequirementAnalyzer(dill.Pickler):
                 type(e).__name__,
                 e,
             )
+        return None
 
     def skip_write(self, *args, **kwargs):
         pass
