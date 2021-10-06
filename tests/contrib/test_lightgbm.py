@@ -146,8 +146,7 @@ def test_model__predict_not_dataset(model):
 
 
 def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
-    expected_requirements = {"lightgbm"}  # , 'numpy'}
-    # TODO: https://github.com/iterative/mlem/issues/21 methods
+    expected_requirements = {"lightgbm", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
     model.dump(local_fs, tmpdir)

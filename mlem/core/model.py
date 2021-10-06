@@ -18,7 +18,7 @@ from mlem.core.dataset_type import (
     UnspecifiedDatasetType,
 )
 from mlem.core.hooks import Analyzer, Hook
-from mlem.core.requirements import WithRequirements
+from mlem.core.requirements import Requirements, WithRequirements
 
 
 class ModelIO(MlemObject):
@@ -133,7 +133,7 @@ def compose_args(
     ]
 
 
-class Signature(BaseModel):
+class Signature(BaseModel, WithRequirements):
     name: str
     args: List[Argument]
     returns: DatasetType
@@ -168,6 +168,16 @@ class Signature(BaseModel):
             varargs=argspec.varargs,
         )
 
+    def has_unspecified_args(self):
+        return isinstance(self.returns, UnspecifiedDatasetType) or any(
+            isinstance(a.type_, UnspecifiedDatasetType) for a in self.args
+        )
+
+    def get_requirements(self):
+        return self.returns.get_requirements() + [
+            r for a in self.args for r in a.type_.get_requirements().__root__
+        ]
+
 
 T = TypeVar("T", bound="ModelType")
 
@@ -183,9 +193,7 @@ class ModelType(ABC, MlemObject, WithRequirements):
     model: Any = None
 
     io: ModelIO
-    methods: Dict[
-        str, Signature
-    ]  # TODO: https://github.com/iterative/mlem/issues/21
+    methods: Dict[str, Signature]
 
     def load(self, fs: AbstractFileSystem, path: str):
         self.model = self.io.load(fs, path)
@@ -240,11 +248,20 @@ class ModelType(ABC, MlemObject, WithRequirements):
         self.model = None
         return self
 
+    def get_requirements(self) -> Requirements:
+        return Requirements.new(
+            [
+                r
+                for m in self.methods.values()
+                for r in m.get_requirements().__root__
+            ]
+        )
+
 
 class ModelHook(Hook[ModelType], ABC):
     @classmethod
     @abstractmethod
-    def process(
+    def process(  # pylint: disable=arguments-differ # so what
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
         pass
@@ -254,7 +271,7 @@ class ModelAnalyzer(Analyzer[ModelType]):
     base_hook_class = ModelHook
 
     @classmethod
-    def analyze(
+    def analyze(  # pylint: disable=arguments-differ # so what
         cls, obj, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
         return super().analyze(obj, sample_data=sample_data, **kwargs)

@@ -131,9 +131,7 @@ class XGBoostModelIO(ModelIO):
         return model
 
 
-class XGBoostModel(
-    XGBoostRequirement, ModelType, ModelHook, IsInstanceHookMixin
-):
+class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
     """
     :class:`~.ModelType` implementation for XGBoost models
     """
@@ -165,3 +163,10 @@ class XGBoostModel(
         if not isinstance(data, xgboost.DMatrix):
             data = xgboost.DMatrix(data)
         return self.model.predict(data)
+
+    def get_requirements(self) -> Requirements:
+        return (
+            super().get_requirements()
+            + InstallableRequirement.from_module(xgboost)
+            + XGB_REQUIREMENT
+        )

@@ -8,7 +8,7 @@ from fsspec import AbstractFileSystem
 
 from mlem.core.artifacts import Artifacts
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
-from mlem.core.requirements import LibRequirementsMixin
+from mlem.core.requirements import InstallableRequirement, Requirements
 
 
 class CatBoostModelIO(ModelIO):
@@ -51,13 +51,12 @@ class CatBoostModelIO(ModelIO):
         return self.regressor_file_name
 
 
-class CatBoostModel(ModelType, ModelHook, LibRequirementsMixin):
+class CatBoostModel(ModelType, ModelHook):
     """
     :class:`mlem.core.model.ModelType` for CatBoost models.
     `.model` attribute is a `catboost.CatBoostClassifier` or `catboost.CatBoostRegressor` instance
     """
 
-    libraries: ClassVar = [catboost]
     type: ClassVar[str] = "catboost"
     io: ModelIO = CatBoostModelIO()
     model: ClassVar[Optional[CatBoost]]
@@ -106,3 +105,8 @@ class CatBoostModel(ModelType, ModelHook, LibRequirementsMixin):
                 "Not valid type of model for predict_proba method"
             )
         return self.model.predict_proba(data)
+
+    def get_requirements(self) -> Requirements:
+        return super().get_requirements() + InstallableRequirement.from_module(
+            catboost
+        )

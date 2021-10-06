@@ -123,6 +123,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     def get_requirements(self) -> Requirements:
         return (
-            Requirements.new(InstallableRequirement.from_module(mod=lgb))
+            super().get_requirements()
+            + InstallableRequirement.from_module(mod=lgb)
             + LGB_REQUIREMENT
         )

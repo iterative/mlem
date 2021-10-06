@@ -40,8 +40,8 @@ def booster(dmatrix_np):
 
 
 @pytest.fixture
-def model(booster, dmatrix_np) -> ModelType:
-    return ModelAnalyzer.analyze(booster, sample_data=dmatrix_np)
+def model(booster, np_payload) -> ModelType:
+    return ModelAnalyzer.analyze(booster, sample_data=np_payload)
 
 
 @pytest.fixture
@@ -105,11 +105,11 @@ def test_deserialize__df(dtype_df, df_payload):
 #     assert schema == {'properties': {'a': {'type': 'integer'}}, 'required': ['a'], 'type': 'object'}
 
 
-def test_hook(model, booster, dmatrix_np):
+def test_hook(model, booster, np_payload):
     assert isinstance(model, XGBoostModel)
     assert model.model == booster
 
-    data_type = DatasetAnalyzer.analyze(dmatrix_np)
+    data_type = DatasetAnalyzer.analyze(np_payload)
     assert "xgboost_predict" in model.methods
     check_model_type_common_interface(
         model, data_type, NumpyNdarrayType(shape=(None,), dtype="float32")
@@ -130,8 +130,7 @@ def test_model__predict_not_dmatrix(model):
 
 
 def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
-    expected_requirements = {"xgboost"}  # , 'numpy'}
-    # TODO: https://github.com/iterative/mlem/issues/21 methods
+    expected_requirements = {"xgboost", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
     model.dump(local_fs, tmpdir)

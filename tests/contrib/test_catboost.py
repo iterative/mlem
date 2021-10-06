@@ -47,9 +47,7 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
         ),
     )
 
-    expected_requirements = {
-        "catboost",
-    }  # 'pandas', 'numpy'} # TODO: https://github.com/iterative/mlem/issues/21 methods
+    expected_requirements = {"catboost", "pandas", "numpy"}
     assert set(cbmw.get_requirements().modules) == expected_requirements
     assert cbmw.model is catboost_model
 
