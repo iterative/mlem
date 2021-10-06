@@ -190,6 +190,6 @@ class Analyzer(Generic[T]):
                 )
             raise ValueError(
                 f"No suitable {cls.base_hook_class.__name__} for object of type "
-                f"[{type(obj).__name__}]. Registered hooks: {cls.hooks}"
+                f'"{type(obj).__name__}". Registered hooks: {cls.hooks}'
             )
         return max(hooks, key=lambda x: x[0])[1]

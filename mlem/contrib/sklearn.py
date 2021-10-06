@@ -1,11 +1,14 @@
-from typing import Any, ClassVar, Dict
+from typing import Any, ClassVar, Optional
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
 
-from mlem.core.dataset_type import DatasetAnalyzer, UnspecifiedDatasetType
+from mlem.constants import (
+    PREDICT_ARG_NAME,
+    PREDICT_METHOD_NAME,
+    PREDICT_PROBA_METHOD_NAME,
+)
 from mlem.core.model import (
-    Argument,
     ModelHook,
     ModelIO,
     ModelType,
@@ -29,37 +32,28 @@ class SklearnModel(ModelType, ModelHook):
         return isinstance(obj, (RegressorMixin, ClassifierMixin))
 
     @classmethod
-    def process(cls, obj: Any, **kwargs) -> "SklearnModel":
-        test_data = kwargs.get("test_data")
-        method_names = ["predict"]
-        if isinstance(obj, ClassifierMixin):
-            method_names.append("predict_proba")
-        if test_data is None:
-
-            methods: Dict[str, Signature] = {
-                m: Signature(
-                    name=m,
-                    args=[Argument(key="X", type=UnspecifiedDatasetType())],
-                    returns=UnspecifiedDatasetType(),
-                )
-                for m in method_names
-            }
-
-        else:
-            methods = {
-                m: Signature(
-                    name=m,
-                    args=[
-                        Argument(
-                            key="X", type=DatasetAnalyzer.analyze(test_data)
-                        )
-                    ],
-                    returns=DatasetAnalyzer.analyze(
-                        getattr(obj, m)(test_data)
-                    ),
-                )
-                for m in method_names
-            }
+    def process(
+        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+    ) -> ModelType:
+        sklearn_predict = Signature.from_method(
+            obj.predict, sample_data is not None, X=sample_data
+        )
+        predict = sklearn_predict.copy()
+        predict.args = [predict.args[0].copy()]
+        predict.args[0].name = PREDICT_ARG_NAME
+        methods = {
+            "sklearn_predict": sklearn_predict,
+            PREDICT_METHOD_NAME: predict,
+        }
+        if hasattr(obj, "predict_proba"):
+            sklearn_predict_proba = Signature.from_method(
+                obj.predict_proba, sample_data is not None, X=sample_data
+            )
+            predict_proba = sklearn_predict_proba.copy()
+            predict_proba.args = [predict_proba.args[0].copy()]
+            predict_proba.args[0].name = PREDICT_ARG_NAME
+            methods["sklearn_predict_proba"] = sklearn_predict_proba
+            methods[PREDICT_PROBA_METHOD_NAME] = predict_proba
 
         return SklearnModel(io=SimplePickleIO(), methods=methods).bind(obj)
 

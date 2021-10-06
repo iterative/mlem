@@ -3,8 +3,11 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
+from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.sklearn import SklearnModel
+from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import ModelAnalyzer
+from tests.conftest import check_model_type_common_interface
 
 
 @pytest.fixture
@@ -31,18 +34,27 @@ def regressor(inp_data, out_data):
     return lr
 
 
-@pytest.mark.parametrize("model", ["classifier", "regressor"])
-def test_hook(model, inp_data, request):
-    model = request.getfixturevalue(model)
-    model_type = ModelAnalyzer.analyze(model, test_data=inp_data)
+@pytest.mark.parametrize("model_fixture", ["classifier", "regressor"])
+def test_hook(model_fixture, inp_data, request):
+    model = request.getfixturevalue(model_fixture)
+    data_type = DatasetAnalyzer.analyze(inp_data)
+    model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)
+    check_model_type_common_interface(
+        model_type,
+        data_type,
+        NumpyNdarrayType(
+            shape=(None,),
+            dtype="int64" if model_fixture == "classifier" else "float64",
+        ),
+    )
 
 
 @pytest.mark.parametrize("model", ["classifier", "regressor"])
 def test_model_type__predict(model, inp_data, request):
     model = request.getfixturevalue(model)
-    model_type = ModelAnalyzer.analyze(model, test_data=inp_data)
+    model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
 
     np.testing.assert_array_almost_equal(
         model.predict(inp_data), model_type.call_method("predict", inp_data)
@@ -50,7 +62,7 @@ def test_model_type__predict(model, inp_data, request):
 
 
 def test_model_type__clf_predict_proba(classifier, inp_data):
-    model_type = ModelAnalyzer.analyze(classifier, test_data=inp_data)
+    model_type = ModelAnalyzer.analyze(classifier, sample_data=inp_data)
 
     np.testing.assert_array_almost_equal(
         classifier.predict_proba(inp_data),
@@ -59,7 +71,7 @@ def test_model_type__clf_predict_proba(classifier, inp_data):
 
 
 def test_model_type__reg_predict_proba(regressor, inp_data):
-    model_type = ModelAnalyzer.analyze(regressor, test_data=inp_data)
+    model_type = ModelAnalyzer.analyze(regressor, sample_data=inp_data)
 
     with pytest.raises(ValueError):
         model_type.call_method("predict_proba", inp_data)
@@ -68,7 +80,7 @@ def test_model_type__reg_predict_proba(regressor, inp_data):
 @pytest.mark.parametrize("model", ["classifier", "regressor"])
 def test_model_type__dump_load(tmpdir, model, inp_data, request):
     model = request.getfixturevalue(model)
-    model_type = ModelAnalyzer.analyze(model, test_data=inp_data)
+    model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
 
     expected_requirements = {"sklearn", "numpy"}
     assert set(model_type.get_requirements().modules) == expected_requirements

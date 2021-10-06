@@ -19,7 +19,7 @@ def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
     try:
         return DatasetMeta.from_data(obj)
     except ValueError:  # TODO need separate analysis exception
-        return ModelMeta.from_obj(obj, test_data=tmp_sample_data)
+        return ModelMeta.from_obj(obj, sample_data=tmp_sample_data)
 
 
 def save(

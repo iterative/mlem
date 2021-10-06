@@ -95,7 +95,8 @@ class Interface(ABC, MlemObject):
         :return: list of argument types
         """
         return {
-            a.key: a.type for a in self.get_method_signature(method_name).args
+            a.name: a.type_
+            for a in self.get_method_signature(method_name).args
         }
 
     def get_method_returns(self, method_name: str) -> DatasetType:
@@ -135,7 +136,7 @@ class SimpleInterface(Interface):
                 methods[name] = Signature(
                     name=name,
                     args=[
-                        Argument(key=a, type=attr.__annotations__[a])
+                        Argument(name=a, type_=attr.__annotations__[a])
                         for a in inspect.getfullargspec(attr).args[1:]
                     ],
                     returns=attr.__annotations__.get("return"),
@@ -181,7 +182,7 @@ class ModelInterface(Interface):
         signature = self.get_method_signature(method_name)
 
         def executor(**kwargs):
-            args = [kwargs[arg.key] for arg in signature.args]
+            args = [kwargs[arg.name] for arg in signature.args]
             return self.model.call_method(method_name, *args)
 
         return executor
@@ -195,4 +196,4 @@ class ModelInterface(Interface):
         ).__doc__
 
     def get_method_args(self, method_name: str) -> Dict[str, Argument]:
-        return {a.key: a.type for a in self.model.methods[method_name].args}
+        return {a.name: a.type_ for a in self.model.methods[method_name].args}

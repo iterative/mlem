@@ -32,7 +32,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         cls, method_name: str, signature: Signature, executor: Callable
     ):
         serializers = {
-            arg.key: arg.type.get_serializer() for arg in signature.args
+            arg.name: arg.type_.get_serializer() for arg in signature.args
         }
         kwargs = {
             key: (serializer.get_model(), ...)
@@ -47,8 +47,8 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         def handler(model: payload_model):  # type: ignore[valid-type]
             kwargs = {
-                a.key: serializers[a.key].deserialize(
-                    getattr(model, a.key).dict()
+                a.name: serializers[a.name].deserialize(
+                    getattr(model, a.name).dict()
                 )
                 for a in signature.args
             }
