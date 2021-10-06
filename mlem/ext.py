@@ -199,7 +199,7 @@ class _ImportLoadExtRegisterer(importlib.abc.PathEntryFinder):
         self.imported.append(fullname)
 
 
-class _ImportLoadExtInterceptor(
+class _ImportLoadExtInterceptor(  # pylint: disable=abstract-method
     importlib.abc.Loader, importlib.abc.PathEntryFinder
 ):
     """
@@ -240,9 +240,6 @@ class _ImportLoadExtInterceptor(
                 ExtensionLoader.load(extension)
 
         return module
-
-    def module_repr(self, module: ModuleType) -> str:
-        return super().module_repr(module)
 
 
 def load_extensions(*exts: str):

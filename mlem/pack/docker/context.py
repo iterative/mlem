@@ -43,14 +43,20 @@ class DockerBuildArgs(BaseModel):
     def get_base_image(self):
         if self.base_image is None:
             return f"python:{self.python_version}-slim"
-        return (
-            self.base_image
-            if isinstance(self.base_image, str)
-            else self.base_image(self.python_version)
+        if isinstance(self.base_image, str):
+            return self.base_image
+        if not callable(self.base_image):
+            raise ValueError(f"Invalid value {self.base_image} for base_image")
+        return self.base_image(  # pylint: disable=not-callable # but it is
+            self.python_version
         )
 
     def update(self, other: "DockerBuildArgs"):
-        for field in DockerBuildArgs.__fields_set__:
+        for (
+            field
+        ) in (
+            DockerBuildArgs.__fields_set__  # pylint: disable=not-an-iterable # dunno, it is Set[str]
+        ):
             if field == "templates_dir":
                 self.templates_dir += other.templates_dir
             else:
