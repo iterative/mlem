@@ -159,16 +159,16 @@ disable=print-statement,
         missing-function-docstring, # TODO: https://github.com/iterative/mlem/issues/16
         missing-class-docstring, # TODO: https://github.com/iterative/mlem/issues/16
         empty-docstring, # TODO: https://github.com/iterative/mlem/issues/16
-        bad-continuation, # TODO: https://github.com/iterative/mlem/pull/36 possible conflict with black
-        line-too-long, # TODO: https://github.com/iterative/mlem/pull/36
-        no-name-in-module, # TODO: https://github.com/iterative/mlem/pull/36 looks like dependency problem
+        bad-continuation, # TODO: https://github.com/iterative/mlem/issues/60 possible conflict with black
+        line-too-long, # TODO: https://github.com/iterative/mlem/issues/60
+        no-name-in-module, # TODO: https://github.com/iterative/mlem/issues/60 looks like dependency problem
         too-many-arguments,
         too-few-public-methods,
         invalid-name,
         redefined-outer-name,
         too-many-ancestors,
-        redefined-builtin, # TODO: https://github.com/iterative/mlem/pull/36
-        no-self-use, # TODO: https://github.com/iterative/mlem/pull/36 maybe leave it
+        redefined-builtin, # TODO: https://github.com/iterative/mlem/issues/60
+        no-self-use, # TODO: https://github.com/iterative/mlem/issues/60 maybe leave it
         import-outside-toplevel,
 
 # Enable the message, report, category or checker with the given id(s). You can
