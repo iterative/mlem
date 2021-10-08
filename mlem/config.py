@@ -34,6 +34,8 @@ class MlemConfig(BaseSettings):
     )
     AUTOLOAD_EXTS: bool = True
     DEFAULT_BRANCH: str = "main"
+    LOG_LEVEL: str = "INFO"
+    DEBUG: bool = False
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:

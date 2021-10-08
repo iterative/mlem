@@ -96,7 +96,7 @@ def serialize(
 ):  # pylint: disable=unused-argument # todo remove later
     if not isinstance(obj, MlemObject):
         raise ValueError(f"{type(obj)} is not a subclass of MlemObject")
-    return obj.dict(exclude_unset=True)
+    return obj.dict(exclude_unset=True, exclude_defaults=True)
 
 
 T = TypeVar("T")
