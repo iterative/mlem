@@ -44,6 +44,7 @@ class MlemConfig(BaseSettings):
         return self.ADDITIONAL_EXTENSIONS_RAW.split(",")
 
     class Config:
+        env_prefix = "mlem_"
         env_file_encoding = "utf-8"
 
         @classmethod

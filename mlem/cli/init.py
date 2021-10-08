@@ -1,9 +1,9 @@
 import click
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 
 
-@cli.command("init")
+@mlem_command("init")
 @click.argument("path", default=".")
 def init(path: str):
     """Create .mlem folder in {path}"""

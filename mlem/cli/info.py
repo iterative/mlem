@@ -5,7 +5,7 @@ from pprint import pprint
 import click
 from fsspec.implementations.local import LocalFileSystem
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
     MLEM_DIR,
@@ -47,7 +47,7 @@ TYPE_ALIASES = {
 }
 
 
-@cli.command()
+@mlem_command()
 @click.argument("type", default="all")
 def ls(type: str):
     """List MLEM objects of {type} in current mlem_root."""
@@ -59,7 +59,7 @@ def ls(type: str):
         _print_objects_of_type(type)
 
 
-@cli.command("pprint")
+@mlem_command("pprint")
 @click.argument("obj")
 @click.option(
     "-f",

@@ -2,12 +2,12 @@ from typing import Any, Tuple
 
 import click
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 from mlem.cli.utils import with_model_meta
 from mlem.core.objects import ModelMeta
 
 
-@cli.command("apply")
+@mlem_command("apply")
 @with_model_meta
 @click.option(
     "-o", "--output", default=None, help="Where to store the outputs."
@@ -34,7 +34,7 @@ def apply(
     apply(model, *args, method=method, output=output, link=link)
 
 
-@cli.command()
+@mlem_command()
 @with_model_meta
 @click.argument("output")
 @click.option(

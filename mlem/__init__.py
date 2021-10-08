@@ -4,6 +4,8 @@ MLEM is a tool to help you version and deploy your Machine Learning models:
 * Model lifecycle management using Git and GitOps principles
 * Provider-agnostic deployment
 """
+import mlem.log  # noqa
+
 from . import api  # noqa
 from .config import CONFIG
 from .ext import ExtensionLoader

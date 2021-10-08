@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 from mlem.core.base import MlemObject
 from mlem.core.objects import ModelMeta
-from mlem.log import logger
 from mlem.pack import Packager
 from mlem.pack.docker.context import DockerBuildArgs, DockerModelDirectory
 from mlem.pack.docker.utils import (
@@ -22,6 +21,8 @@ from mlem.pack.docker.utils import (
     print_docker_logs,
 )
 from mlem.runtime.server.base import Server
+
+logger = logging.getLogger(__name__)
 
 
 class DockerRegistry(MlemObject):
