@@ -372,28 +372,30 @@ class _ExternalMeta(ABC, MlemMeta):
 
 class ModelMeta(_ExternalMeta):
     object_type = "model"
-    model: ModelType
+    model_type: ModelType
 
     @classmethod
     def from_obj(cls, model: Any, sample_data: Any = None) -> "ModelMeta":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
         mt.model = model
-        return ModelMeta(model=mt, requirements=mt.get_requirements())
+        return ModelMeta(model_type=mt, requirements=mt.get_requirements())
 
     def write_value(self) -> Artifacts:
         path = self.art_dir
-        if self.model.model is not None:
-            artifacts = self.model.io.dump(self.fs, path, self.model.model)
+        if self.model_type.model is not None:
+            artifacts = self.model_type.io.dump(
+                self.fs, path, self.model_type.model
+            )
         else:
             raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
             # self.get_artifacts().materialize(path)
         return artifacts
 
     def load_value(self):
-        self.model.load(self.fs, self.art_dir)
+        self.model_type.load(self.fs, self.art_dir)
 
     def get_value(self):
-        return self.model.model
+        return self.model_type.model
 
 
 class DatasetMeta(_ExternalMeta):
