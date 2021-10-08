@@ -409,6 +409,8 @@ def resolve_requirements(other: "AnyRequirements") -> Requirements:
     """
     if not isinstance(other, Requirements):
         if isinstance(other, list):
+            if len(other) == 0:
+                return Requirements.new()
             if isinstance(other[0], str):
                 other = Requirements(
                     __root__=[

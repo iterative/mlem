@@ -12,7 +12,7 @@ from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
 def test_model_dump(mlem_root):
     X, y = load_iris(return_X_y=True)
     clf = DecisionTreeClassifier().fit(X, y)
-    meta = ModelMeta.from_obj(clf, test_data=X)
+    meta = ModelMeta.from_obj(clf, sample_data=X)
     dir = os.path.join(mlem_root, "decision_tree")
     meta.dump(dir, link=True)
     link_path = os.path.join(

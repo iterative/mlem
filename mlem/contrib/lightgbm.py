@@ -1,21 +1,21 @@
 import os
 import tempfile
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 
 import lightgbm as lgb
 from fsspec import AbstractFileSystem
 
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetHook,
     DatasetType,
     DatasetWriter,
-    UnspecifiedDatasetType,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.model import Argument, ModelHook, ModelIO, ModelType, Signature
+from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import (
     InstallableRequirement,
     Requirements,
@@ -100,25 +100,30 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     io: ModelIO = LightGBMModelIO()
 
     @classmethod
-    def process(cls, obj: Any, **kwargs) -> ModelType:
-        return LightGBMModel(
-            model=obj,
-            methods={
-                "predict": Signature(
-                    name="_predict",
-                    args=[Argument(key="data", type=UnspecifiedDatasetType())],
-                    returns=UnspecifiedDatasetType(),  # TODO: https://github.com/iterative/mlem/issues/21
-                )
-            },
-        )
+    def process(
+        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+    ) -> ModelType:
+        gbm_model = LightGBMModel(model=obj, methods={})
+        gbm_model.methods = {
+            PREDICT_METHOD_NAME: Signature.from_method(
+                gbm_model.predict,
+                auto_infer=sample_data is not None,
+                data=sample_data,
+            ),
+            "lightgbm_predict": Signature.from_method(
+                obj.predict, auto_infer=sample_data is None, data=sample_data
+            ),
+        }
+        return gbm_model
 
-    def _predict(self, data):
+    def predict(self, data):
         if isinstance(data, lgb.Dataset):
             data = data.data
         return self.model.predict(data)
 
     def get_requirements(self) -> Requirements:
         return (
-            Requirements.new(InstallableRequirement.from_module(mod=lgb))
+            super().get_requirements()
+            + InstallableRequirement.from_module(mod=lgb)
             + LGB_REQUIREMENT
         )

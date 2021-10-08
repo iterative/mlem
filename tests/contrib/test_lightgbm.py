@@ -10,6 +10,7 @@ from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
+from tests.conftest import check_model_type_common_interface
 
 
 @pytest.fixture
@@ -45,7 +46,7 @@ def booster(dataset_np):
 
 @pytest.fixture
 def model(booster, dataset_np) -> ModelType:
-    return ModelAnalyzer.analyze(booster, test_data=dataset_np)
+    return ModelAnalyzer.analyze(booster, sample_data=dataset_np)
 
 
 @pytest.fixture
@@ -120,9 +121,15 @@ def test_deserialize__df(dtype_df, df_payload):
 #                       'type': 'object'}
 
 
-def test_hook(model, booster):
+def test_hook(model, booster, dataset_np):
     assert isinstance(model, LightGBMModel)
     assert model.model == booster
+    assert "lightgbm_predict" in model.methods
+    data_type = DatasetAnalyzer.analyze(dataset_np)
+
+    check_model_type_common_interface(
+        model, data_type, NumpyNdarrayType(shape=(None,), dtype="float64")
+    )
 
 
 def test_model__predict(model, dataset_np):
@@ -139,8 +146,7 @@ def test_model__predict_not_dataset(model):
 
 
 def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
-    expected_requirements = {"lightgbm"}  # , 'numpy'}
-    # TODO: https://github.com/iterative/mlem/issues/21 methods
+    expected_requirements = {"lightgbm", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
     model.dump(local_fs, tmpdir)

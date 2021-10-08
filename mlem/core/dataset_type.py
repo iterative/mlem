@@ -84,7 +84,7 @@ class PrimitiveType(DatasetType, DatasetHook):
     DatasetType for int, str, bool, complex and float types
     """
 
-    PRIMITIVES: ClassVar[set] = {int, str, bool, complex, float}
+    PRIMITIVES: ClassVar[set] = {int, str, bool, complex, float, type(None)}
     type: ClassVar[str] = "primitive"
 
     ptype: str
@@ -103,9 +103,6 @@ class PrimitiveType(DatasetType, DatasetHook):
 
     def deserialize(self, obj):
         return self.to_type(obj)
-
-    # def get_spec(self) -> ArgList:
-    #     return [Field(None, self.to_type, False)]
 
     def serialize(self, instance):
         self.check_type(instance, self.to_type, ValueError)

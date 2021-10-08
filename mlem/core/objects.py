@@ -375,8 +375,8 @@ class ModelMeta(_ExternalMeta):
     model: ModelType
 
     @classmethod
-    def from_obj(cls, model: Any, test_data: Any = None) -> "ModelMeta":
-        mt = ModelAnalyzer.analyze(model, test_data=test_data)
+    def from_obj(cls, model: Any, sample_data: Any = None) -> "ModelMeta":
+        mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
         mt.model = model
         return ModelMeta(model=mt, requirements=mt.get_requirements())
 

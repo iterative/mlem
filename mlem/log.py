@@ -3,7 +3,12 @@ Loggers used in other parts of MLEM
 """
 import logging.config
 
-LOG_LEVEL = logging.DEBUG
+from mlem.config import CONFIG
+
+LOG_LEVEL = CONFIG.LOG_LEVEL
+if CONFIG.DEBUG:
+    LOG_LEVEL = logging.getLevelName(logging.DEBUG)
+
 logging_config = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -9,8 +9,15 @@ from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init, save
-from mlem.core.dataset_type import Dataset, DatasetReader, DatasetWriter
+from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
+from mlem.core.dataset_type import (
+    Dataset,
+    DatasetReader,
+    DatasetType,
+    DatasetWriter,
+)
 from mlem.core.metadata import load_meta
+from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import DatasetMeta, ModelMeta
 
 RESOURCES = "resources"
@@ -137,3 +144,14 @@ def dataset_write_read_check(
                 assert custom_eq(new.data, dataset.data)
             else:
                 assert new.data == dataset.data
+
+
+def check_model_type_common_interface(
+    model_type: ModelType, data_type: DatasetType, returns_type: DatasetType
+):
+    assert PREDICT_METHOD_NAME in model_type.methods
+    assert model_type.methods[PREDICT_METHOD_NAME] == Signature(
+        name=PREDICT_METHOD_NAME,
+        args=[Argument(name=PREDICT_ARG_NAME, type_=data_type)],
+        returns=returns_type,
+    )

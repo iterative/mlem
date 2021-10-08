@@ -48,8 +48,8 @@ def test_interface_descriptor__from_interface(interface: Interface):
         name="method1",
         args=[
             Argument(
-                key="arg1",
-                type=Container(field=5),
+                name="arg1",
+                type_=Container(field=5),
             )
         ],
         returns=Container(field=5),
@@ -64,14 +64,19 @@ def test_interface_descriptor__to_dict(interface: Interface):
         "version": mlem.__version__,
         "methods": {
             "method1": {
-                "name": "method1",
                 "args": [
                     {
-                        "key": "arg1",
-                        "type": {"field": 5, "type": "test_container"},
+                        "default": None,
+                        "kw_only": False,
+                        "name": "arg1",
+                        "required": True,
+                        "type_": {"field": 5, "type": "test_container"},
                     }
                 ],
+                "name": "method1",
                 "returns": {"field": 5, "type": "test_container"},
+                "varargs": None,
+                "varkw": None,
             }
         },
     }
