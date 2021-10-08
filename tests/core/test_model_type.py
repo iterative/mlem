@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.linear_model import LinearRegression
 from sklearn.naive_bayes import GaussianNB
@@ -54,11 +55,11 @@ def test_infer_signatire(model, train):
     assert len(signature.args) == 2
     arg = signature.args[0]
     assert arg.name == "X"
-    assert arg.type_ in (  # dont know how to do this better
-        DataFrameType(
+    if isinstance(train, np.ndarray):
+        assert arg.type_ == NumpyNdarrayType(shape=(None, 4), dtype="float64")
+    elif isinstance(train, pd.DataFrame):
+        assert arg.type_ == DataFrameType(
             columns=["0", "1", "2", "3"],
             dtypes=["float64", "float64", "float64", "float64"],
             index_cols=[],
-        ),
-        NumpyNdarrayType(shape=(None, 4), dtype="float64"),
-    )
+        )
