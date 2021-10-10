@@ -62,6 +62,8 @@ install_requires = [
     "fusepy",  # TMP
     "cached-property",
     "entrypoints",
+    "filelock",
+    "appdirs",
 ]
 
 # storage

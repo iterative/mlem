@@ -5,6 +5,7 @@ from pprint import pprint
 import click
 from fsspec.implementations.local import LocalFileSystem
 
+from mlem.analytics import send_cli_call
 from mlem.cli.main import cli
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
@@ -57,7 +58,7 @@ def ls(type: str):
     else:
         type = TYPE_ALIASES.get(type, type)
         _print_objects_of_type(type)
-
+    send_cli_call("ls", type=type)
 
 @cli.command("pprint")
 @click.argument("obj")

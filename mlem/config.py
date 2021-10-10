@@ -36,6 +36,8 @@ class MlemConfig(BaseSettings):
     DEFAULT_BRANCH: str = "main"
     LOG_LEVEL: str = "INFO"
     DEBUG: bool = False
+    NO_ANALYTICS: bool = False
+    TESTS: bool = False
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:
