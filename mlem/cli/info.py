@@ -41,7 +41,7 @@ def _print_objects_of_type(path, type_):
             link = f"-> {meta.mlem_link}"
         else:
             link = ""
-        print("", "-", obj_name, link)
+        print("", "-", obj_name, *[link] if link else [])
 
 
 TYPE_ALIASES = {
