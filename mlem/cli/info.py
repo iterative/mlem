@@ -1,4 +1,3 @@
-import glob
 import os
 from pprint import pprint
 
@@ -24,16 +23,14 @@ def _print_objects_of_type(path, type_):
     root_path = os.path.join(
         find_mlem_root(path, fs), MLEM_DIR, cls.object_type
     )
-    files = glob.glob(
-        os.path.join(root_path, "**", f"*{MLEM_EXT}"), recursive=True
-    )
+    files = fs.glob(os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True)
     if len(files) == 0:
         return
     print(type_.capitalize() + "s:")
     for file in files:
         file = file[: -len(MLEM_EXT)]
         obj_name = os.path.relpath(file, root_path)
-        meta = load_meta(obj_name, follow_links=False)
+        meta = load_meta(obj_name, follow_links=False, fs=fs)
         if (
             isinstance(meta, MlemLink)
             and obj_name != meta.mlem_link[: -len(MLEM_EXT)]
