@@ -158,42 +158,44 @@ class SimpleInterface(Interface):
 
 
 class ModelInterface(Interface):
-    __transient_fields__: ClassVar[set] = {"model"}
+    __transient_fields__: ClassVar[set] = {"model_type"}
     type: ClassVar[str] = "model"
-    model: ClassVar[ModelType]
+    model_type: ClassVar[ModelType]
 
     def load(self, uri: str):
         meta = load_meta(uri)
         if not isinstance(meta, ModelMeta):
             raise ValueError("Interface can be created only from models")
-        self.model = meta.model
-        self.model.load(meta.fs, uri)
+        self.model_type = meta.model_type
+        self.model_type.load(meta.fs, uri)
 
     @classmethod
     def from_model(cls, model: ModelMeta):
         interface = cls()
-        interface.model = model.model
+        interface.model_type = model.model_type
         return interface
 
     def get_method_signature(self, method_name: str) -> Signature:
-        return self.model.methods[method_name]
+        return self.model_type.methods[method_name]
 
     def get_method_executor(self, method_name: str):
         signature = self.get_method_signature(method_name)
 
         def executor(**kwargs):
             args = [kwargs[arg.name] for arg in signature.args]
-            return self.model.call_method(method_name, *args)
+            return self.model_type.call_method(method_name, *args)
 
         return executor
 
     def get_method_names(self) -> List[str]:
-        return list(self.model.methods.keys())
+        return list(self.model_type.methods.keys())
 
     def get_method_docs(self, method_name: str) -> str:
         return getattr(
-            self.model.model, self.model.methods[method_name].name
+            self.model_type.model, self.model_type.methods[method_name].name
         ).__doc__
 
     def get_method_args(self, method_name: str) -> Dict[str, Argument]:
-        return {a.name: a.type_ for a in self.model.methods[method_name].args}
+        return {
+            a.name: a.type_ for a in self.model_type.methods[method_name].args
+        }

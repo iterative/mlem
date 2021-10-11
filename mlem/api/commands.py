@@ -77,7 +77,7 @@ def apply(
     We may do this by using `*data` or work with `data` being an iterable.
     """
     model = _get_model_meta(model)
-    w = model.model
+    w = model.model_type
     res = [
         w.call_method(w.resolve_method(method), _get_dataset(part))
         for part in data
@@ -220,7 +220,7 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
 
     model.load_value()
     interface = ModelInterface()
-    interface.model = model.model
+    interface.model_type = model.model_type
 
     if not isinstance(server, Server):
         server_obj = parse_obj_as(
