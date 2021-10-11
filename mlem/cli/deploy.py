@@ -3,7 +3,7 @@ import os
 import click
 from fsspec.implementations.local import LocalFileSystem
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
     DeployMeta,
@@ -15,7 +15,7 @@ from mlem.core.objects import (
 DEPLOY_EXT = ".deployed.yaml"
 
 
-@cli.command(
+@mlem_command(
     context_settings={
         "ignore_unknown_options": True,
     }
@@ -49,7 +49,7 @@ def deploy(model, target_environment, deploy_args):
     deploy_meta.dump(os.path.join(target_environment, model))
 
 
-@cli.command()
+@mlem_command()
 @click.argument("target_environment")
 @click.argument("model")
 def destroy(target_environment, model):
@@ -59,7 +59,7 @@ def destroy(target_environment, model):
     os.unlink(mlem_dir_path(deployed, LocalFileSystem(), obj_type=DeployMeta))
 
 
-@cli.command()
+@mlem_command()
 @click.argument("target_environment")
 @click.argument("model")
 def status(target_environment, model):

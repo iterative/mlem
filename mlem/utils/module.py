@@ -1,6 +1,7 @@
 import ast
 import inspect
 import io
+import logging
 import os
 import re
 import sys
@@ -25,8 +26,9 @@ from mlem.core.requirements import (
     InstallableRequirement,
     Requirements,
 )
-from mlem.log import logger
 from mlem.utils import importing
+
+logger = logging.getLogger(__name__)
 
 PYTHON_BASE = os.path.dirname(threading.__file__)
 

@@ -1,7 +1,7 @@
 import click
 
 from ..core.objects import TargetEnvMeta
-from .main import cli
+from .main import cli, verbose_option
 from .utils import create_configurable
 
 
@@ -11,6 +11,7 @@ def environment():
 
 
 @environment.command()
+@verbose_option
 @click.argument("name")
 @click.argument("type")
 def create(name, type):

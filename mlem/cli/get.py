@@ -1,9 +1,9 @@
 import click
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 
 
-@cli.command("get")
+@mlem_command("get")
 @click.argument("uri")
 @click.option("-o", "--out", help="Path to store the downloaded object.")
 def get(uri: str, out: str):

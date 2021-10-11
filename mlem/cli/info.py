@@ -4,7 +4,7 @@ from pprint import pprint
 import click
 from fsspec.implementations.local import LocalFileSystem
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 from mlem.core.meta_io import get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
@@ -48,7 +48,7 @@ TYPE_ALIASES = {
 }
 
 
-@cli.command()
+@mlem_command()
 @click.argument(
     "type_",
     default="all",
@@ -64,7 +64,7 @@ def ls(type_: str, repo: str):
         _print_objects_of_type(repo, type)
 
 
-@cli.command("pprint")
+@mlem_command("pprint")
 @click.argument("obj")
 @click.option(
     "-f",
