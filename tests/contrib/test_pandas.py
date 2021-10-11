@@ -5,6 +5,8 @@ from typing import Callable, List, Union
 
 import pandas as pd
 import pytest
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
 
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
@@ -19,6 +21,7 @@ from mlem.contrib.pandas import (
 from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import deserialize, serialize
+from mlem.core.metadata import load, save
 from tests.conftest import dataset_write_read_check
 
 PD_DATA_FRAME = pd.DataFrame(
@@ -274,6 +277,22 @@ def test_all_filtered(df):
 
     assert df is not data
     pandas_assert(data, df)
+
+
+@pytest.fixture()
+def iris_data():
+    data, y = load_iris(return_X_y=True, as_frame=True)
+    data["target"] = y
+    train_data, _ = train_test_split(data, random_state=42)
+    return train_data
+
+
+def test_save_load(iris_data, tmpdir):
+    tmpdir = str(tmpdir / "data")
+    save(iris_data, tmpdir, link=False)
+    data2 = load(tmpdir)
+
+    pandas_assert(data2, iris_data)
 
 
 # Copyright 2019 Zyfra

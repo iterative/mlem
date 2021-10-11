@@ -139,7 +139,7 @@ def load_meta(
             fs, path = get_fs(path)
     path = find_meta_path(path, fs=fs)
     with fs.open(path, mode="r") as f:
-        res = f.read()
+        res = f.read()  # FIXME: double reading
     object_type = safe_load(res)["object_type"]
     cls = MlemMeta.subtype_mapping()[object_type]
     meta = cls.read(path, fs=fs, follow_links=follow_links)

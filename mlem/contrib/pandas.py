@@ -469,8 +469,21 @@ class PandasFormat:
             self.write_func(df, f, **write_kwargs)
 
 
+def read_csv_with_unnamed(*args, **kwargs):
+    df = pd.read_csv(*args, **kwargs)
+    unnamed = {}
+    for col in df.columns:
+        if col.startswith("Unnamed: "):
+            unnamed[col] = ""
+    if not unnamed:
+        return df
+    return df.rename(unnamed, axis=1)  # pylint: disable=no-member
+
+
 PANDAS_FORMATS = {
-    "csv": PandasFormat(pd.read_csv, pd.DataFrame.to_csv, file_name="data.csv")
+    "csv": PandasFormat(
+        read_csv_with_unnamed, pd.DataFrame.to_csv, file_name="data.csv"
+    )
 }
 
 
