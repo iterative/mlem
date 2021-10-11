@@ -9,7 +9,12 @@ from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
 from yaml import safe_load
 
-from mlem.core.meta_io import get_envs, get_fs, get_git_kwargs, get_meta_path
+from mlem.core.meta_io import (
+    get_envs,
+    get_fs,
+    get_github_kwargs,
+    get_meta_path,
+)
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.root import find_mlem_root
 
@@ -119,7 +124,7 @@ def load_meta(
             raise NotImplementedError("Only Github is supported as of now")
         kwargs = get_envs()
 
-        git_kwargs = get_git_kwargs(repo)
+        git_kwargs = get_github_kwargs(repo)
         fs = GithubFileSystem(
             org=git_kwargs["org"], repo=git_kwargs["repo"], sha=rev, **kwargs
         )
