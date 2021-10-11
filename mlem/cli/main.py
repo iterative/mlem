@@ -39,4 +39,4 @@ def mlem_command(*args, **kwargs):
     def decorator(f):
         return cli.command(*args, **kwargs)(verbose_option(f))
 
-    return decorator  # cli.command(*args, **kwargs)(verbose_option)
+    return decorator
