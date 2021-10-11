@@ -12,6 +12,7 @@ from tests.conftest import resource_path
             "github://iterative:example-mlem@main/README.md",
             "#",
         ),
+        ("https://github.com/iterative/example-mlem/README.md", "#"),
     ],
 )
 def test_read(url_path_pairs):
