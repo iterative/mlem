@@ -26,6 +26,7 @@ def test_ls_remote():
         ["all", "-r", "https://github.com/iterative/example-mlem/"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
+    assert len(result.output) > 0, "Output is empty, but should not be"
 
 
 def test_pretty_print(model_path_mlem_root):
