@@ -6,6 +6,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
@@ -341,6 +342,9 @@ class _ExternalMeta(ABC, MlemMeta):
         if how != "hard":
             # TODO: https://github.com/iterative/mlem/issues/37
             raise NotImplementedError()
+        if self.name is None:
+            raise ValueError("Cannot clone not saved object")
+        mlem_root = find_mlem_root(root, raise_on_missing=False)
         new: _ExternalMeta = deserialize(
             serialize(self, MlemMeta), _ExternalMeta
         )  # easier than deep copy bc of possible attached objects
@@ -351,7 +355,9 @@ class _ExternalMeta(ABC, MlemMeta):
         if isinstance(
             self.fs, GithubFileSystem
         ):  # fixme: https://github.com/iterative/mlem/issues/37 move to actual git fs
-            get_with_dvc(self.fs, self.name, path)
+            get_with_dvc(
+                self.fs, os.path.dirname(self.name), os.path.dirname(path)
+            )
         else:  # old impl, does not support dvc tracked files
             os.makedirs(new.art_dir, exist_ok=True)
             for art in self.artifacts or []:
@@ -363,8 +369,8 @@ class _ExternalMeta(ABC, MlemMeta):
         #     blobs_from_path(new.art_dir).blobs
         super(_ExternalMeta, new).dump(
             name,
-            link=link,
-            mlem_root=new.name if link else None,
+            link=link and mlem_root is not None,
+            mlem_root=mlem_root if link else None,
             check_extension=False,
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
@@ -396,6 +402,13 @@ class ModelMeta(_ExternalMeta):
 
     def get_value(self):
         return self.model_type.model
+
+    def __getattr__(self, item):
+        if item not in self.model_type.methods:
+            raise AttributeError(
+                f"{self.model_type.__class__} does not have {item} method"
+            )
+        return partial(self.model_type.call_method, item)
 
 
 class DatasetMeta(_ExternalMeta):
