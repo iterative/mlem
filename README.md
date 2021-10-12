@@ -1,5 +1,5 @@
 [![Check, test and release](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml/badge.svg)](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml)
-[![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg)](https://codecov.io/gh/iterative/mlem)
+[![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
 [![PyPi](https://img.shields.io/pypi/v/mlem.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/mlem)
 
 MLEM is in early alpha. Thank you for trying it out! 👋
