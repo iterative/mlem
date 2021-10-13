@@ -18,6 +18,28 @@ def test_ls(mlem_root, obj_type):
     assert result.exit_code == 0, (result.output, result.exception)
 
 
+REMOTE_LS_EXPECTED_RESULT = """Models:
+ - data/model
+ - latest -> data/model/mlem.yaml
+Datasets:
+ - data/test_x
+ - data/test_y
+ - data/train
+"""
+
+
+@pytest.mark.long
+def test_ls_remote():
+    runner = CliRunner()
+    result = runner.invoke(
+        ls,
+        ["all", "-r", "https://github.com/iterative/example-mlem/"],
+    )
+    assert result.exit_code == 0, (result.output, result.exception)
+    assert len(result.output) > 0, "Output is empty, but should not be"
+    assert result.output == REMOTE_LS_EXPECTED_RESULT
+
+
 def test_pretty_print(model_path_mlem_root):
     model_path, _ = model_path_mlem_root
     runner = CliRunner()

@@ -2,12 +2,12 @@ from typing import Optional
 
 import click
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import MLEM_DIR
 
 
-@cli.command("link")
+@mlem_command("link")
 @click.argument("source")
 @click.option(
     "--repo", default=None, help="Repo in which {source} can be found."

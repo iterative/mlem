@@ -22,7 +22,7 @@ META_FILE_NAME = "mlem.yaml"
 ART_DIR = "artifacts"
 
 
-def get_git_kwargs(uri: str):
+def get_github_kwargs(uri: str):
     """Parse URI to git repo to get dict with all URI parts"""
     # TODO: do we lose URL to the site, like https://github.com?
     # should be resolved as part of https://github.com/iterative/mlem/issues/4
@@ -30,10 +30,7 @@ def get_git_kwargs(uri: str):
     parts = pathlib.Path(parsed.path).parts
     org, repo, *path = parts[1:]
     if not path:
-        return {
-            "org": org,
-            "repo": repo,
-        }
+        return {"org": org, "repo": repo, "path": ""}
     if path[0] == "tree":
         sha = path[1]
         path = path[2:]
@@ -72,12 +69,12 @@ def get_envs() -> Dict:
 
 def get_fs(uri: str, protocol: str = None) -> Tuple[AbstractFileSystem, str]:
     """Parse given (uri, protocol) with fsspec and return (fs, path)"""
-    # kwargs = {}
-    # if uri.startswith("https://github.com"):
-    #     protocol = "github"
-    #     uri, git_kwargs = _get_git_kwargs(uri)
-    #     kwargs.update(git_kwargs)
     kwargs = get_envs()
+    if protocol is None and uri.startswith("https://github.com"):
+        protocol = "github"
+        github_kwargs = get_github_kwargs(uri)
+        uri = github_kwargs.pop("path")
+        kwargs.update(github_kwargs)
     fs, _, (path,) = get_fs_token_paths(
         uri, protocol=protocol, storage_options=kwargs
     )

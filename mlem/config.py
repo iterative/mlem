@@ -27,8 +27,8 @@ def mlem_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
 
 
 class MlemConfig(BaseSettings):
-    GITHUB_USERNAME: Optional[str]
-    GITHUB_TOKEN: Optional[str]
+    GITHUB_USERNAME: Optional[str] = Field(default=None, env="GITHUB_USERNAME")
+    GITHUB_TOKEN: Optional[str] = Field(default=None, env="GITHUB_TOKEN")
     ADDITIONAL_EXTENSIONS_RAW: str = Field(
         default="", env="MLEM_ADDITIONAL_EXTENSIONS"
     )
@@ -46,6 +46,7 @@ class MlemConfig(BaseSettings):
         return self.ADDITIONAL_EXTENSIONS_RAW.split(",")
 
     class Config:
+        env_prefix = "mlem_"
         env_file_encoding = "utf-8"
 
         @classmethod

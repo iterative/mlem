@@ -4,6 +4,7 @@ as well with the custom ones
 """
 import glob
 import importlib
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -16,12 +17,13 @@ import entrypoints
 
 from mlem.config import CONFIG
 from mlem.core.base import MlemObject
-from mlem.log import logger
 from mlem.utils.importing import (
     import_module,
     module_importable,
     module_imported,
 )
+
+logger = logging.getLogger(__name__)
 
 MLEM_ENTRY_POINT = "mlem.contrib"
 

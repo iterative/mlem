@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
@@ -8,12 +9,13 @@ from pydantic import BaseModel
 
 from mlem.core.objects import ModelMeta
 from mlem.core.requirements import Requirements, UnixPackageRequirement
-from mlem.log import logger
 from mlem.runtime.server.base import Server
 from mlem.utils.module import get_python_version
 
 REQUIREMENTS = "requirements.txt"
 TEMPLATE_FILE = "dockerfile.j2"
+
+logger = logging.getLogger(__name__)
 
 
 class DockerBuildArgs(BaseModel):

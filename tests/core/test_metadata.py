@@ -34,9 +34,9 @@ def test_model_loading(model_path):
 
 def test_meta_loading(model_path):
     model = load_meta(model_path, load_value=True)
-    assert isinstance(model.model.model, DecisionTreeClassifier)
+    assert isinstance(model.model_type.model, DecisionTreeClassifier)
     train, _ = load_iris(return_X_y=True)
-    model.model.model.predict(train)
+    model.model_type.model.predict(train)
 
 
 @long

@@ -3,22 +3,17 @@ import logging
 import os
 from typing import Dict
 
-from opencensus.ext.azure.log_exporter import AzureEventHandler
 import requests
 from appdirs import user_config_dir
 from filelock import FileLock, Timeout
 
 from mlem import CONFIG
-from mlem.log import logger
 from mlem.version import __version__
 
-# TOKEN = "s2s.jrn60wwvy9q6rc5r141pd.o723xpo21knm0xx4g4ppm"
-# URL = "https://t.jitsu.com/api/v1/s2s/event"
-CONNECTION_STRING = "InstrumentationKey=9e759683-de30-40d8-818f-08cd93f82144;IngestionEndpoint=https://westus2-2.in.applicationinsights.azure.com/"
+logger = logging.getLogger(__name__)
+TOKEN = "s2s.uecp6nlgq1sqfdw5bumnl.kgntwgm94x8lcpdtc7sm6j"
+URL = "https://t.jitsu.com/api/v1/s2s/event?ip_policy=strict"
 
-azure_logger = logging.getLogger("mlem_telemetry")
-azure_logger.setLevel(logging.INFO)
-azure_logger.addHandler(AzureEventHandler(connection_string=CONNECTION_STRING))
 
 def send_cli_call(cmd_name: str, **kwargs):
     send_event("cli", cmd_name, **kwargs)
@@ -33,16 +28,16 @@ def send(payload: Dict[str, str]):
         return
     payload.update(_runtime_info())
     try:
-        azure_logger.info(payload['event_name'], extra={"custom_dimensions":payload})
-        # requests.post(URL, params={"token": TOKEN}, json=payload, timeout=2)
-    except Exception:  # noqa
+        requests.post(URL, params={"token": TOKEN}, json=payload, timeout=2)
+    except Exception:  # pylint: disable=broad-except
         logger.debug("failed to send analytics report", exc_info=True)
 
 
 def is_enabled():
     enabled = not CONFIG.TESTS and not CONFIG.NO_ANALYTICS
 
-    logger.debug("Analytics is {}abled.".format("en" if enabled else "dis"))
+    msg = f"Analytics is {'en' if enabled else 'dis'}abled."
+    logger.debug(msg)
 
     return enabled
 
@@ -69,7 +64,7 @@ def _system_info():
     system = platform.system()
 
     if system == "Windows":
-        version = sys.getwindowsversion()
+        version = sys.getwindowsversion()  # pylint: disable=no-member
 
         return {
             "os": "windows",
@@ -112,18 +107,21 @@ def _find_or_create_user_id():
     os.makedirs(config_dir, exist_ok=True)
 
     try:
-        with FileLock(lockfile, timeout=5):
+        with FileLock(  # pylint: disable=abstract-class-instantiated
+            lockfile, timeout=5
+        ):
             try:
-                with open(fname) as fobj:
+                with open(fname, encoding="utf8") as fobj:
                     user_id = json.load(fobj)["user_id"]
 
             except (FileNotFoundError, ValueError, KeyError):
                 user_id = str(uuid.uuid4())
 
-                with open(fname, "w") as fobj:
+                with open(fname, "w", encoding="utf8") as fobj:
                     json.dump({"user_id": user_id}, fobj)
 
             return user_id
 
     except Timeout:
-        logger.debug(f"Failed to acquire '{lockfile}'")
+        logger.debug("Failed to acquire %s", lockfile)
+    return None

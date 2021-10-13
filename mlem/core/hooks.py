@@ -5,10 +5,11 @@ Analyzer keeps track of all imported hooks and applies them to the object
     to find suitable one.
 """
 import inspect
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, List, Tuple, Type, TypeVar
 
-from mlem.log import logger
+logger = logging.getLogger(__name__)
 
 ANALYZER_FIELD = "analyzer"
 

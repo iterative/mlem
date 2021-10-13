@@ -1,12 +1,12 @@
 import click
 
-from mlem.cli.main import cli
+from mlem.cli.main import mlem_command
 from mlem.cli.utils import config_arg, with_model_meta
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
 
 
-@cli.command()
+@mlem_command()
 @with_model_meta
 @config_arg("packager", model=Packager)
 @click.argument("out")

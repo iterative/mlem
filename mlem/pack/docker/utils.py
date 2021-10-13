@@ -12,7 +12,7 @@ import six
 from docker.errors import BuildError, DockerException
 from docker.utils.json_stream import json_stream
 
-from mlem.log import logger
+logger = logging.getLogger(__name__)
 
 
 def print_docker_logs(logs, level=logging.DEBUG):
