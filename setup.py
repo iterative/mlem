@@ -64,6 +64,7 @@ install_requires = [
     "entrypoints",
     "filelock",
     "appdirs",
+    "python-daemon",
 ]
 
 # storage
