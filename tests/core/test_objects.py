@@ -1,4 +1,5 @@
 import os
+import subprocess
 import tempfile
 
 import pytest
@@ -34,8 +35,23 @@ def test_model_cloning(model_path):
         cloned_model.predict(X)
 
 
+def _check_auth():
+    try:
+        subprocess.check_call(
+            "git ls-remote https://github.com/iterative/example-mlem/",
+            shell=True,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 @long
+@pytest.mark.skipif(not _check_auth(), reason="No credentials for remote repo")
 def test_model_cloning_remote():
+    """TODO: https://github.com/iterative/mlem/issues/44
+    test fails in CI because repo is private and DVC does not support http auth for git
+    """
     with tempfile.TemporaryDirectory() as dir:
         cloned_model = load_meta(
             "https://github.com/iterative/example-mlem/data/model"
