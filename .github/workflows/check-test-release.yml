@@ -4,6 +4,10 @@ on:
   pull_request:
   schedule:
   - cron: '0 7 * * 1'  # M H d m w (Mondays at 7:00)
+
+env:
+  MLEM_TEST: "true"
+
 jobs:
   check:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
