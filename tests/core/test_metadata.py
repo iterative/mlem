@@ -11,6 +11,7 @@ from mlem.api import init
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
 from tests.conftest import long
+from tests.core.conftest import need_example_auth
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
@@ -35,6 +36,7 @@ def test_model_loading(model_path):
 
 
 @long
+@need_example_auth
 def test_model_loading_remote_dvc():
     model = load(
         "https://github.com/iterative/example-mlem/data/model",
@@ -63,6 +65,7 @@ def test_meta_loading(model_path):
         "https://github.com/iterative/example-mlem/data/model",
     ],
 )
+@need_example_auth
 def test_model_loading_from_github_with_fsspec(url):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(url)
