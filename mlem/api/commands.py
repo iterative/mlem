@@ -132,10 +132,13 @@ def init(path: str = ".") -> None:
     if os.path.exists(path):
         click.echo(f"{path} already exists, no need to run `mlem init` again")
     else:
-        click.echo(
-            "MLEM has enabled anonymous aggregate usage analytics.\n"
-            "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
-        )
+        from mlem import analytics
+
+        if analytics.is_enabled():
+            click.echo(
+                "MLEM has enabled anonymous aggregate usage analytics.\n"
+                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
+            )
         os.makedirs(path)
 
 

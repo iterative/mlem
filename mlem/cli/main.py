@@ -42,7 +42,7 @@ def _send_analytics(cmd_name):
             res = {}
             error = None
             try:
-                res = f(*args, **kwargs)
+                res = f(*args, **kwargs) or {}
             except Exception as e:
                 error = str(type(e))
                 raise
