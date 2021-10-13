@@ -6,7 +6,7 @@ on:
   - cron: '0 7 * * 1'  # M H d m w (Mondays at 7:00)
 
 env:
-  MLEM_TEST: "true"
+  MLEM_TESTS: "true"
 
 jobs:
   check:
