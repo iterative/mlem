@@ -381,11 +381,11 @@ class _ExternalMeta(ABC, MlemMeta):
     def localize(self, path: str):
         if not isinstance(self.fs, GithubFileSystem):
             yield self.fs, path
-
-        with tempfile.TemporaryDirectory(prefix="mlem_dvc_clone") as tdir:
-            target = os.path.join(tdir, "clone")
-            get_with_dvc(self.fs, path, target)
-            yield LocalFileSystem(), target
+        else:
+            with tempfile.TemporaryDirectory(prefix="mlem_dvc_clone") as tdir:
+                target = os.path.join(tdir, "clone")
+                get_with_dvc(self.fs, path, target)
+                yield LocalFileSystem(), target
 
 
 class ModelMeta(_ExternalMeta):
