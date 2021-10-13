@@ -1,10 +1,12 @@
 import json
 import logging
 import os
+from threading import Thread
 from typing import Dict
 
 import requests
 from appdirs import user_config_dir
+from daemon import DaemonContext
 from filelock import FileLock, Timeout
 
 from mlem import CONFIG
@@ -19,14 +21,48 @@ def send_cli_call(cmd_name: str, **kwargs):
     send_event("cli", cmd_name, **kwargs)
 
 
-def send_event(event_type: str, event_name: str, **kwargs):
-    send({"event_type": event_type, "event_name": event_name, **kwargs})
+def send_event(
+    event_type: str,
+    event_name: str,
+    use_thread: bool = False,
+    use_daemon: bool = True,
+    **kwargs,
+):
+    send(
+        {"event_type": event_type, "event_name": event_name, **kwargs},
+        use_thread=use_thread,
+        use_daemon=use_daemon,
+    )
 
 
-def send(payload: Dict[str, str]):
+def send(
+    payload: Dict[str, str], use_thread: bool = False, use_daemon: bool = True
+):
     if not is_enabled():
         return
     payload.update(_runtime_info())
+    if use_thread and use_daemon:
+        raise ValueError(
+            "Both use_thread and use_daemon cannot be true at the same time"
+        )
+    impl = _send
+    if use_daemon:
+        impl = _send_daemon
+    if use_thread:
+        impl = _send_thread
+    impl(payload)
+
+
+def _send_daemon(payload):
+    with DaemonContext():
+        _send(payload)
+
+
+def _send_thread(payload):
+    Thread(target=_send, args=[payload]).start()
+
+
+def _send(payload):
     try:
         requests.post(URL, params={"token": TOKEN}, json=payload, timeout=2)
     except Exception:  # pylint: disable=broad-except

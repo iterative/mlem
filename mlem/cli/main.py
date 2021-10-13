@@ -4,6 +4,7 @@ from functools import wraps
 import click
 
 from mlem import version
+from mlem.analytics import send_cli_call
 
 
 @click.group()
@@ -34,9 +35,34 @@ verbose_option = click.option(
 )
 
 
+def _send_analytics(cmd_name):
+    def decorator(f):
+        @wraps(f)
+        def inner(*args, **kwargs):
+            res = {}
+            error = None
+            try:
+                res = f(*args, **kwargs)
+            except Exception as e:
+                error = str(type(e))
+                raise
+            finally:
+                send_cli_call(cmd_name, error_msg=error, **res)
+
+        return inner
+
+    return decorator
+
+
 @wraps(cli.command)
 def mlem_command(*args, **kwargs):
     def decorator(f):
-        return cli.command(*args, **kwargs)(verbose_option(f))
+        if len(args) > 0:
+            cmd_name = args[0]
+        else:
+            cmd_name = kwargs.get("name", f.__name__)
+        return cli.command(*args, **kwargs)(
+            _send_analytics(cmd_name)(verbose_option(f))
+        )
 
     return decorator

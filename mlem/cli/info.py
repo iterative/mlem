@@ -4,7 +4,6 @@ from pprint import pprint
 import click
 from fsspec.implementations.local import LocalFileSystem
 
-from mlem.analytics import send_cli_call
 from mlem.cli.main import mlem_command
 from mlem.core.meta_io import get_fs
 from mlem.core.metadata import load_meta
@@ -63,7 +62,7 @@ def ls(type_: str, repo: str):
     else:
         type = TYPE_ALIASES.get(type_, type_)
         _print_objects_of_type(repo, type)
-    send_cli_call("ls", type=type_)
+    return {"type": "all"}
 
 
 @mlem_command("pprint")
