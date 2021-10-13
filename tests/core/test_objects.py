@@ -39,7 +39,7 @@ def test_model_cloning_remote():
     with tempfile.TemporaryDirectory() as dir:
         cloned_model = load_meta(
             "https://github.com/iterative/example-mlem/data/model"
-        ).clone(os.path.join(dir, "model"))
+        ).clone(os.path.join(dir, "model"), link=False)
         cloned_model.load_value()
         X, _ = load_iris(return_X_y=True)
         cloned_model.predict(X)
