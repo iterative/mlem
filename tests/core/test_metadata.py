@@ -55,6 +55,7 @@ def test_meta_loading(model_path):
 
 
 @long
+@need_example_auth
 @pytest.mark.parametrize(
     "url",
     [
@@ -65,7 +66,6 @@ def test_meta_loading(model_path):
         "https://github.com/iterative/example-mlem/data/model",
     ],
 )
-@need_example_auth
 def test_model_loading_from_github_with_fsspec(url):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(url)
@@ -74,6 +74,7 @@ def test_model_loading_from_github_with_fsspec(url):
 
 
 @long
+@need_example_auth
 @pytest.mark.parametrize(
     "path",
     [
@@ -94,6 +95,7 @@ def test_model_loading_from_github(path):
     model.predict(train)
 
 
+@need_example_auth
 def test_load_link_with_fsspec_path():
     link_contents = {
         "link_type": "model",
