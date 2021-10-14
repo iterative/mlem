@@ -2,8 +2,10 @@
 Base classes for meta objects in MLEM:
 MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
+import contextlib
 import os
 import shutil
+import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
@@ -375,6 +377,16 @@ class _ExternalMeta(ABC, MlemMeta):
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
+    @contextlib.contextmanager
+    def localize(self, path: str):
+        if not isinstance(self.fs, GithubFileSystem):
+            yield self.fs, path
+        else:
+            with tempfile.TemporaryDirectory(prefix="mlem_dvc_clone") as tdir:
+                target = os.path.join(tdir, "clone")
+                get_with_dvc(self.fs, path, target)
+                yield LocalFileSystem(), target
+
 
 class ModelMeta(_ExternalMeta):
     object_type = "model"
@@ -398,7 +410,8 @@ class ModelMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        self.model_type.load(self.fs, self.art_dir)
+        with self.localize(self.art_dir) as (fs, path):
+            self.model_type.load(fs, path)
 
     def get_value(self):
         return self.model_type.model
@@ -444,7 +457,8 @@ class DatasetMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        self.dataset = self.reader.read(fs=self.fs, path=self.art_dir)
+        with self.localize(self.art_dir) as (fs, path):
+            self.dataset = self.reader.read(fs, path)
 
     def get_value(self):
         return self.data
