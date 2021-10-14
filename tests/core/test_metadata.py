@@ -4,11 +4,14 @@ import tempfile
 import pytest
 import yaml
 from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
 from mlem.core.metadata import load, load_meta, save
+from mlem.core.objects import ModelMeta
 from tests.conftest import long
+from tests.core.conftest import need_example_auth
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
@@ -32,14 +35,27 @@ def test_model_loading(model_path):
     model.predict(train)
 
 
+@long
+@need_example_auth
+def test_model_loading_remote_dvc():
+    model = load(
+        "https://github.com/iterative/example-mlem/data/model",
+        rev="store-with-dvc",
+    )
+    assert isinstance(model, RandomForestClassifier)
+    train, _ = load_iris(return_X_y=True)
+    model.predict(train)
+
+
 def test_meta_loading(model_path):
-    model = load_meta(model_path, load_value=True)
+    model = load_meta(model_path, load_value=True, force_type=ModelMeta)
     assert isinstance(model.model_type.model, DecisionTreeClassifier)
     train, _ = load_iris(return_X_y=True)
     model.model_type.model.predict(train)
 
 
 @long
+@need_example_auth
 @pytest.mark.parametrize(
     "url",
     [
@@ -58,6 +74,7 @@ def test_model_loading_from_github_with_fsspec(url):
 
 
 @long
+@need_example_auth
 @pytest.mark.parametrize(
     "path",
     [
@@ -78,6 +95,7 @@ def test_model_loading_from_github(path):
     model.predict(train)
 
 
+@need_example_auth
 def test_load_link_with_fsspec_path():
     link_contents = {
         "link_type": "model",
