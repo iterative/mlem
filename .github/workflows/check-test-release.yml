@@ -53,8 +53,11 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+    - name: Install Mac-specific dependencies
+      if: ${{ matrix.os }} == "macos-latest"
+      run: brew install hdf5
     # legacy-resolver makes install faster by order of magnitude
-    - name: install
+    - name: Install
       if: steps.cache.pip-cache-dir.cache-hit != 'true'
       run: pip install -U pre-commit .[tests] --use-deprecated=legacy-resolver
     - name: Run tests
