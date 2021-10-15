@@ -24,7 +24,7 @@ jobs:
     - run: SKIP=pylint pre-commit run -a --show-diff-on-failure
   test:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
-    name: Test {{ matrix.os }} and py${{ matrix.python }}
+    name: Test ${{ matrix.os }} with py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
