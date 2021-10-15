@@ -65,6 +65,7 @@ install_requires = [
     "filelock",
     "appdirs",
     "python-daemon",
+    "distro",
 ]
 
 # storage
