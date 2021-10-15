@@ -54,7 +54,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
     - name: Install Mac-specific dependencies
-      if: ${{ matrix.os }} == "macos-latest"
+      if: matrix.os == 'macos-latest'
       run: brew install hdf5
     # legacy-resolver makes install faster by order of magnitude
     - name: Install
