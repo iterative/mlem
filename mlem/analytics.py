@@ -1,20 +1,20 @@
 import json
 import logging
 import os
+import subprocess
 from threading import Thread
 from typing import Dict
 
 import requests
 from appdirs import user_config_dir
-from daemon import DaemonContext
 from filelock import FileLock, Timeout
 
 from mlem import CONFIG
 from mlem.version import __version__
 
 logger = logging.getLogger(__name__)
-TOKEN = "s2s.uecp6nlgq1sqfdw5bumnl.kgntwgm94x8lcpdtc7sm6j"
-URL = "https://t.jitsu.com/api/v1/s2s/event?ip_policy=strict"
+TOKEN = "s2s.9vdp1745vpkibkcxznsfus.cgsh70aoy3m39bfuey6shn"
+URL = "https://mlem-telemetry-jitsu.herokuapp.com/api/v1/s2s/event?ip_policy=strict"
 
 
 def send_cli_call(cmd_name: str, **kwargs):
@@ -54,8 +54,23 @@ def send(
 
 
 def _send_daemon(payload):
-    with DaemonContext():
-        _send(payload)
+    if os.name == "nt":
+        import sys
+
+        DETACHED_PROCESS = 8
+        cmd = f"import requests;requests.post('{URL}',params={{'token':'{TOKEN}'}},json={payload})"
+        subprocess.Popen(  # pylint: disable=consider-using-with
+            [sys.executable, "-c", cmd],
+            creationflags=DETACHED_PROCESS,
+            close_fds=True,
+        )
+    elif os.name == "posix":
+        from daemon import DaemonContext
+
+        with DaemonContext():
+            _send(payload)
+    else:
+        raise NotImplementedError
 
 
 def _send_thread(payload):
