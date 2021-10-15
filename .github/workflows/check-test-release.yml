@@ -10,6 +10,10 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@0.9.1
+      with:
+        access_token: ${{ github.token }}
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -29,7 +33,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: [3.6, 3.7, 3.8, 3.9, 3.10]
+        python: ["3.6", "3.7", "3.8", "3.9", "3.10"]
         exclude:
           # no wheels for pygit2 yet -- required for dvc
           - os: windows-latest
