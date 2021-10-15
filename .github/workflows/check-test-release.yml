@@ -59,11 +59,16 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install Mac-specific dependencies
       if: matrix.os == 'macos-latest'
-      run: brew install hdf5
+      run: |
+        brew install hdf5 wget
+        wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
+        brew install ./libomp.rb
     # legacy-resolver makes install faster by order of magnitude
     - name: Install
       if: steps.cache.pip-cache-dir.cache-hit != 'true'
-      run: pip install -U pre-commit .[tests] --use-deprecated=legacy-resolver
+      run: |
+        pip install --upgrade pip setuptools wheel
+        pip install pre-commit .[tests] --use-deprecated=legacy-resolver
     - name: Run tests
       timeout-minutes: 15
       run: pytest
