@@ -39,6 +39,8 @@ jobs:
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
     # legacy-resolver makes install faster by order of magnitude
     - run: pip install -U pre-commit .[tests] --use-deprecated=legacy-resolver
     - run: pytest
