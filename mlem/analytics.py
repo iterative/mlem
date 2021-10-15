@@ -56,13 +56,22 @@ def send(
 def _send_daemon(payload):
     if os.name == "nt":
         import sys
+        from subprocess import (
+            CREATE_NEW_PROCESS_GROUP,
+            CREATE_NO_WINDOW,
+            STARTF_USESHOWWINDOW,
+            STARTUPINFO,
+        )
 
-        DETACHED_PROCESS = 8
+        detached_flags = CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+        startupinfo = STARTUPINFO()
+        startupinfo.dwFlags |= STARTF_USESHOWWINDOW
         cmd = f"import requests;requests.post('{URL}',params={{'token':'{TOKEN}'}},json={payload})"
         subprocess.Popen(  # pylint: disable=consider-using-with
             [sys.executable, "-c", cmd],
-            creationflags=DETACHED_PROCESS,
+            creationflags=detached_flags,
             close_fds=True,
+            startupinfo=startupinfo,
         )
     elif os.name == "posix":
         from daemon import DaemonContext
