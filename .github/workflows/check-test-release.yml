@@ -37,7 +37,7 @@ jobs:
         exclude:
           # no HDF5 support installed for tables
           - os: windows-latest
-            pyv: "3.9"
+            python: "3.9"
     steps:
     - uses: actions/checkout@v2
       with:
