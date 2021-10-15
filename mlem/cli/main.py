@@ -43,6 +43,7 @@ def _send_analytics(cmd_name):
             error = None
             try:
                 res = f(*args, **kwargs) or {}
+                res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
             except Exception as e:
                 error = str(type(e))
                 raise

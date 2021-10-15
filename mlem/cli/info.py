@@ -62,7 +62,7 @@ def ls(type_: str, repo: str):
     else:
         type = TYPE_ALIASES.get(type_, type_)
         _print_objects_of_type(repo, type)
-    return {"type": "all"}
+    return {"type": type_}
 
 
 @mlem_command("pprint")
