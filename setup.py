@@ -78,7 +78,6 @@ sql = ["sqlalchemy", "psycopg2-binary"]
 
 # models
 sklearn = ["scipy", "scikit-learn"]
-tensorflow = ["tensorflow"]
 catboost = ["catboost"]
 xgboost = ["xgboost"]
 lightgbm = ["lightgbm"]
@@ -93,7 +92,6 @@ all_libs = (
     + numpy
     + sql
     + sklearn
-    + tensorflow
     + catboost
     + xgboost
     + lightgbm
@@ -135,7 +133,6 @@ setup_args = dict(  # noqa: C408
         "numpy": numpy,
         "sql": sql,
         "sklearn": sklearn,
-        "tensoflow": tensorflow,
         "catboost": catboost,
         "xgboost": xgboost,
         "lightgbm": lightgbm,
