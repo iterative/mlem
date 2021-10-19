@@ -21,7 +21,7 @@ def s3_tmp_filepath():
     fs.delete(path)
 
 
-def test_fsspec_backend_s3(tmpdir, s3_tmp_filepath):
+def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_filepath):
     storage = FSSpecStorage(uri=f"s3://{S3_TEST_BUCKET}/", storage_options={})
     target = s3_tmp_filepath
     resource = resource_path(__file__, "file.txt")
@@ -33,3 +33,14 @@ def test_fsspec_backend_s3(tmpdir, s3_tmp_filepath):
         resource, "r", encoding="utf8"
     ) as expected:
         assert actual.read() == expected.read()
+
+
+def test_fsspec_backend_s3_open(s3_tmp_filepath):
+    storage = FSSpecStorage(uri=f"s3://{S3_TEST_BUCKET}/", storage_options={})
+    target = s3_tmp_filepath
+    with storage.open(target) as (f, artifact):
+        f.write(b"a")
+    assert isinstance(artifact, FSSpecArtifact)
+
+    with artifact.open() as f:
+        assert f.read() == b"a"
