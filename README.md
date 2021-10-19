@@ -52,9 +52,8 @@ To help us better understand how MLEM is used and improve it, MLEM captures and 
 MLEM's analytics record the following information per event:
 - MLEM version (e.g., `0.1.2+5fb5a3.mod`) and OS version (e.g., `MacOS 10.16`)
 - Command name and exception type (e.g., `ls, ValueError` or `get, MLEMRootNotFound`)
-- Country, city, longitude and latitude rounded by 4th digit (e.g., `RU, Moscow, 37.6171, 55.7483`)
+- Country, city (e.g., `RU, Moscow`)
 - A random user_id (generated with [uuid](https://docs.python.org/3/library/uuid.html))
-- Source ip without last digit (so it can't be used for deanonimization)
 
 ### Implementation
 The code is viewable in [analytics.py](https://github.com/iterative/mlem/mlem/analytics.py). They are done in a separate background process and fail fast to avoid delaying any execution. They will fail immediately and silently if you have no network connection.
