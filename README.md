@@ -41,5 +41,5 @@ $ pip install mlem
 To install the development version, run:
 
 ```
-$ pip install git+git://github.com/iterative/mlem
+$ pip install git+https://github.com/iterative/mlem
 ```
