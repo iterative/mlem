@@ -3,6 +3,7 @@ Helper functions and wrappers for CLI commands created with click.
 These define reused functionality and configuration of complex objects in command line.
 """
 import shlex
+import sys
 from functools import wraps
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
@@ -72,7 +73,8 @@ def smart_split(string: str, char: str):
     if char != " ":
         string = string.replace(" ", SPECIAL).replace(char, " ")
     return [
-        s.replace(" ", char).replace(SPECIAL, " ") for s in shlex.split(string)
+        s.replace(" ", char).replace(SPECIAL, " ")
+        for s in shlex.split(string, posix="win" not in sys.platform)
     ]
 
 
