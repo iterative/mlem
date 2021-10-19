@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import BaseSettings, Field
 
+from mlem.core.artifacts import LOCAL_STORAGE, StorageBackend
+
 CONFIG_FILE = "config.yaml"
 
 
@@ -39,6 +41,7 @@ class MlemConfig(BaseSettings):
     DEBUG: bool = False
     NO_ANALYTICS: bool = False
     TESTS: bool = False
+    DEFAULT_STORAGE: StorageBackend = LOCAL_STORAGE
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:
