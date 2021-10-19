@@ -14,7 +14,7 @@ from mlem.version import __version__
 
 logger = logging.getLogger(__name__)
 TOKEN = "s2s.9vdp1745vpkibkcxznsfus.cgsh70aoy3m39bfuey6shn"
-URL = "https://telemetry.mlem.dev/api/v1/s2s/event?ip_policy=strict"
+URL = "https://telemetry.mlem.ai/api/v1/s2s/event?ip_policy=strict"
 
 
 def send_cli_call(cmd_name: str, **kwargs):
