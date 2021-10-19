@@ -23,7 +23,8 @@ def mlem_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     config_file = Path(mlem_root) / CONFIG_FILE
     if not config_file.exists():
         return {}
-    return yaml.safe_load(config_file.read_text(encoding=encoding))
+    conf = yaml.safe_load(config_file.read_text(encoding=encoding))
+    return {k.upper(): v for k, v in conf.items()}
 
 
 class MlemConfig(BaseSettings):
@@ -36,6 +37,8 @@ class MlemConfig(BaseSettings):
     DEFAULT_BRANCH: str = "main"
     LOG_LEVEL: str = "INFO"
     DEBUG: bool = False
+    NO_ANALYTICS: bool = False
+    TESTS: bool = False
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:

@@ -1,0 +1,9 @@
+[run]
+omit =
+    mlem/analytics.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    @(abc\.)?abstractmethod

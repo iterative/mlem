@@ -8,6 +8,7 @@ from fsspec.implementations.local import LocalFileSystem
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
+from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.core.dataset_type import (
@@ -23,6 +24,12 @@ from mlem.core.objects import DatasetMeta, ModelMeta
 RESOURCES = "resources"
 
 long = pytest.mark.long
+
+
+@pytest.fixture(scope="session", autouse=True)
+def add_test_env():
+    os.environ["MLEM_TESTS"] = "true"
+    CONFIG.TESTS = True
 
 
 def resource_path(test_file, *paths):
