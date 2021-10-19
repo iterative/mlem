@@ -74,7 +74,9 @@ def smart_split(string: str, char: str):
         string = string.replace(" ", SPECIAL).replace(char, " ")
     return [
         s.replace(" ", char).replace(SPECIAL, " ")
-        for s in shlex.split(string, posix="win" not in sys.platform)
+        for s in shlex.split(
+            string, posix="win" not in sys.platform or "darwin" in sys.platform
+        )
     ]
 
 
