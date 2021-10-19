@@ -136,7 +136,8 @@ def init(path: str = ".") -> None:
 
         if analytics.is_enabled():
             click.echo(
-                "MLEM has enabled anonymous aggregate usage analytics.\n"
+                "MLEM has been initialized."
+                "MLEM has anonymous aggregate usage analytics enabled.\n"
                 "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
             )
         os.makedirs(path)
