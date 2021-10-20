@@ -4,7 +4,6 @@ MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
 import contextlib
 import os
-import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -16,6 +15,7 @@ from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from yaml import safe_dump, safe_load
 
+from mlem.config import CONFIG
 from mlem.core.artifacts import Artifacts
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
@@ -362,8 +362,8 @@ class _ExternalMeta(ABC, MlemMeta):
             )
         else:  # old impl, does not support dvc tracked files
             os.makedirs(new.art_dir, exist_ok=True)
-            for art in self.artifacts or []:
-                shutil.copy(os.path.join(self.art_dir, art), new.art_dir)
+            # for art in self.artifacts or []: FIXME !!!
+            #     shutil.copy(os.path.join(self.art_dir, art), new.art_dir)
         new.artifacts = [
             os.path.relpath(os.path.join(new.art_dir, f), root)
             for f in os.listdir(new.art_dir)
@@ -402,7 +402,7 @@ class ModelMeta(_ExternalMeta):
         path = self.art_dir
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
-                self.fs, path, self.model_type.model
+                CONFIG.DEFAULT_STORAGE, path, self.model_type.model
             )
         else:
             raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
@@ -410,8 +410,7 @@ class ModelMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        with self.localize(self.art_dir) as (fs, path):
-            self.model_type.load(fs, path)
+        self.model_type.load(self.artifacts)
 
     def get_value(self):
         return self.model_type.model
@@ -448,7 +447,7 @@ class DatasetMeta(_ExternalMeta):
     def write_value(self) -> Artifacts:
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
-                self.dataset, self.fs, self.art_dir
+                self.dataset, CONFIG.DEFAULT_STORAGE, self.art_dir
             )
             self.reader = reader
         else:
@@ -457,8 +456,9 @@ class DatasetMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        with self.localize(self.art_dir) as (fs, path):
-            self.dataset = self.reader.read(fs, path)
+        self.dataset = self.reader.read(self.artifacts)
+        # with self.localize(self.art_dir) as (fs, path):
+        #     self.dataset = self.reader.read(fs, path)
 
     def get_value(self):
         return self.data

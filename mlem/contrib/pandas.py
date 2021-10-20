@@ -16,7 +16,6 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-from fsspec import AbstractFileSystem
 from pandas import Int64Dtype, SparseDtype, StringDtype
 from pandas.core.dtypes.dtypes import (
     CategoricalDtype,
@@ -28,7 +27,7 @@ from pandas.core.dtypes.dtypes import (
 from pydantic import BaseModel, create_model, validator
 
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifact, Artifacts, Storage
 from mlem.core.dataset_type import (
     Dataset,
     DatasetHook,
@@ -447,26 +446,30 @@ class PandasFormat:
     write_args: Optional[Dict[str, Any]] = None
     file_name: str = "data.pd"
 
-    def read(self, fs: AbstractFileSystem, path: str, **kwargs):
+    def read(self, artifacts: Artifacts, **kwargs):
         """Read DataFrame"""
         read_kwargs = {}
         if self.read_args:
             read_kwargs.update(self.read_args)
         read_kwargs.update(kwargs)
-
-        with fs.open(os.path.join(path, self.file_name), "rb") as f:
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {self.file_name} file"
+            )
+        with artifacts[0].open() as f:
             return self.read_func(f, **read_kwargs)
 
     def write(
-        self, df: pd.DataFrame, fs: AbstractFileSystem, path: str, **kwargs
-    ):
+        self, df: pd.DataFrame, storage: Storage, path: str, **kwargs
+    ) -> Artifact:
         write_kwargs = {}
         if self.write_args:
             write_kwargs.update(self.write_args)
         write_kwargs.update(kwargs)
 
-        with fs.open(os.path.join(path, self.file_name), "wb") as f:
+        with storage.open(os.path.join(path, self.file_name)) as (f, art):
             self.write_func(df, f, **write_kwargs)
+            return art
 
 
 def read_csv_with_unnamed(*args, **kwargs):
@@ -509,9 +512,10 @@ class PandasReader(_PandasIO, DatasetReader):
     type: ClassVar[str] = "pandas"
     dataset_type: DataFrameType
 
-    def read(self, fs: AbstractFileSystem, path: str) -> Dataset:
+    def read(self, artifacts: Artifacts) -> Dataset:
         return Dataset(
-            self.dataset_type.align(self.fmt.read(fs, path)), self.dataset_type
+            self.dataset_type.align(self.fmt.read(artifacts)),
+            self.dataset_type,
         )
 
 
@@ -521,13 +525,12 @@ class PandasWriter(DatasetWriter, _PandasIO):
     type: ClassVar[str] = "pandas"
 
     def write(
-        self, dataset: Dataset, fs: AbstractFileSystem, path: str
+        self, dataset: Dataset, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         fmt = self.fmt
-        fs.makedirs(path, True)
-        fmt.write(dataset.data, fs, path)
+        art = fmt.write(dataset.data, storage, path)
         if not isinstance(dataset.dataset_type, DataFrameType):
             raise ValueError("Cannot write non-pandas Dataset")
         return PandasReader(
             dataset_type=dataset.dataset_type, format=self.format
-        ), [fmt.file_name]
+        ), [art]

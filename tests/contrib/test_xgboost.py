@@ -133,7 +133,10 @@ def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
     expected_requirements = {"xgboost", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
-    model.dump(local_fs, tmpdir)
+    model.dump(
+        local_fs,
+        tmpdir,
+    )
     model.unbind()
     with pytest.raises(ValueError):
         model.call_method("predict", dmatrix_np)

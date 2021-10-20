@@ -4,9 +4,8 @@ from typing import Any, ClassVar, Optional
 
 import catboost
 from catboost import CatBoost, CatBoostClassifier, CatBoostRegressor
-from fsspec import AbstractFileSystem
 
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
@@ -17,31 +16,33 @@ class CatBoostModelIO(ModelIO):
     """
 
     type: ClassVar[str] = "catboost_io"
-    classifier_file_name = "clf.cb"
-    regressor_file_name = "rgr.cb"
+    classifier_file_name: ClassVar = "clf.cb"
+    regressor_file_name: ClassVar = "rgr.cb"
+    model_type: str = "regressor"
 
-    def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
+    def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory() as tmpdir:
             model_name = self._get_model_file_name(model)
             model_path = os.path.join(tmpdir, model_name)
             model.save_model(model_path)
-            fs.put(model_path, os.path.join(path, model_name))
-            return [os.path.join(path, model_name)]
+            return [storage.upload(model_path, os.path.join(path, model_name))]
 
-    def load(self, fs: AbstractFileSystem, path):
+    def load(self, artifacts: Artifacts):
         """
         Loads `catboost.CatBoostClassifier` or `catboost.CatBoostRegressor` instance from path
 
         """
-        if fs.exists(os.path.join(path, self.classifier_file_name)):
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Invalid artifacts: should be one {self.classifier_file_name} or {self.regressor_file_name} file"
+            )
+        if self.model_type == "classifier":
             model_type = CatBoostClassifier
         else:
             model_type = CatBoostRegressor
 
         model = model_type()
-        with fs.open(
-            os.path.join(path, self._get_model_file_name(model))
-        ) as f:
+        with artifacts[0].open() as f:
             model.load_model(stream=f)
         return model
 
@@ -83,6 +84,7 @@ class CatBoostModel(ModelType, ModelHook):
             ),
         }
         if isinstance(obj, CatBoostClassifier):
+            model.io.model_type = "classigfier"
             methods["predict_proba"] = Signature.from_method(
                 model.predict_proba,
                 auto_infer=sample_data is not None,

@@ -15,6 +15,7 @@ from mlem.core.base import MlemObject
 
 class Artifact(MlemObject, ABC):
     __type_root__ = True
+    __default_type__: ClassVar = "fsspec"
 
     @abstractmethod
     def download(self, target_path: str):
@@ -45,7 +46,7 @@ class FSSpecArtifact(Artifact):
             yield f
 
 
-class StorageBackend(MlemObject, ABC):
+class Storage(MlemObject, ABC):
     __type_root__ = True
 
     @abstractmethod
@@ -58,7 +59,7 @@ class StorageBackend(MlemObject, ABC):
         raise NotImplementedError
 
 
-class FSSpecStorage(StorageBackend):
+class FSSpecStorage(Storage):
     type: ClassVar = "fsspec"
 
     __transient_fields__: ClassVar = {"fs", "base_path"}
@@ -75,7 +76,10 @@ class FSSpecStorage(StorageBackend):
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, Artifact]]:
-        with self.get_fs().open(os.path.join(self.base_path, path), "wb") as f:
+        fs = self.get_fs()
+        fullpath = os.path.join(self.base_path, path)
+        fs.makedirs(os.path.dirname(fullpath), exist_ok=True)
+        with fs.open(fullpath, "wb") as f:
             yield f, FSSpecArtifact(uri=os.path.join(self.uri, path))
 
     def get_fs(self) -> AbstractFileSystem:
@@ -86,10 +90,10 @@ class FSSpecStorage(StorageBackend):
         return self.fs
 
 
-class DVCStorage(StorageBackend):
+class DVCStorage(Storage):
     type: ClassVar = "dvc"
 
 
 LOCAL_STORAGE = FSSpecStorage(uri="")
 
-Artifacts = List[str]
+Artifacts = List[Artifact]

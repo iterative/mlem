@@ -46,7 +46,7 @@ def _send_analytics(cmd_name):
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
             except Exception as e:
                 error = str(type(e))
-                raise
+                raise e
             finally:
                 send_cli_call(cmd_name, error_msg=error, **res)
 

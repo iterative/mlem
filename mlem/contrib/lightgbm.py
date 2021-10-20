@@ -3,10 +3,9 @@ import tempfile
 from typing import Any, ClassVar, Optional
 
 import lightgbm as lgb
-from fsspec import AbstractFileSystem
 
 from mlem.constants import PREDICT_METHOD_NAME
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetHook,
@@ -72,21 +71,24 @@ class LightGBMModelIO(ModelIO):
     type: ClassVar[str] = "lightgbm_io"
     model_file_name = "model.lgb"
 
-    def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
+    def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory(prefix="mlem_lightgbm_dump") as f:
             model_path = os.path.join(f, self.model_file_name)
             model.save_model(model_path)
             fs_path = os.path.join(path, self.model_file_name)
-            fs.upload(model_path, fs_path)
-            return [fs_path]
+            return [storage.upload(model_path, fs_path)]
 
-    def load(self, fs: AbstractFileSystem, path):
-        model_file = os.path.join(path, self.model_file_name)
+    def load(self, artifacts: Artifacts):
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Invalid artifacts: should be one {self.model_file_name} file"
+            )
+
         with tempfile.TemporaryDirectory(
             prefix="mlem_lightgbm_load"
         ) as tmpdir:
             local_path = os.path.join(tmpdir, self.model_file_name)
-            fs.download(model_file, local_path)
+            artifacts[0].download(local_path)
             return lgb.Booster(model_file=local_path)
 
 

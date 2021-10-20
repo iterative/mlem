@@ -11,6 +11,7 @@ from sklearn.tree import DecisionTreeClassifier
 from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import (
     Dataset,
     DatasetReader,
@@ -136,12 +137,12 @@ def dataset_write_read_check(
     with tempfile.TemporaryDirectory() as tmpdir:
         writer = writer or dataset.dataset_type.get_writer()
 
-        fs = LocalFileSystem()
-        reader, _ = writer.write(dataset, fs, tmpdir)
+        storage = LOCAL_STORAGE
+        reader, artifacts = writer.write(dataset, storage, tmpdir)
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
-        new = reader.read(fs, tmpdir)
+        new = reader.read(artifacts)
 
         assert dataset.dataset_type == new.dataset_type
         if custom_assert is not None:

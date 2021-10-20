@@ -22,7 +22,7 @@ def test_numpy_read_write():
     assert artifacts == [DATA_FILE]
     assert fs.exists(os.path.join("/", DATA_FILE))
 
-    dataset2 = reader.read(fs, "/")
+    dataset2 = reader.read("/")
     assert isinstance(dataset2, Dataset)
     assert dataset2.dataset_type == dataset.dataset_type
     assert isinstance(dataset2.data, np.ndarray)
@@ -43,7 +43,7 @@ def test_pandas_read_write(format):
     assert artifacts == [filename]
     assert fs.exists(os.path.join("/", filename))
 
-    dataset2 = reader.read(fs, "/")
+    dataset2 = reader.read("/")
     assert isinstance(dataset2, Dataset)
     assert dataset2.dataset_type == dataset.dataset_type
     assert isinstance(dataset2.data, pd.DataFrame)
