@@ -54,8 +54,12 @@ def send(
 
 
 def _send_daemon(payload):
+    import sys
+
+    cmd = f"import requests;requests.post('{URL}',params={{'token':'{TOKEN}'}},json={payload})"
+
     if os.name == "nt":
-        import sys
+
         from subprocess import (
             CREATE_NEW_PROCESS_GROUP,
             CREATE_NO_WINDOW,
@@ -66,7 +70,6 @@ def _send_daemon(payload):
         detached_flags = CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
         startupinfo = STARTUPINFO()
         startupinfo.dwFlags |= STARTF_USESHOWWINDOW
-        cmd = f"import requests;requests.post('{URL}',params={{'token':'{TOKEN}'}},json={payload})"
         subprocess.Popen(  # pylint: disable=consider-using-with
             [sys.executable, "-c", cmd],
             creationflags=detached_flags,
@@ -74,10 +77,10 @@ def _send_daemon(payload):
             startupinfo=startupinfo,
         )
     elif os.name == "posix":
-        from daemon import DaemonContext
-
-        with DaemonContext():
-            _send(payload)
+        subprocess.Popen(  # pylint: disable=consider-using-with
+            [sys.executable, "-c", cmd],
+            close_fds=True,
+        )
     else:
         raise NotImplementedError
 
