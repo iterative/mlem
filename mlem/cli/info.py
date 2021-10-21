@@ -1,12 +1,11 @@
 import os
 from pprint import pprint
+from typing import List, Type
 
 import click
 from fsspec.implementations.local import LocalFileSystem
 
 from mlem.cli.main import mlem_command
-from mlem.core.meta_io import get_fs
-from mlem.core.metadata import load_meta
 from mlem.core.objects import (
     MLEM_DIR,
     MLEM_EXT,
@@ -14,30 +13,27 @@ from mlem.core.objects import (
     MlemMeta,
     find_object,
 )
-from mlem.utils.root import find_mlem_root
 
 
-def _print_objects_of_type(path, type_):
-    cls = MlemMeta.__type_map__[type_]
-    fs, path = get_fs(path)
-    root_path = os.path.join(
-        find_mlem_root(path, fs), MLEM_DIR, cls.object_type
-    )
-    files = fs.glob(os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True)
-    if len(files) == 0:
+def _print_objects_of_type(
+    cls: Type[MlemMeta], objects: List[MlemMeta], root_path: str
+):
+    if len(objects) == 0:
         return
-    print(type_.capitalize() + "s:")
-    for file in files:
-        file = file[: -len(MLEM_EXT)]
-        obj_name = os.path.relpath(file, root_path)
-        meta = load_meta(obj_name, follow_links=False, fs=fs)
+    print(cls.object_type.capitalize() + "s:")
+    for meta in objects:
+        obj_name = os.path.relpath(meta.name or "?", root_path)
         if (
             isinstance(meta, MlemLink)
             and obj_name != meta.mlem_link[: -len(MLEM_EXT)]
         ):
-            link = f"-> {meta.mlem_link}"
+            link = f"-> {os.path.dirname(meta.mlem_link)}"
+            obj_name = os.path.relpath(
+                obj_name, os.path.join(MLEM_DIR, cls.object_type)
+            )[: -len(MLEM_EXT)]
         else:
             link = ""
+            obj_name = os.path.dirname(obj_name)
         print("", "-", obj_name, *[link] if link else [])
 
 
@@ -56,12 +52,16 @@ TYPE_ALIASES = {
 @click.option("-r", "--repo", default=".")
 def ls(type_: str, repo: str):
     """List MLEM objects of {type} in current mlem_root."""
+    from mlem.api.commands import ls
+
     if type_ == "all":
-        for tp in MlemMeta.subtype_mapping():
-            _print_objects_of_type(repo, tp)
+        type_filter = None
     else:
-        type = TYPE_ALIASES.get(type_, type_)
-        _print_objects_of_type(repo, type)
+        type_filter = MlemMeta.__type_map__[TYPE_ALIASES.get(type_, type_)]
+
+    objects = ls(repo, type_filter)
+    for cls, objs in objects.items():
+        _print_objects_of_type(cls, objs, repo)
     return {"type": type_}
 
 
