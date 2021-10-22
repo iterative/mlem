@@ -20,7 +20,7 @@ def test_ls(mlem_root, obj_type):
 
 REMOTE_LS_EXPECTED_RESULT = """Models:
  - data/model
- - latest -> data/model/mlem.yaml
+ - latest -> data/model
 Datasets:
  - data/test_x
  - data/test_y
