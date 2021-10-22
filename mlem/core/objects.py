@@ -354,21 +354,16 @@ class _ExternalMeta(ABC, MlemMeta):
             name = os.path.join(name, META_FILE_NAME)
         path = os.path.join(root, name)
         new.name = path
-        if isinstance(
-            self.fs, GithubFileSystem
-        ):  # fixme: https://github.com/iterative/mlem/issues/37 move to actual git fs
-            get_with_dvc(
-                self.fs, os.path.dirname(self.name), os.path.dirname(path)
+
+        os.makedirs(new.art_dir, exist_ok=True)
+        for art in self.artifacts or []:
+            # TODO: change find_mlem_root to smth better
+            new.artifacts.append(
+                art.download(
+                    new.art_dir, self.fs, find_mlem_root(self.name, self.fs)
+                )
             )
-        else:  # old impl, does not support dvc tracked files
-            os.makedirs(new.art_dir, exist_ok=True)
-            # for art in self.artifacts or []: FIXME !!!
-            #     shutil.copy(os.path.join(self.art_dir, art), new.art_dir)
-        new.artifacts = [
-            os.path.relpath(os.path.join(new.art_dir, f), root)
-            for f in os.listdir(new.art_dir)
-        ]  # TODO: https://github.com/iterative/mlem/issues/37
-        #     blobs_from_path(new.art_dir).blobs
+
         super(_ExternalMeta, new).dump(
             name,
             link=link and mlem_root is not None,
