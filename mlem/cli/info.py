@@ -6,6 +6,7 @@ import click
 from fsspec.implementations.local import LocalFileSystem
 
 from mlem.cli.main import mlem_command
+from mlem.core.meta_io import get_fs
 from mlem.core.objects import (
     MLEM_DIR,
     MLEM_EXT,
@@ -13,16 +14,18 @@ from mlem.core.objects import (
     MlemMeta,
     find_object,
 )
+from mlem.utils.root import find_mlem_root
 
 
 def _print_objects_of_type(
-    cls: Type[MlemMeta], objects: List[MlemMeta], root_path: str
+    cls: Type[MlemMeta], objects: List[MlemMeta], mlem_root: str
 ):
     if len(objects) == 0:
         return
+
     print(cls.object_type.capitalize() + "s:")
     for meta in objects:
-        obj_name = os.path.relpath(meta.name or "?", root_path)
+        obj_name = os.path.relpath(meta.name or "?", mlem_root)
         if (
             isinstance(meta, MlemLink)
             and obj_name != meta.mlem_link[: -len(MLEM_EXT)]
@@ -60,8 +63,10 @@ def ls(type_: str, repo: str):
         type_filter = MlemMeta.__type_map__[TYPE_ALIASES.get(type_, type_)]
 
     objects = ls(repo, type_filter)
+    fs, path = get_fs(repo)
+    mlem_root = find_mlem_root(path, fs)
     for cls, objs in objects.items():
-        _print_objects_of_type(cls, objs, repo)
+        _print_objects_of_type(cls, objs, mlem_root)
     return {"type": type_}
 
 

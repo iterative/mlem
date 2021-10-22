@@ -10,7 +10,13 @@ import click
 from pydantic import parse_obj_as
 
 from mlem.core.errors import InvalidArgumentError
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, deserialize, get_fs
+from mlem.core.meta_io import (
+    META_FILE_NAME,
+    MLEM_DIR,
+    MLEM_EXT,
+    deserialize,
+    get_fs,
+)
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
@@ -256,23 +262,25 @@ def ls(
     if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
         type_filter = [type_filter]
     fs, path = get_fs(repo)
-    mlem_rool = find_mlem_root(path, fs)
+    mlem_root = find_mlem_root(path, fs)
     res = defaultdict(list)
     for cls in type_filter:
-        root_path = os.path.join(mlem_rool, MLEM_DIR, cls.object_type)
+        root_path = os.path.join(mlem_root, MLEM_DIR, cls.object_type)
         files = fs.glob(
             os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
         for file in files:
-            file = file[: -len(MLEM_EXT)]
-            obj_name = os.path.relpath(file, root_path)
-            meta = load_meta(
-                obj_name, follow_links=False, fs=fs, load_value=False
-            )
-            if isinstance(meta, MlemLink) and (
-                not include_links
-                or obj_name == meta.mlem_link[: -len(MLEM_EXT)]
-            ):
-                continue
+            # file = file[: -len(MLEM_EXT)]
+            # obj_name = os.path.relpath(file, root_path)
+            meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
+            if isinstance(meta, MlemLink):
+                link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
+                is_auto_link = meta.mlem_link == os.path.join(
+                    link_name, META_FILE_NAME
+                )
+                if is_auto_link:
+                    meta = meta.load_link()
+                elif not include_links:
+                    continue
             res[cls].append(meta)
     return res

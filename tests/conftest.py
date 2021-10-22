@@ -11,6 +11,7 @@ from sklearn.tree import DecisionTreeClassifier
 from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
+from mlem.contrib.sklearn import SklearnModel
 from mlem.core.dataset_type import (
     Dataset,
     DatasetReader,
@@ -19,7 +20,8 @@ from mlem.core.dataset_type import (
 )
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import DatasetMeta, ModelMeta, mlem_dir_path
+from mlem.core.requirements import Requirements
 
 RESOURCES = "resources"
 
@@ -113,6 +115,18 @@ def model_meta_saved(model_path):
 def mlem_root(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
+    # TODO: bug: when reqs are empty, they serialize to "{}", not "[]"
+    model = ModelMeta(
+        requirements=Requirements.new("sklearn"),
+        model_type=SklearnModel(methods={}, model=""),
+    )
+    model.dump("model1", mlem_root=dir)
+
+    model.make_link(
+        mlem_dir_path(
+            "latest", LocalFileSystem(), obj_type=ModelMeta, mlem_root=dir
+        )
+    )
     yield dir
 
 
