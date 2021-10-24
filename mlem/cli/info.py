@@ -49,25 +49,28 @@ TYPE_ALIASES = {
 
 @mlem_command()
 @click.argument(
-    "type_",
+    "type_filter",
     default="all",
 )
 @click.option("-r", "--repo", default=".")
-def ls(type_: str, repo: str):
+@click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
+def ls(type_filter: str, repo: str, links: bool):
     """List MLEM objects of {type} in current mlem_root."""
     from mlem.api.commands import ls
 
-    if type_ == "all":
-        type_filter = None
+    if type_filter == "all":
+        types = None
     else:
-        type_filter = MlemMeta.__type_map__[TYPE_ALIASES.get(type_, type_)]
+        types = MlemMeta.__type_map__[
+            TYPE_ALIASES.get(type_filter, type_filter)
+        ]
 
-    objects = ls(repo, type_filter)
+    objects = ls(repo, types, include_links=links)
     fs, path = get_fs(repo)
     mlem_root = find_mlem_root(path, fs)
     for cls, objs in objects.items():
         _print_objects_of_type(cls, objs, mlem_root)
-    return {"type": type_}
+    return {"type_filter": type_filter}
 
 
 @mlem_command("pprint")
