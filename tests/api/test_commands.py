@@ -5,8 +5,10 @@ import pytest
 from numpy import ndarray
 
 from mlem.api import apply, link, load_meta
+from mlem.api.commands import ls
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
-from mlem.core.objects import MlemLink, ModelMeta
+from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
+from tests.conftest import long
 
 
 @pytest.mark.parametrize(
@@ -56,3 +58,36 @@ def test_link_in_mlem_dir(model_path_mlem_root):
     assert isinstance(loaded_link_object, MlemLink)
     model = load_meta(link_dumped_to)
     assert isinstance(model, ModelMeta)
+
+
+def test_ls_local(mlem_root):
+    objects = ls(mlem_root)
+    assert len(objects) == 1
+    assert ModelMeta in objects
+    models = objects[ModelMeta]
+    assert len(models) == 2
+    model, lnk = models
+    if isinstance(model, MlemLink):
+        model, lnk = lnk, model
+
+    assert isinstance(model, ModelMeta)
+    assert isinstance(lnk, MlemLink)
+    assert os.path.join(mlem_root, lnk.mlem_link) == model.name
+
+
+@long
+def test_ls_remote():
+    objects = ls("https://github.com/iterative/example-mlem/")
+    assert len(objects) == 2
+    assert ModelMeta in objects
+    models = objects[ModelMeta]
+    assert len(models) == 2
+    model, lnk = models
+    if isinstance(model, MlemLink):
+        model, lnk = lnk, model
+
+    assert isinstance(model, ModelMeta)
+    assert isinstance(lnk, MlemLink)
+
+    assert DatasetMeta in objects
+    assert len(objects[DatasetMeta]) == 3

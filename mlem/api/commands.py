@@ -2,17 +2,26 @@
 MLEM's Python API
 """
 import os
-from typing import Any, Optional, Union
+from collections import defaultdict
+from inspect import isabstract
+from typing import Any, Dict, List, Optional, Sequence, Type, Union
 
 import click
 from pydantic import parse_obj_as
 
 from mlem.core.errors import InvalidArgumentError
-from mlem.core.meta_io import MLEM_DIR, deserialize
+from mlem.core.meta_io import (
+    META_FILE_NAME,
+    MLEM_DIR,
+    MLEM_EXT,
+    deserialize,
+    get_fs,
+)
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
+from mlem.utils.root import find_mlem_root
 
 
 def _get_dataset(dataset: Any) -> Any:
@@ -237,3 +246,39 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     else:
         server_obj = server
     server_obj.serve(interface)
+
+
+def ls(
+    repo: str = ".",
+    type_filter: Union[Type[MlemMeta], Sequence[Type[MlemMeta]], None] = None,
+    include_links: bool = True,
+) -> Dict[Type[MlemMeta], List[MlemMeta]]:
+    if type_filter is None:
+        type_filter = [
+            cls
+            for cls in MlemMeta.__type_map__.values()
+            if not isabstract(cls)
+        ]
+    if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
+        type_filter = [type_filter]
+    fs, path = get_fs(repo)
+    mlem_root = find_mlem_root(path, fs)
+    res = defaultdict(list)
+    for cls in type_filter:
+        root_path = os.path.join(mlem_root, MLEM_DIR, cls.object_type)
+        files = fs.glob(
+            os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True
+        )
+        for file in files:
+            meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
+            if isinstance(meta, MlemLink):
+                link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
+                is_auto_link = meta.mlem_link == os.path.join(
+                    link_name, META_FILE_NAME
+                )
+                if is_auto_link:
+                    meta = meta.load_link()
+                elif not include_links:
+                    continue
+            res[cls].append(meta)
+    return res

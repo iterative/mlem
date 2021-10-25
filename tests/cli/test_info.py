@@ -6,8 +6,13 @@ from click.testing import CliRunner
 from mlem.cli import ls, pretty_print
 from mlem.core.meta_io import META_FILE_NAME
 
+LOCAL_LS_EXPECTED_RESULT = """Models:
+ - latest -> model1
+ - model1
+"""
 
-@pytest.mark.parametrize("obj_type", [None, "all", "model", "dataset"])
+
+@pytest.mark.parametrize("obj_type", [None, "all", "model"])
 def test_ls(mlem_root, obj_type):
     runner = CliRunner()
     os.chdir(mlem_root)
@@ -16,11 +21,13 @@ def test_ls(mlem_root, obj_type):
         [obj_type] if obj_type else [],
     )
     assert result.exit_code == 0, (result.output, result.exception)
+    assert len(result.output) > 0, "Output is empty, but should not be"
+    assert result.output == LOCAL_LS_EXPECTED_RESULT
 
 
 REMOTE_LS_EXPECTED_RESULT = """Models:
  - data/model
- - latest -> data/model/mlem.yaml
+ - latest -> data/model
 Datasets:
  - data/test_x
  - data/test_y

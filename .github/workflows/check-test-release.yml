@@ -32,12 +32,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.6, 3.7, 3.8, 3.9]
+        python: ["3.7", "3.8", "3.9"]
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
+      with:
+         python-version: ${{ matrix.python }}
     # legacy-resolver makes install faster by order of magnitude
     - run: pip install -U pre-commit .[tests] --use-deprecated=legacy-resolver
     - run: pytest
