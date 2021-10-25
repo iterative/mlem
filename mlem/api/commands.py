@@ -270,8 +270,6 @@ def ls(
             os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
         for file in files:
-            # file = file[: -len(MLEM_EXT)]
-            # obj_name = os.path.relpath(file, root_path)
             meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
             if isinstance(meta, MlemLink):
                 link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
