@@ -116,6 +116,7 @@ def mlem_root(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
     # TODO: bug: when reqs are empty, they serialize to "{}", not "[]"
+    # https://github.com/iterative/mlem/issues/95
     model = ModelMeta(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
