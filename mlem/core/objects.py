@@ -70,9 +70,6 @@ class MlemMeta(MlemObject):
     name: Optional[str] = None
     fs: ClassVar[Optional[AbstractFileSystem]] = None
 
-    # class Config:
-    #     arbitrary_types_allowed = True
-
     def bind(self, name: str, fs: AbstractFileSystem):
         self.name = name
         self.fs = fs
@@ -104,13 +101,12 @@ class MlemMeta(MlemObject):
             payload = safe_load(f)
         res = deserialize(payload, cls).bind(path, fs)
         if follow_links and isinstance(res, MlemLink):
-            linked_obj_path, linked_obj_fs = res.parse_link()
-            return cls.__type_map__[res.link_type].read(
-                linked_obj_path, fs=linked_obj_fs
-            )
+            return res.load_link()
         return res
 
-    def write_value(self) -> Optional[Artifacts]:
+    def write_value(
+        self, mlem_root: str  # pylint: disable=unused-argument
+    ) -> Optional[Artifacts]:
         return None
 
     def load_value(self):
@@ -137,7 +133,7 @@ class MlemMeta(MlemObject):
         if link or mlem_root is None:
             if check_extension and not name.endswith(MLEM_EXT):
                 raise ValueError(f"name={name} should end with {MLEM_EXT}")
-            path = name
+            path = os.path.join(mlem_root or ".", name)
         else:
             path = mlem_dir_path(
                 name,
@@ -149,7 +145,7 @@ class MlemMeta(MlemObject):
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
         if link:
-            self.make_link_in_mlem_dir()
+            self.make_link_in_mlem_dir(mlem_root)
         self.name = name
         self.fs = fs
 
@@ -167,10 +163,10 @@ class MlemMeta(MlemObject):
         if path is not None:
             if raise_on_exist and os.path.exists(path):
                 raise ObjectExistsError(f"Object at {path} already exists")
-            link.dump(path, fs=fs)
+            link.dump(path, fs=fs, absolute=True)
         return link
 
-    def make_link_in_mlem_dir(self) -> None:
+    def make_link_in_mlem_dir(self, mlem_root: str = None) -> None:
         if self.name is None:
             raise MlemObjectNotSavedError(
                 "Cannot create link for not saved meta object"
@@ -179,6 +175,7 @@ class MlemMeta(MlemObject):
             os.path.dirname(self.name),
             fs=self.fs,
             obj_type=self.object_type,
+            mlem_root=mlem_root,
         )
         self.make_link(path=path)
 
@@ -224,6 +221,12 @@ class MlemLink(MlemMeta):
     mlem_link: str
     link_type: str
     object_type = "link"
+
+    def load_link(self) -> T:
+        linked_obj_path, linked_obj_fs = self.parse_link()
+        return MlemMeta.__type_map__[self.link_type].read(
+            linked_obj_path, fs=linked_obj_fs
+        )
 
     def parse_link(self) -> Tuple[str, AbstractFileSystem]:
         if self.name is None:
@@ -306,7 +309,7 @@ class _ExternalMeta(ABC, MlemMeta):
         if not name.endswith(MLEM_EXT):
             name = os.path.join(name, META_FILE_NAME)
         self.name = name
-        self.artifacts = self.write_value()
+        self.artifacts = self.write_value(mlem_root or ".")
         super().dump(
             name=name,
             fs=fs,
@@ -316,7 +319,7 @@ class _ExternalMeta(ABC, MlemMeta):
             absolute=absolute,
         )
 
-    def write_value(self) -> Artifacts:
+    def write_value(self, mlem_root: str) -> Artifacts:
         raise NotImplementedError()
 
     @property
@@ -356,6 +359,7 @@ class _ExternalMeta(ABC, MlemMeta):
         new.name = path
 
         os.makedirs(new.art_dir, exist_ok=True)
+        new.artifacts = []
         for art in self.artifacts or []:
             # TODO: change find_mlem_root to smth better
             new.artifacts.append(
@@ -384,7 +388,7 @@ class _ExternalMeta(ABC, MlemMeta):
 
 
 class ModelMeta(_ExternalMeta):
-    object_type = "model"
+    object_type: ClassVar = "model"
     model_type: ModelType
 
     @classmethod
@@ -393,8 +397,8 @@ class ModelMeta(_ExternalMeta):
         mt.model = model
         return ModelMeta(model_type=mt, requirements=mt.get_requirements())
 
-    def write_value(self) -> Artifacts:
-        path = self.art_dir
+    def write_value(self, mlem_root: str) -> Artifacts:
+        path = os.path.join(mlem_root, self.art_dir)
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
                 CONFIG.DEFAULT_STORAGE, path, self.model_type.model
@@ -420,7 +424,7 @@ class ModelMeta(_ExternalMeta):
 
 class DatasetMeta(_ExternalMeta):
     __transient_fields__ = {"dataset"}
-    object_type = "dataset"
+    object_type: ClassVar = "dataset"
     reader: Optional[DatasetReader] = None
     dataset: ClassVar[Optional[Dataset]] = None
 
@@ -439,10 +443,12 @@ class DatasetMeta(_ExternalMeta):
         meta.dataset = dataset
         return meta
 
-    def write_value(self) -> Artifacts:
+    def write_value(self, mlem_root: str) -> Artifacts:
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
-                self.dataset, CONFIG.DEFAULT_STORAGE, self.art_dir
+                self.dataset,
+                CONFIG.DEFAULT_STORAGE,
+                os.path.join(mlem_root, self.art_dir),
             )
             self.reader = reader
         else:
@@ -464,7 +470,7 @@ class DatasetMeta(_ExternalMeta):
 
 class TargetEnvMeta(MlemMeta):
     __type_root__ = True
-    object_type = "env"
+    object_type: ClassVar = "env"
     alias: ClassVar = ...
     deployment_type: ClassVar = ...
 
@@ -485,7 +491,7 @@ class TargetEnvMeta(MlemMeta):
 
 @dataclass
 class DeployMeta(MlemMeta):
-    object_type = "deployment"
+    object_type: ClassVar = "deployment"
 
     env_path: str
     model_path: str

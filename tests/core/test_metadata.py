@@ -11,7 +11,7 @@ from mlem.api import init
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
 from tests.conftest import long
-from tests.core.conftest import need_example_auth
+from tests.core.conftest import MLEM_TEST_REPO, need_test_repo_auth
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
@@ -36,11 +36,11 @@ def test_model_loading(model_path):
 
 
 @long
-@need_example_auth
-def test_model_loading_remote_dvc():
+@need_test_repo_auth
+def test_model_loading_remote_dvc(current_test_branch):
     model = load(
-        "https://github.com/iterative/example-mlem/data/model",
-        rev="store-with-dvc",
+        f"{MLEM_TEST_REPO}/with_dvc/data/model",
+        rev=current_test_branch,
     )
     assert isinstance(model, RandomForestClassifier)
     train, _ = load_iris(return_X_y=True)
@@ -55,26 +55,26 @@ def test_meta_loading(model_path):
 
 
 @long
-@need_example_auth
+@need_test_repo_auth
 @pytest.mark.parametrize(
     "url",
     [
-        "github://iterative:example-mlem@main/data/model",
-        "github://iterative:example-mlem@main/data/model/mlem.yaml",
-        "github://iterative:example-mlem@main/.mlem/model/data/model.mlem.yaml",
-        "github://iterative:example-mlem@main/.mlem/model/latest.mlem.yaml",
-        "https://github.com/iterative/example-mlem/data/model",
+        "github://iterative:mlem-test@{branch}/simple/data/model",
+        "github://iterative:mlem-test@{branch}/simple/data/model/mlem.yaml",
+        "github://iterative:mlem-test@{branch}/simple/.mlem/model/data/model.mlem.yaml",
+        "github://iterative:mlem-test@{branch}/simple/.mlem/model/latest.mlem.yaml",
+        "https://github.com/iterative/mlem-test/tree/{branch}/simple/data/model/",
     ],
 )
-def test_model_loading_from_github_with_fsspec(url):
+def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
-    model = load(url)
+    model = load(url.format(branch=current_test_branch))
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
 
 
 @long
-@need_example_auth
+@need_test_repo_auth
 @pytest.mark.parametrize(
     "path",
     [
@@ -84,22 +84,22 @@ def test_model_loading_from_github_with_fsspec(url):
         ".mlem/model/latest.mlem.yaml",
     ],
 )
-def test_model_loading_from_github(path):
+def test_model_loading_from_github(path, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(
         path,
-        repo="https://github.com/iterative/example-mlem",
-        rev="main",
+        repo=MLEM_TEST_REPO,
+        rev=current_test_branch,
     )
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
 
 
-@need_example_auth
-def test_load_link_with_fsspec_path():
+@need_test_repo_auth
+def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "mlem_link": "github://iterative:example-mlem@main/data/model/mlem.yaml",
+        "mlem_link": f"github://iterative:mlem-test@{current_test_branch}/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:

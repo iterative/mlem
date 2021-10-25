@@ -20,7 +20,10 @@ class Artifact(MlemObject, ABC):
 
     @abstractmethod
     def download(
-        self, target_path: str, repo_fs: AbstractFileSystem, repo_path: str
+        self,
+        target_path: str,
+        repo_fs: AbstractFileSystem = None,
+        repo_path: str = None,
     ) -> "LocalArtifact":
         # TODO: maybe change fs and path to meta_storage in the future
         raise NotImplementedError
@@ -36,11 +39,18 @@ class FSSpecArtifact(Artifact):
     uri: str
 
     def download(
-        self, target_path: str, repo_fs: AbstractFileSystem, repo_path: str
+        self,
+        target_path: str,
+        repo_fs: AbstractFileSystem = None,
+        repo_path: str = None,
     ) -> "LocalArtifact":
         from mlem.core.meta_io import get_fs
 
-        fs, path = get_fs(os.path.join(repo_path, self.uri))
+        fs, path = get_fs(self.uri)
+        if isinstance(fs, LocalFileSystem) and not os.path.isabs(path):
+            fs = repo_fs or fs
+            path = os.path.join(repo_path or "", path)
+
         if os.path.isdir(target_path):
             target_path = os.path.join(target_path, os.path.basename(path))
         fs.download(path, target_path)

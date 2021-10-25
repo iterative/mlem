@@ -6,6 +6,7 @@ import pytest
 from mlem.contrib.lightgbm import LightGBMDatasetType, LightGBMModel
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
@@ -149,8 +150,8 @@ def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
     expected_requirements = {"lightgbm", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
-    model.dump(
-        local_fs,
+    artifacts = model.dump(
+        LOCAL_STORAGE,
         tmpdir,
     )
 
@@ -158,7 +159,7 @@ def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
     with pytest.raises(ValueError):
         model.call_method("predict", dataset_np)
 
-    model.load(local_fs, tmpdir)
+    model.load(artifacts)
     test_model__predict(model, dataset_np)
 
     assert set(model.get_requirements().modules) == expected_requirements

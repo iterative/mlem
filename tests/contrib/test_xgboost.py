@@ -5,6 +5,7 @@ import xgboost
 
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.xgboost import DMatrixDatasetType, XGBoostModel
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
@@ -133,15 +134,15 @@ def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
     expected_requirements = {"xgboost", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
-    model.dump(
-        local_fs,
+    artifacts = model.dump(
+        LOCAL_STORAGE,
         tmpdir,
     )
     model.unbind()
     with pytest.raises(ValueError):
         model.call_method("predict", dmatrix_np)
 
-    model.load(local_fs, tmpdir)
+    model.load(artifacts)
     test_model__predict(model, dmatrix_np)
 
     assert set(model.get_requirements().modules) == expected_requirements

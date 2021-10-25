@@ -1,5 +1,6 @@
 import os
 import tempfile
+from enum import Enum
 from typing import Any, ClassVar, Optional
 
 import catboost
@@ -10,6 +11,11 @@ from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
+class CBType(str, Enum):
+    classifier = "clf"
+    regressor = "reg"
+
+
 class CatBoostModelIO(ModelIO):
     """
     :class:`mlem.core.model.ModelIO` for CatBoost models.
@@ -18,7 +24,7 @@ class CatBoostModelIO(ModelIO):
     type: ClassVar[str] = "catboost_io"
     classifier_file_name: ClassVar = "clf.cb"
     regressor_file_name: ClassVar = "rgr.cb"
-    model_type: str = "regressor"
+    model_type: CBType = CBType.regressor
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -36,7 +42,7 @@ class CatBoostModelIO(ModelIO):
             raise ValueError(
                 f"Invalid artifacts: should be one {self.classifier_file_name} or {self.regressor_file_name} file"
             )
-        if self.model_type == "classifier":
+        if self.model_type == CBType.classifier:
             model_type = CatBoostClassifier
         else:
             model_type = CatBoostRegressor
@@ -84,7 +90,7 @@ class CatBoostModel(ModelType, ModelHook):
             ),
         }
         if isinstance(obj, CatBoostClassifier):
-            model.io.model_type = "classigfier"
+            model.io.model_type = CBType.classifier
             methods["predict_proba"] = Signature.from_method(
                 model.predict_proba,
                 auto_infer=sample_data is not None,
