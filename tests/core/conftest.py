@@ -5,6 +5,8 @@ import git
 import pytest
 from git import Repo
 
+from mlem.utils.github import ls_remotes
+
 MLEM_TEST_REPO = "https://github.com/iterative/mlem-test/"
 
 
@@ -24,10 +26,7 @@ need_test_repo_auth = pytest.mark.skipif(
 @pytest.fixture()
 def current_test_branch():
     branch = Repo(str(Path(__file__).parent.parent.parent)).active_branch
-    g = git.cmd.Git()
-    remote_refs = {
-        ref.split("\t")[1] for ref in g.ls_remote(MLEM_TEST_REPO).split("\n")
-    }
+    remote_refs = set(ls_remotes(MLEM_TEST_REPO).keys())
     if branch.path in remote_refs:
         return branch.name
     return "main"

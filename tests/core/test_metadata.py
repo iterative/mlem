@@ -1,5 +1,7 @@
 import os
 import tempfile
+from pathlib import Path
+from urllib.parse import quote_plus, urlencode
 
 import pytest
 import yaml
@@ -8,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
+from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
 from tests.conftest import long
@@ -27,6 +30,12 @@ def test_model_saving_in_mlem_root(model_train_target, tmpdir_factory):
     model, train, _ = model_train_target
     save(model, model_dir, tmp_sample_data=train, link=True)
 
+def test_model_saving(model_path):
+    model_path = Path(model_path)
+    assert os.path.isfile(model_path / META_FILE_NAME)
+    assert os.path.isdir(model_path / ART_DIR)
+    assert os.path.isfile(model_path / ART_DIR / "data.pkl")
+
 
 def test_model_loading(model_path):
     model = load(model_path)
@@ -39,7 +48,7 @@ def test_model_loading(model_path):
 @need_test_repo_auth
 def test_model_loading_remote_dvc(current_test_branch):
     model = load(
-        f"{MLEM_TEST_REPO}/with_dvc/data/model",
+        f"{MLEM_TEST_REPO}/dvc_pipeline/data/model",
         rev=current_test_branch,
     )
     assert isinstance(model, RandomForestClassifier)
@@ -68,7 +77,7 @@ def test_meta_loading(model_path):
 )
 def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
-    model = load(url.format(branch=current_test_branch))
+    model = load(url.format(branch=quote_plus(current_test_branch)))
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
 
@@ -89,7 +98,7 @@ def test_model_loading_from_github(path, current_test_branch):
     model = load(
         path,
         repo=MLEM_TEST_REPO,
-        rev=current_test_branch,
+        rev=quote_plus(current_test_branch),
     )
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
@@ -99,7 +108,7 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "mlem_link": f"github://iterative:mlem-test@{current_test_branch}/data/model/mlem.yaml",
+        "mlem_link": f"github://iterative:mlem-test@{quote_plus(current_test_branch)}/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:

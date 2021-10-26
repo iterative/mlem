@@ -360,12 +360,9 @@ class _ExternalMeta(ABC, MlemMeta):
 
         os.makedirs(new.art_dir, exist_ok=True)
         new.artifacts = []
-        for art in self.artifacts or []:
-            # TODO: change find_mlem_root to smth better
+        for art in self.relative_artifacts:
             new.artifacts.append(
-                art.download(
-                    new.art_dir, self.fs, find_mlem_root(self.name, self.fs)
-                )
+                art.download(new.art_dir)
             )
 
         super(_ExternalMeta, new).dump(
@@ -376,16 +373,13 @@ class _ExternalMeta(ABC, MlemMeta):
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
-    @contextlib.contextmanager
-    def localize(self, path: str):
-        if not isinstance(self.fs, GithubFileSystem):
-            yield self.fs, path
-        else:
-            with tempfile.TemporaryDirectory(prefix="mlem_dvc_clone") as tdir:
-                target = os.path.join(tdir, "clone")
-                get_with_dvc(self.fs, path, target)
-                yield LocalFileSystem(), target
+    @property
+    def dirname(self):
+        return os.path.dirname(self.name)
 
+    @property
+    def relative_artifacts(self) -> Artifacts:
+        return [a.relative(self.fs, self.dirname) for a in self.artifacts or []]
 
 class ModelMeta(_ExternalMeta):
     object_type: ClassVar = "model"
@@ -398,10 +392,9 @@ class ModelMeta(_ExternalMeta):
         return ModelMeta(model_type=mt, requirements=mt.get_requirements())
 
     def write_value(self, mlem_root: str) -> Artifacts:
-        path = os.path.join(mlem_root, self.art_dir)
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
-                CONFIG.DEFAULT_STORAGE, path, self.model_type.model
+                CONFIG.DEFAULT_STORAGE.relative(self.fs, self.dirname), ART_DIR, self.model_type.model
             )
         else:
             raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
@@ -409,7 +402,7 @@ class ModelMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        self.model_type.load(self.artifacts)
+        self.model_type.load(self.relative_artifacts)
 
     def get_value(self):
         return self.model_type.model
@@ -447,8 +440,8 @@ class DatasetMeta(_ExternalMeta):
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
                 self.dataset,
-                CONFIG.DEFAULT_STORAGE,
-                os.path.join(mlem_root, self.art_dir),
+                CONFIG.DEFAULT_STORAGE.relative(self.fs, self.dirname),
+                ART_DIR,
             )
             self.reader = reader
         else:
@@ -457,7 +450,7 @@ class DatasetMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        self.dataset = self.reader.read(self.artifacts)
+        self.dataset = self.reader.read(self.relative_artifacts)
         # with self.localize(self.art_dir) as (fs, path):
         #     self.dataset = self.reader.read(fs, path)
 

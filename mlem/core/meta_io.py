@@ -13,8 +13,9 @@ from pydantic import parse_obj_as
 
 from mlem.config import CONFIG
 from mlem.core.base import MlemObject
+from mlem.utils.github import ls_remotes
 from mlem.utils.root import MLEM_DIR
-
+import git
 MLEM_EXT = ".mlem.yaml"
 
 
@@ -33,9 +34,16 @@ def get_github_kwargs(uri: str):
         return {"org": org, "repo": repo, "path": ""}
     if path[0] == "tree":
         sha = path[1]
-        path = path[2:]
+        remotes = set(ls_remotes(f"https://github.com/{org}/{repo}").keys())
+        for i, part in enumerate(path[2:], start=2):
+            if os.path.join("refs", "heads", sha) in remotes:
+                path = path[i:]
+                break
+            sha = os.path.join(sha, part)
+        else:
+            raise ValueError(f"Could not resolve branch from uri \"{uri}\"")
     else:
-        sha = CONFIG.DEFAULT_BRANCH
+        sha = None
     return {
         "org": org,
         "repo": repo,
@@ -58,7 +66,7 @@ def resolve_fs(
     return fs
 
 
-def get_envs() -> Dict:
+def get_github_envs() -> Dict:
     """Get authentification envs"""
     kwargs = {}
     if CONFIG.GITHUB_TOKEN is not None:
@@ -67,16 +75,20 @@ def get_envs() -> Dict:
     return kwargs
 
 
-def get_fs(uri: str, protocol: str = None) -> Tuple[AbstractFileSystem, str]:
+def get_fs(uri: str, protocol: str = None, **kwargs) -> Tuple[AbstractFileSystem, str]:
     """Parse given (uri, protocol) with fsspec and return (fs, path)"""
-    kwargs = get_envs()
+    storage_options = {}
+    if protocol == "github" or uri.startswith("github://"):
+        storage_options.update(get_github_envs())
     if protocol is None and uri.startswith("https://github.com"):
         protocol = "github"
+        storage_options.update(get_github_envs())
         github_kwargs = get_github_kwargs(uri)
         uri = github_kwargs.pop("path")
-        kwargs.update(github_kwargs)
+        storage_options.update(github_kwargs)
+    storage_options.update(kwargs)
     fs, _, (path,) = get_fs_token_paths(
-        uri, protocol=protocol, storage_options=kwargs
+        uri, protocol=protocol, storage_options=storage_options
     )
     return fs, path
 

@@ -10,7 +10,7 @@ from typing_extensions import Literal
 from yaml import safe_load
 
 from mlem.core.meta_io import (
-    get_envs,
+    get_github_envs,
     get_fs,
     get_github_kwargs,
     get_meta_path,
@@ -126,7 +126,7 @@ def load_meta(
         if repo is not None:
             if "github" not in repo:
                 raise NotImplementedError("Only Github is supported as of now")
-            kwargs = get_envs()
+            kwargs = get_github_envs()
 
             git_kwargs = get_github_kwargs(repo)
             fs = GithubFileSystem(
@@ -136,7 +136,11 @@ def load_meta(
                 **kwargs,
             )
         else:
-            fs, path = get_fs(path)
+            fs, new_path = get_fs(path)
+            if isinstance(fs, GithubFileSystem) and rev is not None and fs.root != rev:
+                fs, path = get_fs(path, sha=rev)
+            else:
+                path = new_path
     path = find_meta_path(path, fs=fs)
     with fs.open(path, mode="r") as f:
         res = f.read()  # FIXME: double reading

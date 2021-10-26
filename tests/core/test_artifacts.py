@@ -3,8 +3,10 @@ import random
 import string
 
 import pytest
+from fsspec.implementations.local import LocalFileSystem
+from s3fs import S3FileSystem
 
-from mlem.core.artifacts import FSSpecArtifact, FSSpecStorage
+from mlem.core.artifacts import FSSpecArtifact, FSSpecStorage, LocalStorage
 from mlem.core.meta_io import get_fs
 from tests.conftest import resource_path
 
@@ -44,3 +46,15 @@ def test_fsspec_backend_s3_open(s3_tmp_filepath):
 
     with artifact.open() as f:
         assert f.read() == b"a"
+
+def test_relative_storage_remote():
+    s3storage = FSSpecStorage(uri="s3://some_bucket")
+    rel1 = s3storage.relative(LocalFileSystem(), "some_path")
+    assert rel1 == s3storage
+
+def test_relative_storage_local():
+    local_storage = LocalStorage(uri="")
+    rel1 = local_storage.relative(S3FileSystem(), "some_path")
+    assert rel1 != local_storage
+    assert isinstance(rel1, FSSpecStorage)
+    assert rel1.uri == "s3://some_path"

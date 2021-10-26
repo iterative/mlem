@@ -43,7 +43,7 @@ def test_model_cloning_remote(current_test_branch):
     """
     with tempfile.TemporaryDirectory() as dir:
         cloned_model = load_meta(
-            f"{MLEM_TEST_REPO}/simple/data/model", rev=current_test_branch
+            os.path.join(MLEM_TEST_REPO, "simple/data/model"), rev=current_test_branch
         ).clone(os.path.join(dir, "model"), link=False)
         cloned_model.load_value()
         X, _ = load_iris(return_X_y=True)
