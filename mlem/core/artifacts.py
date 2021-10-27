@@ -6,10 +6,11 @@ import contextlib
 import os.path
 from abc import ABC, abstractmethod
 from typing import IO, ClassVar, Dict, Iterator, List, Optional, Tuple
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urlparse
 
 import fsspec
 from fsspec import AbstractFileSystem
+from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
 from mlem.core.base import MlemObject
@@ -18,12 +19,10 @@ from mlem.core.base import MlemObject
 class Artifact(MlemObject, ABC):
     __type_root__ = True
     __default_type__: ClassVar = "local"
+    abs_name: ClassVar = "artifact"
 
     @abstractmethod
-    def download(
-        self,
-        target_path: str
-    ) -> "LocalArtifact":
+    def download(self, target_path: str) -> "LocalArtifact":
         raise NotImplementedError
 
     @abstractmethod
@@ -31,21 +30,23 @@ class Artifact(MlemObject, ABC):
     def open(self) -> Iterator[IO]:
         raise NotImplementedError
 
-    def relative(self,  storage: "Storage") -> "Artifact":
+    def relative(
+        self,
+        fs: AbstractFileSystem,  # pylint: disable=unused-argument
+        path: str,  # pylint: disable=unused-argument
+    ) -> "Artifact":
+        # TODO: maybe change fs and path to meta_storage in the future
         return self
+
 
 class FSSpecArtifact(Artifact):
     type: ClassVar = "fsspec"
     uri: str
 
-    def download(
-        self,
-        target_path: str
-    ) -> "LocalArtifact":
+    def download(self, target_path: str) -> "LocalArtifact":
         from mlem.core.meta_io import get_fs
 
         fs, path = get_fs(self.uri)
-
 
         if os.path.isdir(target_path):
             target_path = os.path.join(target_path, os.path.basename(path))
@@ -63,9 +64,13 @@ class FSSpecArtifact(Artifact):
 
 class Storage(MlemObject, ABC):
     __type_root__ = True
-    uri: str
+    abs_name: ClassVar = "storage"
 
-    def relative(self, storage: "Storage") -> "Storage":
+    def relative(
+        self,
+        fs: AbstractFileSystem,  # pylint: disable=unused-argument
+        path: str,  # pylint: disable=unused-argument
+    ) -> "Storage":
         return self
 
     @abstractmethod
@@ -85,9 +90,8 @@ class FSSpecStorage(Storage):
 
     fs: ClassVar[Optional[AbstractFileSystem]] = None
     base_path: ClassVar[str] = ""
+    uri: str
     storage_options: Optional[Dict[str, str]] = {}
-
-
 
     def upload(self, local_path: str, target_path: str) -> FSSpecArtifact:
         self.get_fs().upload(
@@ -122,40 +126,51 @@ class LocalStorage(FSSpecStorage):
     type: ClassVar = "local"
     fs = LocalFileSystem()
 
-    @property
-    def base_path(self) -> str:
-        return self.uri
-
-    def relative(self, storage: Storage) -> "Storage":
-        if isinstance(storage, LocalStorage):
-            return LocalStorage(uri=os.path.join(storage.uri, self.uri))
-        if isinstance(storage, FSSpecStorage):
-            return FSSpecStorage(uri=os.path.join(storage.uri, self.uri))
-        raise NotImplementedError
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
+        if isinstance(fs, LocalFileSystem):
+            return LocalStorage(uri=self.create_uri(path))
+        protocol = fs.protocol
+        if isinstance(protocol, list):
+            protocol = protocol[0]
+        storage = FSSpecStorage(uri=f"{protocol}://{path}")
+        storage.fs = fs
+        storage.base_path = self.create_uri(path)
+        return storage
 
     def upload(self, local_path: str, target_path: str) -> "LocalArtifact":
         return LocalArtifact(uri=super().upload(local_path, target_path).uri)
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, "LocalArtifact"]]:
-        with super().open(path) as (io, artifact):
+        with super().open(os.path.join(self.uri, path)) as (io, _):
             yield io, LocalArtifact(uri=path)
 
 
 class LocalArtifact(FSSpecArtifact):
     type: ClassVar = "local"
 
-    def relative(self, storage: Storage) -> "Artifact":
+    def relative(self, fs: AbstractFileSystem, path: str) -> "FSSpecArtifact":
 
-        uri = os.path.join(storage.uri, self.uri)
-        if isinstance(storage, LocalStorage):
-            return LocalArtifact(uri=uri)
+        if isinstance(fs, LocalFileSystem):
+            return LocalArtifact(uri=os.path.join(path, self.uri))
 
-        return FSSpecArtifact(uri=uri)
+        return FSSpecArtifact(
+            uri=get_path_by_fs_path(fs, os.path.join(path, self.uri))
+        )
 
 
-class DVCStorage(Storage):
-    type: ClassVar = "dvc"
+def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
+    """Restore full uri from fs and path
+
+    Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
+    Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
+    if isinstance(fs, GithubFileSystem):
+        # here "rev" should be already url encoded
+        return f"{fs.protocol}://{fs.org}:{fs.repo}@{fs.root}/{path}"
+    protocol = fs.protocol
+    if isinstance(protocol, list):
+        protocol = protocol[0]
+    return f"{protocol}://{path}"
 
 
 LOCAL_STORAGE = LocalStorage(uri="")

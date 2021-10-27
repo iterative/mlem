@@ -1,7 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus
 
 import pytest
 import yaml
@@ -29,6 +29,7 @@ def test_model_saving_in_mlem_root(model_train_target, tmpdir_factory):
     model_dir = os.path.join(mlem_root, "generated-model")
     model, train, _ = model_train_target
     save(model, model_dir, tmp_sample_data=train, link=True)
+
 
 def test_model_saving(model_path):
     model_path = Path(model_path)
@@ -87,10 +88,10 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
 @pytest.mark.parametrize(
     "path",
     [
-        "data/model",
-        "data/model/mlem.yaml",
-        ".mlem/model/data/model.mlem.yaml",
-        ".mlem/model/latest.mlem.yaml",
+        "simple/data/model",
+        "simple/data/model/mlem.yaml",
+        "simple/.mlem/model/data/model.mlem.yaml",
+        "simple/.mlem/model/latest.mlem.yaml",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
@@ -98,7 +99,7 @@ def test_model_loading_from_github(path, current_test_branch):
     model = load(
         path,
         repo=MLEM_TEST_REPO,
-        rev=quote_plus(current_test_branch),
+        rev=current_test_branch,
     )
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
@@ -108,7 +109,7 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "mlem_link": f"github://iterative:mlem-test@{quote_plus(current_test_branch)}/data/model/mlem.yaml",
+        "mlem_link": f"github://iterative:mlem-test@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:

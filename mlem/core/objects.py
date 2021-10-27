@@ -2,16 +2,13 @@
 Base classes for meta objects in MLEM:
 MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
-import contextlib
 import os
-import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
 from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
-from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from yaml import safe_dump, safe_load
 
@@ -32,7 +29,6 @@ from mlem.core.meta_io import (
     MLEM_EXT,
     deserialize,
     get_fs,
-    get_with_dvc,
     resolve_fs,
     serialize,
 )
@@ -361,9 +357,7 @@ class _ExternalMeta(ABC, MlemMeta):
         os.makedirs(new.art_dir, exist_ok=True)
         new.artifacts = []
         for art in self.relative_artifacts:
-            new.artifacts.append(
-                art.download(new.art_dir)
-            )
+            new.artifacts.append(art.download(new.art_dir))
 
         super(_ExternalMeta, new).dump(
             name,
@@ -379,7 +373,10 @@ class _ExternalMeta(ABC, MlemMeta):
 
     @property
     def relative_artifacts(self) -> Artifacts:
-        return [a.relative(self.fs, self.dirname) for a in self.artifacts or []]
+        return [
+            a.relative(self.fs, self.dirname) for a in self.artifacts or []
+        ]
+
 
 class ModelMeta(_ExternalMeta):
     object_type: ClassVar = "model"
@@ -394,7 +391,9 @@ class ModelMeta(_ExternalMeta):
     def write_value(self, mlem_root: str) -> Artifacts:
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
-                CONFIG.DEFAULT_STORAGE.relative(self.fs, self.dirname), ART_DIR, self.model_type.model
+                CONFIG.default_storage.relative(self.fs, self.dirname),
+                ART_DIR,
+                self.model_type.model,
             )
         else:
             raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
@@ -440,7 +439,7 @@ class DatasetMeta(_ExternalMeta):
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
                 self.dataset,
-                CONFIG.DEFAULT_STORAGE.relative(self.fs, self.dirname),
+                CONFIG.default_storage.relative(self.fs, self.dirname),
                 ART_DIR,
             )
             self.reader = reader

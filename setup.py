@@ -153,7 +153,7 @@ setup_args = dict(  # noqa: C408
     ],
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
-    url="http://mlem.ai",
+    url="https://mlem.ai",
     entry_points={
         "console_scripts": ["mlem = mlem.cli:cli"],
         # Additional mechanism for plugins.
@@ -161,6 +161,7 @@ setup_args = dict(  # noqa: C408
         # Since mlem has some "optional" implementations,
         # we should populate them like this as well
         "mlem.contrib": [
+            "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "dataset_reader.numpy = mlem.contrib.numpy:NumpyArrayReader",
             "dataset_reader.pandas = mlem.contrib.pandas:PandasReader",
             "dataset_type.dataframe = mlem.contrib.pandas:DataFrameType",
@@ -178,6 +179,7 @@ setup_args = dict(  # noqa: C408
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
+            "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
     },
     cmdclass={"build_py": build_py},

@@ -79,7 +79,7 @@ def test_ls_local(mlem_root):
 @long
 def test_ls_remote():
     # FIXME tmp rev until merged in main
-    objects = ls(os.path.join(MLEM_TEST_REPO, f"tree/feature/storages/simple"))
+    objects = ls(os.path.join(MLEM_TEST_REPO, "tree/feature/storages/simple"))
     assert len(objects) == 2
     assert ModelMeta in objects
     models = objects[ModelMeta]

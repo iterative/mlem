@@ -3,6 +3,7 @@ Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
 from typing import Any, Optional, Type, TypeVar, Union, overload
+from urllib.parse import quote_plus
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.github import GithubFileSystem
@@ -10,8 +11,8 @@ from typing_extensions import Literal
 from yaml import safe_load
 
 from mlem.core.meta_io import (
-    get_github_envs,
     get_fs,
+    get_github_envs,
     get_github_kwargs,
     get_meta_path,
 )
@@ -132,13 +133,17 @@ def load_meta(
             fs = GithubFileSystem(
                 org=git_kwargs["org"],
                 repo=git_kwargs["repo"],
-                sha=rev,
+                sha=quote_plus(rev) if rev else None,
                 **kwargs,
             )
         else:
             fs, new_path = get_fs(path)
-            if isinstance(fs, GithubFileSystem) and rev is not None and fs.root != rev:
-                fs, path = get_fs(path, sha=rev)
+            if (
+                isinstance(fs, GithubFileSystem)
+                and rev is not None
+                and fs.root != rev
+            ):
+                fs, path = get_fs(path, sha=quote_plus(rev))
             else:
                 path = new_path
     path = find_meta_path(path, fs=fs)

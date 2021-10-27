@@ -9,4 +9,4 @@ def test_loading_yaml(mocker):
     )
     config = MlemConfig()
     assert config.ADDITIONAL_EXTENSIONS == ["ext1"]
-    assert config.DEFAULT_STORAGE == FSSpecStorage(uri="s3://somebucket")
+    assert config.default_storage == FSSpecStorage(uri="s3://somebucket")

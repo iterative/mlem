@@ -47,10 +47,12 @@ def test_fsspec_backend_s3_open(s3_tmp_filepath):
     with artifact.open() as f:
         assert f.read() == b"a"
 
+
 def test_relative_storage_remote():
     s3storage = FSSpecStorage(uri="s3://some_bucket")
     rel1 = s3storage.relative(LocalFileSystem(), "some_path")
     assert rel1 == s3storage
+
 
 def test_relative_storage_local():
     local_storage = LocalStorage(uri="")

@@ -7,7 +7,6 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import Any, Callable, ClassVar, Dict, List, Optional, TypeVar
 
-from fsspec import AbstractFileSystem
 from pydantic import BaseModel
 
 from mlem.core.artifacts import Artifacts, Storage

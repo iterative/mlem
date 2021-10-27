@@ -3,11 +3,10 @@ Utils functions that parse and process supplied URI, serialize/derialize MLEM ob
 """
 import os
 import pathlib
-from typing import Dict, Tuple, Type, TypeVar, Union
-from urllib.parse import urlparse
+from typing import Dict, Optional, Tuple, Type, TypeVar, Union
+from urllib.parse import quote_plus, urlparse
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
-from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
 
@@ -15,7 +14,7 @@ from mlem.config import CONFIG
 from mlem.core.base import MlemObject
 from mlem.utils.github import ls_remotes
 from mlem.utils.root import MLEM_DIR
-import git
+
 MLEM_EXT = ".mlem.yaml"
 
 
@@ -27,6 +26,7 @@ def get_github_kwargs(uri: str):
     """Parse URI to git repo to get dict with all URI parts"""
     # TODO: do we lose URL to the site, like https://github.com?
     # should be resolved as part of https://github.com/iterative/mlem/issues/4
+    sha: Optional[str]
     parsed = urlparse(uri)
     parts = pathlib.Path(parsed.path).parts
     org, repo, *path = parts[1:]
@@ -34,14 +34,17 @@ def get_github_kwargs(uri: str):
         return {"org": org, "repo": repo, "path": ""}
     if path[0] == "tree":
         sha = path[1]
-        remotes = set(ls_remotes(f"https://github.com/{org}/{repo}").keys())
+        remotes = {
+            quote_plus(k)
+            for k in ls_remotes(f"https://github.com/{org}/{repo}")
+        }
         for i, part in enumerate(path[2:], start=2):
-            if os.path.join("refs", "heads", sha) in remotes:
+            if f"refs%2Fheads%2F{sha}" in remotes:
                 path = path[i:]
                 break
-            sha = os.path.join(sha, part)
+            sha = f"{sha}%2F{part}"
         else:
-            raise ValueError(f"Could not resolve branch from uri \"{uri}\"")
+            raise ValueError(f'Could not resolve branch from uri "{uri}"')
     else:
         sha = None
     return {
@@ -75,7 +78,9 @@ def get_github_envs() -> Dict:
     return kwargs
 
 
-def get_fs(uri: str, protocol: str = None, **kwargs) -> Tuple[AbstractFileSystem, str]:
+def get_fs(
+    uri: str, protocol: str = None, **kwargs
+) -> Tuple[AbstractFileSystem, str]:
     """Parse given (uri, protocol) with fsspec and return (fs, path)"""
     storage_options = {}
     if protocol == "github" or uri.startswith("github://"):
@@ -163,10 +168,3 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
 #     def bytestream(self) -> StreamContextManager:
 #         with self.fs.open(self.path) as f:
 #             yield f
-
-
-def get_with_dvc(fs: GithubFileSystem, source_path, target_path):
-    from dvc.repo import Repo
-
-    repo_url = f"https://github.com/{fs.org}/{fs.repo}"
-    Repo.get(repo_url, path=source_path, out=target_path, rev=fs.root)
