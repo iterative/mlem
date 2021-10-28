@@ -67,7 +67,14 @@ need_test_repo_ssh_auth = pytest.mark.skipif(
 
 @pytest.fixture()
 def current_test_branch():
-    branch = Repo(str(Path(__file__).parent.parent)).active_branch
+    try:
+        branch = Repo(str(Path(__file__).parent.parent)).active_branch
+    except TypeError:
+        # github actions/checkout leaves repo in detached head state
+        # but it has env with branch name
+        branch = os.environ["GITHUB_REF"]
+        if branch.startswith("refs/heads/"):
+            branch = branch[len("refs/heads/") :]
     remote_refs = set(ls_branches(MLEM_TEST_REPO).keys())
     if branch.name in remote_refs:
         return branch.name
