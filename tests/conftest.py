@@ -28,12 +28,16 @@ from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import DatasetMeta, ModelMeta, mlem_dir_path
 from mlem.core.requirements import Requirements
-from mlem.utils.github import ls_branches
+from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
 
 long = pytest.mark.long
-MLEM_TEST_REPO = "https://github.com/iterative/mlem-test/"
+MLEM_TEST_REPO_ORG = "iterative"
+MLEM_TEST_REPO_NAME = "mlem-test"
+MLEM_TEST_REPO = (
+    f"https://github.com/{MLEM_TEST_REPO_ORG}/{MLEM_TEST_REPO_NAME}/"
+)
 
 
 def _check_github_test_repo_ssh_auth():
@@ -75,7 +79,9 @@ def current_test_branch():
         branch = os.environ["GITHUB_REF"]
         if branch.startswith("refs/heads/"):
             branch = branch[len("refs/heads/") :]
-    remote_refs = set(ls_branches(MLEM_TEST_REPO).keys())
+    remote_refs = set(
+        ls_github_branches(MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME).keys()
+    )
     if branch.name in remote_refs:
         return branch.name
     return "main"

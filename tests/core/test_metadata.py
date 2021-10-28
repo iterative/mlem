@@ -15,6 +15,8 @@ from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
 from tests.conftest import (
     MLEM_TEST_REPO,
+    MLEM_TEST_REPO_NAME,
+    MLEM_TEST_REPO_ORG,
     long,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
@@ -73,11 +75,11 @@ def test_meta_loading(model_path):
 @pytest.mark.parametrize(
     "url",
     [
-        "github://iterative:mlem-test@{branch}/simple/data/model",
-        "github://iterative:mlem-test@{branch}/simple/data/model/mlem.yaml",
-        "github://iterative:mlem-test@{branch}/simple/.mlem/model/data/model.mlem.yaml",
-        "github://iterative:mlem-test@{branch}/simple/.mlem/model/latest.mlem.yaml",
-        "https://github.com/iterative/mlem-test/tree/{branch}/simple/data/model/",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model/mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/data/model.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/latest.mlem.yaml",
+        f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
 def test_model_loading_from_github_with_fsspec(url, current_test_branch):
@@ -113,7 +115,7 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "mlem_link": f"github://iterative:mlem-test@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
+        "mlem_link": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:
