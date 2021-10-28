@@ -1,10 +1,14 @@
 import os
 import tempfile
+from pathlib import Path
 from typing import Any, Callable, Type
 
+import git
 import pandas as pd
 import pytest
 from fsspec.implementations.local import LocalFileSystem
+from git import GitCommandError, Repo
+from requests import HTTPError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
@@ -19,14 +23,55 @@ from mlem.core.dataset_type import (
     DatasetType,
     DatasetWriter,
 )
+from mlem.core.meta_io import get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import DatasetMeta, ModelMeta, mlem_dir_path
 from mlem.core.requirements import Requirements
+from mlem.utils.github import ls_branches
 
 RESOURCES = "resources"
 
 long = pytest.mark.long
+MLEM_TEST_REPO = "https://github.com/iterative/mlem-test/"
+
+
+def _check_github_test_repo_ssh_auth():
+    try:
+        git.cmd.Git().ls_remote(MLEM_TEST_REPO)
+        return True
+    except GitCommandError:
+        return False
+
+
+def _check_github_test_repo_auth():
+    if not CONFIG.GITHUB_USERNAME or not CONFIG.GITHUB_TOKEN:
+        return False
+    try:
+        get_fs(MLEM_TEST_REPO)
+        return True
+    except HTTPError:
+        return False
+
+
+need_test_repo_auth = pytest.mark.skipif(
+    not _check_github_test_repo_auth(),
+    reason="No http credentials for remote repo",
+)
+
+need_test_repo_ssh_auth = pytest.mark.skipif(
+    not _check_github_test_repo_ssh_auth(),
+    reason="No ssh credentials for remote repo",
+)
+
+
+@pytest.fixture()
+def current_test_branch():
+    branch = Repo(str(Path(__file__).parent.parent)).active_branch
+    remote_refs = set(ls_branches(MLEM_TEST_REPO).keys())
+    if branch.name in remote_refs:
+        return branch.name
+    return "main"
 
 
 @pytest.fixture(scope="session", autouse=True)

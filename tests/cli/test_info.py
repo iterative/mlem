@@ -5,7 +5,7 @@ from click.testing import CliRunner
 
 from mlem.cli import ls, pretty_print
 from mlem.core.meta_io import META_FILE_NAME
-from tests.core.conftest import MLEM_TEST_REPO
+from tests.conftest import MLEM_TEST_REPO
 
 LOCAL_LS_EXPECTED_RESULT = """Models:
  - latest -> model1

@@ -13,9 +13,9 @@ from mlem.api import init
 from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
-from tests.conftest import long
-from tests.core.conftest import (
+from tests.conftest import (
     MLEM_TEST_REPO,
+    long,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
 )

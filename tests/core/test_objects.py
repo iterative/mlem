@@ -8,8 +8,7 @@ from sklearn.tree import DecisionTreeClassifier
 from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
-from tests.conftest import long
-from tests.core.conftest import MLEM_TEST_REPO, need_test_repo_auth
+from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 
 def test_model_dump(mlem_root):

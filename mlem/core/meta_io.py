@@ -2,17 +2,14 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import os
-import pathlib
-from typing import Dict, Optional, Tuple, Type, TypeVar, Union
-from urllib.parse import quote_plus, urlparse
+from typing import Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
 
-from mlem.config import CONFIG
 from mlem.core.base import MlemObject
-from mlem.utils.github import ls_remotes
+from mlem.utils.github import get_github_envs, get_github_kwargs
 from mlem.utils.root import MLEM_DIR
 
 MLEM_EXT = ".mlem.yaml"
@@ -20,39 +17,6 @@ MLEM_EXT = ".mlem.yaml"
 
 META_FILE_NAME = "mlem.yaml"
 ART_DIR = "artifacts"
-
-
-def get_github_kwargs(uri: str):
-    """Parse URI to git repo to get dict with all URI parts"""
-    # TODO: do we lose URL to the site, like https://github.com?
-    # should be resolved as part of https://github.com/iterative/mlem/issues/4
-    sha: Optional[str]
-    parsed = urlparse(uri)
-    parts = pathlib.Path(parsed.path).parts
-    org, repo, *path = parts[1:]
-    if not path:
-        return {"org": org, "repo": repo, "path": ""}
-    if path[0] == "tree":
-        sha = path[1]
-        remotes = {
-            quote_plus(k)
-            for k in ls_remotes(f"https://github.com/{org}/{repo}")
-        }
-        for i, part in enumerate(path[2:], start=2):
-            if f"refs%2Fheads%2F{sha}" in remotes:
-                path = path[i:]
-                break
-            sha = f"{sha}%2F{part}"
-        else:
-            raise ValueError(f'Could not resolve branch from uri "{uri}"')
-    else:
-        sha = None
-    return {
-        "org": org,
-        "repo": repo,
-        "sha": sha,
-        "path": os.path.join(*path),
-    }
 
 
 def resolve_fs(
@@ -67,15 +31,6 @@ def resolve_fs(
         return fs
     fs, _ = get_fs(uri=fs, protocol=protocol)
     return fs
-
-
-def get_github_envs() -> Dict:
-    """Get authentification envs"""
-    kwargs = {}
-    if CONFIG.GITHUB_TOKEN is not None:
-        kwargs["username"] = CONFIG.GITHUB_USERNAME
-        kwargs["token"] = CONFIG.GITHUB_TOKEN
-    return kwargs
 
 
 def get_fs(
