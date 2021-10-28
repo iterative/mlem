@@ -76,7 +76,7 @@ def current_test_branch():
     except TypeError:
         # github actions/checkout leaves repo in detached head state
         # but it has env with branch name
-        branch = os.environ["GITHUB_REF"]
+        branch = os.environ.get("GITHUB_HEAD_REF", os.environ["GITHUB_REF"])
         if branch.startswith("refs/heads/"):
             branch = branch[len("refs/heads/") :]
     remote_refs = set(
