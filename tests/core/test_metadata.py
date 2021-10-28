@@ -14,7 +14,11 @@ from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
 from tests.conftest import long
-from tests.core.conftest import MLEM_TEST_REPO, need_test_repo_auth
+from tests.core.conftest import (
+    MLEM_TEST_REPO,
+    need_test_repo_auth,
+    need_test_repo_ssh_auth,
+)
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
@@ -46,7 +50,7 @@ def test_model_loading(model_path):
 
 
 @long
-@need_test_repo_auth
+@need_test_repo_ssh_auth
 def test_model_loading_remote_dvc(current_test_branch):
     model = load(
         f"{MLEM_TEST_REPO}/dvc_pipeline/data/model",
