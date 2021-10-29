@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
+from mlem.constants import MLEM_DIR
 from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
@@ -133,6 +134,9 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     model_path = os.path.join(path, "model")
     save(model, model_path, fs=s3_storage_fs)
     model_path = Path(model_path[len("s3:/") :])
+    assert s3_storage_fs.isfile(
+        os.path.join(path, MLEM_DIR, "model", "model.mlem.yaml")
+    )
     assert s3_storage_fs.isfile(str(model_path / META_FILE_NAME))
     assert s3_storage_fs.isdir(str(model_path / ART_DIR))
     assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))

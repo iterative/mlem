@@ -173,7 +173,7 @@ class MlemMeta(MlemObject):
             obj_type=self.object_type,
             mlem_root=mlem_root,
         )
-        self.make_link(path=path)
+        self.make_link(path=path, fs=self.fs)
 
     @classmethod
     def subtype_mapping(cls) -> Dict[str, Type["MlemMeta"]]:

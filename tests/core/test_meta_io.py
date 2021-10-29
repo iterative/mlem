@@ -51,7 +51,11 @@ def test_read(url_path_pairs):
         ("s3://path", S3FileSystem, "path"),
         ("gcs://path", GCSFileSystem, "path"),
         # ("az://path", AzureBlobFileSystem),  # TODO: need credentials
-        ("git://path", GitFileSystem, "path"),
+        (
+            f"git://{os.path.abspath(__file__)}",
+            GitFileSystem,
+            "git:/" + __file__,
+        ),
         ("https://path", HTTPFileSystem, "https://path"),
     ],
 )
