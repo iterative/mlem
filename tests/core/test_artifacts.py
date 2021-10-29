@@ -1,3 +1,5 @@
+import os.path
+
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
@@ -7,7 +9,7 @@ from tests.conftest import resource_path
 
 
 def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
-    target = s3_tmp_path("upload")
+    target = os.path.basename(s3_tmp_path("upload"))
     resource = resource_path(__file__, "file.txt")
     artifact = s3_storage.upload(resource, target)
     assert isinstance(artifact, FSSpecArtifact)
@@ -20,7 +22,7 @@ def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
 
 
 def test_fsspec_backend_s3_open(s3_tmp_path, s3_storage):
-    target = s3_tmp_path("open")
+    target = os.path.basename(s3_tmp_path("open"))
     with s3_storage.open(target) as (f, artifact):
         f.write(b"a")
     assert isinstance(artifact, FSSpecArtifact)

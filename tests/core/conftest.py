@@ -25,7 +25,10 @@ def s3_tmp_path():
 
     yield gen
     for path in paths:
-        fs.delete(path, recursive=True)
+        try:
+            fs.delete(path, recursive=True)
+        except FileNotFoundError:
+            pass
 
 
 @pytest.fixture()

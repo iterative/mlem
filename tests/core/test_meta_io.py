@@ -46,8 +46,8 @@ def test_read(url_path_pairs):
 @pytest.mark.parametrize(
     "uri, cls, result",
     [
-        ("path", LocalFileSystem, os.path.abspath("path")),
-        ("file://path", LocalFileSystem, os.path.abspath("path")),
+        ("path", LocalFileSystem, lambda: os.path.abspath("path")),
+        ("file://path", LocalFileSystem, lambda: os.path.abspath("path")),
         ("s3://path", S3FileSystem, "path"),
         ("gcs://path", GCSFileSystem, "path"),
         # ("az://path", AzureBlobFileSystem),  # TODO: need credentials
@@ -56,6 +56,8 @@ def test_read(url_path_pairs):
     ],
 )
 def test_get_fs(uri, cls, result):
+    if callable(result):
+        result = result()
     fs, path = get_fs(uri)
     assert isinstance(fs, cls)
     assert path == result
@@ -81,7 +83,7 @@ def test_get_fs_github(uri, rev):
         "s3://path",
         "gcs://path",
         # "az://path",  # TODO: need credentials
-        (f"git://{os.path.abspath(__file__)}", "git://" + __file__),
+        (f"git://{os.path.abspath(__file__)}", "git:/" + __file__),
         "https://path",
     ],
 )
