@@ -10,10 +10,10 @@ from urllib.parse import urlparse
 
 import fsspec
 from fsspec import AbstractFileSystem
-from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
 from mlem.core.base import MlemObject
+from mlem.core.meta_io import get_fs, get_path_by_fs_path
 
 
 class Artifact(MlemObject, ABC):
@@ -44,7 +44,6 @@ class FSSpecArtifact(Artifact):
     uri: str
 
     def download(self, target_path: str) -> "LocalArtifact":
-        from mlem.core.meta_io import get_fs
 
         fs, path = get_fs(self.uri)
 
@@ -55,7 +54,6 @@ class FSSpecArtifact(Artifact):
 
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
-        from mlem.core.meta_io import get_fs
 
         fs, path = get_fs(self.uri)
         with fs.open(path) as f:
@@ -157,20 +155,6 @@ class LocalArtifact(FSSpecArtifact):
         return FSSpecArtifact(
             uri=get_path_by_fs_path(fs, os.path.join(path, self.uri))
         )
-
-
-def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
-    """Restore full uri from fs and path
-
-    Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
-    Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
-    if isinstance(fs, GithubFileSystem):
-        # here "rev" should be already url encoded
-        return f"{fs.protocol}://{fs.org}:{fs.repo}@{fs.root}/{path}"
-    protocol = fs.protocol
-    if isinstance(protocol, list):
-        protocol = protocol[0]
-    return f"{protocol}://{path}"
 
 
 LOCAL_STORAGE = LocalStorage(uri="")

@@ -5,6 +5,7 @@ import os
 from typing import Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
+from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
 
@@ -51,6 +52,24 @@ def get_fs(
         uri, protocol=protocol, storage_options=storage_options
     )
     return fs, path
+
+
+def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
+    """Restore full uri from fs and path
+
+    Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
+    Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
+    if isinstance(fs, GithubFileSystem):
+        # here "rev" should be already url encoded
+        return f"{fs.protocol}://{fs.org}:{fs.repo}@{fs.root}/{path}"
+    protocol = fs.protocol
+    if isinstance(protocol, (list, tuple)):
+        if any(path.startswith(p) for p in protocol):
+            return path
+        protocol = protocol[0]
+    if path.startswith(f"{protocol}://"):
+        return path
+    return f"{protocol}://{path}"
 
 
 def read(uri: str, mode: str = "r"):

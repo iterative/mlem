@@ -1,9 +1,20 @@
-import pytest
+import os.path
 
-from mlem.core.meta_io import read
+import pytest
+from fsspec.implementations.git import GitFileSystem
+from fsspec.implementations.github import GithubFileSystem
+from fsspec.implementations.http import HTTPFileSystem
+from fsspec.implementations.local import LocalFileSystem
+from gcsfs import GCSFileSystem
+from s3fs import S3FileSystem
+
+from mlem import CONFIG
+from mlem.core.meta_io import get_fs, get_path_by_fs_path, read
 from tests.conftest import (
+    MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
     MLEM_TEST_REPO_ORG,
+    need_test_repo_auth,
     resource_path,
 )
 
@@ -25,3 +36,69 @@ from tests.conftest import (
 def test_read(url_path_pairs):
     uri, start = url_path_pairs
     assert read(uri).startswith(start)
+
+
+@pytest.mark.parametrize(
+    "uri, cls, result",
+    [
+        ("path", LocalFileSystem, os.path.abspath("path")),
+        ("file://path", LocalFileSystem, os.path.abspath("path")),
+        ("s3://path", S3FileSystem, "path"),
+        ("gcs://path", GCSFileSystem, "path"),
+        # ("az://path", AzureBlobFileSystem),  # TODO: need credentials
+        ("git://path", GitFileSystem, "path"),
+        ("https://path", HTTPFileSystem, "https://path"),
+    ],
+)
+def test_get_fs(uri, cls, result):
+    fs, path = get_fs(uri)
+    assert isinstance(fs, cls)
+    assert path == result
+
+
+@pytest.mark.parametrize(
+    "uri, rev", [("path", "main"), ("tree/main/path", "main")]
+)
+def test_get_fs_github(uri, rev):
+    fs, path = get_fs(os.path.join(MLEM_TEST_REPO, uri))
+    assert isinstance(fs, GithubFileSystem)
+    assert fs.org == MLEM_TEST_REPO_ORG
+    assert fs.repo == MLEM_TEST_REPO_NAME
+    assert fs.root == rev
+    assert path == "path"
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        ("path", "file://" + os.path.abspath("path")),
+        ("file://path", "file://" + os.path.abspath("path")),
+        "s3://path",
+        "gcs://path",
+        # "az://path",  # TODO: need credentials
+        "git://path",
+        "https://path",
+    ],
+)
+def test_get_path_by_fs_path(uri):
+    if isinstance(uri, tuple):
+        uri, result = uri
+    else:
+        result = uri
+    uri2 = get_path_by_fs_path(*get_fs(uri))
+    assert uri2 == result
+
+
+@need_test_repo_auth
+def test_get_path_by_fs_path_github():
+    fs = GithubFileSystem(
+        org=MLEM_TEST_REPO_ORG,
+        repo=MLEM_TEST_REPO_NAME,
+        sha="main",
+        username=CONFIG.GITHUB_USERNAME,
+        token=CONFIG.GITHUB_TOKEN,
+    )
+    uri = get_path_by_fs_path(fs, "path")
+    fs2, path = get_fs(uri)
+    assert fs2.to_json() == fs.to_json()
+    assert path == "path"

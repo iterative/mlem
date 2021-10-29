@@ -56,8 +56,8 @@ def test_relative_storage_remote():
 
 def test_relative_storage_local():
     """This test case covers a scenario when meta was stored in remote storage
-     and then was downloaded to local storage, but artifacts are still in the remote.
-     Then the relative path to artifacts would be the path in the remote.
+    and then was downloaded to local storage, but artifacts are still in the remote.
+    Then the relative path to artifacts would be the path in the remote.
     """
     local_storage = LocalStorage(uri="")
     rel1 = local_storage.relative(S3FileSystem(), "some_path")

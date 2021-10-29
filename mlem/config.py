@@ -8,7 +8,6 @@ import yaml
 from pydantic import BaseSettings, Field
 
 from mlem.constants import MLEM_DIR
-from mlem.core.artifacts import LOCAL_STORAGE, Storage
 
 CONFIG_FILE = "config.yaml"
 
@@ -49,6 +48,7 @@ class MlemConfig(BaseSettings):
 
     @property
     def default_storage(self):
+        from mlem.core.artifacts import LOCAL_STORAGE, Storage
         from mlem.core.meta_io import deserialize
 
         if not self.DEFAULT_STORAGE:

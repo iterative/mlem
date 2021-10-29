@@ -111,6 +111,8 @@ tests = [
     # and, protected method calls in our tests
     "pylint-plugin-utils",
     "s3fs",
+    "adlfs",
+    "gcsfs",
 ] + all_libs
 
 
