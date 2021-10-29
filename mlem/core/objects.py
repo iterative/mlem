@@ -13,7 +13,7 @@ from fsspec.implementations.local import LocalFileSystem
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, FSSpecStorage
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
 from mlem.core.errors import (
@@ -119,7 +119,7 @@ class MlemMeta(MlemObject):
         name: str,
         fs: Union[str, AbstractFileSystem] = None,
         link: bool = True,
-        mlem_root: Optional[str] = ".",
+        mlem_root: Optional[str] = "",
         check_extension: bool = True,
         absolute: bool = False,  # pylint: disable=unused-argument
     ):
@@ -129,7 +129,7 @@ class MlemMeta(MlemObject):
         if link or mlem_root is None:
             if check_extension and not name.endswith(MLEM_EXT):
                 raise ValueError(f"name={name} should end with {MLEM_EXT}")
-            path = os.path.join(mlem_root or ".", name)
+            path = os.path.join(mlem_root or "", name)
         else:
             path = mlem_dir_path(
                 name,
@@ -377,6 +377,12 @@ class _ExternalMeta(ABC, MlemMeta):
             a.relative(self.fs, self.dirname) for a in self.artifacts or []
         ]
 
+    @property
+    def storage(self):
+        if not self.fs or isinstance(self.fs, LocalFileSystem):
+            return CONFIG.default_storage.relative(self.fs, self.dirname)
+        return FSSpecStorage.from_fs_path(self.fs, self.dirname)
+
 
 class ModelMeta(_ExternalMeta):
     object_type: ClassVar = "model"
@@ -391,7 +397,7 @@ class ModelMeta(_ExternalMeta):
     def write_value(self, mlem_root: str) -> Artifacts:
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
-                CONFIG.default_storage.relative(self.fs, self.dirname),
+                self.storage,
                 ART_DIR,
                 self.model_type.model,
             )
@@ -439,7 +445,7 @@ class DatasetMeta(_ExternalMeta):
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
                 self.dataset,
-                CONFIG.default_storage.relative(self.fs, self.dirname),
+                self.storage,
                 ART_DIR,
             )
             self.reader = reader

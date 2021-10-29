@@ -9,7 +9,12 @@ from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
 from mlem import CONFIG
-from mlem.core.meta_io import get_fs, get_path_by_fs_path, read
+from mlem.core.meta_io import (
+    get_fs,
+    get_path_by_fs_path,
+    get_path_by_repo_path_rev,
+    read,
+)
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -71,12 +76,12 @@ def test_get_fs_github(uri, rev):
 @pytest.mark.parametrize(
     "uri",
     [
-        ("path", "file://" + os.path.abspath("path")),
-        ("file://path", "file://" + os.path.abspath("path")),
+        ("path", lambda: "file://" + os.path.abspath("path")),
+        ("file://path", lambda: "file://" + os.path.abspath("path")),
         "s3://path",
         "gcs://path",
         # "az://path",  # TODO: need credentials
-        "git://path",
+        (f"git://{os.path.abspath(__file__)}", "git://" + __file__),
         "https://path",
     ],
 )
@@ -85,6 +90,8 @@ def test_get_path_by_fs_path(uri):
         uri, result = uri
     else:
         result = uri
+    if callable(result):
+        result = result()
     uri2 = get_path_by_fs_path(*get_fs(uri))
     assert uri2 == result
 
@@ -102,3 +109,25 @@ def test_get_path_by_fs_path_github():
     fs2, path = get_fs(uri)
     assert fs2.to_json() == fs.to_json()
     assert path == "path"
+
+
+@pytest.mark.parametrize(
+    "repo, rev, result",
+    [
+        (MLEM_TEST_REPO, None, os.path.join(MLEM_TEST_REPO, "path/file")),
+        (
+            MLEM_TEST_REPO,
+            "branch",
+            os.path.join(MLEM_TEST_REPO, "tree", "branch", "path/file"),
+        ),
+        (
+            "git:///other/path",
+            "branch",
+            ("git:///other/path/path/file", {"rev": "branch"}),
+        ),
+    ],
+)
+def test_get_path_by_repo_path_rev(repo, rev, result):
+    if isinstance(result, str):
+        result = result, {}
+    assert get_path_by_repo_path_rev(repo, "path/file", rev) == result

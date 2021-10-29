@@ -2,7 +2,7 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import os
-from typing import Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
@@ -72,6 +72,21 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     return f"{protocol}://{path}"
 
 
+def get_path_by_repo_path_rev(
+    repo: str, path: str, rev: str = None
+) -> Tuple[str, Dict[str, Any]]:
+    """Construct uri from repo url, relative path in repo and optional revision.
+    Also returns additional kwargs for fs"""
+    if repo.startswith("https://github.com"):
+        if rev is None:
+            # https://github.com/org/repo/path
+            return os.path.join(repo, path), {}
+        # https://github.com/org/repo/tree/branch/path
+        return os.path.join(repo, "tree", rev, path), {}
+    # TODO: do something about git protocol
+    return os.path.join(repo, path), {"rev": rev}
+
+
 def read(uri: str, mode: str = "r"):
     """Read file content by given path"""
     fs, path = get_fs(uri)
@@ -114,31 +129,3 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
             f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or dataset"
         )
     raise FileNotFoundError(uri)
-
-
-# def blobs_from_path(path: str, fs: AbstractFileSystem = None):
-#     if fs is None:
-#         fs, path = get_fs(path)
-#     file_list = fs.glob(f'{path}/*', recursive=True)
-#     if fs.protocol == 'file':
-#         return Blobs({os.path.relpath(name, path): RepoFileBlob(name) for name in file_list})
-#     return Blobs({os.path.relpath(name, path): FSBlob(name, fs) for name in file_list})
-
-
-# class RepoFileBlob(LocalFileBlob):
-#     def __init__(self, path: str):
-#         super().__init__(os.path.relpath(path, repo_root()))
-
-
-# @dataclass
-# class FSBlob(Blob, Unserializable):
-#     path: str
-#     fs: AbstractFileSystem
-#
-#     def materialize(self, path):
-#         self.fs.get_file(self.path, path)
-#
-#     @contextlib.contextmanager
-#     def bytestream(self) -> StreamContextManager:
-#         with self.fs.open(self.path) as f:
-#             yield f

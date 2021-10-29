@@ -10,12 +10,7 @@ from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
 from yaml import safe_load
 
-from mlem.core.meta_io import (
-    get_fs,
-    get_github_envs,
-    get_github_kwargs,
-    get_meta_path,
-)
+from mlem.core.meta_io import get_fs, get_meta_path, get_path_by_repo_path_rev
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.root import find_mlem_root
 
@@ -125,27 +120,18 @@ def load_meta(
     """
     if fs is None:
         if repo is not None:
-            if "github" not in repo:
-                raise NotImplementedError("Only Github is supported as of now")
-            kwargs = get_github_envs()
-
-            git_kwargs = get_github_kwargs(repo)
-            fs = GithubFileSystem(
-                org=git_kwargs["org"],
-                repo=git_kwargs["repo"],
-                sha=quote_plus(rev) if rev else None,
-                **kwargs,
-            )
+            path, fs_kwargs = get_path_by_repo_path_rev(repo, path, rev)
         else:
-            fs, new_path = get_fs(path)
-            if (
-                isinstance(fs, GithubFileSystem)
-                and rev is not None
-                and fs.root != rev
-            ):
-                fs, path = get_fs(path, sha=quote_plus(rev))
-            else:
-                path = new_path
+            fs_kwargs = {}
+        fs, new_path = get_fs(path, **fs_kwargs)
+        if (  # this branch is triggered if path is github:// uri, but different rev was specified
+            isinstance(fs, GithubFileSystem)
+            and rev is not None
+            and fs.root != rev
+        ):
+            fs, path = get_fs(path, sha=quote_plus(rev))
+        else:
+            path = new_path
     path = find_meta_path(path, fs=fs)
     with fs.open(path, mode="r") as f:
         res = f.read()  # FIXME: double reading

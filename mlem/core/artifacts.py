@@ -32,11 +32,11 @@ class Artifact(MlemObject, ABC):
 
     def relative(
         self,
-        fs: AbstractFileSystem,  # pylint: disable=unused-argument
-        path: str,  # pylint: disable=unused-argument
+        fs: AbstractFileSystem,
+        path: str,
     ) -> "Artifact":
         # TODO: maybe change fs and path to meta_storage in the future
-        return self
+        raise NotImplementedError
 
 
 class FSSpecArtifact(Artifact):
@@ -44,7 +44,6 @@ class FSSpecArtifact(Artifact):
     uri: str
 
     def download(self, target_path: str) -> "LocalArtifact":
-
         fs, path = get_fs(self.uri)
 
         if os.path.isdir(target_path):
@@ -59,6 +58,13 @@ class FSSpecArtifact(Artifact):
         with fs.open(path) as f:
             yield f
 
+    def relative(
+        self,
+        fs: AbstractFileSystem,
+        path: str,
+    ) -> "Artifact":
+        return self
+
 
 class Storage(MlemObject, ABC):
     __type_root__ = True
@@ -66,10 +72,10 @@ class Storage(MlemObject, ABC):
 
     def relative(
         self,
-        fs: AbstractFileSystem,  # pylint: disable=unused-argument
-        path: str,  # pylint: disable=unused-argument
+        fs: AbstractFileSystem,
+        path: str,
     ) -> "Storage":
-        return self
+        raise NotImplementedError
 
     @abstractmethod
     def upload(self, local_path: str, target_path: str) -> Artifact:
@@ -105,6 +111,13 @@ class FSSpecStorage(Storage):
         with fs.open(fullpath, "wb") as f:
             yield f, FSSpecArtifact(uri=(self.create_uri(path)))
 
+    def relative(
+        self,
+        fs: AbstractFileSystem,
+        path: str,
+    ) -> "Storage":
+        return self
+
     def create_uri(self, path):
         uri = os.path.join(self.uri, path)
         if os.path.isabs(path):
@@ -118,6 +131,15 @@ class FSSpecStorage(Storage):
                 self.uri, storage_options=self.storage_options
             )
         return self.fs
+
+    @classmethod
+    def from_fs_path(cls, fs: AbstractFileSystem, path: str):
+        storage = cls(uri=get_path_by_fs_path(fs, path))
+        storage.fs = fs
+        # TODO: maybe wont work for github (but it does not support writing anyway)
+        # pylint: disable=protected-access
+        storage.base_path = fs._strip_protocol(path)
+        return storage
 
 
 class LocalStorage(FSSpecStorage):

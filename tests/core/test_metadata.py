@@ -125,3 +125,26 @@ def test_load_link_with_fsspec_path(current_test_branch):
         model = load(path)
         train, _ = load_iris(return_X_y=True)
         model.predict(train)
+
+
+def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
+    path = s3_tmp_path("model_save")
+    init(path)
+    model_path = os.path.join(path, "model")
+    save(model, model_path, fs=s3_storage_fs)
+    model_path = Path(model_path[len("s3:/") :])
+    assert s3_storage_fs.isfile(str(model_path / META_FILE_NAME))
+    assert s3_storage_fs.isdir(str(model_path / ART_DIR))
+    assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))
+
+
+def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
+    path = s3_tmp_path("model_load")
+    init(path)
+    model_path = os.path.join(path, "model")
+    save(model, model_path, fs=s3_storage_fs)
+
+    loaded = load(model_path)
+    assert isinstance(loaded, DecisionTreeClassifier)
+    train, _ = load_iris(return_X_y=True)
+    loaded.predict(train)

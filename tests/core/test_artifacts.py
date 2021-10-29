@@ -1,33 +1,15 @@
-import os.path
-import random
-import string
-
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
 from mlem.core.artifacts import FSSpecArtifact, FSSpecStorage, LocalStorage
-from mlem.core.meta_io import get_fs
 from tests.conftest import resource_path
 
-S3_TEST_BUCKET = "mlem-tests"
 
-
-@pytest.fixture
-def s3_tmp_filepath():
-    fs, path = get_fs(
-        f"s3://{S3_TEST_BUCKET}/"
-        + "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-    )
-    yield os.path.basename(path)
-    fs.delete(path)
-
-
-def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_filepath):
-    storage = FSSpecStorage(uri=f"s3://{S3_TEST_BUCKET}/", storage_options={})
-    target = s3_tmp_filepath
+def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
+    target = s3_tmp_path("upload")
     resource = resource_path(__file__, "file.txt")
-    artifact = storage.upload(resource, target)
+    artifact = s3_storage.upload(resource, target)
     assert isinstance(artifact, FSSpecArtifact)
     local_target = str(tmpdir / "file.txt")
     artifact.download(local_target)
@@ -37,10 +19,9 @@ def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_filepath):
         assert actual.read() == expected.read()
 
 
-def test_fsspec_backend_s3_open(s3_tmp_filepath):
-    storage = FSSpecStorage(uri=f"s3://{S3_TEST_BUCKET}/", storage_options={})
-    target = s3_tmp_filepath
-    with storage.open(target) as (f, artifact):
+def test_fsspec_backend_s3_open(s3_tmp_path, s3_storage):
+    target = s3_tmp_path("open")
+    with s3_storage.open(target) as (f, artifact):
         f.write(b"a")
     assert isinstance(artifact, FSSpecArtifact)
 
@@ -48,9 +29,13 @@ def test_fsspec_backend_s3_open(s3_tmp_filepath):
         assert f.read() == b"a"
 
 
-def test_relative_storage_remote():
+@pytest.mark.parametrize("fs", [LocalFileSystem(), S3FileSystem()])
+def test_relative_storage_remote(fs):
+    """This checks that if artifact path is absolute,
+    it will stay that way if meta is stored locally or remotely.
+    """
     s3storage = FSSpecStorage(uri="s3://some_bucket")
-    rel1 = s3storage.relative(LocalFileSystem(), "some_path")
+    rel1 = s3storage.relative(fs, "some_path")
     assert rel1 == s3storage
 
 
