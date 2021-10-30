@@ -1,7 +1,6 @@
 import os.path
 
 import pytest
-from fsspec.implementations.git import GitFileSystem
 from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.http import HTTPFileSystem
 from fsspec.implementations.local import LocalFileSystem
@@ -51,11 +50,12 @@ def test_read(url_path_pairs):
         ("s3://path", S3FileSystem, "path"),
         ("gcs://path", GCSFileSystem, "path"),
         # ("az://path", AzureBlobFileSystem),  # TODO: need credentials
-        (
-            f"git://{os.path.abspath(__file__)}",
-            GitFileSystem,
-            "git:/" + __file__,
-        ),
+        # TODO: see below in test_get_path_by_fs_path
+        # (
+        #     f"git://{os.path.abspath(__file__)}",
+        #     GitFileSystem,
+        #     "git:/" + __file__,
+        # ),
         ("https://path", HTTPFileSystem, "https://path"),
     ],
 )
@@ -129,12 +129,11 @@ def test_get_path_by_fs_path_github():
             "branch",
             os.path.join(MLEM_TEST_REPO, "tree", "branch", "path/file"),
         ),
-        # TODO: see above in test_get_path_by_fs_path
-        # (
-        #     "git:///other/path",
-        #     "branch",
-        #     ("git:///other/path/path/file", {"rev": "branch"}),
-        # ),
+        (
+            "git:///other/path",
+            "branch",
+            ("git:///other/path/path/file", {"rev": "branch"}),
+        ),
     ],
 )
 def test_get_path_by_repo_path_rev(repo, rev, result):
