@@ -44,9 +44,8 @@ def test_ls_remote():
         [
             "all",
             "-r",
-            f"{MLEM_TEST_REPO}/tree/feature/storages/simple",
+            f"{MLEM_TEST_REPO}/tree/main/simple",
         ],
-        #  FIXME tmp until initial full commit to test repo
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0, "Output is empty, but should not be"
