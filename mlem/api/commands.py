@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence, Type, Union
 import click
 from pydantic import parse_obj_as
 
+from mlem.config import CONFIG_FILE
 from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import (
     META_FILE_NAME,
@@ -138,7 +139,8 @@ def get(
 def init(path: str = ".") -> None:
     """Creates .mlem directory in `path`"""
     path = os.path.join(path, MLEM_DIR)
-    if os.path.exists(path):
+    fs, path = get_fs(path)
+    if fs.exists(path):
         click.echo(f"{path} already exists, no need to run `mlem init` again")
     else:
         from mlem import analytics
@@ -149,7 +151,10 @@ def init(path: str = ".") -> None:
                 "MLEM has anonymous aggregate usage analytics enabled.\n"
                 "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
             )
-        os.makedirs(path)
+        fs.makedirs(path)
+        # some fs dont support creating empty dirs
+        with fs.open(os.path.join(path, CONFIG_FILE), "w"):
+            pass
 
 
 def link(

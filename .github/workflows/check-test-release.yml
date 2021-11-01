@@ -46,6 +46,8 @@ jobs:
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     - run: pre-commit run pylint -a --show-diff-on-failure
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v1

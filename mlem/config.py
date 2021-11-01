@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import BaseSettings, Field
 
+from mlem.constants import MLEM_DIR
+
 CONFIG_FILE = "config.yaml"
 
 
@@ -20,7 +22,7 @@ def mlem_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     mlem_root = find_mlem_root(raise_on_missing=False)
     if mlem_root is None:
         return {}
-    config_file = Path(mlem_root) / CONFIG_FILE
+    config_file = Path(mlem_root) / MLEM_DIR / CONFIG_FILE
     if not config_file.exists():
         return {}
     conf = yaml.safe_load(config_file.read_text(encoding=encoding))
@@ -39,6 +41,20 @@ class MlemConfig(BaseSettings):
     DEBUG: bool = False
     NO_ANALYTICS: bool = False
     TESTS: bool = False
+    DEFAULT_STORAGE: Dict = {}
+
+    # class Config:
+    #     extra = Extra.allow
+
+    @property
+    def default_storage(self):
+        from mlem.core.artifacts import LOCAL_STORAGE, Storage
+        from mlem.core.meta_io import deserialize
+
+        if not self.DEFAULT_STORAGE:
+            return LOCAL_STORAGE
+        s = deserialize(self.DEFAULT_STORAGE, Storage)
+        return s
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:

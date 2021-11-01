@@ -8,7 +8,7 @@ from mlem.api import apply, link, load_meta
 from mlem.api.commands import ls
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
-from tests.conftest import long
+from tests.conftest import MLEM_TEST_REPO, long
 
 
 @pytest.mark.parametrize(
@@ -77,7 +77,8 @@ def test_ls_local(mlem_root):
 
 @long
 def test_ls_remote():
-    objects = ls("https://github.com/iterative/example-mlem/")
+    # FIXME tmp rev until merged in main
+    objects = ls(os.path.join(MLEM_TEST_REPO, "tree/feature/storages/simple"))
     assert len(objects) == 2
     assert ModelMeta in objects
     models = objects[ModelMeta]

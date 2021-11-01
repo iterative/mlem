@@ -1,5 +1,7 @@
 import os
 import tempfile
+from pathlib import Path
+from urllib.parse import quote_plus
 
 import pytest
 import yaml
@@ -8,10 +10,18 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
+from mlem.constants import MLEM_DIR
+from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import ModelMeta
-from tests.conftest import long
-from tests.core.conftest import need_example_auth
+from tests.conftest import (
+    MLEM_TEST_REPO,
+    MLEM_TEST_REPO_NAME,
+    MLEM_TEST_REPO_ORG,
+    long,
+    need_test_repo_auth,
+    need_test_repo_ssh_auth,
+)
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
@@ -28,6 +38,13 @@ def test_model_saving_in_mlem_root(model_train_target, tmpdir_factory):
     save(model, model_dir, tmp_sample_data=train, link=True)
 
 
+def test_model_saving(model_path):
+    model_path = Path(model_path)
+    assert os.path.isfile(model_path / META_FILE_NAME)
+    assert os.path.isdir(model_path / ART_DIR)
+    assert os.path.isfile(model_path / ART_DIR / "data.pkl")
+
+
 def test_model_loading(model_path):
     model = load(model_path)
     assert isinstance(model, DecisionTreeClassifier)
@@ -36,11 +53,11 @@ def test_model_loading(model_path):
 
 
 @long
-@need_example_auth
-def test_model_loading_remote_dvc():
+@need_test_repo_ssh_auth
+def test_model_loading_remote_dvc(current_test_branch):
     model = load(
-        "https://github.com/iterative/example-mlem/data/model",
-        rev="store-with-dvc",
+        f"{MLEM_TEST_REPO}/dvc_pipeline/data/model",
+        rev=current_test_branch,
     )
     assert isinstance(model, RandomForestClassifier)
     train, _ = load_iris(return_X_y=True)
@@ -55,51 +72,51 @@ def test_meta_loading(model_path):
 
 
 @long
-@need_example_auth
+@need_test_repo_auth
 @pytest.mark.parametrize(
     "url",
     [
-        "github://iterative:example-mlem@main/data/model",
-        "github://iterative:example-mlem@main/data/model/mlem.yaml",
-        "github://iterative:example-mlem@main/.mlem/model/data/model.mlem.yaml",
-        "github://iterative:example-mlem@main/.mlem/model/latest.mlem.yaml",
-        "https://github.com/iterative/example-mlem/data/model",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model/mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/data/model.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/latest.mlem.yaml",
+        f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
-def test_model_loading_from_github_with_fsspec(url):
+def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
-    model = load(url)
+    model = load(url.format(branch=quote_plus(current_test_branch)))
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
 
 
 @long
-@need_example_auth
+@need_test_repo_auth
 @pytest.mark.parametrize(
     "path",
     [
-        "data/model",
-        "data/model/mlem.yaml",
-        ".mlem/model/data/model.mlem.yaml",
-        ".mlem/model/latest.mlem.yaml",
+        "simple/data/model",
+        "simple/data/model/mlem.yaml",
+        "simple/.mlem/model/data/model.mlem.yaml",
+        "simple/.mlem/model/latest.mlem.yaml",
     ],
 )
-def test_model_loading_from_github(path):
+def test_model_loading_from_github(path, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(
         path,
-        repo="https://github.com/iterative/example-mlem",
-        rev="main",
+        repo=MLEM_TEST_REPO,
+        rev=current_test_branch,
     )
     train, _ = load_iris(return_X_y=True)
     model.predict(train)
 
 
-@need_example_auth
-def test_load_link_with_fsspec_path():
+@need_test_repo_auth
+def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "mlem_link": "github://iterative:example-mlem@main/data/model/mlem.yaml",
+        "mlem_link": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:
@@ -109,3 +126,29 @@ def test_load_link_with_fsspec_path():
         model = load(path)
         train, _ = load_iris(return_X_y=True)
         model.predict(train)
+
+
+def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
+    path = s3_tmp_path("model_save")
+    init(path)
+    model_path = os.path.join(path, "model")
+    save(model, model_path, fs=s3_storage_fs)
+    model_path = Path(model_path[len("s3:/") :])
+    assert s3_storage_fs.isfile(
+        os.path.join(path, MLEM_DIR, "model", "model.mlem.yaml")
+    )
+    assert s3_storage_fs.isfile(str(model_path / META_FILE_NAME))
+    assert s3_storage_fs.isdir(str(model_path / ART_DIR))
+    assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))
+
+
+def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
+    path = s3_tmp_path("model_load")
+    init(path)
+    model_path = os.path.join(path, "model")
+    save(model, model_path, fs=s3_storage_fs)
+
+    loaded = load(model_path)
+    assert isinstance(loaded, DecisionTreeClassifier)
+    train, _ = load_iris(return_X_y=True)
+    loaded.predict(train)

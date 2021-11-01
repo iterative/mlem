@@ -1,0 +1,4 @@
+ADDITIONAL_EXTENSIONS_RAW: ext1
+default_storage:
+  type: fsspec
+  uri: s3://somebucket

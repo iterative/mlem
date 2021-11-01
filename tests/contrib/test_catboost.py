@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 from catboost import CatBoostClassifier, CatBoostRegressor
-from fsspec.implementations.local import LocalFileSystem
 
 from mlem.constants import PREDICT_METHOD_NAME, PREDICT_PROBA_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import ModelAnalyzer
 from tests.conftest import check_model_type_common_interface
@@ -51,13 +51,13 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
     assert set(cbmw.get_requirements().modules) == expected_requirements
     assert cbmw.model is catboost_model
 
-    cbmw.dump(LocalFileSystem(), tmpdir)
+    artifacts = cbmw.dump(LOCAL_STORAGE, tmpdir)
 
     cbmw.model = None
     with pytest.raises(ValueError):
         cbmw.call_method(PREDICT_METHOD_NAME, pandas_data)
 
-    cbmw.load(LocalFileSystem(), tmpdir)
+    cbmw.load(artifacts)
     assert cbmw.model is not catboost_model
     assert set(cbmw.get_requirements().modules) == expected_requirements
 

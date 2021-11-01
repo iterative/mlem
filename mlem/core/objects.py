@@ -2,21 +2,18 @@
 Base classes for meta objects in MLEM:
 MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
-import contextlib
 import os
-import shutil
-import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
 from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
-from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from yaml import safe_dump, safe_load
 
-from mlem.core.artifacts import Artifacts
+from mlem.config import CONFIG
+from mlem.core.artifacts import Artifacts, FSSpecStorage
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
 from mlem.core.errors import (
@@ -32,7 +29,6 @@ from mlem.core.meta_io import (
     MLEM_EXT,
     deserialize,
     get_fs,
-    get_with_dvc,
     resolve_fs,
     serialize,
 )
@@ -123,7 +119,7 @@ class MlemMeta(MlemObject):
         name: str,
         fs: Union[str, AbstractFileSystem] = None,
         link: bool = True,
-        mlem_root: Optional[str] = ".",
+        mlem_root: Optional[str] = "",
         check_extension: bool = True,
         absolute: bool = False,  # pylint: disable=unused-argument
     ):
@@ -133,7 +129,7 @@ class MlemMeta(MlemObject):
         if link or mlem_root is None:
             if check_extension and not name.endswith(MLEM_EXT):
                 raise ValueError(f"name={name} should end with {MLEM_EXT}")
-            path = os.path.join(mlem_root or ".", name)
+            path = os.path.join(mlem_root or "", name)
         else:
             path = mlem_dir_path(
                 name,
@@ -177,7 +173,7 @@ class MlemMeta(MlemObject):
             obj_type=self.object_type,
             mlem_root=mlem_root,
         )
-        self.make_link(path=path)
+        self.make_link(path=path, fs=self.fs)
 
     @classmethod
     def subtype_mapping(cls) -> Dict[str, Type["MlemMeta"]]:
@@ -357,21 +353,12 @@ class _ExternalMeta(ABC, MlemMeta):
             name = os.path.join(name, META_FILE_NAME)
         path = os.path.join(root, name)
         new.name = path
-        if isinstance(
-            self.fs, GithubFileSystem
-        ):  # fixme: https://github.com/iterative/mlem/issues/37 move to actual git fs
-            get_with_dvc(
-                self.fs, os.path.dirname(self.name), os.path.dirname(path)
-            )
-        else:  # old impl, does not support dvc tracked files
-            os.makedirs(new.art_dir, exist_ok=True)
-            for art in self.artifacts or []:
-                shutil.copy(os.path.join(self.art_dir, art), new.art_dir)
-        new.artifacts = [
-            os.path.relpath(os.path.join(new.art_dir, f), root)
-            for f in os.listdir(new.art_dir)
-        ]  # TODO: https://github.com/iterative/mlem/issues/37
-        #     blobs_from_path(new.art_dir).blobs
+
+        os.makedirs(new.art_dir, exist_ok=True)
+        new.artifacts = []
+        for art in self.relative_artifacts:
+            new.artifacts.append(art.download(new.art_dir))
+
         super(_ExternalMeta, new).dump(
             name,
             link=link and mlem_root is not None,
@@ -380,15 +367,21 @@ class _ExternalMeta(ABC, MlemMeta):
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
-    @contextlib.contextmanager
-    def localize(self, path: str):
-        if not isinstance(self.fs, GithubFileSystem):
-            yield self.fs, path
-        else:
-            with tempfile.TemporaryDirectory(prefix="mlem_dvc_clone") as tdir:
-                target = os.path.join(tdir, "clone")
-                get_with_dvc(self.fs, path, target)
-                yield LocalFileSystem(), target
+    @property
+    def dirname(self):
+        return os.path.dirname(self.name)
+
+    @property
+    def relative_artifacts(self) -> Artifacts:
+        return [
+            a.relative(self.fs, self.dirname) for a in self.artifacts or []
+        ]
+
+    @property
+    def storage(self):
+        if not self.fs or isinstance(self.fs, LocalFileSystem):
+            return CONFIG.default_storage.relative(self.fs, self.dirname)
+        return FSSpecStorage.from_fs_path(self.fs, self.dirname)
 
 
 class ModelMeta(_ExternalMeta):
@@ -402,10 +395,11 @@ class ModelMeta(_ExternalMeta):
         return ModelMeta(model_type=mt, requirements=mt.get_requirements())
 
     def write_value(self, mlem_root: str) -> Artifacts:
-        path = os.path.join(mlem_root, self.art_dir)
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
-                self.fs, path, self.model_type.model
+                self.storage,
+                ART_DIR,
+                self.model_type.model,
             )
         else:
             raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
@@ -413,8 +407,7 @@ class ModelMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        with self.localize(self.art_dir) as (fs, path):
-            self.model_type.load(fs, path)
+        self.model_type.load(self.relative_artifacts)
 
     def get_value(self):
         return self.model_type.model
@@ -451,7 +444,9 @@ class DatasetMeta(_ExternalMeta):
     def write_value(self, mlem_root: str) -> Artifacts:
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
-                self.dataset, self.fs, os.path.join(mlem_root, self.art_dir)
+                self.dataset,
+                self.storage,
+                ART_DIR,
             )
             self.reader = reader
         else:
@@ -460,8 +455,9 @@ class DatasetMeta(_ExternalMeta):
         return artifacts
 
     def load_value(self):
-        with self.localize(self.art_dir) as (fs, path):
-            self.dataset = self.reader.read(fs, path)
+        self.dataset = self.reader.read(self.relative_artifacts)
+        # with self.localize(self.art_dir) as (fs, path):
+        #     self.dataset = self.reader.read(fs, path)
 
     def get_value(self):
         return self.data

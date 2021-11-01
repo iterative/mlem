@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
-from fsspec.implementations.local import LocalFileSystem
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.sklearn import SklearnModel
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import ModelAnalyzer
 from tests.conftest import check_model_type_common_interface
@@ -84,13 +84,13 @@ def test_model_type__dump_load(tmpdir, model, inp_data, request):
 
     expected_requirements = {"sklearn", "numpy"}
     assert set(model_type.get_requirements().modules) == expected_requirements
-    model_type.dump(LocalFileSystem(), tmpdir)
+    artifacts = model_type.dump(LOCAL_STORAGE, tmpdir)
     model_type.model = None
 
     with pytest.raises(ValueError):
         model_type.call_method("predict", inp_data)
 
-    model_type.load(LocalFileSystem(), tmpdir)
+    model_type.load(artifacts)
     np.testing.assert_array_almost_equal(
         model.predict(inp_data), model_type.call_method("predict", inp_data)
     )

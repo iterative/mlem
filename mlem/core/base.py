@@ -59,7 +59,12 @@ class MlemObject(PolyModel):
         """Polymorphic magic goes here"""
         if isinstance(value, cls):
             return value
-        type_name = value.pop(cls.__type_field__)
+        value = value.copy()
+        type_name = value.pop(cls.__type_field__, cls.__default_type__)
+        if type_name is None:
+            raise ValueError(
+                "Type field was not provided and no default type specified"
+            )
         child_cls: Type[MlemObject] = cls.resolve_subtype(type_name)
         return child_cls(**value)
 

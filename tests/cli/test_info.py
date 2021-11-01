@@ -5,6 +5,7 @@ from click.testing import CliRunner
 
 from mlem.cli import ls, pretty_print
 from mlem.core.meta_io import META_FILE_NAME
+from tests.conftest import MLEM_TEST_REPO
 
 LOCAL_LS_EXPECTED_RESULT = """Models:
  - latest -> model1
@@ -40,7 +41,12 @@ def test_ls_remote():
     runner = CliRunner()
     result = runner.invoke(
         ls,
-        ["all", "-r", "https://github.com/iterative/example-mlem/"],
+        [
+            "all",
+            "-r",
+            f"{MLEM_TEST_REPO}/tree/feature/storages/simple",
+        ],
+        #  FIXME tmp until initial full commit to test repo
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0, "Output is empty, but should not be"
