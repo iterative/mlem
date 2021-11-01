@@ -348,7 +348,7 @@ def get_module_as_requirement(
     mod: ModuleType, validate_pypi=False
 ) -> InstallableRequirement:
     """
-    Builds Ebonite representation of given module object
+    Builds MLEM representation of given module object
 
     :param mod: module object to use
     :param validate_pypi: if `True` (default is `False`) perform representation validation in PyPi repository
