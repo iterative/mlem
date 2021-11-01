@@ -1,12 +1,14 @@
 import os
 import tempfile
 
+import pytest
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
+from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 
 def test_model_dump(mlem_root):
@@ -30,6 +32,32 @@ def test_model_cloning(model_path):
         cloned_model = load(dir)
         X, _ = load_iris(return_X_y=True)
         cloned_model.predict(X)
+
+
+@long
+@need_test_repo_auth
+def test_model_cloning_remote(current_test_branch):
+    """TODO: https://github.com/iterative/mlem/issues/44
+    test fails in CI because repo is private and DVC does not support http auth for git
+    """
+    with tempfile.TemporaryDirectory() as dir:
+        cloned_model = load_meta(
+            os.path.join(MLEM_TEST_REPO, "simple/data/model"),
+            rev=current_test_branch,
+        ).clone(os.path.join(dir, "model"), link=False)
+        cloned_model.load_value()
+        X, _ = load_iris(return_X_y=True)
+        cloned_model.predict(X)
+
+
+def test_model_getattr(model_meta):
+    method = model_meta.predict
+    assert callable(method)
+    X, _ = load_iris(return_X_y=True)
+    method(X)
+
+    with pytest.raises(AttributeError):
+        model_meta.not_existing_method(X)
 
 
 def test_mlem_dir_path(mlem_root):

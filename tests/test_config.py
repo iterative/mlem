@@ -1,4 +1,5 @@
 from mlem.config import MlemConfig
+from mlem.core.artifacts import FSSpecStorage
 from tests.conftest import resource_path
 
 
@@ -8,3 +9,4 @@ def test_loading_yaml(mocker):
     )
     config = MlemConfig()
     assert config.ADDITIONAL_EXTENSIONS == ["ext1"]
+    assert config.default_storage == FSSpecStorage(uri="s3://somebucket")

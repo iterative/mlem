@@ -62,6 +62,10 @@ install_requires = [
     "fusepy",  # TMP
     "cached-property",
     "entrypoints",
+    "filelock",
+    "appdirs",
+    "python-daemon",
+    "distro",
 ]
 
 # storage
@@ -74,7 +78,6 @@ sql = ["sqlalchemy", "psycopg2-binary"]
 
 # models
 sklearn = ["scipy", "scikit-learn"]
-tensorflow = ["tensorflow"]
 catboost = ["catboost"]
 xgboost = ["xgboost"]
 lightgbm = ["lightgbm"]
@@ -89,7 +92,6 @@ all_libs = (
     + numpy
     + sql
     + sklearn
-    + tensorflow
     + catboost
     + xgboost
     + lightgbm
@@ -108,6 +110,9 @@ tests = [
     # we use this to suppress some messages in tests, eg: foo/bar naming,
     # and, protected method calls in our tests
     "pylint-plugin-utils",
+    "s3fs",
+    "adlfs",
+    "gcsfs",
 ] + all_libs
 
 
@@ -131,7 +136,6 @@ setup_args = dict(  # noqa: C408
         "numpy": numpy,
         "sql": sql,
         "sklearn": sklearn,
-        "tensoflow": tensorflow,
         "catboost": catboost,
         "xgboost": xgboost,
         "lightgbm": lightgbm,
@@ -151,7 +155,7 @@ setup_args = dict(  # noqa: C408
     ],
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
-    url="http://mlem.ai",
+    url="https://mlem.ai",
     entry_points={
         "console_scripts": ["mlem = mlem.cli:cli"],
         # Additional mechanism for plugins.
@@ -159,6 +163,7 @@ setup_args = dict(  # noqa: C408
         # Since mlem has some "optional" implementations,
         # we should populate them like this as well
         "mlem.contrib": [
+            "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "dataset_reader.numpy = mlem.contrib.numpy:NumpyArrayReader",
             "dataset_reader.pandas = mlem.contrib.pandas:PandasReader",
             "dataset_type.dataframe = mlem.contrib.pandas:DataFrameType",
@@ -176,6 +181,7 @@ setup_args = dict(  # noqa: C408
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
+            "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
     },
     cmdclass={"build_py": build_py},

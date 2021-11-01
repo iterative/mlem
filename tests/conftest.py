@@ -1,28 +1,96 @@
 import os
 import tempfile
+from pathlib import Path
 from typing import Any, Callable, Type
 
+import git
 import pandas as pd
 import pytest
 from fsspec.implementations.local import LocalFileSystem
+from git import GitCommandError, Repo
+from requests import HTTPError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
+from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
+from mlem.contrib.sklearn import SklearnModel
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import (
     Dataset,
     DatasetReader,
     DatasetType,
     DatasetWriter,
 )
+from mlem.core.meta_io import get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import DatasetMeta, ModelMeta, mlem_dir_path
+from mlem.core.requirements import Requirements
+from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
 
 long = pytest.mark.long
+MLEM_TEST_REPO_ORG = "iterative"
+MLEM_TEST_REPO_NAME = "mlem-test"
+MLEM_TEST_REPO = (
+    f"https://github.com/{MLEM_TEST_REPO_ORG}/{MLEM_TEST_REPO_NAME}/"
+)
+
+
+def _check_github_test_repo_ssh_auth():
+    try:
+        git.cmd.Git().ls_remote(MLEM_TEST_REPO)
+        return True
+    except GitCommandError:
+        return False
+
+
+def _check_github_test_repo_auth():
+    if not CONFIG.GITHUB_USERNAME or not CONFIG.GITHUB_TOKEN:
+        return False
+    try:
+        get_fs(MLEM_TEST_REPO)
+        return True
+    except HTTPError:
+        return False
+
+
+need_test_repo_auth = pytest.mark.skipif(
+    not _check_github_test_repo_auth(),
+    reason="No http credentials for remote repo",
+)
+
+need_test_repo_ssh_auth = pytest.mark.skipif(
+    not _check_github_test_repo_ssh_auth(),
+    reason="No ssh credentials for remote repo",
+)
+
+
+@pytest.fixture()
+def current_test_branch():
+    try:
+        branch = Repo(str(Path(__file__).parent.parent)).active_branch.name
+    except TypeError:
+        # github actions/checkout leaves repo in detached head state
+        # but it has env with branch name
+        branch = os.environ.get("GITHUB_HEAD_REF", os.environ["GITHUB_REF"])
+        if branch.startswith("refs/heads/"):
+            branch = branch[len("refs/heads/") :]
+    remote_refs = set(
+        ls_github_branches(MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME).keys()
+    )
+    if branch in remote_refs:
+        return branch
+    return "main"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def add_test_env():
+    os.environ["MLEM_TESTS"] = "true"
+    CONFIG.TESTS = True
 
 
 def resource_path(test_file, *paths):
@@ -106,6 +174,19 @@ def model_meta_saved(model_path):
 def mlem_root(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
+    # TODO: bug: when reqs are empty, they serialize to "{}", not "[]"
+    # https://github.com/iterative/mlem/issues/95
+    model = ModelMeta(
+        requirements=Requirements.new("sklearn"),
+        model_type=SklearnModel(methods={}, model=""),
+    )
+    model.dump("model1", mlem_root=dir)
+
+    model.make_link(
+        mlem_dir_path(
+            "latest", LocalFileSystem(), obj_type=ModelMeta, mlem_root=dir
+        )
+    )
     yield dir
 
 
@@ -129,12 +210,12 @@ def dataset_write_read_check(
     with tempfile.TemporaryDirectory() as tmpdir:
         writer = writer or dataset.dataset_type.get_writer()
 
-        fs = LocalFileSystem()
-        reader, _ = writer.write(dataset, fs, tmpdir)
+        storage = LOCAL_STORAGE
+        reader, artifacts = writer.write(dataset, storage, tmpdir)
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
-        new = reader.read(fs, tmpdir)
+        new = reader.read(artifacts)
 
         assert dataset.dataset_type == new.dataset_type
         if custom_assert is not None:
