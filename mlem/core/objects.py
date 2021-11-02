@@ -387,7 +387,6 @@ class _ExternalMeta(ABC, MlemMeta):
 
 class ModelMeta(_ExternalMeta):
     object_type: ClassVar = "model"
-    # model_type: ModelType
     model_type_cache: Dict
     model_type: ModelType
     model_type, model_type_raw, model_type_cache = lazy_field(
