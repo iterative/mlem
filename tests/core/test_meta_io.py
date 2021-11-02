@@ -18,6 +18,7 @@ from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
     MLEM_TEST_REPO_ORG,
+    long,
     need_test_repo_auth,
     resource_path,
 )
@@ -42,6 +43,7 @@ def test_read(url_path_pairs):
     assert read(uri).startswith(start)
 
 
+@long
 @pytest.mark.parametrize(
     "uri, cls, result",
     [

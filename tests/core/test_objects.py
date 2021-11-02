@@ -2,10 +2,11 @@ import os
 import tempfile
 
 import pytest
+from pydantic import ValidationError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
-from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT
+from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT, deserialize
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -101,3 +102,15 @@ def test_link_dump_in_mlem(model_path_mlem_root):
     link.dump(link_name, mlem_root=mlem_root)
     model = load_meta(os.path.join(mlem_root, link_name), follow_links=True)
     assert isinstance(model, ModelMeta)
+
+
+def test_model_model_type_laziness():
+    payload = {
+        "model_type": {"type": "doesnotexist"},
+        "object_type": "model",
+        "requirements": [],
+    }
+    model = deserialize(payload, ModelMeta)
+    assert model.model_type_raw == {"type": "doesnotexist"}
+    with pytest.raises(ValidationError):
+        print(model.model_type)

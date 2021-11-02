@@ -5,9 +5,10 @@ from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
 from mlem.core.artifacts import FSSpecArtifact, FSSpecStorage, LocalStorage
-from tests.conftest import resource_path
+from tests.conftest import long, resource_path
 
 
+@long
 def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
     target = os.path.basename(s3_tmp_path("upload"))
     resource = resource_path(__file__, "file.txt")
@@ -21,6 +22,7 @@ def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
         assert actual.read() == expected.read()
 
 
+@long
 def test_fsspec_backend_s3_open(s3_tmp_path, s3_storage):
     target = os.path.basename(s3_tmp_path("open"))
     with s3_storage.open(target) as (f, artifact):

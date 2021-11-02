@@ -34,6 +34,7 @@ from mlem.core.meta_io import (
 )
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
+from mlem.polydantic.lazy import lazy_field
 from mlem.utils.root import find_mlem_root
 
 
@@ -386,7 +387,11 @@ class _ExternalMeta(ABC, MlemMeta):
 
 class ModelMeta(_ExternalMeta):
     object_type: ClassVar = "model"
+    model_type_cache: Dict
     model_type: ModelType
+    model_type, model_type_raw, model_type_cache = lazy_field(
+        ModelType, "model_type", "model_type_cache"
+    )
 
     @classmethod
     def from_obj(cls, model: Any, sample_data: Any = None) -> "ModelMeta":
