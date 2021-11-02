@@ -36,7 +36,7 @@ class PolyModel(BaseModel):
         type_name = value.pop(cls.__type_field__, cls.__default_type__)
         if type_name is None:
             raise ValueError(
-                "Type field was not provided and no default type specified"
+                f"Type field was not provided and no default type specified in {cls.parent.__name__}"
             )
         child_cls = cls.__type_map__[type_name]
         return child_cls(**value)

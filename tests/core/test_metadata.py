@@ -128,6 +128,7 @@ def test_load_link_with_fsspec_path(current_test_branch):
         model.predict(train)
 
 
+@long
 def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_save")
     init(path)
@@ -142,6 +143,7 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))
 
 
+@long
 def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_load")
     init(path)
