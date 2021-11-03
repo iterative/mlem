@@ -3,7 +3,6 @@ from pprint import pprint
 from typing import List, Type
 
 import click
-from fsspec.implementations.local import LocalFileSystem
 
 from mlem.cli.main import mlem_command
 from mlem.core.meta_io import get_fs
@@ -85,10 +84,10 @@ def ls(type_filter: str, repo: str, links: bool):
 )
 def pretty_print(obj: str, follow_links: bool):
     """Print __str__ for the specified MLEM object."""
-    fs = LocalFileSystem()  # TODO: https://github.com/iterative/mlem/issues/31
-    tp, _ = find_object(obj, fs)
+    fs, path = get_fs(obj)
+    tp, _ = find_object(path, fs)
     pprint(
         MlemMeta.subtype_mapping()[tp].read(
-            obj, follow_links=follow_links, fs=fs
+            path, follow_links=follow_links, fs=fs
         )
     )

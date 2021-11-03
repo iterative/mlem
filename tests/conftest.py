@@ -39,6 +39,8 @@ MLEM_TEST_REPO = (
     f"https://github.com/{MLEM_TEST_REPO_ORG}/{MLEM_TEST_REPO_NAME}/"
 )
 
+MLEM_S3_TEST_BUCKET = "mlem-tests"
+
 
 def _check_github_test_repo_ssh_auth():
     try:
@@ -236,3 +238,26 @@ def check_model_type_common_interface(
         args=[Argument(name=PREDICT_ARG_NAME, type_=data_type)],
         returns=returns_type,
     )
+
+
+@pytest.fixture
+def s3_tmp_path():
+    paths = set()
+    base_path = f"s3://{MLEM_S3_TEST_BUCKET}"
+    fs, _ = get_fs(base_path)
+
+    def gen(path):
+        path = os.path.join(base_path, path)
+        if path in paths:
+            raise ValueError(f"Already generated {path}")
+        if fs.exists(path):
+            fs.delete(path, recursive=True)
+        paths.add(path)
+        return path
+
+    yield gen
+    for path in paths:
+        try:
+            fs.delete(path, recursive=True)
+        except FileNotFoundError:
+            pass

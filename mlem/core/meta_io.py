@@ -2,7 +2,7 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import os
-from typing import Any, Dict, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
@@ -21,17 +21,20 @@ ART_DIR = "artifacts"
 
 
 def resolve_fs(
-    fs: Union[str, AbstractFileSystem] = None, protocol: str = None
-):
+    fs: Union[str, AbstractFileSystem] = None,
+    path: str = None,
+    protocol: str = None,
+) -> Tuple[AbstractFileSystem, Optional[str]]:
     """Try to resolve fs from given fs or URI"""
     # TODO: do we really need this function?
     # address in https://github.com/iterative/mlem/issues/4
     if fs is None:
-        return LocalFileSystem()
+        if path is None:
+            return LocalFileSystem(), ""
+        return get_fs(path)
     if isinstance(fs, AbstractFileSystem):
-        return fs
-    fs, _ = get_fs(uri=fs, protocol=protocol)
-    return fs
+        return fs, path
+    return get_fs(uri=fs, protocol=protocol)
 
 
 def get_fs(

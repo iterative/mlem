@@ -124,7 +124,7 @@ class MlemMeta(MlemObject):
         check_extension: bool = True,
         absolute: bool = False,  # pylint: disable=unused-argument
     ):
-        fs = resolve_fs(fs)
+        fs, _ = resolve_fs(fs, name)
         if mlem_root:
             mlem_root = find_mlem_root(path=mlem_root, fs=fs)
         if link or mlem_root is None:
@@ -138,7 +138,7 @@ class MlemMeta(MlemObject):
                 mlem_root=mlem_root,
                 obj_type=self.object_type,
             )
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fs.makedirs(os.path.dirname(path), exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
         if link:
@@ -250,7 +250,7 @@ class MlemLink(MlemMeta):
         absolute: bool = False,
     ):
         # TODO: use `fs` everywhere instead of `os`? https://github.com/iterative/mlem/issues/26
-        fs = resolve_fs(fs)
+        fs, _ = resolve_fs(fs, name)
         if mlem_root:
             mlem_root = find_mlem_root(mlem_root, fs=fs)
         if link or mlem_root is None:
@@ -282,7 +282,7 @@ class MlemLink(MlemMeta):
                     )
         parent_dir = os.path.dirname(path)
         if parent_dir:
-            os.makedirs(parent_dir, exist_ok=True)
+            fs.makedirs(parent_dir, exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
         self.name = name
@@ -302,7 +302,7 @@ class _ExternalMeta(ABC, MlemMeta):
         check_extension: bool = False,
         absolute: bool = False,
     ):
-        self.fs = resolve_fs(fs)
+        self.fs, _ = resolve_fs(fs, name)
         if not name.endswith(MLEM_EXT):
             name = os.path.join(name, META_FILE_NAME)
         self.name = name
