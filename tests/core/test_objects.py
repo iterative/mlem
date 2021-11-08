@@ -1,12 +1,19 @@
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
-from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT, deserialize
+from mlem.core.meta_io import (
+    ART_DIR,
+    META_FILE_NAME,
+    MLEM_DIR,
+    MLEM_EXT,
+    deserialize,
+)
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -114,3 +121,17 @@ def test_model_model_type_laziness():
     assert model.model_type_raw == {"type": "doesnotexist"}
     with pytest.raises(ValidationError):
         print(model.model_type)
+
+
+def test_mlem_root(mlem_root):
+    path = Path(mlem_root)
+    assert os.path.exists(path)
+    assert os.path.isdir(path)
+    mlem_dir = path / MLEM_DIR
+    assert os.path.isdir(mlem_dir)
+    assert os.path.isfile(mlem_dir / "model" / ("model1" + MLEM_EXT))
+    assert os.path.isfile(mlem_dir / "model" / ("latest" + MLEM_EXT))
+    model_dir = path / "model1"
+    assert os.path.isdir(model_dir)
+    assert os.path.isfile(model_dir / META_FILE_NAME)
+    assert os.path.isfile(model_dir / ART_DIR / "data.pkl")
