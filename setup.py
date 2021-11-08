@@ -84,7 +84,7 @@ lightgbm = ["lightgbm"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]
-sagemaker = ["boto3", "sagemaker"]
+sagemaker = ["boto3==1.19.12", "sagemaker"]
 
 all_libs = (
     dvc
