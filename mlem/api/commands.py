@@ -198,12 +198,7 @@ def link(
 
     link = source.make_link()
     if target is not None:
-        link.dump(
-            target,
-            mlem_root=mlem_root,
-            check_extension=check_extension,
-            absolute=absolute,
-        )
+        link.dump(target, mlem_root=mlem_root, check_extension=check_extension, absolute=absolute)
     return link
 
 

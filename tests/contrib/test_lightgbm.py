@@ -150,10 +150,7 @@ def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
     expected_requirements = {"lightgbm", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
-    artifacts = model.dump(
-        LOCAL_STORAGE,
-        tmpdir,
-    )
+    artifacts = model.dump(LOCAL_STORAGE, tmpdir)
 
     model.unbind()
     with pytest.raises(ValueError):

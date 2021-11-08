@@ -64,19 +64,34 @@ class MlemMeta(MlemObject):
     __type_field__ = "object_type"
     __transient_fields__ = {"name", "fs"}
     object_type: ClassVar[str]
-    name: Optional[str] = None
-    fs: ClassVar[Optional[AbstractFileSystem]] = None
+    _path: Optional[str] = None
+    _fs: ClassVar[Optional[AbstractFileSystem]] = None
+
+    @classmethod
+    def _get_location(cls, path:str, fs: AbstractFileSystem = None, mlem_root:str=None, ensure_mlem_root: bool = True):
+        fullpath = os.path.abspath(os.path.join(mlem_root or "", path))
+        if fs is None:
+            fs, fullpath = get_fs(fullpath)
+        if ensure_mlem_root:
+            if mlem_root is None:
+                mlem_root = find_mlem_root(fullpath, fs)
+            else:
+                mlem_root = find_mlem_root(mlem_root, fs)
+        else:
+            mlem_root = None
+        return fs, fullpath, mlem_root
 
     def bind(self, name: str, fs: AbstractFileSystem):
-        self.name = name
-        self.fs = fs
+        self._path = name
+        self._fs = fs
         return self
 
     @classmethod
     def read(
         cls: Type[T],
         path: str,
-        fs: AbstractFileSystem,
+        fs: AbstractFileSystem = None,
+        mlem_root: str = None,
         *,
         follow_links: bool = True,
     ) -> T:
@@ -94,6 +109,7 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
+        fs, path, _ = cls._get_location(path, fs, mlem_root)
         with fs.open(path) as f:
             payload = safe_load(f)
         res = deserialize(payload, cls).bind(path, fs)
@@ -115,36 +131,30 @@ class MlemMeta(MlemObject):
     def get_value(self):
         return self
 
-    def dump(
-        self,
-        name: str,
-        fs: Union[str, AbstractFileSystem] = None,
-        link: bool = True,
-        mlem_root: Optional[str] = "",
-        check_extension: bool = True,
-        absolute: bool = False,  # pylint: disable=unused-argument
-    ):
-        fs, _ = resolve_fs(fs, name)
-        if mlem_root:
-            mlem_root = find_mlem_root(path=mlem_root, fs=fs)
+
+    def dump(self, path: str, fs: Union[str, AbstractFileSystem] = None, mlem_root: Optional[str] = None,
+             link: bool = True, check_extension: bool = True, absolute: bool = False):
+        """Dumps metafile and possible artifacts to path."""
+        fs, fullpath, mlem_root = self._get_location(path, fs, mlem_root, ensure_mlem_root=link)
         if link or mlem_root is None:
-            if check_extension and not name.endswith(MLEM_EXT):
-                raise ValueError(f"name={name} should end with {MLEM_EXT}")
-            path = os.path.join(mlem_root or "", name)
+            if check_extension and not path.endswith(MLEM_EXT):
+                raise ValueError(f"name={path} should end with {MLEM_EXT}")
+            path = os.path.join(mlem_root or "", path)
         else:
             path = mlem_dir_path(
-                name,
+                path,
                 fs=fs,
                 mlem_root=mlem_root,
                 obj_type=self.object_type,
             )
+        self._write_meta(fs, link, mlem_root, path)
+
+    def _write_meta(self, fs, link, mlem_root, path):
         fs.makedirs(os.path.dirname(path), exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
         if link:
             self.make_link_in_mlem_dir(mlem_root)
-        self.name = name
-        self.fs = fs
 
     def make_link(
         self,
@@ -211,12 +221,8 @@ class MlemMeta(MlemObject):
         new: MlemMeta = deserialize(
             serialize(self, MlemMeta), MlemMeta
         )  # easier than deep copy bc of possible attached objects
-        new.dump(
-            name,
-            link=link,
-            mlem_root=new.name if link else None,
-            check_extension=False,
-        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
+        new.dump(name, mlem_root=new.name if link else None, link=link,
+                 check_extension=False)  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
 
@@ -246,26 +252,19 @@ class MlemLink(MlemMeta):
         path = os.path.join(mlem_root, self.mlem_link)
         return path, fs
 
-    def dump(
-        self,
-        name: str,
-        fs: Union[str, AbstractFileSystem] = None,
-        link: bool = False,
-        mlem_root: Optional[str] = None,
-        check_extension: bool = True,
-        absolute: bool = False,
-    ):
+    def dump(self, path: str, fs: Union[str, AbstractFileSystem] = None, mlem_root: Optional[str] = None,
+             link: bool = True, check_extension: bool = True, absolute: bool = False):
         # TODO: use `fs` everywhere instead of `os`? https://github.com/iterative/mlem/issues/26
-        fs, _ = resolve_fs(fs, name)
+        fs, _ = resolve_fs(fs, path)
         if mlem_root:
             mlem_root = find_mlem_root(mlem_root, fs=fs)
         if link or mlem_root is None:
-            if check_extension and not name.endswith(MLEM_EXT):
-                raise ValueError(f"name={name} should ends with {MLEM_EXT}")
-            path = name
+            if check_extension and not path.endswith(MLEM_EXT):
+                raise ValueError(f"name={path} should ends with {MLEM_EXT}")
+            path = path
         else:
             path = mlem_dir_path(
-                name,
+                path,
                 fs=fs,
                 obj_type=self.link_type,
                 mlem_root=mlem_root,
@@ -291,7 +290,7 @@ class MlemLink(MlemMeta):
             fs.makedirs(parent_dir, exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
-        self.name = name
+        self.name = path
         self.fs = fs
 
 
@@ -299,31 +298,18 @@ class _ExternalMeta(ABC, MlemMeta):
     artifacts: Optional[Artifacts] = None
     requirements: Requirements
 
-    def dump(
-        self,
-        name: str,
-        fs: Union[str, AbstractFileSystem] = None,
-        link: bool = True,
-        mlem_root: Optional[str] = None,
-        check_extension: bool = False,
-        absolute: bool = False,
-    ):
-        self.fs, _ = resolve_fs(fs, name)
+    def dump(self, path: str, fs: Union[str, AbstractFileSystem] = None, mlem_root: Optional[str] = None,
+             link: bool = True, check_extension: bool = True, absolute: bool = False):
+        self.fs, _ = resolve_fs(fs, path)
         if mlem_root is not None:
             # check if name is relative here?
-            name = os.path.join(mlem_root, name)
-        if not name.endswith(MLEM_EXT):
-            name = os.path.join(name, META_FILE_NAME)
-        self.name = name
+            path = os.path.join(mlem_root, path)
+        if not path.endswith(MLEM_EXT):
+            path = os.path.join(path, META_FILE_NAME)
+        self.name = path
         self.artifacts = self.write_value(mlem_root or ".")
-        super().dump(
-            name=name,
-            fs=fs,
-            link=link,
-            mlem_root=mlem_root,
-            check_extension=check_extension,
-            absolute=absolute,
-        )
+        super().dump(path=path, fs=fs, mlem_root=mlem_root, link=link, check_extension=check_extension,
+                     absolute=absolute)
 
     @abstractmethod
     def write_value(self, mlem_root: str) -> Artifacts:
@@ -370,12 +356,8 @@ class _ExternalMeta(ABC, MlemMeta):
         for art in self.relative_artifacts:
             new.artifacts.append(art.download(new.art_dir))
 
-        super(_ExternalMeta, new).dump(
-            name,
-            link=link and mlem_root is not None,
-            mlem_root=mlem_root if link else None,
-            check_extension=False,
-        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
+        super(_ExternalMeta, new).dump(name, mlem_root=mlem_root if link else None, link=link and mlem_root is not None,
+                                       check_extension=False)  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
     @property
