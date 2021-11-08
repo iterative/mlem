@@ -1,5 +1,6 @@
 import os
 
+from botocore.exceptions import ParamValidationError
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
@@ -22,8 +23,12 @@ def find_mlem_root(
     if fs.isfile(_path) or not fs.exists(_path):
         _path = os.path.dirname(_path)
     while True:
-        if fs.exists(os.path.join(_path, MLEM_DIR)):
-            return _path
+        try:
+            if fs.exists(os.path.join(_path, MLEM_DIR)):
+                return _path
+        except ParamValidationError:
+            print(_path, MLEM_DIR)
+            raise
         if _path == os.path.dirname(_path):
             break
 
