@@ -22,8 +22,13 @@ def find_mlem_root(
     if fs.isfile(_path) or not fs.exists(_path):
         _path = os.path.dirname(_path)
     while True:
-        if fs.exists(os.path.join(_path, MLEM_DIR)):
-            return _path
+        try:
+            if fs.exists(os.path.join(_path, MLEM_DIR)):
+                return _path
+        except Exception as e:
+            raise ValueError(
+                f"{_path}. {MLEM_DIR}. {e.__class__} {e.args}"
+            ) from e
         if _path == os.path.dirname(_path):
             break
 
