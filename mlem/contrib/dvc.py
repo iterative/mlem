@@ -8,6 +8,8 @@ from fsspec.implementations.github import GithubFileSystem
 from mlem.core.artifacts import LocalArtifact, LocalStorage, Storage
 from mlem.core.meta_io import get_fs
 
+BATCH_SIZE = 10 ** 5
+
 
 class DVCStorage(LocalStorage):
     """For now this storage is user-managed dvc storage, which means user should
@@ -38,9 +40,11 @@ class DVCArtifact(LocalArtifact):
     uri: str
 
     def download(self, target_path: str) -> LocalArtifact:
-        from dvc.repo import Repo
-
-        Repo.get_url(self.uri, out=target_path)
+        with self.open() as fin, open(target_path, "wb") as fout:
+            batch = fin.read(BATCH_SIZE)
+            while batch:
+                fout.write(batch)
+                batch = fin.read(BATCH_SIZE)
         return LocalArtifact(uri=target_path)
 
     @contextlib.contextmanager
