@@ -438,7 +438,15 @@ class ModelMeta(_ExternalMeta):
 class DatasetMeta(_ExternalMeta):
     __transient_fields__ = {"dataset"}
     object_type: ClassVar = "dataset"
-    reader: Optional[DatasetReader] = None
+    reader_cache: Optional[Dict]
+    reader: Optional[DatasetReader]
+    reader, reader_raw, reader_cache = lazy_field(
+        DatasetReader,
+        "reader",
+        "reader_cache",
+        parse_as_type=Optional[DatasetReader],
+        default=None,
+    )
     dataset: ClassVar[Optional[Dataset]] = None
 
     @property

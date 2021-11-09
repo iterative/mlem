@@ -1,9 +1,9 @@
-from typing import Any
+from typing import Any, Dict, Optional
 
 import pytest
 from pydantic import BaseModel, ValidationError, parse_obj_as, validator
 
-from mlem.polydantic.lazy import lazy_field
+from mlem.polydantic.lazy import LazyModel, lazy_field
 
 
 class Payload(BaseModel):
@@ -60,3 +60,23 @@ def test_setting_value():
     obj.field.value = 2
     assert obj.field.value == 2
     assert obj.field_raw["value"] == 2
+
+
+class ModelWithOptional(LazyModel):
+    field_cache: Optional[Dict]
+    field, field_raw, field_cache = lazy_field(
+        Payload,
+        "field",
+        "field_cache",
+        parse_as_type=Optional[Payload],
+        default=None,
+    )
+
+
+def test_setting_optional_field():
+    obj = ModelWithOptional()
+    assert obj.field is None
+    obj.field = Payload(value=0)
+    assert obj.field.value == 1
+    obj.field_raw = {"value": 5}
+    assert obj.field.value == 6

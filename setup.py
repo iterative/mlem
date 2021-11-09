@@ -66,6 +66,7 @@ install_requires = [
     "appdirs",
     "python-daemon",
     "distro",
+    "gitpython",
 ]
 
 # storage
