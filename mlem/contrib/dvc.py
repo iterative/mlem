@@ -55,7 +55,9 @@ class DVCArtifact(LocalArtifact):
     uri: str
 
     def download(self, target_path: str) -> LocalArtifact:
-        with self.open() as fin, open(target_path, "wb") as fout:
+        with self.open() as fin, open(
+            os.path.join(target_path, os.path.basename(self.uri)), "wb"
+        ) as fout:
             batch = fin.read(BATCH_SIZE)
             while batch:
                 fout.write(batch)
@@ -65,7 +67,6 @@ class DVCArtifact(LocalArtifact):
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
         from dvc.api import open
-        from dvc.repo import Repo
 
         fs, path = get_fs(self.uri)
         # TODO: support other sources of dvc-tracked repos
@@ -82,7 +83,11 @@ class DVCArtifact(LocalArtifact):
         elif isinstance(fs, LocalFileSystem):
             if not os.path.exists(path):
                 root = find_dvc_repo_root(path)
-                Repo(root).pull(os.path.relpath(path, root))
+                # alternative caching impl
+                # Repo(root).pull(os.path.relpath(path, root))
+                with open(os.path.relpath(path, root), mode="rb") as f:
+                    yield f
+                    return
         with fs.open(path) as f:
             yield f
 
