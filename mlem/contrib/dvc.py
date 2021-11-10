@@ -80,8 +80,9 @@ class DVCArtifact(LocalArtifact):
                 yield f
                 return
         elif isinstance(fs, LocalFileSystem):
-            root = find_dvc_repo_root(path)
-            Repo(root).pull(os.path.relpath(path, root))
+            if not os.path.exists(path):
+                root = find_dvc_repo_root(path)
+                Repo(root).pull(os.path.relpath(path, root))
         with fs.open(path) as f:
             yield f
 
