@@ -168,7 +168,7 @@ class LocalStorage(FSSpecStorage):
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, "LocalArtifact"]]:
-        with super().open(os.path.join(self.uri, path)) as (io, _):
+        with super().open(path) as (io, _):
             yield io, LocalArtifact(uri=path)
 
 

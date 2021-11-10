@@ -18,17 +18,23 @@ from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
+MODEL_NAME = "decision_tree"
+
 
 def test_model_dump(mlem_root):
     X, y = load_iris(return_X_y=True)
     clf = DecisionTreeClassifier().fit(X, y)
     meta = ModelMeta.from_obj(clf, sample_data=X)
-    dir = os.path.join(mlem_root, "decision_tree")
+    dir = os.path.join(mlem_root, MODEL_NAME)
     meta.dump(dir, link=True)
     link_path = os.path.join(
-        mlem_root, MLEM_DIR, "model", "decision_tree" + MLEM_EXT
+        mlem_root, MLEM_DIR, "model", MODEL_NAME + MLEM_EXT
     )
     assert os.path.exists(link_path)
+    assert os.path.exists(os.path.join(dir, META_FILE_NAME))
+    assert os.path.exists(
+        os.path.join(mlem_root, MODEL_NAME, ART_DIR, "data.pkl")
+    )
     model = load(link_path, follow_links=True)
     model.predict(X)
 
