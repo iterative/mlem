@@ -4,7 +4,12 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
-from mlem.core.artifacts import FSSpecArtifact, FSSpecStorage, LocalStorage
+from mlem.core.artifacts import (
+    FSSpecArtifact,
+    FSSpecStorage,
+    LocalArtifact,
+    LocalStorage,
+)
 from tests.conftest import long, resource_path
 
 
@@ -53,3 +58,18 @@ def test_relative_storage_local():
     assert rel1 != local_storage
     assert isinstance(rel1, FSSpecStorage)
     assert rel1.uri == "s3://some_path"
+
+
+def test_local_storage_relative(tmpdir):
+    storage = LocalStorage(uri=str(tmpdir))
+    rstorage = storage.relative(LocalFileSystem(), "subdir")
+    with rstorage.open("file2") as (f, open_art):
+        f.write(b"1")
+    assert isinstance(open_art, LocalArtifact)
+    assert open_art.uri == "file2"
+    assert os.path.isfile(os.path.join(tmpdir, "subdir", open_art.uri))
+
+    upload_art = rstorage.upload(__file__, "file")
+    assert isinstance(upload_art, LocalArtifact)
+    assert upload_art.uri == "file"
+    assert os.path.isfile(os.path.join(tmpdir, "subdir", upload_art.uri))

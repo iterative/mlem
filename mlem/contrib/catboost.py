@@ -57,6 +57,9 @@ class CatBoostModelIO(ModelIO):
             return self.classifier_file_name
         return self.regressor_file_name
 
+    class Config:
+        use_enum_values = True
+
 
 class CatBoostModel(ModelType, ModelHook):
     """
