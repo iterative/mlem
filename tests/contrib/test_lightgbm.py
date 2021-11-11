@@ -147,7 +147,8 @@ def test_model__predict_not_dataset(model):
 
 
 def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
-    expected_requirements = {"lightgbm", "numpy"}
+    # pandas is not required, but if it is installed, it is imported by lightgbm
+    expected_requirements = {"lightgbm", "numpy", "scipy", "pandas"}
     assert set(model.get_requirements().modules) == expected_requirements
 
     artifacts = model.dump(LOCAL_STORAGE, tmpdir)

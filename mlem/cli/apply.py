@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 import click
 
@@ -25,13 +25,19 @@ from mlem.core.objects import ModelMeta
     help="Whether to create links for outputs in .mlem directory.",
 )
 def apply(
-    model: ModelMeta, output: str, method: str, args: Tuple[Any], link: bool
+    model: ModelMeta,
+    output: Optional[str],
+    method: str,
+    args: Tuple[Any],
+    link: bool,
 ):
     """Apply a model to supplied data."""
     from mlem.api import apply
 
     click.echo("applying")
-    apply(model, *args, method=method, output=output, link=link)
+    result = apply(model, *args, method=method, output=output, link=link)
+    if output is None:
+        click.echo(result)
 
 
 @mlem_command()

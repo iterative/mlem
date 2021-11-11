@@ -389,7 +389,9 @@ class ModelMeta(_ExternalMeta):
     def from_obj(cls, model: Any, sample_data: Any = None) -> "ModelMeta":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
         mt.model = model
-        return ModelMeta(model_type=mt, requirements=mt.get_requirements())
+        return ModelMeta(
+            model_type=mt, requirements=mt.get_requirements().expanded
+        )
 
     def write_value(self, mlem_root: str) -> Artifacts:
         if self.model_type.model is not None:
@@ -399,7 +401,7 @@ class ModelMeta(_ExternalMeta):
                 self.model_type.model,
             )
         else:
-            raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
+            raise NotImplementedError  # TODO: https://github.com/iterative/mlem/issues/37
             # self.get_artifacts().materialize(path)
         return artifacts
 
@@ -420,7 +422,15 @@ class ModelMeta(_ExternalMeta):
 class DatasetMeta(_ExternalMeta):
     __transient_fields__ = {"dataset"}
     object_type: ClassVar = "dataset"
-    reader: Optional[DatasetReader] = None
+    reader_cache: Optional[Dict]
+    reader: Optional[DatasetReader]
+    reader, reader_raw, reader_cache = lazy_field(
+        DatasetReader,
+        "reader",
+        "reader_cache",
+        parse_as_type=Optional[DatasetReader],
+        default=None,
+    )
     dataset: ClassVar[Optional[Dataset]] = None
 
     @property
@@ -433,7 +443,7 @@ class DatasetMeta(_ExternalMeta):
             data,
         )
         meta = DatasetMeta(
-            requirements=dataset.dataset_type.get_requirements()
+            requirements=dataset.dataset_type.get_requirements().expanded
         )
         meta.dataset = dataset
         return meta

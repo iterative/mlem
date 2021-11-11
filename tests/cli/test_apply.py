@@ -21,6 +21,18 @@ def test_apply(model_path, data_path):
         assert isinstance(predictions, ndarray)
 
 
+def test_apply_no_output(model_path, data_path):
+    runner = CliRunner()
+    result = runner.invoke(
+        apply,
+        [model_path, data_path, "-m", "predict", "--no-link"],
+    )
+    assert result.exit_code == 0, (result.output, result.exception)
+    applying = "applying\n"
+    assert result.output.startswith(applying)
+    assert len(result.output) > len(applying)
+
+
 def test_apply_for_multiple_datasets(model_path, data_path):
     runner = CliRunner()
     result = runner.invoke(

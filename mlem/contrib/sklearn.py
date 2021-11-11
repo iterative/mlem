@@ -66,4 +66,6 @@ class SklearnModel(ModelType, ModelHook):
             )  # FIXME: https://github.com/iterative/mlem/issues/34 # optimize methods reqs
 
         # some sklearn compatible model (either from library or user code) - fallback
-        return super().get_requirements()
+        return super().get_requirements() + InstallableRequirement.from_module(
+            sklearn
+        )

@@ -26,7 +26,8 @@ def mlem_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     if not config_file.exists():
         return {}
     conf = yaml.safe_load(config_file.read_text(encoding=encoding))
-    return {k.upper(): v for k, v in conf.items()}
+
+    return {k.upper(): v for k, v in conf.items()} if conf else {}
 
 
 class MlemConfig(BaseSettings):

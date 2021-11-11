@@ -1,12 +1,29 @@
 import contextlib
+import os.path
 from typing import IO, ClassVar, Iterator, Tuple
 from urllib.parse import unquote_plus
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.github import GithubFileSystem
+from fsspec.implementations.local import LocalFileSystem
 
 from mlem.core.artifacts import LocalArtifact, LocalStorage, Storage
 from mlem.core.meta_io import get_fs
+
+BATCH_SIZE = 10 ** 5
+
+
+def find_dvc_repo_root(path: str):
+    from dvc.exceptions import NotDvcRepoError
+
+    _path = path[:]
+    while True:
+        if os.path.isdir(os.path.join(_path, ".dvc")):
+            return _path
+        if _path == "/":
+            break
+        _path = os.path.dirname(_path)
+    raise NotDvcRepoError(f"Path {path} is not in dvc repo")
 
 
 class DVCStorage(LocalStorage):
@@ -38,9 +55,13 @@ class DVCArtifact(LocalArtifact):
     uri: str
 
     def download(self, target_path: str) -> LocalArtifact:
-        from dvc.repo import Repo
-
-        Repo.get_url(self.uri, out=target_path)
+        with self.open() as fin, open(
+            os.path.join(target_path, os.path.basename(self.uri)), "wb"
+        ) as fout:
+            batch = fin.read(BATCH_SIZE)
+            while batch:
+                fout.write(batch)
+                batch = fin.read(BATCH_SIZE)
         return LocalArtifact(uri=target_path)
 
     @contextlib.contextmanager
@@ -58,9 +79,17 @@ class DVCArtifact(LocalArtifact):
                 mode="rb",
             ) as f:
                 yield f
-        else:
-            with fs.open(path) as f:
-                yield f
+                return
+        elif isinstance(fs, LocalFileSystem):
+            if not os.path.exists(path):
+                root = find_dvc_repo_root(path)
+                # alternative caching impl
+                # Repo(root).pull(os.path.relpath(path, root))
+                with open(os.path.relpath(path, root), mode="rb") as f:
+                    yield f
+                    return
+        with fs.open(path) as f:
+            yield f
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "DVCArtifact":
         relative = super().relative(fs, path)

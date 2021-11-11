@@ -1,3 +1,4 @@
+import lightgbm as lgb
 import numpy as np
 import pytest
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -7,6 +8,7 @@ from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import ModelAnalyzer
+from mlem.core.requirements import UnixPackageRequirement
 from tests.conftest import check_model_type_common_interface
 
 
@@ -34,6 +36,12 @@ def regressor(inp_data, out_data):
     return lr
 
 
+@pytest.fixture
+def lgbm_model(inp_data, out_data):
+    lgbm_regressor = lgb.LGBMRegressor()
+    return lgbm_regressor.fit(inp_data, out_data)
+
+
 @pytest.mark.parametrize("model_fixture", ["classifier", "regressor"])
 def test_hook(model_fixture, inp_data, request):
     model = request.getfixturevalue(model_fixture)
@@ -48,6 +56,22 @@ def test_hook(model_fixture, inp_data, request):
             shape=(None,),
             dtype="int64" if model_fixture == "classifier" else "float64",
         ),
+    )
+
+
+def test_hook_lgb(lgbm_model, inp_data):
+    data_type = DatasetAnalyzer.analyze(inp_data)
+    model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
+
+    assert isinstance(model_type, SklearnModel)
+    check_model_type_common_interface(
+        model_type,
+        data_type,
+        NumpyNdarrayType(
+            shape=(None,),
+            dtype="float64",
+        ),
+        varkw="kwargs",
     )
 
 
@@ -95,6 +119,33 @@ def test_model_type__dump_load(tmpdir, model, inp_data, request):
         model.predict(inp_data), model_type.call_method("predict", inp_data)
     )
     assert set(model_type.get_requirements().modules) == expected_requirements
+
+
+def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
+    model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
+
+    expected_requirements = {"sklearn", "lightgbm", "pandas", "numpy", "scipy"}
+    reqs = model_type.get_requirements().expanded
+    assert set(reqs.modules) == expected_requirements
+    assert reqs.of_type(UnixPackageRequirement) == [
+        UnixPackageRequirement(package_name="libgomp1")
+    ]
+    artifacts = model_type.dump(LOCAL_STORAGE, tmpdir)
+    model_type.model = None
+
+    with pytest.raises(ValueError):
+        model_type.call_method("predict", inp_data)
+
+    model_type.load(artifacts)
+    np.testing.assert_array_almost_equal(
+        lgbm_model.predict(inp_data),
+        model_type.call_method("predict", inp_data),
+    )
+    reqs = model_type.get_requirements().expanded
+    assert set(reqs.modules) == expected_requirements
+    assert reqs.of_type(UnixPackageRequirement) == [
+        UnixPackageRequirement(package_name="libgomp1")
+    ]
 
 
 # Copyright 2019 Zyfra

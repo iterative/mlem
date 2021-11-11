@@ -66,6 +66,7 @@ install_requires = [
     "appdirs",
     "python-daemon",
     "distro",
+    "gitpython",
 ]
 
 # storage
@@ -84,7 +85,7 @@ lightgbm = ["lightgbm"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]
-sagemaker = ["boto3", "sagemaker"]
+sagemaker = ["boto3==1.19.12", "sagemaker"]
 
 all_libs = (
     dvc
@@ -110,7 +111,9 @@ tests = [
     # we use this to suppress some messages in tests, eg: foo/bar naming,
     # and, protected method calls in our tests
     "pylint-plugin-utils",
-    "s3fs",
+    "s3fs==2021.10.1",
+    "boto3==1.19.12",
+    "botocore==1.22.12",
     "adlfs",
     "gcsfs",
 ] + all_libs
