@@ -98,9 +98,10 @@ class FSSpecStorage(Storage):
     storage_options: Optional[Dict[str, str]] = {}
 
     def upload(self, local_path: str, target_path: str) -> FSSpecArtifact:
-        self.get_fs().upload(
-            local_path, os.path.join(self.base_path, target_path)
-        )
+        fs = self.get_fs()
+        path = os.path.join(self.base_path, target_path)
+        fs.makedirs(os.path.dirname(path), exist_ok=True)
+        fs.upload(local_path, path)
         return FSSpecArtifact(uri=self.create_uri(target_path))
 
     @contextlib.contextmanager
@@ -146,6 +147,10 @@ class LocalStorage(FSSpecStorage):
     type: ClassVar = "local"
     fs = LocalFileSystem()
 
+    @property
+    def base_path(self):
+        return self.uri
+
     def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
         if isinstance(fs, LocalFileSystem):
             return LocalStorage(uri=self.create_uri(path))
@@ -158,11 +163,12 @@ class LocalStorage(FSSpecStorage):
         return storage
 
     def upload(self, local_path: str, target_path: str) -> "LocalArtifact":
-        return LocalArtifact(uri=super().upload(local_path, target_path).uri)
+        super().upload(local_path, target_path)
+        return LocalArtifact(uri=target_path)
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, "LocalArtifact"]]:
-        with super().open(os.path.join(self.uri, path)) as (io, _):
+        with super().open(path) as (io, _):
             yield io, LocalArtifact(uri=path)
 
 

@@ -1,4 +1,5 @@
 import os.path
+from json import loads
 
 import pytest
 from fsspec.implementations.github import GithubFileSystem
@@ -118,7 +119,7 @@ def test_get_path_by_fs_path_github():
     )
     uri = get_path_by_fs_path(fs, "path")
     fs2, path = get_fs(uri)
-    assert fs2.to_json() == fs.to_json()
+    assert loads(fs2.to_json()) == loads(fs.to_json())
     assert path == "path"
 
 

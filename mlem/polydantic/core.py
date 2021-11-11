@@ -3,8 +3,10 @@ from typing import AbstractSet, ClassVar, Dict, Optional, Set, Type
 
 from pydantic import BaseModel
 
+from mlem.polydantic.lazy import LazyModel
 
-class PolyModel(BaseModel):
+
+class PolyModel(LazyModel):
     """Base class that enable polymorphism in pydantic models
 
     Attributes:
@@ -53,7 +55,7 @@ class PolyModel(BaseModel):
             result[self.__type_field__] = alias
         return result
 
-    @wraps(BaseModel._calculate_keys)
+    @wraps(BaseModel._calculate_keys)  # pylint: disable=protected-access
     def _calculate_keys(self, *args, **kwargs) -> Optional[AbstractSet[str]]:
         """Exclude transient stuff"""
         kwargs["exclude"] = (

@@ -18,6 +18,7 @@ from mlem.core.dataset_type import (
 )
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
+from mlem.utils.module import get_object_requirements
 
 
 class ModelIO(MlemObject):
@@ -255,7 +256,7 @@ class ModelType(ABC, MlemObject, WithRequirements):
                 for m in self.methods.values()
                 for r in m.get_requirements().__root__
             ]
-        )
+        ) + get_object_requirements(self.model)
 
 
 class ModelHook(Hook[ModelType], ABC):
@@ -264,7 +265,7 @@ class ModelHook(Hook[ModelType], ABC):
     def process(  # pylint: disable=arguments-differ # so what
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        pass
+        raise NotImplementedError
 
 
 class ModelAnalyzer(Analyzer[ModelType]):

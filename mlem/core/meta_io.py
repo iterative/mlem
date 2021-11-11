@@ -64,7 +64,7 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
     if isinstance(fs, GithubFileSystem):
         # here "rev" should be already url encoded
-        return f"{fs.protocol}://{fs.org}:{fs.repo}@{fs.root}/{path}"
+        return f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{path}"
     protocol = fs.protocol
     if isinstance(protocol, (list, tuple)):
         if any(path.startswith(p) for p in protocol):
