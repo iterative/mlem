@@ -135,7 +135,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
         )
 
 
-class LGBMLigbgopmHook(AddRequirementHook):
+class LGBMLibgompHook(AddRequirementHook):
     to_add = LGB_REQUIREMENT
 
     @classmethod

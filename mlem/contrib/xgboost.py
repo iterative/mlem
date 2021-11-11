@@ -176,7 +176,7 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
         )
 
 
-class XGBLigbgopmHook(AddRequirementHook):
+class XGBLibgopmHook(AddRequirementHook):
     to_add = XGB_REQUIREMENT
 
     @classmethod
