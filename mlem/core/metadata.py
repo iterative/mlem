@@ -10,6 +10,7 @@ from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
 from yaml import safe_load
 
+from mlem.core.errors import HookNotFound
 from mlem.core.meta_io import get_fs, get_meta_path, get_path_by_repo_path_rev
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.root import find_mlem_root
@@ -19,7 +20,7 @@ def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
     """Convert given object to appropriate MlemMeta subclass"""
     try:
         return DatasetMeta.from_data(obj)
-    except ValueError:  # TODO need separate analysis exception
+    except HookNotFound:
         return ModelMeta.from_obj(obj, sample_data=tmp_sample_data)
 
 

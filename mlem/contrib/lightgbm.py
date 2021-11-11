@@ -16,7 +16,9 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import (
+    AddRequirementHook,
     InstallableRequirement,
+    Requirement,
     Requirements,
     UnixPackageRequirement,
 )
@@ -130,4 +132,15 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
             super().get_requirements()
             + InstallableRequirement.from_module(mod=lgb)
             + LGB_REQUIREMENT
+        )
+
+
+class LGBMLigbgopmHook(AddRequirementHook):
+    to_add = LGB_REQUIREMENT
+
+    @classmethod
+    def is_object_valid(cls, obj: Requirement) -> bool:
+        return (
+            isinstance(obj, InstallableRequirement)
+            and obj.module == "lightgbm"
         )

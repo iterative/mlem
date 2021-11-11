@@ -230,13 +230,17 @@ def dataset_write_read_check(
 
 
 def check_model_type_common_interface(
-    model_type: ModelType, data_type: DatasetType, returns_type: DatasetType
+    model_type: ModelType,
+    data_type: DatasetType,
+    returns_type: DatasetType,
+    **kwargs,
 ):
     assert PREDICT_METHOD_NAME in model_type.methods
     assert model_type.methods[PREDICT_METHOD_NAME] == Signature(
         name=PREDICT_METHOD_NAME,
         args=[Argument(name=PREDICT_ARG_NAME, type_=data_type)],
         returns=returns_type,
+        **kwargs,
     )
 
 

@@ -46,3 +46,11 @@ class MlemObjectNotSavedError(ValueError, MlemError):
 
 class ObjectExistsError(ValueError, MlemError):
     """Thrown if we attempt to write object, but something already exists in the given path"""
+
+
+class HookNotFound(MlemError):
+    """Thrown if object does not have suitable hook"""
+
+
+class MultipleHooksFound(MlemError):
+    """Thrown if more than one hook found for object"""
