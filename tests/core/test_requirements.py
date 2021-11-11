@@ -45,7 +45,7 @@ def test_resolve_str_list_arg():
     req = ["dumb==0.4.1", "art==4.0"]
     actual_reqs = resolve_requirements(req)
     assert len(actual_reqs.installable) == 2
-    assert req == [r.to_str() for r in actual_reqs.installable]
+    assert sorted(req) == sorted([r.to_str() for r in actual_reqs.installable])
 
 
 def test_installable_requirement__from_module():
