@@ -15,15 +15,14 @@ def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
 
     print(cls.object_type.capitalize() + "s:")
     for meta in objects:
-        obj_name = meta.name
         if (
             isinstance(meta, MlemLink)
-            and obj_name != meta.mlem_link[: -len(MLEM_EXT)]
+            and meta.name != meta.mlem_link[: -len(MLEM_EXT)]
         ):
             link = f"-> {os.path.dirname(meta.mlem_link)}"
         else:
             link = ""
-        print("", "-", obj_name, *[link] if link else [])
+        print("", "-", meta.name, *[link] if link else [])
 
 
 TYPE_ALIASES = {
@@ -52,8 +51,6 @@ def ls(type_filter: str, repo: str, links: bool):
         ]
 
     objects = ls(repo, types, include_links=links)
-    # fs, path = get_fs(repo)
-    # mlem_root = find_mlem_root(path, fs)
     for cls, objs in objects.items():
         _print_objects_of_type(cls, objs)
     return {"type_filter": type_filter}

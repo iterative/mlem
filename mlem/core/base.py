@@ -13,6 +13,13 @@ def load_impl_ext(
     ...
 
 
+@overload
+def load_impl_ext(
+    abs_name: str, type_name: str, raise_on_missing: Literal[False] = ...
+) -> Optional[Type["MlemObject"]]:
+    ...
+
+
 def load_impl_ext(
     abs_name: str, type_name: str, raise_on_missing: bool = True
 ) -> Optional[Type["MlemObject"]]:

@@ -127,7 +127,6 @@ def load_meta(
     Returns:
         MlemMeta: Saved MlemMeta object
     """
-    # TODO: add mlem_root?
     if fs is None:
         if repo is not None:
 

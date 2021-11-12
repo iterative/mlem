@@ -135,6 +135,27 @@ def get(
     return meta.clone(out)
 
 
+def init(path: str = ".") -> None:
+    """Creates .mlem directory in `path`"""
+    path = os.path.join(path, MLEM_DIR)
+    fs, path = get_fs(path)
+    if fs.exists(path):
+        click.echo(f"{path} already exists, no need to run `mlem init` again")
+    else:
+        from mlem import analytics
+
+        if analytics.is_enabled():
+            click.echo(
+                "MLEM has been initialized.\n"
+                "MLEM has anonymous aggregate usage analytics enabled.\n"
+                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
+            )
+        fs.makedirs(path)
+        # some fs dont support creating empty dirs
+        with fs.open(os.path.join(path, CONFIG_FILE), "w"):
+            pass
+
+
 def link(
     source: Union[str, MlemMeta],
     repo: Optional[str] = None,
@@ -181,27 +202,6 @@ def link(
         external=external,
         absolute=absolute,
     )
-
-
-def init(path: str = ".") -> None:
-    """Creates .mlem directory in `path`"""
-    path = os.path.join(path, MLEM_DIR)
-    fs, path = get_fs(path)
-    if fs.exists(path):
-        click.echo(f"{path} already exists, no need to run `mlem init` again")
-    else:
-        from mlem import analytics
-
-        if analytics.is_enabled():
-            click.echo(
-                "MLEM has been initialized."
-                "MLEM has anonymous aggregate usage analytics enabled.\n"
-                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
-            )
-        fs.makedirs(path)
-        # some fs dont support creating empty dirs
-        with fs.open(os.path.join(path, CONFIG_FILE), "w"):
-            pass
 
 
 def pack(
