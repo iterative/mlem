@@ -62,28 +62,70 @@ class MlemMeta(MlemObject):
     __type_root__ = True
     abs_name: ClassVar[str] = "meta"
     __type_field__ = "object_type"
-    __transient_fields__ = {"name", "fs"}
+    __transient_fields__ = {"_path", "_fs", "_root"}
     object_type: ClassVar[str]
     _path: Optional[str] = None
+    _root: Optional[str] = None
     _fs: ClassVar[Optional[AbstractFileSystem]] = None
 
+    @property
+    def name(self):
+        return os.path.relpath(self._path, self._root)[: -len(MLEM_EXT)]
+
+    @property
+    def is_saved(self):
+        return self._path is not None
+
     @classmethod
-    def _get_location(cls, path:str, fs: AbstractFileSystem = None, mlem_root:str=None, ensure_mlem_root: bool = True):
-        fullpath = os.path.abspath(os.path.join(mlem_root or "", path))
+    def _make_meta_path(cls, fullpath: str):
+        if not fullpath.endswith(MLEM_EXT):
+            fullpath += MLEM_EXT
+        return fullpath
+
+    @classmethod
+    def _get_location(
+        cls,
+        path: str,
+        mlem_root: str,
+        fs: AbstractFileSystem,
+        external: bool,
+        ensure_mlem_root: bool,
+        create_meta_path: bool = True
+    ):
+        fullpath = os.path.join(mlem_root or "", path)
+        if create_meta_path:
+            fullpath = cls._make_meta_path(fullpath)
         if fs is None:
             fs, fullpath = get_fs(fullpath)
-        if ensure_mlem_root:
-            if mlem_root is None:
-                mlem_root = find_mlem_root(fullpath, fs)
-            else:
-                mlem_root = find_mlem_root(mlem_root, fs)
-        else:
-            mlem_root = None
-        return fs, fullpath, mlem_root
+        elif isinstance(fs, LocalFileSystem):
+            fullpath = os.path.abspath(fullpath)
 
-    def bind(self, name: str, fs: AbstractFileSystem):
-        self._path = name
+        # here we allow for mlem_root to be anywhere upper than fullpath
+        # but maybe we need to be more strict and check if mlem_root is actually has .mlem dir
+        mlem_root_ = find_mlem_root(fullpath, fs, raise_on_missing=False)
+        if ensure_mlem_root and mlem_root_ is None:
+            raise MlemRootNotFound(fullpath, fs)
+        if mlem_root is None and mlem_root_ is not None:
+            # we were fiven fullpath from the beginning
+            external = True
+        if mlem_root_ is None or external:
+            # orphan or external
+            return fs, fullpath, mlem_root_
+
+        internal_path = os.path.join(
+            mlem_root_,
+            MLEM_DIR,
+            cls.object_type,
+            os.path.relpath(fullpath, mlem_root_),
+        )
+        return fs, internal_path, mlem_root_
+
+    def bind(
+        self, path: str, fs: AbstractFileSystem, root: Optional[str] = None
+    ):
+        self._path = path
         self._fs = fs
+        self._root = root or find_mlem_root(path, fs, False)
         return self
 
     @classmethod
@@ -109,17 +151,15 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
-        fs, path, _ = cls._get_location(path, fs, mlem_root)
+        fs, path, root = cls._get_location(path, mlem_root, fs, True, False, False)
         with fs.open(path) as f:
             payload = safe_load(f)
-        res = deserialize(payload, cls).bind(path, fs)
+        res = deserialize(payload, cls).bind(path, fs, root)
         if follow_links and isinstance(res, MlemLink):
             return res.load_link()
         return res
 
-    def write_value(
-        self, mlem_root: str  # pylint: disable=unused-argument
-    ) -> Optional[Artifacts]:
+    def write_value(self) -> Optional[Artifacts]:
         return None
 
     def load_value(self):
@@ -131,73 +171,78 @@ class MlemMeta(MlemObject):
     def get_value(self):
         return self
 
+    def dump(
+        self,
+        path: str,
+        fs: Union[str, AbstractFileSystem] = None,
+        mlem_root: Optional[str] = None,
+        link: bool = ...,
+        external: bool = ...,
+    ):
+        """Dumps metafile and possible artifacts to path.
 
-    def dump(self, path: str, fs: Union[str, AbstractFileSystem] = None, mlem_root: Optional[str] = None,
-             link: bool = True, check_extension: bool = True, absolute: bool = False):
-        """Dumps metafile and possible artifacts to path."""
-        fs, fullpath, mlem_root = self._get_location(path, fs, mlem_root, ensure_mlem_root=link)
-        if link or mlem_root is None:
-            if check_extension and not path.endswith(MLEM_EXT):
-                raise ValueError(f"name={path} should end with {MLEM_EXT}")
-            path = os.path.join(mlem_root or "", path)
-        else:
-            path = mlem_dir_path(
-                path,
-                fs=fs,
-                mlem_root=mlem_root,
-                obj_type=self.object_type,
-            )
-        self._write_meta(fs, link, mlem_root, path)
+        Args:
+            path: name of the object. Relative to mlem_root, if it is provided.
 
-    def _write_meta(self, fs, link, mlem_root, path):
+            fs
+            mlem_root
+            link
+            external
+        """
+        fullpath, mlem_root, fs, link, external = self._normalize_dump_args(
+            path, mlem_root, fs, link, external
+        )
+        external = external and not fullpath.startswith(
+            os.path.join(mlem_root, MLEM_DIR)
+        )
+        self._write_meta(fullpath, mlem_root, fs, link and external)
+
+    def _write_meta(self, path, mlem_root, fs, link):
         fs.makedirs(os.path.dirname(path), exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
-        if link:
-            self.make_link_in_mlem_dir(mlem_root)
+        if link and mlem_root:
+            self.make_link(
+                os.path.join(mlem_root, MLEM_DIR, self.object_type, self.name),
+                fs,
+                mlem_root=mlem_root,
+            )
+
+    def _normalize_dump_args(self, path, mlem_root, fs, link, external):
+        if external is ...:
+            # TODO default from settings
+            external = False
+        # by default we make link only for external non-orphan objects
+        if link is ...:
+            link = external
+            ensure_mlem_root = False
+        else:
+            # if link manually set to True, there should be mlem repo
+            ensure_mlem_root = link
+        fs, fullpath, mlem_root = self._get_location(
+            path, mlem_root, fs, external, ensure_mlem_root
+        )
+        self.bind(fullpath, fs, mlem_root)
+        return fullpath, mlem_root, fs, link, external
 
     def make_link(
         self,
         path: str = None,
         fs: AbstractFileSystem = None,
-        raise_on_exist: bool = False,
         mlem_root: str = None,
     ) -> "MlemLink":
-        if self.name is None:
+        if not self.is_saved:
             raise MlemObjectNotSavedError(
                 "Cannot create link for not saved meta object"
             )
-        if path is not None:
-            mlem_root = mlem_root or find_mlem_root(path, fs, False) or ""
-            mlem_link = os.path.relpath(self.name, mlem_root)
-        else:
-            mlem_link = self.name
-        link = MlemLink(mlem_link=mlem_link, link_type=self.object_type)
-        if path is not None:
-            if raise_on_exist and os.path.exists(path):
-                raise ObjectExistsError(f"Object at {path} already exists")
-            link.dump(path, fs=fs, absolute=True)
-        return link
 
-    def make_link_in_mlem_dir(self, mlem_root: str = None) -> None:
-        if self.name is None:
-            raise MlemObjectNotSavedError(
-                "Cannot create link for not saved meta object"
-            )
-        path = mlem_dir_path(
-            os.path.dirname(self.name),
-            fs=self.fs,
-            obj_type=self.object_type,
-            mlem_root=mlem_root,
-        )
-        self.make_link(path=path, fs=self.fs, mlem_root=mlem_root)
+        link = MlemLink(mlem_link=self._path, link_type=self.object_type)
+        link.dump(path, fs, mlem_root)
+        return link
 
     @classmethod
     def subtype_mapping(cls) -> Dict[str, Type["MlemMeta"]]:
         return cls.__type_map__
-
-    # def get_artifacts(self) -> ArtifactCollection:
-    #     return Blobs({})
 
     def clone(
         self,
@@ -216,13 +261,18 @@ class MlemMeta(MlemObject):
            - link -> make a link to remote meta
         :return: New meta file
         """
+        raise NotImplementedError  # TODO
         if how != "hard":
             raise NotImplementedError()
         new: MlemMeta = deserialize(
             serialize(self, MlemMeta), MlemMeta
         )  # easier than deep copy bc of possible attached objects
-        new.dump(name, mlem_root=new.name if link else None, link=link,
-                 check_extension=False)  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
+        new.dump(
+            name,
+            mlem_root=new.name if link else None,
+            link=link,
+            check_extension=False,
+        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
 
@@ -238,10 +288,10 @@ class MlemLink(MlemMeta):
         )
 
     def parse_link(self) -> Tuple[str, AbstractFileSystem]:
-        if self.name is None:
-            raise ValueError("Link is not saved")
+        if not self.is_saved:
+            raise MlemObjectNotSavedError("Link is not saved")
         if not isinstance(self.mlem_link, str):
-            raise NotImplementedError()
+            raise NotImplementedError
         fs, path = get_fs(self.mlem_link)
         if not isinstance(fs, LocalFileSystem) or (
             isinstance(fs, LocalFileSystem) and os.path.isabs(self.mlem_link)
@@ -252,76 +302,115 @@ class MlemLink(MlemMeta):
         path = os.path.join(mlem_root, self.mlem_link)
         return path, fs
 
-    def dump(self, path: str, fs: Union[str, AbstractFileSystem] = None, mlem_root: Optional[str] = None,
-             link: bool = True, check_extension: bool = True, absolute: bool = False):
-        # TODO: use `fs` everywhere instead of `os`? https://github.com/iterative/mlem/issues/26
-        fs, _ = resolve_fs(fs, path)
-        if mlem_root:
-            mlem_root = find_mlem_root(mlem_root, fs=fs)
-        if link or mlem_root is None:
-            if check_extension and not path.endswith(MLEM_EXT):
-                raise ValueError(f"name={path} should ends with {MLEM_EXT}")
-            path = path
-        else:
-            path = mlem_dir_path(
-                path,
-                fs=fs,
-                obj_type=self.link_type,
-                mlem_root=mlem_root,
-            )
-        # TODO: maybe this should be done on serialization step?
-        # https://github.com/iterative/mlem/issues/48
-        if not absolute:
-            try:
-                mlem_root_for_path = find_mlem_root(path)
-            except MlemRootNotFound as exc:
-                raise MlemError(
-                    "You can't create relative links in folders outside of mlem root"
-                ) from exc
-            else:
-                if os.path.abspath(mlem_root_for_path) == os.path.abspath(
-                    find_mlem_root(self.mlem_link)
-                ):
-                    self.mlem_link = os.path.relpath(
-                        self.mlem_link, start=mlem_root_for_path
-                    )
-        parent_dir = os.path.dirname(path)
-        if parent_dir:
-            fs.makedirs(parent_dir, exist_ok=True)
-        with fs.open(path, "w") as f:
-            safe_dump(serialize(self), f)
-        self.name = path
-        self.fs = fs
+    def dump(
+        self,
+        path: str,
+        fs: Union[str, AbstractFileSystem] = None,
+        mlem_root: Optional[str] = None,
+        link: bool = ...,
+        external: bool = ...,
+    ):
+        # for now, links should always be saved via fullpath (as if external=True), even if they are in mlem dir
+        # links also do not create links to them in index
+        # we can change it in the future
+        fs, fullpath, mlem_root = self._get_location(
+            path, mlem_root, fs, True, False
+        )
+        self.bind(fullpath, fs, mlem_root)
+        self._write_meta(fullpath, mlem_root, fs, link=False)
+
+    # TODO remove?
+    # def dump(
+    #     self,
+    #     path: str,
+    #     fs: Union[str, AbstractFileSystem] = None,
+    #     mlem_root: Optional[str] = None,
+    #     link: bool = True,
+    #     check_extension: bool = True,
+    #     absolute: bool = False,
+    # ):
+    #     # TODO: use `fs` everywhere instead of `os`? https://github.com/iterative/mlem/issues/26
+    #     fs, _ = resolve_fs(fs, path)
+    #     if mlem_root:
+    #         mlem_root = find_mlem_root(mlem_root, fs=fs)
+    #     if link or mlem_root is None:
+    #         if check_extension and not path.endswith(MLEM_EXT):
+    #             raise ValueError(f"name={path} should ends with {MLEM_EXT}")
+    #         path = path
+    #     else:
+    #         path = mlem_dir_path(
+    #             path,
+    #             fs=fs,
+    #             obj_type=self.link_type,
+    #             mlem_root=mlem_root,
+    #         )
+    #     # TODO: maybe this should be done on serialization step?
+    #     # https://github.com/iterative/mlem/issues/48
+    #     if not absolute:
+    #         try:
+    #             mlem_root_for_path = find_mlem_root(path)
+    #         except MlemRootNotFound as exc:
+    #             raise MlemError(
+    #                 "You can't create relative links in folders outside of mlem root"
+    #             ) from exc
+    #         else:
+    #             if os.path.abspath(mlem_root_for_path) == os.path.abspath(
+    #                 find_mlem_root(self.mlem_link)
+    #             ):
+    #                 self.mlem_link = os.path.relpath(
+    #                     self.mlem_link, start=mlem_root_for_path
+    #                 )
+    #     parent_dir = os.path.dirname(path)
+    #     if parent_dir:
+    #         fs.makedirs(parent_dir, exist_ok=True)
+    #     with fs.open(path, "w") as f:
+    #         safe_dump(serialize(self), f)
+    #     self.name = path
+    #     self.fs = fs
 
 
-class _ExternalMeta(ABC, MlemMeta):
+class _WithArtifacts(ABC, MlemMeta):
     artifacts: Optional[Artifacts] = None
     requirements: Requirements
 
-    def dump(self, path: str, fs: Union[str, AbstractFileSystem] = None, mlem_root: Optional[str] = None,
-             link: bool = True, check_extension: bool = True, absolute: bool = False):
-        self.fs, _ = resolve_fs(fs, path)
-        if mlem_root is not None:
-            # check if name is relative here?
-            path = os.path.join(mlem_root, path)
-        if not path.endswith(MLEM_EXT):
-            path = os.path.join(path, META_FILE_NAME)
-        self.name = path
-        self.artifacts = self.write_value(mlem_root or ".")
-        super().dump(path=path, fs=fs, mlem_root=mlem_root, link=link, check_extension=check_extension,
-                     absolute=absolute)
+    @classmethod
+    def _make_meta_path(cls, fullpath: str):
+        if not fullpath.endswith(META_FILE_NAME):
+            fullpath = os.path.join(fullpath, META_FILE_NAME)
+        return fullpath
+
+    @property
+    def name(self):
+        return os.path.dirname(os.path.relpath(self._path, self._root))
+
+    def dump(
+        self,
+        path: str,
+        fs: Union[str, AbstractFileSystem] = None,
+        mlem_root: Optional[str] = None,
+        link: bool = ...,
+        external: bool = ...,
+    ):
+        fullpath, mlem_root, fs, link, external = self._normalize_dump_args(
+            path, mlem_root, fs, link, external
+        )
+        self.artifacts = self.write_value()
+        external = external and not fullpath.startswith(
+            os.path.join(mlem_root, MLEM_DIR)
+        )
+        self._write_meta(fullpath, mlem_root, fs, link and external)
 
     @abstractmethod
-    def write_value(self, mlem_root: str) -> Artifacts:
+    def write_value(self) -> Artifacts:
         raise NotImplementedError
 
     @property
     def art_dir(self):
         return os.path.join(os.path.dirname(self.name), ART_DIR)
 
-    def ensure_saved(self):
-        if self.fs is None:
-            raise ValueError(f"Can't load {self}: it's not saved")
+    # def ensure_saved(self):
+    #     if self.fs is None:
+    #         raise ValueError(f"Can't load {self}: it's not saved")
 
     def clone(
         self, name: str, how: str = "hard", root: str = ".", link: bool = True
@@ -337,14 +426,15 @@ class _ExternalMeta(ABC, MlemMeta):
         :param link: whether to make link to it in repo
         :return: New meta file
         """
+        raise NotImplementedError  # TODO
         if how != "hard":
             # TODO: https://github.com/iterative/mlem/issues/37
             raise NotImplementedError()
         if self.name is None:
             raise ValueError("Cannot clone not saved object")
         mlem_root = find_mlem_root(root, raise_on_missing=False)
-        new: _ExternalMeta = deserialize(
-            serialize(self, MlemMeta), _ExternalMeta
+        new: _WithArtifacts = deserialize(
+            serialize(self, MlemMeta), _WithArtifacts
         )  # easier than deep copy bc of possible attached objects
         if not name.endswith(MLEM_EXT):
             name = os.path.join(name, META_FILE_NAME)
@@ -356,28 +446,32 @@ class _ExternalMeta(ABC, MlemMeta):
         for art in self.relative_artifacts:
             new.artifacts.append(art.download(new.art_dir))
 
-        super(_ExternalMeta, new).dump(name, mlem_root=mlem_root if link else None, link=link and mlem_root is not None,
-                                       check_extension=False)  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
+        super(_WithArtifacts, new).dump(
+            name,
+            mlem_root=mlem_root if link else None,
+            link=link and mlem_root is not None,
+            check_extension=False,
+        )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
     @property
     def dirname(self):
-        return os.path.dirname(self.name)
+        return os.path.dirname(self._path)
 
     @property
     def relative_artifacts(self) -> Artifacts:
         return [
-            a.relative(self.fs, self.dirname) for a in self.artifacts or []
+            a.relative(self._fs, self.dirname) for a in self.artifacts or []
         ]
 
     @property
     def storage(self):
-        if not self.fs or isinstance(self.fs, LocalFileSystem):
-            return CONFIG.default_storage.relative(self.fs, self.dirname)
-        return FSSpecStorage.from_fs_path(self.fs, self.dirname)
+        if not self._fs or isinstance(self._fs, LocalFileSystem):
+            return CONFIG.default_storage.relative(self._fs, self.dirname)
+        return FSSpecStorage.from_fs_path(self._fs, self.dirname)
 
 
-class ModelMeta(_ExternalMeta):
+class ModelMeta(_WithArtifacts):
     object_type: ClassVar = "model"
     model_type_cache: Dict
     model_type: ModelType
@@ -393,7 +487,7 @@ class ModelMeta(_ExternalMeta):
             model_type=mt, requirements=mt.get_requirements().expanded
         )
 
-    def write_value(self, mlem_root: str) -> Artifacts:
+    def write_value(self) -> Artifacts:
         if self.model_type.model is not None:
             artifacts = self.model_type.io.dump(
                 self.storage,
@@ -411,15 +505,15 @@ class ModelMeta(_ExternalMeta):
     def get_value(self):
         return self.model_type.model
 
-    def __getattr__(self, item):
-        if item not in self.model_type.methods:
-            raise AttributeError(
-                f"{self.model_type.__class__} does not have {item} method"
-            )
-        return partial(self.model_type.call_method, item)
+    # def __getattr__(self, item):
+    #     if item not in self.model_type.methods:
+    #         raise AttributeError(
+    #             f"{self.model_type.__class__} does not have {item} method"
+    #         )
+    #     return partial(self.model_type.call_method, item)
 
 
-class DatasetMeta(_ExternalMeta):
+class DatasetMeta(_WithArtifacts):
     __transient_fields__ = {"dataset"}
     object_type: ClassVar = "dataset"
     reader_cache: Optional[Dict]
@@ -448,7 +542,7 @@ class DatasetMeta(_ExternalMeta):
         meta.dataset = dataset
         return meta
 
-    def write_value(self, mlem_root: str) -> Artifacts:
+    def write_value(self) -> Artifacts:
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
                 self.dataset,
@@ -463,14 +557,9 @@ class DatasetMeta(_ExternalMeta):
 
     def load_value(self):
         self.dataset = self.reader.read(self.relative_artifacts)
-        # with self.localize(self.art_dir) as (fs, path):
-        #     self.dataset = self.reader.read(fs, path)
 
     def get_value(self):
         return self.data
-
-    # def get_artifacts(self) -> ArtifactCollection:
-    #     return blobs_from_path(self.art_dir, self.fs)
 
 
 class TargetEnvMeta(MlemMeta):
@@ -484,14 +573,14 @@ class TargetEnvMeta(MlemMeta):
     @abstractmethod
     def deploy(self, meta: "ModelMeta", **kwargs) -> "Deployment":
         """"""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def update(
         self, meta: "ModelMeta", previous: "Deployment", **kwargs
     ) -> "Deployment":
         """"""
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 @dataclass
@@ -504,11 +593,11 @@ class DeployMeta(MlemMeta):
 
     @property  # TODO cached
     def env(self):
-        return TargetEnvMeta.read(self.env_path, self.fs)
+        return TargetEnvMeta.read(self.env_path, self._fs)
 
     @property  # TODO cached
     def model(self):
-        return ModelMeta.read(self.model_path, self.fs)
+        return ModelMeta.read(self.model_path, self._fs)
 
     @classmethod
     def find(

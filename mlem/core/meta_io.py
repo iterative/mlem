@@ -112,9 +112,9 @@ def deserialize(obj, as_class: Type[T]) -> T:
     return parse_obj_as(as_class, obj)
 
 
-def is_mlem_dir(uri: str, fs: AbstractFileSystem):
-    """Check if given dir contains save MLEM model or dataset"""
-    return fs.isdir(uri) and fs.exists(os.path.join(uri, META_FILE_NAME))
+# def is_mlem_object_dir(uri: str, fs: AbstractFileSystem):
+#     """Check if given dir contains save MLEM model or dataset"""
+#     return fs.isdir(uri) and fs.exists(os.path.join(uri, META_FILE_NAME))
 
 
 def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
@@ -122,10 +122,13 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     if it points to a folder with dumped object
     """
     if os.path.basename(uri) == META_FILE_NAME and fs.isfile(uri):
+        # .../<META_FILE_NAME>
         return uri
-    if is_mlem_dir(uri, fs):
+    if fs.isdir(uri) and fs.isfile(os.path.join(uri, META_FILE_NAME)):
+        # .../path and .../path/<META_FILE_NAME> exists
         return os.path.join(uri, META_FILE_NAME)
     if MLEM_DIR in uri and fs.isfile(uri):
+        # .../<MLEM_DIR>/.../file
         return uri
     if fs.exists(uri):
         raise Exception(

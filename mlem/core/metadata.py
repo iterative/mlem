@@ -134,15 +134,11 @@ def load_meta(
         else:
             path = new_path
     path = find_meta_path(path, fs=fs)
-    with fs.open(path, mode="r") as f:
-        res = f.read()  # FIXME: double reading
-    object_type = safe_load(res)["object_type"]
-    cls = MlemMeta.subtype_mapping()[object_type]
-    meta = cls.read(path, fs=fs, follow_links=follow_links)
+    meta = MlemMeta.read(path, fs=fs, follow_links=follow_links)
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
-        raise ValueError(f"Wrong type of meta loaded, {meta} is not {cls}")
+        raise ValueError(f"Wrong type of meta loaded, {meta} is not {force_type}")
     return meta  # type: ignore[return-value]
 
 

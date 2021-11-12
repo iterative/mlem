@@ -14,9 +14,9 @@ LOCAL_LS_EXPECTED_RESULT = """Models:
 
 
 @pytest.mark.parametrize("obj_type", [None, "all", "model"])
-def test_ls(mlem_root, obj_type):
+def test_ls(filled_mlem_root, obj_type):
     runner = CliRunner()
-    os.chdir(mlem_root)
+    os.chdir(filled_mlem_root)
     result = runner.invoke(
         ls,
         [obj_type] if obj_type else [],

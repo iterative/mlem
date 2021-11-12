@@ -60,8 +60,8 @@ def test_link_in_mlem_dir(model_path_mlem_root):
     assert isinstance(model, ModelMeta)
 
 
-def test_ls_local(mlem_root):
-    objects = ls(mlem_root)
+def test_ls_local(filled_mlem_root):
+    objects = ls(filled_mlem_root)
     assert len(objects) == 1
     assert ModelMeta in objects
     models = objects[ModelMeta]
@@ -72,7 +72,7 @@ def test_ls_local(mlem_root):
 
     assert isinstance(model, ModelMeta)
     assert isinstance(lnk, MlemLink)
-    assert os.path.join(mlem_root, lnk.mlem_link) == model.name
+    assert os.path.join(filled_mlem_root, lnk.mlem_link) == model.name
 
 
 @long
