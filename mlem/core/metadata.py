@@ -119,6 +119,7 @@ def load_meta(
     Returns:
         MlemMeta: Saved MlemMeta object
     """
+    # TODO: add mlem_root?
     if fs is None:
         if repo is not None:
             path, fs_kwargs = get_path_by_repo_path_rev(repo, path, rev)

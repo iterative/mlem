@@ -70,6 +70,7 @@ class MlemMeta(MlemObject):
 
     @property
     def name(self):
+        """Name of the object in the repo"""
         return os.path.relpath(self._path, self._root)[: -len(MLEM_EXT)]
 
     @property
@@ -78,6 +79,7 @@ class MlemMeta(MlemObject):
 
     @classmethod
     def _make_meta_path(cls, fullpath: str):
+        """Augment path to point to metafile, if it is not"""
         if not fullpath.endswith(MLEM_EXT):
             fullpath += MLEM_EXT
         return fullpath
@@ -92,6 +94,7 @@ class MlemMeta(MlemObject):
         ensure_mlem_root: bool,
         create_meta_path: bool = True
     ):
+        """Extract fs, path and mlem_root"""
         fullpath = os.path.join(mlem_root or "", path)
         if create_meta_path:
             fullpath = cls._make_meta_path(fullpath)
@@ -189,7 +192,7 @@ class MlemMeta(MlemObject):
             link
             external
         """
-        fullpath, mlem_root, fs, link, external = self._normalize_dump_args(
+        fullpath, mlem_root, fs, link, external = self._parse_dump_args(
             path, mlem_root, fs, link, external
         )
         external = external and not fullpath.startswith(
@@ -197,7 +200,8 @@ class MlemMeta(MlemObject):
         )
         self._write_meta(fullpath, mlem_root, fs, link and external)
 
-    def _write_meta(self, path, mlem_root, fs, link):
+    def _write_meta(self, path:str, mlem_root:Optional[str], fs:AbstractFileSystem, link:bool):
+        """Write metadata to path in fs and possibly create link in mlem_root"""
         fs.makedirs(os.path.dirname(path), exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
@@ -208,7 +212,8 @@ class MlemMeta(MlemObject):
                 mlem_root=mlem_root,
             )
 
-    def _normalize_dump_args(self, path, mlem_root, fs, link, external):
+    def _parse_dump_args(self, path, mlem_root, fs, link, external):
+        """Parse arguments for .dump and bind meta"""
         if external is ...:
             # TODO default from settings
             external = False
@@ -375,6 +380,7 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @classmethod
     def _make_meta_path(cls, fullpath: str):
+        """Augment fullpath to point to metafile, if it is not"""
         if not fullpath.endswith(META_FILE_NAME):
             fullpath = os.path.join(fullpath, META_FILE_NAME)
         return fullpath
@@ -391,7 +397,7 @@ class _WithArtifacts(ABC, MlemMeta):
         link: bool = ...,
         external: bool = ...,
     ):
-        fullpath, mlem_root, fs, link, external = self._normalize_dump_args(
+        fullpath, mlem_root, fs, link, external = self._parse_dump_args(
             path, mlem_root, fs, link, external
         )
         self.artifacts = self.write_value()
