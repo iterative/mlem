@@ -1,15 +1,37 @@
 import os
+from typing import Optional, overload
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from typing_extensions import Literal
 
 from mlem.constants import MLEM_DIR
 from mlem.core.errors import MlemRootNotFound
 
 
+@overload
 def find_mlem_root(
-    path: str = ".", fs: AbstractFileSystem = None, raise_on_missing=True
-):
+    path: str = ".",
+    fs: AbstractFileSystem = None,
+    raise_on_missing: Literal[True] = ...,
+) -> str:
+    ...
+
+
+@overload
+def find_mlem_root(
+    path: str = ".",
+    fs: AbstractFileSystem = None,
+    raise_on_missing: Literal[False] = ...,
+) -> Optional[str]:
+    ...
+
+
+def find_mlem_root(
+    path: str = ".",
+    fs: AbstractFileSystem = None,
+    raise_on_missing: bool = True,
+) -> Optional[str]:
     """Search for mlem root folder, starting from the given path
     and up the directory tree.
     Raises an Exception if folder is not found.

@@ -112,6 +112,7 @@ def test_model_loading_from_github(path, current_test_branch):
     model.predict(train)
 
 
+@long
 @need_test_repo_auth
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {

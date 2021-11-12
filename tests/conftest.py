@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from git import GitCommandError, Repo
-from requests import HTTPError
+from requests import ConnectionError, HTTPError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
@@ -56,7 +56,7 @@ def _check_github_test_repo_auth():
     try:
         get_fs(MLEM_TEST_REPO)
         return True
-    except HTTPError:
+    except (HTTPError, ConnectionError):
         return False
 
 

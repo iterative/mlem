@@ -2,13 +2,13 @@
 Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
+import os
 from typing import Any, Optional, Type, TypeVar, Union, overload
 from urllib.parse import quote_plus
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
-from yaml import safe_load
 
 from mlem.core.errors import HookNotFound
 from mlem.core.meta_io import get_fs, get_meta_path, get_path_by_repo_path_rev
@@ -60,6 +60,7 @@ def load(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    mlem_root: str = None,
     follow_links: bool = True,
 ) -> Any:
     """Load python object saved by MLEM
@@ -74,7 +75,12 @@ def load(
         Any: Python object saved by MLEM
     """
     meta = load_meta(
-        path, repo=repo, rev=rev, follow_links=follow_links, load_value=True
+        path,
+        repo=repo,
+        rev=rev,
+        mlem_root=mlem_root,
+        follow_links=follow_links,
+        load_value=True,
     )
     return meta.get_value()
 
@@ -87,6 +93,7 @@ def load_meta(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    mlem_root: str = None,
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
@@ -100,6 +107,7 @@ def load_meta(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    mlem_root: str = None,
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
@@ -122,7 +130,10 @@ def load_meta(
     # TODO: add mlem_root?
     if fs is None:
         if repo is not None:
-            path, fs_kwargs = get_path_by_repo_path_rev(repo, path, rev)
+
+            path, fs_kwargs = get_path_by_repo_path_rev(
+                repo, os.path.join(mlem_root or "", path), rev
+            )
         else:
             fs_kwargs = {}
         fs, new_path = get_fs(path, **fs_kwargs)
@@ -134,12 +145,18 @@ def load_meta(
             fs, path = get_fs(path, sha=quote_plus(rev))
         else:
             path = new_path
+    elif repo is not None or rev is not None:
+        raise ValueError("Cannot use both fs and repo/rev")
     path = find_meta_path(path, fs=fs)
-    meta = MlemMeta.read(path, fs=fs, follow_links=follow_links)
+    meta = MlemMeta.read(
+        path, fs=fs, mlem_root=mlem_root, follow_links=follow_links
+    )
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
-        raise ValueError(f"Wrong type of meta loaded, {meta} is not {force_type}")
+        raise ValueError(
+            f"Wrong type of meta loaded, {meta} is not {force_type}"
+        )
     return meta  # type: ignore[return-value]
 
 

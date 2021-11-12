@@ -37,7 +37,7 @@ def test_apply(m, d):
 def test_link_as_separate_file(model_path_mlem_root):
     model_path, mlem_root = model_path_mlem_root
     link_path = os.path.join(mlem_root, "latest.mlem.yaml")
-    link(model_path, target=link_path, mlem_root=None)
+    link(model_path, target=link_path, external=True)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
     assert isinstance(link_object, MlemLink)
@@ -48,7 +48,12 @@ def test_link_as_separate_file(model_path_mlem_root):
 def test_link_in_mlem_dir(model_path_mlem_root):
     model_path, mlem_root = model_path_mlem_root
     link_name = "latest"
-    link_obj = link(model_path, target=link_name, mlem_root=mlem_root)
+    link_obj = link(
+        model_path,
+        target=link_name,
+        target_mlem_root=mlem_root,
+        external=False,
+    )
     assert isinstance(link_obj, MlemLink)
     link_dumped_to = os.path.join(
         mlem_root, MLEM_DIR, "model", link_name + MLEM_EXT
@@ -72,7 +77,10 @@ def test_ls_local(filled_mlem_root):
 
     assert isinstance(model, ModelMeta)
     assert isinstance(lnk, MlemLink)
-    assert os.path.join(filled_mlem_root, lnk.mlem_link) == model.name
+    assert (
+        os.path.join(filled_mlem_root, lnk.mlem_link)
+        == model._path  # pylint: disable=protected-access
+    )
 
 
 @long

@@ -3,14 +3,13 @@ MLEM's Python API
 """
 import os
 from collections import defaultdict
-from inspect import isabstract
 from typing import Any, Dict, List, Optional, Sequence, Type, Union
 
 import click
 from pydantic import parse_obj_as
 
 from mlem.config import CONFIG_FILE
-from mlem.core.errors import InvalidArgumentError
+from mlem.core.errors import InvalidArgumentError, MlemObjectNotSavedError
 from mlem.core.meta_io import (
     META_FILE_NAME,
     MLEM_DIR,
@@ -136,35 +135,15 @@ def get(
     return meta.clone(out)
 
 
-def init(path: str = ".") -> None:
-    """Creates .mlem directory in `path`"""
-    path = os.path.join(path, MLEM_DIR)
-    fs, path = get_fs(path)
-    if fs.exists(path):
-        click.echo(f"{path} already exists, no need to run `mlem init` again")
-    else:
-        from mlem import analytics
-
-        if analytics.is_enabled():
-            click.echo(
-                "MLEM has been initialized."
-                "MLEM has anonymous aggregate usage analytics enabled.\n"
-                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
-            )
-        fs.makedirs(path)
-        # some fs dont support creating empty dirs
-        with fs.open(os.path.join(path, CONFIG_FILE), "w"):
-            pass
-
-
 def link(
     source: Union[str, MlemMeta],
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    source_mlem_root: Optional[str] = None,
     target: Optional[str] = None,
-    mlem_root: Optional[str] = ".",
+    target_mlem_root: [str] = None,
+    external: Optional[bool] = None,
     follow_links: bool = True,
-    check_extension: bool = True,
     absolute: bool = False,
 ) -> MlemLink:
     """Creates MlemLink for an `source` object and dumps it if `target` is provided
@@ -184,27 +163,45 @@ def link(
     Returns:
         MlemLink: Link object to the `source`.
     """
-    # TODO: https://github.com/iterative/mlem/issues/12
-    # right now this only works when source and target are on local FS
-    # (we don't even throw an NotImplementedError yet)
-    # need to support other cases, like `source="github://..."`
-    if repo is not None or rev is not None:
-        raise NotImplementedError()
     if isinstance(source, MlemMeta):
-        if source.name is None:
-            raise ValueError("Cannot link not saved meta object")
+        if not source.is_saved:
+            raise MlemObjectNotSavedError("Cannot link not saved meta object")
     else:
-        source = load_meta(source, follow_links=follow_links)
-
-    link = source.make_link()
-    if target is not None:
-        link.dump(
-            target,
-            mlem_root=mlem_root,
-            check_extension=check_extension,
-            absolute=absolute,
+        source = load_meta(
+            source,
+            repo=repo,
+            rev=rev,
+            mlem_root=source_mlem_root,
+            follow_links=follow_links,
         )
-    return link
+
+    return source.make_link(
+        target,
+        mlem_root=target_mlem_root,
+        external=external,
+        absolute=absolute,
+    )
+
+
+def init(path: str = ".") -> None:
+    """Creates .mlem directory in `path`"""
+    path = os.path.join(path, MLEM_DIR)
+    fs, path = get_fs(path)
+    if fs.exists(path):
+        click.echo(f"{path} already exists, no need to run `mlem init` again")
+    else:
+        from mlem import analytics
+
+        if analytics.is_enabled():
+            click.echo(
+                "MLEM has been initialized."
+                "MLEM has anonymous aggregate usage analytics enabled.\n"
+                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
+            )
+        fs.makedirs(path)
+        # some fs dont support creating empty dirs
+        with fs.open(os.path.join(path, CONFIG_FILE), "w"):
+            pass
 
 
 def pack(
@@ -259,11 +256,7 @@ def ls(
     include_links: bool = True,
 ) -> Dict[Type[MlemMeta], List[MlemMeta]]:
     if type_filter is None:
-        type_filter = [
-            cls
-            for cls in MlemMeta.__type_map__.values()
-            if not isabstract(cls)
-        ]
+        type_filter = list(MlemMeta.non_abstract_subtypes().values())
     if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
         type_filter = [type_filter]
     fs, path = get_fs(repo)

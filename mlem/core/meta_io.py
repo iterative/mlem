@@ -122,6 +122,9 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     if fs.isdir(uri) and fs.isfile(os.path.join(uri, META_FILE_NAME)):
         # .../path and .../path/<META_FILE_NAME> exists
         return os.path.join(uri, META_FILE_NAME)
+    if fs.isfile(uri + MLEM_EXT):
+        # .../name without <MLEM_EXT>
+        return uri + MLEM_EXT
     if MLEM_DIR in uri and fs.isfile(uri):
         # .../<MLEM_DIR>/.../file
         return uri

@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 from sklearn.datasets import load_iris
-from sklearn.tree import DecisionTreeClassifier
 
+from mlem.core.artifacts import LocalArtifact
 from mlem.core.meta_io import (
     ART_DIR,
     META_FILE_NAME,
@@ -15,7 +15,7 @@ from mlem.core.meta_io import (
     deserialize,
     serialize,
 )
-from mlem.core.metadata import load, load_meta
+from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
@@ -60,10 +60,16 @@ def test_model_cloning(model_path):
     model = load_meta(model_path)
     with tempfile.TemporaryDirectory() as dir:
         model.clone(dir, link=False)
-        cloned_model = load(dir)
+        cloned_model_meta = load_meta(dir, load_value=True)
+        assert isinstance(cloned_model_meta, ModelMeta)
+        for art in cloned_model_meta.artifacts:
+            assert isinstance(art, LocalArtifact)
+            # assert not os.path.isabs(art.uri) todo: https://github.com/iterative/mlem/issues/108
+            assert os.path.isfile(os.path.join(dir, art.uri))
+        cloned_model = cloned_model_meta.get_value()
+        assert cloned_model is not None
         X, _ = load_iris(return_X_y=True)
         cloned_model.predict(X)
-        assert False, "TODO: https://github.com/iterative/mlem/issues/108"
 
 
 @long
@@ -123,13 +129,14 @@ def test_link_dump(model_path):
     )
     with tempfile.TemporaryDirectory() as dir:
         path_to_link = os.path.join(dir, "latest" + MLEM_EXT)
-        link.dump(path_to_link, absolute=True)
+        link.dump(path_to_link)
         model = load_meta(path_to_link, follow_links=True)
     assert isinstance(model, ModelMeta)
 
 
+@pytest.mark.xfail
 def test_double_link_load():
-    assert False
+    raise AssertionError()
 
 
 def test_link_dump_in_mlem(model_path_mlem_root):
@@ -138,7 +145,7 @@ def test_link_dump_in_mlem(model_path_mlem_root):
         mlem_link=os.path.join(model_path, META_FILE_NAME), link_type="model"
     )
     link_name = "latest"
-    link.dump(link_name, mlem_root=mlem_root)
+    link.dump(link_name, mlem_root=mlem_root, external=True, link=False)
     model = load_meta(os.path.join(mlem_root, link_name), follow_links=True)
     assert isinstance(model, ModelMeta)
 
