@@ -4,7 +4,6 @@ MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
 import os
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from functools import partial
 from inspect import isabstract
 from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
@@ -241,7 +240,9 @@ class MlemMeta(MlemObject):
         )
         self.bind(fullpath, fs, mlem_root)
         if mlem_root is not None:
-            external = MLEM_DIR not in fullpath
+            external = os.path.join(MLEM_DIR, "") not in os.path.dirname(
+                fullpath
+            )
         return fullpath, mlem_root, fs, link and external, external
 
     def make_link(
@@ -287,13 +288,15 @@ class MlemMeta(MlemObject):
         """
         Clone object to `name`.
 
-        :param name: new name
+        :param path: new name
         :param how:
            - hard -> copy meta and artifacts to local fs
            - ref -> copy meta, reference remote artifacts
            - link -> make a link to remote meta
         :return: New meta file
         """
+        if not self.is_saved:
+            raise MlemObjectNotSavedError("Cannot clone not saved object")
         if how != "hard":
             raise NotImplementedError()
         new: MlemMeta = self.deepcopy()
@@ -429,6 +432,8 @@ class _WithArtifacts(ABC, MlemMeta):
         link: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
+        if not self.is_saved:
+            raise MlemObjectNotSavedError("Cannot clone not saved object")
         if how == "hard":
             # hard clone is just dump with copying artifacts
             new: _WithArtifacts = self.deepcopy()
@@ -444,8 +449,10 @@ class _WithArtifacts(ABC, MlemMeta):
             )
             fs.makedirs(new.art_dir, exist_ok=True)
             for art in self.relative_artifacts:
-                # TODO: copy artifacts to target fs
-                new.artifacts.append(art.download(new.art_dir))
+                # TODO: copy artifacts to target fs/storage https://github.com/iterative/mlem/issues/108
+                download = art.download(new.art_dir)
+                download.uri = os.path.relpath(download.uri, path)
+                new.artifacts.append(download)
             new._write_meta(  # pylint: disable=protected-access
                 fullpath, mlem_root, fs, link
             )
@@ -581,7 +588,6 @@ class TargetEnvMeta(MlemMeta):
         raise NotImplementedError
 
 
-@dataclass
 class DeployMeta(MlemMeta):
     object_type: ClassVar = "deployment"
 

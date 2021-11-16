@@ -16,15 +16,69 @@ from mlem.core.meta_io import (
     serialize,
 )
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemLink, ModelMeta, mlem_dir_path
+from mlem.core.objects import (
+    Deployment,
+    DeployMeta,
+    MlemLink,
+    MlemMeta,
+    ModelMeta,
+    mlem_dir_path,
+)
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
+DEPLOY_NAME = "mydeploy"
 MODEL_NAME = "decision_tree"
+
+
+class MyDeployment(Deployment):
+    def get_status(self):
+        pass
+
+    def destroy(self):
+        pass
+
+
+@pytest.fixture()
+def meta():
+    return DeployMeta(env_path="", model_path="", deployment=MyDeployment())
+
+
+def test_meta_dump_internal(mlem_root, meta):
+    meta.dump(DEPLOY_NAME, mlem_root=mlem_root, external=False)
+    meta_path = os.path.join(
+        mlem_root, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
+    )
+    assert os.path.isfile(meta_path)
+    assert isinstance(load_meta(meta_path), DeployMeta)
+
+
+def _check_external_meta(meta_path, mlem_root):
+    assert os.path.isfile(meta_path)
+    assert isinstance(load_meta(meta_path), DeployMeta)
+    link_path = os.path.join(
+        mlem_root, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
+    )
+    assert os.path.isfile(link_path)
+    assert isinstance(load_meta(link_path, follow_links=False), MlemLink)
+
+
+def test_meta_dump_external(mlem_root, meta):
+    meta.dump(DEPLOY_NAME, mlem_root=mlem_root, external=True)
+    meta_path = os.path.join(mlem_root, DEPLOY_NAME + MLEM_EXT)
+    _check_external_meta(meta_path, mlem_root)
+
+
+def test_meta_dump_external_fullpath(mlem_root, meta):
+    meta_path = os.path.join(mlem_root, DEPLOY_NAME + MLEM_EXT)
+    meta.dump(meta_path, external=True)
+    _check_external_meta(meta_path, mlem_root)
 
 
 def test_model_dump_internal(mlem_root, model_meta):
     model_meta.dump(MODEL_NAME, mlem_root=mlem_root, external=False)
-    model_path = os.path.join(mlem_root, MLEM_DIR, "model", MODEL_NAME)
+    model_path = os.path.join(
+        mlem_root, MLEM_DIR, ModelMeta.object_type, MODEL_NAME
+    )
     assert os.path.isdir(model_path)
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
@@ -35,7 +89,7 @@ def _check_external_model(meta, mlem_root, model_path):
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
     link_path = os.path.join(
-        mlem_root, MLEM_DIR, "model", MODEL_NAME + MLEM_EXT
+        mlem_root, MLEM_DIR, ModelMeta.object_type, MODEL_NAME + MLEM_EXT
     )
     assert os.path.isfile(link_path)
     link = load_meta(link_path, follow_links=False)
@@ -56,20 +110,35 @@ def test_model_dump_external_fullpath(mlem_root, model_meta):
     _check_external_model(model_meta, mlem_root, model_path)
 
 
+def _check_cloned_model(cloned_model_meta: MlemMeta, path):
+    assert isinstance(cloned_model_meta, ModelMeta)
+    assert cloned_model_meta.artifacts is not None
+    for art in cloned_model_meta.artifacts:
+        assert isinstance(art, LocalArtifact)
+        assert not os.path.isabs(art.uri)
+        assert os.path.isfile(os.path.join(path, art.uri))
+    cloned_model = cloned_model_meta.get_value()
+    assert cloned_model is not None
+    X, _ = load_iris(return_X_y=True)
+    cloned_model.predict(X)
+
+
 def test_model_cloning(model_path):
     model = load_meta(model_path)
-    with tempfile.TemporaryDirectory() as dir:
-        model.clone(dir, link=False)
-        cloned_model_meta = load_meta(dir, load_value=True)
-        assert isinstance(cloned_model_meta, ModelMeta)
-        for art in cloned_model_meta.artifacts:
-            assert isinstance(art, LocalArtifact)
-            # assert not os.path.isabs(art.uri) todo: https://github.com/iterative/mlem/issues/108
-            assert os.path.isfile(os.path.join(dir, art.uri))
-        cloned_model = cloned_model_meta.get_value()
-        assert cloned_model is not None
-        X, _ = load_iris(return_X_y=True)
-        cloned_model.predict(X)
+    with tempfile.TemporaryDirectory() as path:
+        model.clone(path, link=False)
+        cloned_model_meta = load_meta(path, load_value=True)
+        _check_cloned_model(cloned_model_meta, path)
+
+
+@long
+@pytest.mark.xfail("TODO: https://github.com/iterative/mlem/issues/108")
+def test_model_cloning_to_remote(model_path, s3_tmp_path):
+    model = load_meta(model_path)
+    path = s3_tmp_path("model_cloning_to_remote")
+    model.clone(path, link=False)
+    cloned_model_meta = load_meta(path, load_value=True)
+    _check_cloned_model(cloned_model_meta, path)
 
 
 @long
