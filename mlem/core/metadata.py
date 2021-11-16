@@ -153,7 +153,7 @@ def load_meta(
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
-        raise ValueError(
+        raise TypeError(
             f"Wrong type of meta loaded, {meta} is not {force_type}"
         )
     return meta  # type: ignore[return-value]

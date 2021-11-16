@@ -77,7 +77,7 @@ class MlemMeta(MlemObject):
         return self._path is not None
 
     @classmethod
-    def _make_meta_path(cls, fullpath: str):
+    def _get_metafile_path(cls, fullpath: str):
         """Augment path to point to metafile, if it is not"""
         if not fullpath.endswith(MLEM_EXT):
             fullpath += MLEM_EXT
@@ -91,12 +91,12 @@ class MlemMeta(MlemObject):
         fs: Optional[AbstractFileSystem],
         external: bool,
         ensure_mlem_root: bool,
-        create_meta_path: bool = True,
+        metafile_path: bool = True,
     ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
         """Extract fs, path and mlem_root"""
         fullpath = os.path.join(mlem_root or "", path)
-        if create_meta_path:
-            fullpath = cls._make_meta_path(fullpath)
+        if metafile_path:
+            fullpath = cls._get_metafile_path(fullpath)
         if fs is None:
             fs, fullpath = get_fs(fullpath)
         elif isinstance(fs, LocalFileSystem):
@@ -108,7 +108,7 @@ class MlemMeta(MlemObject):
         if ensure_mlem_root and mlem_root_ is None:
             raise MlemRootNotFound(fullpath, fs)
         if mlem_root is None and mlem_root_ is not None:
-            # we were fiven fullpath from the beginning
+            # we were given fullpath from the beginning
             external = True
         if mlem_root_ is None or external:
             # orphan or external
@@ -136,7 +136,6 @@ class MlemMeta(MlemObject):
         path: str,
         fs: AbstractFileSystem = None,
         mlem_root: str = None,
-        *,
         follow_links: bool = True,
     ) -> T:
         """
@@ -146,6 +145,7 @@ class MlemMeta(MlemObject):
         Args:
             path: Exact path to MLEM metafile,
             fs: Filesystem on which path is located,
+            mlem_root: path to mlem repo, optional
             follow_links: If deserialised object is a MLEM link,
                 whether to load and return the linked object
                 or just return MlemLink object.
@@ -190,13 +190,15 @@ class MlemMeta(MlemObject):
 
         Args:
             path: name of the object. Relative to mlem_root, if it is provided.
-
-            fs
-            mlem_root
-            link
-            external
+            fs: filesystem to save to. if not provided, inferred from mlem_root and path
+            mlem_root: path to mlem repo
+            link: whether to create link if object is external.
+                If set to True, checks existanse of mlem repo
+                defaults to True if mlem repo exists and external is true
+            external: whether to save object inside mlem dir or not.
+                Defaults to false if mlem_root is provided
+                Forced to false if path points inside mlem dir
         """
-        # TODO: forbid to overwrite old objects?
         fullpath, mlem_root, fs, link, external = self._parse_dump_args(
             path, mlem_root, fs, link, external
         )
@@ -240,6 +242,7 @@ class MlemMeta(MlemObject):
         )
         self.bind(fullpath, fs, mlem_root)
         if mlem_root is not None:
+            # force external=False if fullpath inside MLEM_DIR
             external = os.path.join(MLEM_DIR, "") not in os.path.dirname(
                 fullpath
             )
@@ -261,7 +264,7 @@ class MlemMeta(MlemObject):
         link = MlemLink(
             mlem_link=self._path
             if absolute
-            else self._make_meta_path(self.name),
+            else self._get_metafile_path(self.name),
             link_type=self.object_type,
         )
         if path is not None:
@@ -358,7 +361,7 @@ class MlemLink(MlemMeta):
         fs: Optional[AbstractFileSystem],
         external: bool,
         ensure_mlem_root: bool,
-        create_meta_path: bool = True,
+        metafile_path: bool = True,
     ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
         # TODO this fails when double linking
         (
@@ -371,9 +374,9 @@ class MlemLink(MlemMeta):
             fs=fs,
             external=external,
             ensure_mlem_root=ensure_mlem_root,
-            create_meta_path=False,
+            metafile_path=False,
         )
-        path = self._make_meta_path(path)
+        path = self._get_metafile_path(path)
         return fs, path, root
 
 
@@ -383,7 +386,7 @@ class _WithArtifacts(ABC, MlemMeta):
     requirements: Requirements
 
     @classmethod
-    def _make_meta_path(cls, fullpath: str):
+    def _get_metafile_path(cls, fullpath: str):
         """Augment fullpath to point to metafile, if it is not"""
         if not fullpath.endswith(META_FILE_NAME):
             fullpath = os.path.join(fullpath, META_FILE_NAME)
