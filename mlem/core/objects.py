@@ -295,10 +295,9 @@ class MlemMeta(MlemObject):
         external: Optional[bool] = None,
     ):
         """
-        Clone object to `name`.
+        Clone existing object to `path`.
 
-        :param path: new name
-        :return: New meta file
+        Arguments are the same as for `dump`
         """
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot clone not saved object")
