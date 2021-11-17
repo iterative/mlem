@@ -27,10 +27,12 @@ def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
 def save(
     obj: Any,
     path: str,
+    mlem_root: Optional[str] = None,
     dvc: bool = False,
     tmp_sample_data=None,
     fs: Union[str, AbstractFileSystem] = None,
     link: bool = True,
+    external: Optional[bool] = None,
 ) -> MlemMeta:
     """Saves given object to a given path
 
@@ -49,7 +51,7 @@ def save(
         None
     """
     meta = get_object_metadata(obj, tmp_sample_data)
-    meta.dump(path, fs=fs, link=link)
+    meta.dump(path, fs=fs, mlem_root=mlem_root, link=link, external=external)
     if dvc:
         # TODO dvc add ./%name% https://github.com/iterative/mlem/issues/47
         raise NotImplementedError()

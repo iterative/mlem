@@ -206,7 +206,7 @@ def model_path_mlem_root(model_train_target, tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, tmp_sample_data=train, link=True)
+    save(model, model_dir, tmp_sample_data=train, link=True, external=True)
     yield model_dir, dir
 
 

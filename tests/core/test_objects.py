@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sklearn.datasets import load_iris
 
 from mlem.core.artifacts import LocalArtifact
+from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import (
     ART_DIR,
     META_FILE_NAME,
@@ -43,8 +44,24 @@ def meta():
     return DeployMeta(env_path="", model_path="", deployment=MyDeployment())
 
 
-def test_meta_dump_internal(mlem_root, meta):
-    meta.dump(DEPLOY_NAME, mlem_root=mlem_root, external=False)
+@pytest.fixture(params=["fullpath", "with_root"])
+def path_and_root(mlem_root, request):
+    def get(name):
+        if request.param == "fullpath":
+            return os.path.join(mlem_root, name), None
+        return name, mlem_root
+
+    return get
+
+
+def test_meta_dump__no_root(meta, tmpdir):
+    with pytest.raises(MlemRootNotFound):
+        meta.dump(DEPLOY_NAME, mlem_root=str(tmpdir))
+
+
+def test_meta_dump_internal(mlem_root, meta, path_and_root):
+    path, root = path_and_root(DEPLOY_NAME)
+    meta.dump(path, mlem_root=root, external=False)
     meta_path = os.path.join(
         mlem_root, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
     )
@@ -52,7 +69,10 @@ def test_meta_dump_internal(mlem_root, meta):
     assert isinstance(load_meta(meta_path), DeployMeta)
 
 
-def _check_external_meta(meta_path, mlem_root):
+def test_meta_dump_external(mlem_root, meta, path_and_root):
+    path, root = path_and_root(DEPLOY_NAME)
+    meta.dump(path, mlem_root=root, external=True)
+    meta_path = os.path.join(mlem_root, DEPLOY_NAME + MLEM_EXT)
     assert os.path.isfile(meta_path)
     assert isinstance(load_meta(meta_path), DeployMeta)
     link_path = os.path.join(
@@ -62,20 +82,9 @@ def _check_external_meta(meta_path, mlem_root):
     assert isinstance(load_meta(link_path, follow_links=False), MlemLink)
 
 
-def test_meta_dump_external(mlem_root, meta):
-    meta.dump(DEPLOY_NAME, mlem_root=mlem_root, external=True)
-    meta_path = os.path.join(mlem_root, DEPLOY_NAME + MLEM_EXT)
-    _check_external_meta(meta_path, mlem_root)
-
-
-def test_meta_dump_external_fullpath(mlem_root, meta):
-    meta_path = os.path.join(mlem_root, DEPLOY_NAME + MLEM_EXT)
-    meta.dump(meta_path, external=True)
-    _check_external_meta(meta_path, mlem_root)
-
-
-def test_model_dump_internal(mlem_root, model_meta):
-    model_meta.dump(MODEL_NAME, mlem_root=mlem_root, external=False)
+def test_model_dump_internal(mlem_root, model_meta, path_and_root):
+    path, root = path_and_root(MODEL_NAME)
+    model_meta.dump(path, mlem_root=root, external=False)
     model_path = os.path.join(
         mlem_root, MLEM_DIR, ModelMeta.object_type, MODEL_NAME
     )
@@ -84,7 +93,10 @@ def test_model_dump_internal(mlem_root, model_meta):
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
 
 
-def _check_external_model(meta, mlem_root, model_path):
+def test_model_dump_external(mlem_root, model_meta, path_and_root):
+    path, root = path_and_root(MODEL_NAME)
+    model_meta.dump(path, mlem_root=root, external=True)
+    model_path = os.path.join(mlem_root, MODEL_NAME)
     assert os.path.isdir(model_path)
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
@@ -95,19 +107,7 @@ def _check_external_model(meta, mlem_root, model_path):
     link = load_meta(link_path, follow_links=False)
     assert isinstance(link, MlemLink)
     model = link.load_link()
-    assert serialize(model) == serialize(meta)
-
-
-def test_model_dump_external(mlem_root, model_meta):
-    model_meta.dump(MODEL_NAME, mlem_root=mlem_root, external=True)
-    model_path = os.path.join(mlem_root, MODEL_NAME)
-    _check_external_model(model_meta, mlem_root, model_path)
-
-
-def test_model_dump_external_fullpath(mlem_root, model_meta):
-    model_path = os.path.join(mlem_root, MODEL_NAME)
-    model_meta.dump(model_path, external=True)
-    _check_external_model(model_meta, mlem_root, model_path)
+    assert serialize(model) == serialize(model_meta)
 
 
 def _check_cloned_model(cloned_model_meta: MlemMeta, path):
@@ -132,7 +132,7 @@ def test_model_cloning(model_path):
 
 
 @long
-@pytest.mark.xfail("TODO: https://github.com/iterative/mlem/issues/108")
+@pytest.mark.xfail(reason="TODO:https://github.com/iterative/mlem/issues/108")
 def test_model_cloning_to_remote(model_path, s3_tmp_path):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")

@@ -94,6 +94,7 @@ class MlemMeta(MlemObject):
         metafile_path: bool = True,
     ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
         """Extract fs, path and mlem_root"""
+
         fullpath = os.path.join(mlem_root or "", path)
         if metafile_path:
             fullpath = cls._get_metafile_path(fullpath)
@@ -101,26 +102,32 @@ class MlemMeta(MlemObject):
             fs, fullpath = get_fs(fullpath)
         elif isinstance(fs, LocalFileSystem):
             fullpath = os.path.abspath(fullpath)
-
-        # here we allow for mlem_root to be anywhere upper than fullpath
-        # but maybe we need to be more strict and check if mlem_root is actually has .mlem dir
-        mlem_root_ = find_mlem_root(fullpath, fs, raise_on_missing=False)
-        if ensure_mlem_root and mlem_root_ is None:
+        if mlem_root is not None:
+            # check that mlem_root is mlem root
+            find_mlem_root(
+                mlem_root, fs, raise_on_missing=True, recursive=False
+            )
+        else:
+            mlem_root = find_mlem_root(fullpath, fs, raise_on_missing=False)
+        if ensure_mlem_root and mlem_root is None:
             raise MlemRootNotFound(fullpath, fs)
-        if mlem_root is None and mlem_root_ is not None:
-            # we were given fullpath from the beginning
-            external = True
-        if mlem_root_ is None or external:
-            # orphan or external
-            return fs, fullpath, mlem_root_
+        if (
+            mlem_root is None
+            or external
+            or fullpath.startswith(
+                os.path.join(mlem_root, MLEM_DIR, cls.object_type)
+            )
+        ):
+            # orphan or external or inside .mlem
+            return fs, fullpath, mlem_root
 
         internal_path = os.path.join(
-            mlem_root_,
+            mlem_root,
             MLEM_DIR,
             cls.object_type,
-            os.path.relpath(fullpath, mlem_root_),
+            os.path.relpath(fullpath, mlem_root),
         )
-        return fs, internal_path, mlem_root_
+        return fs, internal_path, mlem_root
 
     def bind(
         self, path: str, fs: AbstractFileSystem, root: Optional[str] = None
@@ -228,7 +235,7 @@ class MlemMeta(MlemObject):
     ) -> Tuple[str, Optional[str], AbstractFileSystem, bool, bool]:
         """Parse arguments for .dump and bind meta"""
         if external is None:
-            # TODO default from settings
+            # TODO default from mlem_root settings
             external = False
         # by default we make link only for external non-orphan objects
         if link is None:
