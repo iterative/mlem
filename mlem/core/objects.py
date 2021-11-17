@@ -289,7 +289,6 @@ class MlemMeta(MlemObject):
     def clone(
         self,
         path: str,
-        how: str = "hard",
         fs: Union[str, AbstractFileSystem, None] = None,
         mlem_root: Optional[str] = None,
         link: Optional[bool] = None,
@@ -299,16 +298,10 @@ class MlemMeta(MlemObject):
         Clone object to `name`.
 
         :param path: new name
-        :param how:
-           - hard -> copy meta and artifacts to local fs
-           - ref -> copy meta, reference remote artifacts
-           - link -> make a link to remote meta
         :return: New meta file
         """
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot clone not saved object")
-        if how != "hard":
-            raise NotImplementedError()
         new: MlemMeta = self.deepcopy()
         new.dump(
             path, fs, mlem_root, link, external
@@ -436,7 +429,6 @@ class _WithArtifacts(ABC, MlemMeta):
     def clone(
         self,
         path: str,
-        how: str = "hard",
         fs: Union[str, AbstractFileSystem, None] = None,
         mlem_root: Optional[str] = None,
         link: Optional[bool] = None,
@@ -444,30 +436,28 @@ class _WithArtifacts(ABC, MlemMeta):
     ):
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot clone not saved object")
-        if how == "hard":
-            # hard clone is just dump with copying artifacts
-            new: _WithArtifacts = self.deepcopy()
-            new.artifacts = []
-            (
-                fullpath,
-                mlem_root,
-                fs,
-                link,
-                external,
-            ) = new._parse_dump_args(  # pylint: disable=protected-access
-                path, mlem_root, fs, link, external
-            )
-            fs.makedirs(new.art_dir, exist_ok=True)
-            for art in self.relative_artifacts:
-                # TODO: copy artifacts to target fs/storage https://github.com/iterative/mlem/issues/108
-                download = art.download(new.art_dir)
-                download.uri = os.path.relpath(download.uri, path)
-                new.artifacts.append(download)
-            new._write_meta(  # pylint: disable=protected-access
-                fullpath, mlem_root, fs, link
-            )
-            return new
-        raise NotImplementedError()
+        # clone is just dump with copying artifacts
+        new: _WithArtifacts = self.deepcopy()
+        new.artifacts = []
+        (
+            fullpath,
+            mlem_root,
+            fs,
+            link,
+            external,
+        ) = new._parse_dump_args(  # pylint: disable=protected-access
+            path, mlem_root, fs, link, external
+        )
+        fs.makedirs(new.art_dir, exist_ok=True)
+        for art in self.relative_artifacts:
+            # TODO: copy artifacts to target fs/storage https://github.com/iterative/mlem/issues/108
+            download = art.download(new.art_dir)
+            download.uri = os.path.relpath(download.uri, path)
+            new.artifacts.append(download)
+        new._write_meta(  # pylint: disable=protected-access
+            fullpath, mlem_root, fs, link
+        )
+        return new
 
     @property
     def dirname(self):

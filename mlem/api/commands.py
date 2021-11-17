@@ -119,7 +119,8 @@ def get(
         out (str): Path to save the copy of initial object to.
         repo (Optional[str], optional): URL to repo if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load the actual object link points to. Defaults to True.
+        follow_links (bool, optional): If object we read is a MLEM link, whether to load
+            the actual object link points to. Defaults to True.
         load_value (bool, optional): Load actual python object incorporated in MlemMeta object. Defaults to False.
 
     Returns:
@@ -173,13 +174,14 @@ def link(
         source (Union[str, MlemMeta]): The object to create link from.
         repo (str, optional): Repo if object is stored in git repo.
         rev (str, optional): Revision if object is stored in git repo.
+        source_mlem_root (str, optional): Path to mlem repo where to load obj from
         target (str, optional): Where to store the link object.
-        mlem_root (str, optional): If provided,
+        target_mlem_root (str, optional): If provided,
             treat `target` as link name and dump link in MLEM DIR
         follow_links (bool): Whether to make link to the underlying object
             if `source` is itself a link. Defaults to True.
-        check_extension (bool): Whether to check if `target` ends
-            with MLEM file extenstion. Defaults to True.
+        external (bool): Whether to save link outside mlem dir
+        absolute (bool): Whether to make link absolute or relative to mlem repo
 
     Returns:
         MlemLink: Link object to the `source`.
