@@ -60,8 +60,14 @@ install_requires = [
     "Jinja2<3",
     "fsspec>=2021.7.0",
     "fusepy",  # TMP
+    "pyparsing<3",  # legacy resolver problem
     "cached-property",
     "entrypoints",
+    "filelock",
+    "appdirs",
+    "python-daemon",
+    "distro",
+    "gitpython",
 ]
 
 # storage
@@ -80,7 +86,7 @@ lightgbm = ["lightgbm"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]
-sagemaker = ["boto3", "sagemaker"]
+sagemaker = ["boto3==1.19.12", "sagemaker"]
 
 all_libs = (
     dvc
@@ -106,6 +112,11 @@ tests = [
     # we use this to suppress some messages in tests, eg: foo/bar naming,
     # and, protected method calls in our tests
     "pylint-plugin-utils",
+    "s3fs==2021.10.1",
+    "boto3==1.19.12",
+    "botocore==1.22.12",
+    "adlfs",
+    "gcsfs",
 ] + all_libs
 
 
@@ -148,7 +159,7 @@ setup_args = dict(  # noqa: C408
     ],
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
-    url="http://mlem.ai",
+    url="https://mlem.ai",
     entry_points={
         "console_scripts": ["mlem = mlem.cli:cli"],
         # Additional mechanism for plugins.
@@ -156,6 +167,7 @@ setup_args = dict(  # noqa: C408
         # Since mlem has some "optional" implementations,
         # we should populate them like this as well
         "mlem.contrib": [
+            "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "dataset_reader.numpy = mlem.contrib.numpy:NumpyArrayReader",
             "dataset_reader.pandas = mlem.contrib.pandas:PandasReader",
             "dataset_type.dataframe = mlem.contrib.pandas:DataFrameType",
@@ -173,6 +185,7 @@ setup_args = dict(  # noqa: C408
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
+            "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
     },
     cmdclass={"build_py": build_py},

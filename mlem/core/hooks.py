@@ -9,6 +9,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, List, Tuple, Type, TypeVar
 
+from mlem.core.errors import HookNotFound, MultipleHooksFound
+
 logger = logging.getLogger(__name__)
 
 ANALYZER_FIELD = "analyzer"
@@ -40,7 +42,7 @@ class Hook(ABC, Generic[T]):
         :param obj: object to analyze
         :return: True or False
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
@@ -52,7 +54,7 @@ class Hook(ABC, Generic[T]):
         :param kwargs: additional information to be used for analysis
         :return: analysis result
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def __init_subclass__(cls, *args, **kwargs):
         if not inspect.isabstract(cls):
@@ -186,10 +188,10 @@ class Analyzer(Generic[T]):
             if len(lp_hooks) == 1:
                 return lp_hooks[0]
             if len(lp_hooks) > 1:
-                raise ValueError(
+                raise MultipleHooksFound(
                     f"Multiple suitable hooks for object {obj} ({lp_hooks})"
                 )
-            raise ValueError(
+            raise HookNotFound(
                 f"No suitable {cls.base_hook_class.__name__} for object of type "
                 f'"{type(obj).__name__}". Registered hooks: {cls.hooks}'
             )

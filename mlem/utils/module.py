@@ -160,7 +160,8 @@ class ISortModuleFinder:
             [
                 "opcode",
                 "nturl2path",  # pytest requirements missed by isort
-                "pkg_resources",  # EBNT-112: workaround for imports from setup.py (see build/builder/docker.py)
+                "pkg_resources",  # workaround for imports from setup.py (see build/builder/docker.py)
+                "sre_compile",
                 "posixpath",
                 "setuptools",
                 "pydevconsole",
@@ -348,7 +349,7 @@ def get_module_as_requirement(
     mod: ModuleType, validate_pypi=False
 ) -> InstallableRequirement:
     """
-    Builds Ebonite representation of given module object
+    Builds MLEM representation of given module object
 
     :param mod: module object to use
     :param validate_pypi: if `True` (default is `False`) perform representation validation in PyPi repository
@@ -507,6 +508,7 @@ class RequirementAnalyzer(dill.Pickler):
             any(mod.__name__.startswith(i) for i in self.ignoring)
             or is_private_module(mod)
             or is_pseudo_module(mod)
+            or is_builtin_module(mod)
         )
 
     def add_requirement(self, obj_or_module):
@@ -565,7 +567,10 @@ def get_object_requirements(obj) -> Requirements:
     :param obj: obj to analyze
     :return: :class:`.Requirements` object containing all required packages
     """
-    a = RequirementAnalyzer(recurse=True)
+    # there was recurse=True here for some reason, but this caused infinite recursion in some cases
+    # (def a(): b(); def b(): a(); def func(): a(); get_obj_reqs(func) - smth like that)
+    # I removed it and none of the tests failed ¯\_(ツ)_/¯
+    a = RequirementAnalyzer()
     a.dump(obj)
     return a.to_requirements()
 

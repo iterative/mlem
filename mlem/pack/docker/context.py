@@ -28,7 +28,7 @@ class DockerBuildArgs(BaseModel):
     :param templates_dir: directory or list of directories for Dockerfile templates, default: ./docker_templates
        - `pre_install.j2` - Dockerfile commands to run before pip
        - `post_install.j2` - Dockerfile commands to run after pip
-       - `post_copy.j2` - Dockerfile commands to run after pip and Ebonite distribution copy
+       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy
     :param run_cmd: command to run in container, default: sh run.sh
     :param package_install_cmd: command to install packages. Default is apt-get, change it for other package manager
     :param prebuild_hook: callable to call before build, accepts python version. Used for pre-building server images

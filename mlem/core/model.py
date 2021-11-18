@@ -7,10 +7,9 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import Any, Callable, ClassVar, Dict, List, Optional, TypeVar
 
-from fsspec import AbstractFileSystem
 from pydantic import BaseModel
 
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
@@ -19,6 +18,7 @@ from mlem.core.dataset_type import (
 )
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
+from mlem.utils.module import get_object_requirements
 
 
 class ModelIO(MlemObject):
@@ -30,15 +30,14 @@ class ModelIO(MlemObject):
     abs_name: ClassVar[str] = "model_io"
 
     @abstractmethod
-    def dump(self, fs: AbstractFileSystem, path, model) -> Artifacts:
+    def dump(self, storage: Storage, path, model) -> Artifacts:
         """ """
         raise NotImplementedError()
 
     @abstractmethod
-    def load(self, fs: AbstractFileSystem, path):
+    def load(self, artifacts: Artifacts):
         """
         Must load and return model
-        :param path: path to load model from
         :return: model object
         """
         raise NotImplementedError()
@@ -48,15 +47,17 @@ class SimplePickleIO(ModelIO):
     file_name: ClassVar[str] = "data.pkl"
     type: ClassVar[str] = "simple_pickle"
 
-    def dump(self, fs: AbstractFileSystem, path: str, model) -> Artifacts:
-        fs.makedirs(path, exist_ok=True)
-        path = os.path.join(path, self.file_name)
-        with fs.open(path, "wb") as f:
-            pickle.dump(model, f)
-        return [path]
+    def dump(self, storage: Storage, path: str, model) -> Artifacts:
 
-    def load(self, fs: AbstractFileSystem, path: str):
-        with fs.open(os.path.join(path, self.file_name), "rb") as f:
+        path = os.path.join(path, self.file_name)
+        with storage.open(path) as (f, art):
+            pickle.dump(model, f)
+        return [art]
+
+    def load(self, artifacts: Artifacts):
+        if len(artifacts) != 1:
+            raise ValueError("Invalid artifacts: should be one .pkl file")
+        with artifacts[0].open() as f:
             return pickle.load(f)
 
 
@@ -195,11 +196,11 @@ class ModelType(ABC, MlemObject, WithRequirements):
     io: ModelIO
     methods: Dict[str, Signature]
 
-    def load(self, fs: AbstractFileSystem, path: str):
-        self.model = self.io.load(fs, path)
+    def load(self, artifacts: Artifacts):
+        self.model = self.io.load(artifacts)
 
-    def dump(self, fs: AbstractFileSystem, path: str):
-        return self.io.dump(fs, path, self.model)
+    def dump(self, storage: Storage, path: str):
+        return self.io.dump(storage, path, self.model)
 
     def bind(self: T, model: Any) -> T:
         self.model = model
@@ -255,7 +256,7 @@ class ModelType(ABC, MlemObject, WithRequirements):
                 for m in self.methods.values()
                 for r in m.get_requirements().__root__
             ]
-        )
+        ) + get_object_requirements(self.model)
 
 
 class ModelHook(Hook[ModelType], ABC):
@@ -264,7 +265,7 @@ class ModelHook(Hook[ModelType], ABC):
     def process(  # pylint: disable=arguments-differ # so what
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        pass
+        raise NotImplementedError
 
 
 class ModelAnalyzer(Analyzer[ModelType]):

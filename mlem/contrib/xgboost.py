@@ -3,17 +3,18 @@ import tempfile
 from typing import Any, ClassVar, Dict, List, Optional
 
 import xgboost
-from fsspec import AbstractFileSystem
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import DatasetHook, DatasetType, DatasetWriter
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import (
+    AddRequirementHook,
     InstallableRequirement,
+    Requirement,
     Requirements,
     UnixPackageRequirement,
     WithRequirements,
@@ -112,21 +113,24 @@ class XGBoostModelIO(ModelIO):
     model_file_name = "model.xgb"
 
     def dump(
-        self, fs: AbstractFileSystem, path, model: xgboost.Booster
+        self, storage: Storage, path, model: xgboost.Booster
     ) -> Artifacts:
         with tempfile.TemporaryDirectory(prefix="mlem_xgboost_dump") as f:
             local_path = os.path.join(f, self.model_file_name)
             model.save_model(local_path)
             remote_path = os.path.join(path, self.model_file_name)
-            fs.upload(local_path, remote_path)
-            return [remote_path]
+            return [storage.upload(local_path, remote_path)]
 
-    def load(self, fs: AbstractFileSystem, path):
+    def load(self, artifacts: Artifacts):
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Invalid artifacts: should be one {self.model_file_name} file"
+            )
+
         model = xgboost.Booster()
         with tempfile.TemporaryDirectory(prefix="mlem_xgboost_load") as f:
-            rpath = os.path.join(path, self.model_file_name)
             lpath = os.path.join(f, self.model_file_name)
-            fs.download(rpath, lpath)
+            artifacts[0].download(lpath)
             model.load_model(lpath)
         return model
 
@@ -169,4 +173,14 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
             super().get_requirements()
             + InstallableRequirement.from_module(xgboost)
             + XGB_REQUIREMENT
+        )
+
+
+class XGBLibgopmHook(AddRequirementHook):
+    to_add = XGB_REQUIREMENT
+
+    @classmethod
+    def is_object_valid(cls, obj: Requirement) -> bool:
+        return (
+            isinstance(obj, InstallableRequirement) and obj.module == "xgboost"
         )

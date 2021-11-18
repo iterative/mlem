@@ -8,8 +8,15 @@ from mlem.utils.importing import import_string
 
 @overload
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: Literal[True] = True
+    abs_name: str, type_name: str, raise_on_missing: Literal[True] = ...
 ) -> Type["MlemObject"]:
+    ...
+
+
+@overload
+def load_impl_ext(
+    abs_name: str, type_name: str, raise_on_missing: Literal[False] = ...
+) -> Optional[Type["MlemObject"]]:
     ...
 
 
@@ -59,7 +66,12 @@ class MlemObject(PolyModel):
         """Polymorphic magic goes here"""
         if isinstance(value, cls):
             return value
-        type_name = value.pop(cls.__type_field__)
+        value = value.copy()
+        type_name = value.pop(cls.__type_field__, cls.__default_type__)
+        if type_name is None:
+            raise ValueError(
+                f"Type field was not provided and no default type specified in {cls.parent.__name__}"
+            )
         child_cls: Type[MlemObject] = cls.resolve_subtype(type_name)
         return child_cls(**value)
 

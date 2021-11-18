@@ -3,8 +3,10 @@ from typing import AbstractSet, ClassVar, Dict, Optional, Set, Type
 
 from pydantic import BaseModel
 
+from mlem.polydantic.lazy import LazyModel
 
-class PolyModel(BaseModel):
+
+class PolyModel(LazyModel):
     """Base class that enable polymorphism in pydantic models
 
     Attributes:
@@ -18,6 +20,7 @@ class PolyModel(BaseModel):
     __type_root__: ClassVar[bool] = True
     __type_map__: ClassVar[Dict[str, Type]] = {}
     __type_field__: ClassVar[str] = "type"
+    __default_type__: ClassVar[Optional[str]] = None
     __transient_fields__: ClassVar[Set[str]] = set()
     __inherit_transient_fields__: ClassVar[bool] = True
     parent: ClassVar[Optional[Type["PolyModel"]]] = None
@@ -31,7 +34,12 @@ class PolyModel(BaseModel):
         """Polymorphic magic goes here"""
         if isinstance(value, cls):
             return value
-        type_name = value.pop(cls.__type_field__)
+        value = value.copy()
+        type_name = value.pop(cls.__type_field__, cls.__default_type__)
+        if type_name is None:
+            raise ValueError(
+                f"Type field was not provided and no default type specified in {cls.parent.__name__}"
+            )
         child_cls = cls.__type_map__[type_name]
         return child_cls(**value)
 
@@ -39,10 +47,15 @@ class PolyModel(BaseModel):
     def dict(self, **kwargs):
         """Add alias field"""
         result = super().dict(**kwargs)
-        result[self.__type_field__] = self.__get_alias__()
+        alias = self.__get_alias__()
+        if (
+            not kwargs.get("exclude_defaults", False)
+            or alias != self.__default_type__
+        ):
+            result[self.__type_field__] = alias
         return result
 
-    @wraps(BaseModel._calculate_keys)
+    @wraps(BaseModel._calculate_keys)  # pylint: disable=protected-access
     def _calculate_keys(self, *args, **kwargs) -> Optional[AbstractSet[str]]:
         """Exclude transient stuff"""
         kwargs["exclude"] = (

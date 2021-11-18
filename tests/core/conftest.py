@@ -1,19 +1,16 @@
-import subprocess
-
 import pytest
 
-
-def _check_github_example_auth():
-    try:
-        subprocess.check_call(
-            "git ls-remote https://github.com/iterative/example-mlem/",
-            shell=True,
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
+from mlem.core.artifacts import FSSpecStorage
+from tests.conftest import MLEM_S3_TEST_BUCKET
 
 
-need_example_auth = pytest.mark.skipif(
-    not _check_github_example_auth(), reason="No credentials for remote repo"
-)
+@pytest.fixture()
+def s3_storage():
+    return FSSpecStorage(
+        uri=f"s3://{MLEM_S3_TEST_BUCKET}/", storage_options={}
+    )
+
+
+@pytest.fixture()
+def s3_storage_fs(s3_storage):
+    return s3_storage.get_fs()

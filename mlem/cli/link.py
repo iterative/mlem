@@ -3,7 +3,6 @@ from typing import Optional
 import click
 
 from mlem.cli.main import mlem_command
-from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import MLEM_DIR
 
 
@@ -13,28 +12,31 @@ from mlem.core.meta_io import MLEM_DIR
     "--repo", default=None, help="Repo in which {source} can be found."
 )
 @click.option("--rev", default=None, help="Repo revision to use.")
+@click.option(
+    "--source-mlem-root",
+    "--sr",
+    default=None,
+    help="Load source from mlem repo found in {mlem_root} path.",
+)
 @click.argument("target")
 @click.option(
-    "--mlem-root",
+    "--target-mlem-root",
+    "--tr",
     default=None,
     help="Save link to mlem dir found in {mlem_root} path.",
 )
 @click.option(
-    "--no-mlem-root",
-    "-o",
+    "--external",
+    "-e",
     default=False,
     is_flag=True,
     help=f"Save link not in {MLEM_DIR}, but as a plain file.",
 )
 @click.option(
     "--follow-links/--no-follow-links",
+    "--f/--nf",
     default=True,
     help="If True, first follow links while reading {source} before creating this link.",
-)
-@click.option(
-    "--check-extension/--no-check-extension",
-    default=True,
-    help="If True and --no-mlem-root specified, check that {target} endswith MLEM extension.",
 )
 @click.option(
     "--absolute/--relative",
@@ -46,32 +48,24 @@ def link(
     source: str,
     repo: Optional[str],
     rev: Optional[str],
+    source_mlem_root: Optional[str],
     target: str,
-    mlem_root: Optional[str],
-    no_mlem_root: bool,
+    target_mlem_root: Optional[str],
+    external: bool,
     follow_links: bool,
-    check_extension: bool,
     absolute: bool,
 ):
     """Create link for {source} MLEM object and place it in {target}."""
     from mlem.api.commands import link
 
-    if no_mlem_root:
-        if mlem_root is not None:
-            raise InvalidArgumentError(
-                "--mlem-root and --no-mlem-root are mitually exclusive."
-            )
-        mlem_root = None
-    elif mlem_root is None:
-        mlem_root = "."
-
     link(
         source=source,
         repo=repo,
         rev=rev,
+        source_mlem_root=source_mlem_root,
         target=target,
-        mlem_root=mlem_root,
+        target_mlem_root=target_mlem_root,
         follow_links=follow_links,
-        check_extension=check_extension,
+        external=external,
         absolute=absolute,
     )
