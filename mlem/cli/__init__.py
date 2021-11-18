@@ -2,6 +2,7 @@
 MLEM's command-line interface
 """
 from mlem.cli.apply import apply
+from mlem.cli.config import config
 from mlem.cli.deploy import deploy
 from mlem.cli.env import environment
 from mlem.cli.get import get
@@ -24,6 +25,7 @@ __all__ = [
     "ls",
     "get",
     "serve",
+    "config",
 ]
 
 

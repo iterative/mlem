@@ -26,7 +26,7 @@ from mlem.core.dataset_type import (
 from mlem.core.meta_io import get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import DatasetMeta, ModelMeta, mlem_dir_path
+from mlem.core.objects import DatasetMeta, ModelMeta
 from mlem.core.requirements import Requirements
 from mlem.utils.github import ls_github_branches
 
@@ -173,35 +173,38 @@ def model_meta_saved(model_path):
 
 
 @pytest.fixture
-def mlem_root(tmpdir_factory):
+def mlem_repo(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
     return dir
 
 
 @pytest.fixture
-def filled_mlem_root(mlem_root):
+def mlem_curdir_repo(tmpdir_factory):
+    dir = str(tmpdir_factory.mktemp("mlem-root"))
+    curdir = os.getcwd()
+    os.chdir(dir)
+    init()
+    yield
+    os.chdir(curdir)
+
+
+@pytest.fixture
+def filled_mlem_repo(mlem_repo):
     # TODO: bug: when reqs are empty, they serialize to "{}", not "[]"
     # https://github.com/iterative/mlem/issues/95
     model = ModelMeta(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
-    model.dump("model1", mlem_root=mlem_root, external=True)
+    model.dump("model1", repo=mlem_repo, external=True)
 
-    model.make_link(
-        mlem_dir_path(
-            "latest",
-            LocalFileSystem(),
-            obj_type=ModelMeta,
-            mlem_root=mlem_root,
-        )
-    )
-    yield mlem_root
+    model.make_link("latest", repo=mlem_repo)
+    yield mlem_repo
 
 
 @pytest.fixture
-def model_path_mlem_root(model_train_target, tmpdir_factory):
+def model_path_mlem_repo(model_train_target, tmpdir_factory):
     model, train, _ = model_train_target
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)

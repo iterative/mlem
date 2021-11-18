@@ -14,9 +14,9 @@ LOCAL_LS_EXPECTED_RESULT = """Models:
 
 
 @pytest.mark.parametrize("obj_type", [None, "all", "model"])
-def test_ls(filled_mlem_root, obj_type):
+def test_ls(filled_mlem_repo, obj_type):
     runner = CliRunner()
-    os.chdir(filled_mlem_root)
+    os.chdir(filled_mlem_repo)
     result = runner.invoke(
         ls,
         [obj_type] if obj_type else [],
@@ -37,14 +37,14 @@ Datasets:
 
 
 @pytest.mark.long
-def test_ls_remote():
+def test_ls_remote(current_test_branch):
     runner = CliRunner()
     result = runner.invoke(
         ls,
         [
             "all",
             "-r",
-            f"{MLEM_TEST_REPO}/tree/main/simple",
+            f"{MLEM_TEST_REPO}/tree/{current_test_branch}/simple",
         ],
     )
     assert result.exit_code == 0, (result.output, result.exception)
@@ -52,8 +52,8 @@ def test_ls_remote():
     assert result.output == REMOTE_LS_EXPECTED_RESULT
 
 
-def test_pretty_print(model_path_mlem_root):
-    model_path, _ = model_path_mlem_root
+def test_pretty_print(model_path_mlem_repo):
+    model_path, _ = model_path_mlem_repo
     runner = CliRunner()
     result = runner.invoke(
         pretty_print,

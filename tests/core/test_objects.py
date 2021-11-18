@@ -16,10 +16,11 @@ from mlem.core.meta_io import (
     deserialize,
     serialize,
 )
-from mlem.core.metadata import load_meta
+from mlem.core.metadata import load, load_meta
 from mlem.core.objects import (
     Deployment,
     DeployMeta,
+    LinkData,
     MlemLink,
     MlemMeta,
     ModelMeta,
@@ -45,63 +46,88 @@ def meta():
 
 
 @pytest.fixture(params=["fullpath", "with_root"])
-def path_and_root(mlem_root, request):
+def path_and_root(mlem_repo, request):
     def get(name):
         if request.param == "fullpath":
-            return os.path.join(mlem_root, name), None
-        return name, mlem_root
+            return os.path.join(mlem_repo, name), None
+        return name, mlem_repo
 
     return get
 
 
+@pytest.mark.parametrize("external", [True, False])
+def test_meta_dump_curdir(meta, mlem_curdir_repo, external):
+    meta.dump(DEPLOY_NAME, external=external)
+    path = DEPLOY_NAME + MLEM_EXT
+    if not external:
+        path = os.path.join(MLEM_DIR, meta.object_type, path)
+    assert os.path.isfile(path)
+    assert isinstance(load(DEPLOY_NAME), DeployMeta)
+
+
 def test_meta_dump__no_root(meta, tmpdir):
     with pytest.raises(MlemRootNotFound):
-        meta.dump(DEPLOY_NAME, mlem_root=str(tmpdir))
+        meta.dump(DEPLOY_NAME, repo=str(tmpdir))
 
 
-def test_meta_dump_internal(mlem_root, meta, path_and_root):
+def test_meta_dump_internal(mlem_repo, meta, path_and_root):
     path, root = path_and_root(DEPLOY_NAME)
-    meta.dump(path, mlem_root=root, external=False)
+    meta.dump(path, repo=root, external=False)
     meta_path = os.path.join(
-        mlem_root, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
+        mlem_repo, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
     )
     assert os.path.isfile(meta_path)
     assert isinstance(load_meta(meta_path), DeployMeta)
+    assert isinstance(load_meta(path, repo=root), DeployMeta)
 
 
-def test_meta_dump_external(mlem_root, meta, path_and_root):
+def test_meta_dump_external(mlem_repo, meta, path_and_root):
     path, root = path_and_root(DEPLOY_NAME)
-    meta.dump(path, mlem_root=root, external=True)
-    meta_path = os.path.join(mlem_root, DEPLOY_NAME + MLEM_EXT)
+    meta.dump(path, repo=root, external=True)
+    meta_path = os.path.join(mlem_repo, DEPLOY_NAME + MLEM_EXT)
     assert os.path.isfile(meta_path)
     assert isinstance(load_meta(meta_path), DeployMeta)
     link_path = os.path.join(
-        mlem_root, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
+        mlem_repo, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
     )
     assert os.path.isfile(link_path)
     assert isinstance(load_meta(link_path, follow_links=False), MlemLink)
 
 
-def test_model_dump_internal(mlem_root, model_meta, path_and_root):
+@pytest.mark.parametrize("external", [False])
+def test_model_dump_curdir(model_meta, mlem_curdir_repo, external):
+    model_meta.dump(MODEL_NAME, external=external)
+    if not external:
+        prefix = Path(os.path.join(MLEM_DIR, model_meta.object_type))
+    else:
+        prefix = Path("")
+    assert os.path.isdir(prefix / MODEL_NAME)
+    assert os.path.isfile(prefix / MODEL_NAME / META_FILE_NAME)
+    assert os.path.isdir(prefix / MODEL_NAME / ART_DIR)
+    assert os.path.isfile(prefix / MODEL_NAME / ART_DIR / "data.pkl")
+    assert isinstance(load_meta(MODEL_NAME), ModelMeta)
+
+
+def test_model_dump_internal(mlem_repo, model_meta, path_and_root):
     path, root = path_and_root(MODEL_NAME)
-    model_meta.dump(path, mlem_root=root, external=False)
+    model_meta.dump(path, repo=root, external=False)
     model_path = os.path.join(
-        mlem_root, MLEM_DIR, ModelMeta.object_type, MODEL_NAME
+        mlem_repo, MLEM_DIR, ModelMeta.object_type, MODEL_NAME
     )
     assert os.path.isdir(model_path)
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
 
 
-def test_model_dump_external(mlem_root, model_meta, path_and_root):
+def test_model_dump_external(mlem_repo, model_meta, path_and_root):
     path, root = path_and_root(MODEL_NAME)
-    model_meta.dump(path, mlem_root=root, external=True)
-    model_path = os.path.join(mlem_root, MODEL_NAME)
+    model_meta.dump(path, repo=root, external=True)
+    model_path = os.path.join(mlem_repo, MODEL_NAME)
     assert os.path.isdir(model_path)
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
     link_path = os.path.join(
-        mlem_root, MLEM_DIR, ModelMeta.object_type, MODEL_NAME + MLEM_EXT
+        mlem_repo, MLEM_DIR, ModelMeta.object_type, MODEL_NAME + MLEM_EXT
     )
     assert os.path.isfile(link_path)
     link = load_meta(link_path, follow_links=False)
@@ -167,14 +193,14 @@ def test_model_getattr(model_meta):
         model_meta.not_existing_method(X)
 
 
-def test_mlem_dir_path(filled_mlem_root):
+def test_mlem_dir_path(filled_mlem_repo):
     # case when we provide objects' abspath and object is already located in the same MLEM root
     model_link = os.path.join(
-        filled_mlem_root, MLEM_DIR, "model", "data", "model" + MLEM_EXT
+        filled_mlem_repo, MLEM_DIR, "model", "data", "model" + MLEM_EXT
     )
     assert (
         mlem_dir_path(
-            os.path.join(filled_mlem_root, "data", "model"),
+            os.path.join(filled_mlem_repo, "data", "model"),
             obj_type="model",
             fs=None,
         )
@@ -182,11 +208,11 @@ def test_mlem_dir_path(filled_mlem_root):
     )
     # case when we provide object relative path
     model_link = os.path.join(
-        filled_mlem_root, MLEM_DIR, "model", "latest" + MLEM_EXT
+        filled_mlem_repo, MLEM_DIR, "model", "latest" + MLEM_EXT
     )
     assert (
         mlem_dir_path(
-            "latest", fs=None, obj_type="model", mlem_root=filled_mlem_root
+            "latest", fs=None, obj_type="model", repo=filled_mlem_repo
         )
         == model_link
     )
@@ -194,7 +220,8 @@ def test_mlem_dir_path(filled_mlem_root):
 
 def test_link_dump(model_path):
     link = MlemLink(
-        mlem_link=os.path.join(model_path, META_FILE_NAME), link_type="model"
+        link_data=LinkData(path=os.path.join(model_path, META_FILE_NAME)),
+        link_type="model",
     )
     with tempfile.TemporaryDirectory() as dir:
         path_to_link = os.path.join(dir, "latest" + MLEM_EXT)
@@ -208,14 +235,15 @@ def test_double_link_load():
     raise AssertionError()
 
 
-def test_link_dump_in_mlem(model_path_mlem_root):
-    model_path, mlem_root = model_path_mlem_root
+def test_link_dump_in_mlem(model_path_mlem_repo):
+    model_path, mlem_repo = model_path_mlem_repo
     link = MlemLink(
-        mlem_link=os.path.join(model_path, META_FILE_NAME), link_type="model"
+        link_data=LinkData(path=os.path.join(model_path, META_FILE_NAME)),
+        link_type="model",
     )
     link_name = "latest"
-    link.dump(link_name, mlem_root=mlem_root, external=True, link=False)
-    model = load_meta(os.path.join(mlem_root, link_name), follow_links=True)
+    link.dump(link_name, repo=mlem_repo, external=True, link=False)
+    model = load_meta(os.path.join(mlem_repo, link_name), follow_links=True)
     assert isinstance(model, ModelMeta)
 
 
@@ -231,8 +259,8 @@ def test_model_model_type_laziness():
         print(model.model_type)
 
 
-def test_mlem_root(filled_mlem_root):
-    path = Path(filled_mlem_root)
+def test_mlem_repo_root(filled_mlem_repo):
+    path = Path(filled_mlem_repo)
     assert os.path.exists(path)
     assert os.path.isdir(path)
     mlem_dir = path / MLEM_DIR

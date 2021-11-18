@@ -8,22 +8,19 @@ from mlem.core.meta_io import MLEM_DIR
 
 @mlem_command("link")
 @click.argument("source")
-@click.option(
-    "--repo", default=None, help="Repo in which {source} can be found."
-)
 @click.option("--rev", default=None, help="Repo revision to use.")
 @click.option(
-    "--source-mlem-root",
+    "--source-repo",
     "--sr",
     default=None,
-    help="Load source from mlem repo found in {mlem_root} path.",
+    help="Load source from mlem repo found in {source_repo} path.",
 )
 @click.argument("target")
 @click.option(
-    "--target-mlem-root",
+    "--target-repo",
     "--tr",
     default=None,
-    help="Save link to mlem dir found in {mlem_root} path.",
+    help="Save link to mlem dir found in {target_repo} path.",
 )
 @click.option(
     "--external",
@@ -46,11 +43,10 @@ from mlem.core.meta_io import MLEM_DIR
 )
 def link(
     source: str,
-    repo: Optional[str],
+    source_repo: Optional[str],
     rev: Optional[str],
-    source_mlem_root: Optional[str],
     target: str,
-    target_mlem_root: Optional[str],
+    target_repo: Optional[str],
     external: bool,
     follow_links: bool,
     absolute: bool,
@@ -60,11 +56,10 @@ def link(
 
     link(
         source=source,
-        repo=repo,
+        source_repo=source_repo,
         rev=rev,
-        source_mlem_root=source_mlem_root,
         target=target,
-        target_mlem_root=target_mlem_root,
+        target_repo=target_repo,
         follow_links=follow_links,
         external=external,
         absolute=absolute,

@@ -17,9 +17,9 @@ def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
     for meta in objects:
         if (
             isinstance(meta, MlemLink)
-            and meta.name != meta.mlem_link[: -len(MLEM_EXT)]
+            and meta.name != meta.link_data.path[: -len(MLEM_EXT)]
         ):
-            link = f"-> {os.path.dirname(meta.mlem_link)}"
+            link = f"-> {os.path.dirname(meta.link_data.path)}"
         else:
             link = ""
         print("", "-", meta.name, *[link] if link else [])
@@ -40,7 +40,7 @@ TYPE_ALIASES = {
 @click.option("-r", "--repo", default=".")
 @click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
 def ls(type_filter: str, repo: str, links: bool):
-    """List MLEM objects of {type} in current mlem_root."""
+    """List MLEM objects of {type} in repo."""
     from mlem.api.commands import ls
 
     if type_filter == "all":

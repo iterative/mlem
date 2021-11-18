@@ -21,7 +21,7 @@ from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.utils.root import find_mlem_root
+from mlem.utils.root import find_repo_root
 
 
 def _get_dataset(dataset: Any) -> Any:
@@ -159,11 +159,10 @@ def init(path: str = ".") -> None:
 
 def link(
     source: Union[str, MlemMeta],
-    repo: Optional[str] = None,
+    source_repo: Optional[str] = None,
     rev: Optional[str] = None,
-    source_mlem_root: Optional[str] = None,
     target: Optional[str] = None,
-    target_mlem_root: [str] = None,
+    target_repo: [str] = None,
     external: Optional[bool] = None,
     follow_links: bool = True,
     absolute: bool = False,
@@ -172,11 +171,10 @@ def link(
 
     Args:
         source (Union[str, MlemMeta]): The object to create link from.
-        repo (str, optional): Repo if object is stored in git repo.
+        source_repo (str, optional): Path to mlem repo where to load obj from
         rev (str, optional): Revision if object is stored in git repo.
-        source_mlem_root (str, optional): Path to mlem repo where to load obj from
         target (str, optional): Where to store the link object.
-        target_mlem_root (str, optional): If provided,
+        target_repo (str, optional): If provided,
             treat `target` as link name and dump link in MLEM DIR
         follow_links (bool): Whether to make link to the underlying object
             if `source` is itself a link. Defaults to True.
@@ -192,15 +190,14 @@ def link(
     else:
         source = load_meta(
             source,
-            repo=repo,
+            repo=source_repo,
             rev=rev,
-            mlem_root=source_mlem_root,
             follow_links=follow_links,
         )
 
     return source.make_link(
         target,
-        mlem_root=target_mlem_root,
+        repo=target_repo,
         external=external,
         absolute=absolute,
     )
@@ -262,10 +259,10 @@ def ls(
     if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
         type_filter = [type_filter]
     fs, path = get_fs(repo)
-    mlem_root = find_mlem_root(path, fs)
+    root = find_repo_root(path, fs)
     res = defaultdict(list)
     for cls in type_filter:
-        root_path = os.path.join(mlem_root, MLEM_DIR, cls.object_type)
+        root_path = os.path.join(root, MLEM_DIR, cls.object_type)
         files = fs.glob(
             os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
@@ -273,7 +270,7 @@ def ls(
             meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
             if isinstance(meta, MlemLink):
                 link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
-                is_auto_link = meta.mlem_link == os.path.join(
+                is_auto_link = meta.link_data.path == os.path.join(
                     link_name, META_FILE_NAME
                 )
                 if is_auto_link:
