@@ -25,6 +25,7 @@ from tests.conftest import (
 )
 
 
+@long
 @pytest.mark.parametrize(
     "url_path_pairs",
     [
@@ -70,6 +71,7 @@ def test_get_fs(uri, cls, result):
     assert path == result
 
 
+@long
 @pytest.mark.parametrize(
     "uri, rev", [("path", "main"), ("tree/main/path", "main")]
 )
@@ -82,6 +84,7 @@ def test_get_fs_github(uri, rev):
     assert path == "path"
 
 
+@long
 @pytest.mark.parametrize(
     "uri",
     [

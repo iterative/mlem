@@ -60,6 +60,7 @@ install_requires = [
     "Jinja2<3",
     "fsspec>=2021.7.0",
     "fusepy",  # TMP
+    "pyparsing<3",  # legacy resolver problem
     "cached-property",
     "entrypoints",
     "filelock",

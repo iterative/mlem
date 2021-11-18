@@ -6,37 +6,23 @@ import click
 
 from mlem.cli.main import mlem_command
 from mlem.core.meta_io import get_fs
-from mlem.core.objects import (
-    MLEM_DIR,
-    MLEM_EXT,
-    MlemLink,
-    MlemMeta,
-    find_object,
-)
-from mlem.utils.root import find_mlem_root
+from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta, find_object
 
 
-def _print_objects_of_type(
-    cls: Type[MlemMeta], objects: List[MlemMeta], mlem_root: str
-):
+def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
     if len(objects) == 0:
         return
 
     print(cls.object_type.capitalize() + "s:")
     for meta in objects:
-        obj_name = os.path.relpath(meta.name or "?", mlem_root)
         if (
             isinstance(meta, MlemLink)
-            and obj_name != meta.mlem_link[: -len(MLEM_EXT)]
+            and meta.name != meta.mlem_link[: -len(MLEM_EXT)]
         ):
             link = f"-> {os.path.dirname(meta.mlem_link)}"
-            obj_name = os.path.relpath(
-                obj_name, os.path.join(MLEM_DIR, cls.object_type)
-            )[: -len(MLEM_EXT)]
         else:
             link = ""
-            obj_name = os.path.dirname(obj_name)
-        print("", "-", obj_name, *[link] if link else [])
+        print("", "-", meta.name, *[link] if link else [])
 
 
 TYPE_ALIASES = {
@@ -65,10 +51,8 @@ def ls(type_filter: str, repo: str, links: bool):
         ]
 
     objects = ls(repo, types, include_links=links)
-    fs, path = get_fs(repo)
-    mlem_root = find_mlem_root(path, fs)
     for cls, objs in objects.items():
-        _print_objects_of_type(cls, objs, mlem_root)
+        _print_objects_of_type(cls, objs)
     return {"type_filter": type_filter}
 
 
@@ -87,7 +71,5 @@ def pretty_print(obj: str, follow_links: bool):
     fs, path = get_fs(obj)
     tp, _ = find_object(path, fs)
     pprint(
-        MlemMeta.subtype_mapping()[tp].read(
-            path, follow_links=follow_links, fs=fs
-        )
+        MlemMeta.__type_map__[tp].read(path, follow_links=follow_links, fs=fs)
     )

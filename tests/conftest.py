@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from git import GitCommandError, Repo
-from requests import HTTPError
+from requests import ConnectionError, HTTPError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
@@ -56,7 +56,7 @@ def _check_github_test_repo_auth():
     try:
         get_fs(MLEM_TEST_REPO)
         return True
-    except HTTPError:
+    except (HTTPError, ConnectionError):
         return False
 
 
@@ -176,20 +176,28 @@ def model_meta_saved(model_path):
 def mlem_root(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
+    return dir
+
+
+@pytest.fixture
+def filled_mlem_root(mlem_root):
     # TODO: bug: when reqs are empty, they serialize to "{}", not "[]"
     # https://github.com/iterative/mlem/issues/95
     model = ModelMeta(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
-    model.dump("model1", mlem_root=dir)
+    model.dump("model1", mlem_root=mlem_root, external=True)
 
     model.make_link(
         mlem_dir_path(
-            "latest", LocalFileSystem(), obj_type=ModelMeta, mlem_root=dir
+            "latest",
+            LocalFileSystem(),
+            obj_type=ModelMeta,
+            mlem_root=mlem_root,
         )
     )
-    yield dir
+    yield mlem_root
 
 
 @pytest.fixture
@@ -198,7 +206,7 @@ def model_path_mlem_root(model_train_target, tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, tmp_sample_data=train, link=True)
+    save(model, model_dir, tmp_sample_data=train, link=True, external=True)
     yield model_dir, dir
 
 

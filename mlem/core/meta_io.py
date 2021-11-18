@@ -2,11 +2,10 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import os
-from typing import Any, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Tuple, Type, TypeVar
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
-from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
 
 from mlem.core.base import MlemObject
@@ -18,23 +17,6 @@ MLEM_EXT = ".mlem.yaml"
 
 META_FILE_NAME = "mlem.yaml"
 ART_DIR = "artifacts"
-
-
-def resolve_fs(
-    fs: Union[str, AbstractFileSystem] = None,
-    path: str = None,
-    protocol: str = None,
-) -> Tuple[AbstractFileSystem, Optional[str]]:
-    """Try to resolve fs from given fs or URI"""
-    # TODO: do we really need this function?
-    # address in https://github.com/iterative/mlem/issues/4
-    if fs is None:
-        if path is None:
-            return LocalFileSystem(), ""
-        return get_fs(path)
-    if isinstance(fs, AbstractFileSystem):
-        return fs, path
-    return get_fs(uri=fs, protocol=protocol)
 
 
 def get_fs(
@@ -112,20 +94,21 @@ def deserialize(obj, as_class: Type[T]) -> T:
     return parse_obj_as(as_class, obj)
 
 
-def is_mlem_dir(uri: str, fs: AbstractFileSystem):
-    """Check if given dir contains save MLEM model or dataset"""
-    return fs.isdir(uri) and fs.exists(os.path.join(uri, META_FILE_NAME))
-
-
 def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     """Augments given path so it will point to a MLEM metafile
     if it points to a folder with dumped object
     """
     if os.path.basename(uri) == META_FILE_NAME and fs.isfile(uri):
+        # .../<META_FILE_NAME>
         return uri
-    if is_mlem_dir(uri, fs):
+    if fs.isdir(uri) and fs.isfile(os.path.join(uri, META_FILE_NAME)):
+        # .../path and .../path/<META_FILE_NAME> exists
         return os.path.join(uri, META_FILE_NAME)
+    if fs.isfile(uri + MLEM_EXT):
+        # .../name without <MLEM_EXT>
+        return uri + MLEM_EXT
     if MLEM_DIR in uri and fs.isfile(uri):
+        # .../<MLEM_DIR>/.../file
         return uri
     if fs.exists(uri):
         raise Exception(

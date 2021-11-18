@@ -8,8 +8,15 @@ from mlem.utils.importing import import_string
 
 @overload
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: Literal[True] = True
+    abs_name: str, type_name: str, raise_on_missing: Literal[True] = ...
 ) -> Type["MlemObject"]:
+    ...
+
+
+@overload
+def load_impl_ext(
+    abs_name: str, type_name: str, raise_on_missing: Literal[False] = ...
+) -> Optional[Type["MlemObject"]]:
     ...
 
 
