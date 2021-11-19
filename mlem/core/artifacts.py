@@ -4,13 +4,24 @@ such as model binaries or .csv files
 """
 import contextlib
 import os.path
+import tempfile
 from abc import ABC, abstractmethod
-from typing import IO, ClassVar, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    IO,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    overload,
+)
 from urllib.parse import urlparse
 
 import fsspec
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from typing_extensions import Literal
 
 from mlem.core.base import MlemObject
 from mlem.core.meta_io import get_fs, get_path_by_fs_path
@@ -21,8 +32,34 @@ class Artifact(MlemObject, ABC):
     __default_type__: ClassVar = "local"
     abs_name: ClassVar = "artifact"
 
+    @overload
+    def download(
+        self, target_path: str, target_fs: Literal[None] = None
+    ) -> "LocalArtifact":
+        ...
+
+    @overload
+    def download(
+        self, target_path: str, target_fs: AbstractFileSystem = ...
+    ) -> "Artifact":
+        ...
+
+    def download(
+        self, target_path: str, target_fs: Optional[AbstractFileSystem] = None
+    ) -> "Artifact":
+        if target_fs is None:
+            target_fs, target_path = get_fs(target_path)
+
+        if isinstance(target_fs, LocalFileSystem):
+            return self._download(target_path)
+        with tempfile.TemporaryDirectory() as buf:
+            tmp = self._download(buf)
+            target_path = os.path.join(target_path, os.path.basename(tmp.uri))
+            target_fs.upload(tmp.uri, target_path)
+        return FSSpecArtifact(uri=get_path_by_fs_path(target_fs, target_path))
+
     @abstractmethod
-    def download(self, target_path: str) -> "LocalArtifact":
+    def _download(self, target_path: str) -> "LocalArtifact":
         raise NotImplementedError
 
     @abstractmethod
@@ -43,7 +80,7 @@ class FSSpecArtifact(Artifact):
     type: ClassVar = "fsspec"
     uri: str
 
-    def download(self, target_path: str) -> "LocalArtifact":
+    def _download(self, target_path: str) -> "LocalArtifact":
         fs, path = get_fs(self.uri)
 
         if os.path.isdir(target_path):

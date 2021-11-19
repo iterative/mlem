@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError
 from sklearn.datasets import load_iris
 
@@ -136,13 +137,15 @@ def test_model_dump_external(mlem_repo, model_meta, path_and_root):
     assert serialize(model) == serialize(model_meta)
 
 
-def _check_cloned_model(cloned_model_meta: MlemMeta, path):
+def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
+    if fs is None:
+        fs = LocalFileSystem()
     assert isinstance(cloned_model_meta, ModelMeta)
     assert cloned_model_meta.artifacts is not None
     for art in cloned_model_meta.artifacts:
         assert isinstance(art, LocalArtifact)
         assert not os.path.isabs(art.uri)
-        assert os.path.isfile(os.path.join(path, art.uri))
+        assert fs.isfile(os.path.join(path, art.uri))
     cloned_model = cloned_model_meta.get_value()
     assert cloned_model is not None
     X, _ = load_iris(return_X_y=True)
@@ -158,17 +161,16 @@ def test_model_cloning(model_path):
 
 
 @long
-@pytest.mark.xfail(reason="TODO:https://github.com/iterative/mlem/issues/108")
 def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")
     model.clone(path, link=False)
-    s3path = Path(path)
+    s3path = Path(path[len("s3:/") :])
     assert s3_storage_fs.isfile(s3path / META_FILE_NAME)
     assert s3_storage_fs.isdir(s3path / ART_DIR)
     assert s3_storage_fs.isfile(s3path / ART_DIR / "data.pkl")
     cloned_model_meta = load_meta(path, load_value=True)
-    _check_cloned_model(cloned_model_meta, path)
+    _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
 
 
 @long

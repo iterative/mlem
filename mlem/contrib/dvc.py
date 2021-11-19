@@ -54,7 +54,7 @@ class DVCArtifact(LocalArtifact):
     type: ClassVar = "dvc"
     uri: str
 
-    def download(self, target_path: str) -> LocalArtifact:
+    def _download(self, target_path: str) -> LocalArtifact:
         with self.open() as fin, open(
             os.path.join(target_path, os.path.basename(self.uri)), "wb"
         ) as fout:

@@ -14,7 +14,12 @@ from pydantic import BaseModel
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
-from mlem.core.artifacts import Artifacts, FSSpecStorage
+from mlem.core.artifacts import (
+    Artifacts,
+    FSSpecArtifact,
+    FSSpecStorage,
+    LocalArtifact,
+)
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
 from mlem.core.errors import MlemObjectNotSavedError, MlemRootNotFound
@@ -433,9 +438,13 @@ class _WithArtifacts(ABC, MlemMeta):
         )
         fs.makedirs(new.art_dir, exist_ok=True)
         for art in self.relative_artifacts:
-            # TODO: copy artifacts to target fs/storage https://github.com/iterative/mlem/issues/108
-            download = art.download(new.art_dir)
-            download.uri = os.path.relpath(download.uri, path)
+            download = art.download(
+                new.art_dir, new._fs  # pylint: disable=protected-access
+            )
+            if isinstance(download, FSSpecArtifact):
+                download = LocalArtifact(
+                    uri=os.path.relpath(download.uri, path)
+                )
             new.artifacts.append(download)
         new._write_meta(  # pylint: disable=protected-access
             fullpath, repo, fs, link
