@@ -50,7 +50,7 @@ def ls(type_filter: str, repo: str, links: bool):
             TYPE_ALIASES.get(type_filter, type_filter)
         ]
 
-    objects = ls(repo, types, include_links=links)
+    objects = ls(repo or ".", types, include_links=links)
     for cls, objs in objects.items():
         _print_objects_of_type(cls, objs)
     return {"type_filter": type_filter}
