@@ -4,9 +4,9 @@ from typing import List, Type
 
 import click
 
-from mlem.cli.main import mlem_command
-from mlem.core.meta_io import get_fs
-from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta, find_object
+from mlem.cli.main import mlem_command, option_repo, option_rev
+from mlem.core.metadata import load_meta
+from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
 
 
 def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
@@ -37,7 +37,7 @@ TYPE_ALIASES = {
     "type_filter",
     default="all",
 )
-@click.option("-r", "--repo", default=".")
+@option_repo
 @click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
 def ls(type_filter: str, repo: str, links: bool):
     """List MLEM objects of {type} in repo."""
@@ -57,7 +57,7 @@ def ls(type_filter: str, repo: str, links: bool):
 
 
 @mlem_command("pprint")
-@click.argument("obj")
+@click.argument("path")
 @click.option(
     "-f",
     "--follow-links",
@@ -66,10 +66,12 @@ def ls(type_filter: str, repo: str, links: bool):
     is_flag=True,
     help="If specified, follow the link to the actual object.",
 )
-def pretty_print(obj: str, follow_links: bool):
+@option_repo
+@option_rev
+def pretty_print(
+    path: str, repo: str = None, rev: str = None, follow_links: bool = False
+):
     """Print __str__ for the specified MLEM object."""
-    fs, path = get_fs(obj)
-    tp, _ = find_object(path, fs)
     pprint(
-        MlemMeta.__type_map__[tp].read(path, follow_links=follow_links, fs=fs)
+        load_meta(path, repo, rev, follow_links=follow_links, load_value=False)
     )

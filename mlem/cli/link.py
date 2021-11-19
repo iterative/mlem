@@ -2,13 +2,13 @@ from typing import Optional
 
 import click
 
-from mlem.cli.main import mlem_command
+from mlem.cli.main import mlem_command, option_rev
 from mlem.core.meta_io import MLEM_DIR
 
 
 @mlem_command("link")
 @click.argument("source")
-@click.option("--rev", default=None, help="Repo revision to use.")
+@option_rev
 @click.option(
     "--source-repo",
     "--sr",

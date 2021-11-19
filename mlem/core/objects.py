@@ -87,7 +87,7 @@ class MlemMeta(MlemObject):
         return self.object_type
 
     @classmethod
-    def _get_metafile_path(cls, fullpath: str):
+    def get_metafile_path(cls, fullpath: str):
         """Augment path to point to metafile, if it is not"""
         if not fullpath.endswith(MLEM_EXT):
             fullpath += MLEM_EXT
@@ -107,7 +107,7 @@ class MlemMeta(MlemObject):
 
         fullpath = os.path.join(repo or "", path)
         if metafile_path:
-            fullpath = cls._get_metafile_path(fullpath)
+            fullpath = cls.get_metafile_path(fullpath)
         if fs is None:
             fs, fullpath = get_fs(fullpath)
         elif isinstance(fs, LocalFileSystem):
@@ -277,7 +277,7 @@ class MlemMeta(MlemObject):
             link_data=LinkData(
                 path=self._path
                 if absolute
-                else self._get_metafile_path(self.name)
+                else self.get_metafile_path(self.name)
             ),
             link_type=self.resolved_type,
         )
@@ -374,7 +374,7 @@ class _WithArtifacts(ABC, MlemMeta):
     requirements: Requirements
 
     @classmethod
-    def _get_metafile_path(cls, fullpath: str):
+    def get_metafile_path(cls, fullpath: str):
         """Augment fullpath to point to metafile, if it is not"""
         if not fullpath.endswith(META_FILE_NAME):
             fullpath = os.path.join(fullpath, META_FILE_NAME)
@@ -648,19 +648,13 @@ def find_object(
     if repo is not None and path.startswith(repo):
         path = os.path.relpath(path, repo)
     source_paths = [
-        (tp, mlem_dir_path(path, fs, obj_type=cls, repo=repo))
-        for tp, cls in MlemMeta.non_abstract_subtypes().items()
-        if issubclass(cls, MlemMeta)
-    ] + [
         (
             tp,
             os.path.join(
                 repo or "",
                 MLEM_DIR,
                 cls.object_type,
-                cls._get_metafile_path(  # pylint: disable=protected-access
-                    path
-                ),
+                cls.get_metafile_path(path),
             ),
         )
         for tp, cls in MlemMeta.non_abstract_subtypes().items()

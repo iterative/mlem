@@ -67,3 +67,7 @@ def mlem_command(*args, **kwargs):
         )
 
     return decorator
+
+
+option_repo = click.option("-r", "--repo", default=None)
+option_rev = click.option("--rev", default=None, help="Repo revision to use.")
