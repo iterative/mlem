@@ -13,7 +13,7 @@ from mlem.api import init
 from mlem.constants import MLEM_DIR
 from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemLink, ModelMeta
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -78,8 +78,8 @@ def test_meta_loading(model_path):
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model/mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/data/model.mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/latest.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem.yaml",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
@@ -97,8 +97,8 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     [
         "data/model",
         "data/model/mlem.yaml",
-        ".mlem/model/data/model.mlem.yaml",
-        ".mlem/model/latest.mlem.yaml",
+        ".mlem/link/data/model.mlem.yaml",
+        ".mlem/link/latest.mlem.yaml",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
@@ -140,7 +140,7 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     save(model, model_path, fs=s3_storage_fs, external=True)
     model_path = Path(model_path[len("s3:/") :])
     assert s3_storage_fs.isfile(
-        os.path.join(path, MLEM_DIR, "model", "model.mlem.yaml")
+        os.path.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
     )
     assert s3_storage_fs.isfile(str(model_path / META_FILE_NAME))
     assert s3_storage_fs.isdir(str(model_path / ART_DIR))

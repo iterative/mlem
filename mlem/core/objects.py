@@ -77,6 +77,10 @@ class MlemMeta(MlemObject):
     def is_saved(self):
         return self._path is not None
 
+    @property
+    def resolved_type(self):
+        return self.object_type
+
     @classmethod
     def _get_metafile_path(cls, fullpath: str):
         """Augment path to point to metafile, if it is not"""
@@ -270,7 +274,7 @@ class MlemMeta(MlemObject):
                 if absolute
                 else self._get_metafile_path(self.name)
             ),
-            link_type=self.object_type,
+            link_type=self.resolved_type,
         )
         if path is not None:
             link.dump(path, fs, repo, external=external, link=False)
@@ -328,17 +332,12 @@ class MlemLink(MlemMeta):
     object_type = "link"
 
     @property
-    def name(self):
-        """Name of the object in the repo"""
-        repo_path = os.path.relpath(self._path, self._repo)[: -len(MLEM_EXT)]
-        prefix = os.path.join(MLEM_DIR, self.link_type)
-        if repo_path.startswith(prefix):
-            repo_path = repo_path[len(prefix) + 1 :]
-        return repo_path
-
-    @property
     def link_cls(self) -> Type[MlemMeta]:
         return MlemMeta.__type_map__[self.link_type]
+
+    @property
+    def resolved_type(self):
+        return self.link_type
 
     def load_link(self) -> MlemMeta:
         linked_obj_path, linked_obj_fs = self.parse_link()
@@ -362,31 +361,6 @@ class MlemLink(MlemMeta):
             ),
             self._fs,
         )
-
-    def _get_location(  # type: ignore  # TODO double linking
-        self,
-        path: str,
-        repo: Optional[str],
-        fs: Optional[AbstractFileSystem],
-        external: bool,
-        ensure_mlem_root: bool,
-        metafile_path: bool = True,
-    ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
-        # TODO this fails when double linking
-        (
-            fs,
-            path,
-            repo,
-        ) = self.link_cls._get_location(  # pylint: disable=protected-access
-            path=path,
-            repo=repo,
-            fs=fs,
-            external=external,
-            ensure_mlem_root=ensure_mlem_root,
-            metafile_path=False,
-        )
-        path = self._get_metafile_path(path)
-        return fs, path, repo
 
 
 class _WithArtifacts(ABC, MlemMeta):

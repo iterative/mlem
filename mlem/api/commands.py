@@ -3,7 +3,7 @@ MLEM's Python API
 """
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import click
 from pydantic import parse_obj_as
@@ -251,13 +251,18 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
 
 def ls(
     repo: str = ".",
-    type_filter: Union[Type[MlemMeta], Sequence[Type[MlemMeta]], None] = None,
+    type_filter: Union[Type[MlemMeta], Iterable[Type[MlemMeta]], None] = None,
     include_links: bool = True,
 ) -> Dict[Type[MlemMeta], List[MlemMeta]]:
     if type_filter is None:
-        type_filter = list(MlemMeta.non_abstract_subtypes().values())
+        type_filter = set(MlemMeta.non_abstract_subtypes().values())
     if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
-        type_filter = [type_filter]
+        type_filter = {type_filter}
+    type_filter = set(type_filter)
+    if len(type_filter) == 0:
+        return {}
+    if MlemLink not in type_filter:
+        type_filter.add(MlemLink)
     fs, path = get_fs(repo)
     root = find_repo_root(path, fs)
     res = defaultdict(list)
@@ -268,14 +273,18 @@ def ls(
         )
         for file in files:
             meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
+            obj_type = cls
             if isinstance(meta, MlemLink):
                 link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
                 is_auto_link = meta.link_data.path == os.path.join(
                     link_name, META_FILE_NAME
                 )
+                obj_type = MlemMeta.__type_map__[meta.link_type]
+                if obj_type not in type_filter:
+                    continue
                 if is_auto_link:
                     meta = meta.load_link()
                 elif not include_links:
                     continue
-            res[cls].append(meta)
+            res[obj_type].append(meta)
     return res

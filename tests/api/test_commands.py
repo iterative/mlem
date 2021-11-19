@@ -56,7 +56,7 @@ def test_link_in_mlem_dir(model_path_mlem_repo):
     )
     assert isinstance(link_obj, MlemLink)
     link_dumped_to = os.path.join(
-        mlem_repo, MLEM_DIR, "model", link_name + MLEM_EXT
+        mlem_repo, MLEM_DIR, "link", link_name + MLEM_EXT
     )
     assert os.path.exists(link_dumped_to)
     loaded_link_object = load_meta(link_dumped_to, follow_links=False)

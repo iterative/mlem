@@ -88,7 +88,7 @@ def test_meta_dump_external(mlem_repo, meta, path_and_root):
     assert os.path.isfile(meta_path)
     assert isinstance(load_meta(meta_path), DeployMeta)
     link_path = os.path.join(
-        mlem_repo, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
+        mlem_repo, MLEM_DIR, MlemLink.object_type, DEPLOY_NAME + MLEM_EXT
     )
     assert os.path.isfile(link_path)
     assert isinstance(load_meta(link_path, follow_links=False), MlemLink)
@@ -127,7 +127,7 @@ def test_model_dump_external(mlem_repo, model_meta, path_and_root):
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
     assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
     link_path = os.path.join(
-        mlem_repo, MLEM_DIR, ModelMeta.object_type, MODEL_NAME + MLEM_EXT
+        mlem_repo, MLEM_DIR, MlemLink.object_type, MODEL_NAME + MLEM_EXT
     )
     assert os.path.isfile(link_path)
     link = load_meta(link_path, follow_links=False)
@@ -159,10 +159,14 @@ def test_model_cloning(model_path):
 
 @long
 @pytest.mark.xfail(reason="TODO:https://github.com/iterative/mlem/issues/108")
-def test_model_cloning_to_remote(model_path, s3_tmp_path):
+def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")
     model.clone(path, link=False)
+    s3path = Path(path)
+    assert s3_storage_fs.isfile(s3path / META_FILE_NAME)
+    assert s3_storage_fs.isdir(s3path / ART_DIR)
+    assert s3_storage_fs.isfile(s3path / ART_DIR / "data.pkl")
     cloned_model_meta = load_meta(path, load_value=True)
     _check_cloned_model(cloned_model_meta, path)
 
@@ -230,9 +234,12 @@ def test_link_dump(model_path):
     assert isinstance(model, ModelMeta)
 
 
-@pytest.mark.xfail
-def test_double_link_load():
-    raise AssertionError()
+def test_double_link_load(filled_mlem_repo):
+    latest = load_meta("latest", repo=filled_mlem_repo, follow_links=False)
+    link = latest.make_link("external", repo=filled_mlem_repo, external=True)
+    assert link.link_type == "model"
+    model = load_meta("external", repo=filled_mlem_repo, follow_links=True)
+    assert isinstance(model, ModelMeta)
 
 
 def test_link_dump_in_mlem(model_path_mlem_repo):
@@ -265,8 +272,8 @@ def test_mlem_repo_root(filled_mlem_repo):
     assert os.path.isdir(path)
     mlem_dir = path / MLEM_DIR
     assert os.path.isdir(mlem_dir)
-    assert os.path.isfile(mlem_dir / "model" / ("model1" + MLEM_EXT))
-    assert os.path.isfile(mlem_dir / "model" / ("latest" + MLEM_EXT))
+    assert os.path.isfile(mlem_dir / "link" / ("model1" + MLEM_EXT))
+    assert os.path.isfile(mlem_dir / "link" / ("latest" + MLEM_EXT))
     model_dir = path / "model1"
     assert os.path.isdir(model_dir)
     assert os.path.isfile(model_dir / META_FILE_NAME)
