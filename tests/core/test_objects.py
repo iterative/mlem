@@ -142,10 +142,13 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
         fs = LocalFileSystem()
     assert isinstance(cloned_model_meta, ModelMeta)
     assert cloned_model_meta.artifacts is not None
-    for art in cloned_model_meta.artifacts:
-        assert isinstance(art, LocalArtifact)
-        assert not os.path.isabs(art.uri)
-        assert fs.isfile(os.path.join(path, art.uri))
+    assert len(cloned_model_meta.artifacts) == 1
+    art = cloned_model_meta.artifacts[0]
+    assert isinstance(art, LocalArtifact)
+    assert art.uri == os.path.join(ART_DIR, "data.pkl")
+    assert not os.path.isabs(art.uri)
+    assert fs.isfile(os.path.join(path, art.uri))
+    cloned_model_meta.load_value()
     cloned_model = cloned_model_meta.get_value()
     assert cloned_model is not None
     X, _ = load_iris(return_X_y=True)
@@ -156,7 +159,7 @@ def test_model_cloning(model_path):
     model = load_meta(model_path)
     with tempfile.TemporaryDirectory() as path:
         model.clone(path, link=False)
-        cloned_model_meta = load_meta(path, load_value=True)
+        cloned_model_meta = load_meta(path, load_value=False)
         _check_cloned_model(cloned_model_meta, path)
 
 
@@ -169,24 +172,45 @@ def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     assert s3_storage_fs.isfile(s3path / META_FILE_NAME)
     assert s3_storage_fs.isdir(s3path / ART_DIR)
     assert s3_storage_fs.isfile(s3path / ART_DIR / "data.pkl")
-    cloned_model_meta = load_meta(path, load_value=True)
+    cloned_model_meta = load_meta(path, load_value=False)
     _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
+
+
+@pytest.fixture
+def remote_model_meta(current_test_branch):
+    def get(repo="simple"):
+        return load_meta(
+            os.path.join(MLEM_TEST_REPO, repo, "data", "model"),
+            rev=current_test_branch,
+        )
+
+    return get
 
 
 @long
 @need_test_repo_auth
-def test_model_cloning_remote(current_test_branch):
-    """TODO: https://github.com/iterative/mlem/issues/44
-    test fails in CI because repo is private and DVC does not support http auth for git
-    """
-    with tempfile.TemporaryDirectory() as dir:
-        cloned_model = load_meta(
-            os.path.join(MLEM_TEST_REPO, "simple/data/model"),
-            rev=current_test_branch,
-        ).clone(os.path.join(dir, "model"), link=False)
-        cloned_model.load_value()
-        X, _ = load_iris(return_X_y=True)
-        cloned_model.predict(X)
+@pytest.mark.parametrize("repo", ["dvc_pipeline", "simple"])
+def test_remote_model_cloning(remote_model_meta, repo):
+    with tempfile.TemporaryDirectory() as path:
+        remote_model_meta(repo).clone(path, link=False)
+        cloned_model_meta = load_meta(path, load_value=False)
+        _check_cloned_model(cloned_model_meta, path)
+
+
+@long
+@need_test_repo_auth
+@pytest.mark.parametrize("repo", ["dvc_pipeline", "simple"])
+def test_remote_model_cloning_to_remote(
+    remote_model_meta, repo, s3_tmp_path, s3_storage_fs
+):
+    path = s3_tmp_path("remote_model_cloning_to_remote")
+    remote_model_meta(repo).clone(path, link=False)
+    s3path = Path(path[len("s3:/") :])
+    assert s3_storage_fs.isfile(s3path / META_FILE_NAME)
+    assert s3_storage_fs.isdir(s3path / ART_DIR)
+    assert s3_storage_fs.isfile(s3path / ART_DIR / "data.pkl")
+    cloned_model_meta = load_meta(path, load_value=False)
+    _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
 
 
 def test_model_getattr(model_meta):
