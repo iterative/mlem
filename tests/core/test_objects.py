@@ -27,7 +27,12 @@ from mlem.core.objects import (
     ModelMeta,
     mlem_dir_path,
 )
-from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
+from tests.conftest import (
+    MLEM_TEST_REPO,
+    long,
+    need_test_repo_auth,
+    need_test_repo_ssh_auth,
+)
 
 DEPLOY_NAME = "mydeploy"
 MODEL_NAME = "decision_tree"
@@ -190,7 +195,10 @@ def remote_model_meta(current_test_branch):
 
 @long
 @need_test_repo_auth
-@pytest.mark.parametrize("repo", ["dvc_pipeline", "simple"])
+@pytest.mark.parametrize(
+    "repo",
+    ["simple", pytest.param("dvc_pipeline", marks=need_test_repo_ssh_auth)],
+)
 def test_remote_model_cloning(remote_model_meta, repo):
     with tempfile.TemporaryDirectory() as path:
         remote_model_meta(repo).clone(path, link=False)
@@ -201,7 +209,10 @@ def test_remote_model_cloning(remote_model_meta, repo):
 @long
 @need_test_repo_auth
 @pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
-@pytest.mark.parametrize("repo", ["dvc_pipeline", "simple"])
+@pytest.mark.parametrize(
+    "repo",
+    ["simple", pytest.param("dvc_pipeline", marks=need_test_repo_ssh_auth)],
+)
 def test_remote_model_cloning_to_remote(
     remote_model_meta, repo, s3_tmp_path, s3_storage_fs
 ):
