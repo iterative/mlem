@@ -18,6 +18,7 @@ from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
     MLEM_TEST_REPO_ORG,
+    issue_110,
     long,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
@@ -131,8 +132,8 @@ def test_load_link_with_fsspec_path(current_test_branch):
         model.predict(train)
 
 
-@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 @long
+@issue_110
 def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_save")
     init(path)
@@ -147,8 +148,8 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))
 
 
-@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 @long
+@issue_110
 def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_load")
     init(path)
