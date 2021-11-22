@@ -54,10 +54,10 @@ class DVCArtifact(LocalArtifact):
     type: ClassVar = "dvc"
     uri: str
 
-    def download(self, target_path: str) -> LocalArtifact:
-        with self.open() as fin, open(
-            os.path.join(target_path, os.path.basename(self.uri)), "wb"
-        ) as fout:
+    def _download(self, target_path: str) -> LocalArtifact:
+        if os.path.isdir(target_path):
+            target_path = os.path.join(target_path, os.path.basename(self.uri))
+        with self.open() as fin, open(target_path, "wb") as fout:
             batch = fin.read(BATCH_SIZE)
             while batch:
                 fout.write(batch)

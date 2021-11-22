@@ -10,7 +10,7 @@ from mlem.core.errors import MlemRootNotFound
 
 
 @overload
-def find_mlem_root(
+def find_repo_root(
     path: str = ".",
     fs: AbstractFileSystem = None,
     raise_on_missing: Literal[True] = ...,
@@ -20,7 +20,7 @@ def find_mlem_root(
 
 
 @overload
-def find_mlem_root(
+def find_repo_root(
     path: str = ".",
     fs: AbstractFileSystem = None,
     raise_on_missing: Literal[False] = ...,
@@ -29,7 +29,7 @@ def find_mlem_root(
     ...
 
 
-def find_mlem_root(
+def find_repo_root(
     path: str = ".",
     fs: AbstractFileSystem = None,
     raise_on_missing: bool = True,

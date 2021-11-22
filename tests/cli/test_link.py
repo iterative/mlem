@@ -23,20 +23,20 @@ def test_link(model_path):
         assert isinstance(model, ModelMeta)
 
 
-def test_link_mlem_root(model_path_mlem_root):
-    model_path, mlem_root = model_path_mlem_root
+def test_link_mlem_repo(model_path_mlem_repo):
+    model_path, repo = model_path_mlem_repo
     link_name = "latest.mlem.yaml"
     runner = CliRunner()
     result = runner.invoke(
         link,
-        [model_path, link_name, "--target-mlem-root", mlem_root],
+        [model_path, link_name, "--target-repo", repo],
     )
     assert result.exit_code == 0, result.output
-    link_path = os.path.join(mlem_root, MLEM_DIR, "model", link_name)
+    link_path = os.path.join(repo, MLEM_DIR, MlemLink.object_type, link_name)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
     assert isinstance(link_object, MlemLink)
-    assert os.path.dirname(link_object.mlem_link) == os.path.basename(
+    assert os.path.dirname(link_object.link_data.path) == os.path.basename(
         model_path
     )
     model = load_meta(link_path)

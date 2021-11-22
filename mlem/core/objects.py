@@ -10,10 +10,16 @@ from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from pydantic import BaseModel
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
-from mlem.core.artifacts import Artifacts, FSSpecStorage
+from mlem.core.artifacts import (
+    Artifacts,
+    FSSpecArtifact,
+    FSSpecStorage,
+    LocalArtifact,
+)
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
 from mlem.core.errors import MlemObjectNotSavedError, MlemRootNotFound
@@ -29,7 +35,7 @@ from mlem.core.meta_io import (
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
-from mlem.utils.root import find_mlem_root
+from mlem.utils.root import find_repo_root
 
 
 class Deployment(MlemObject):
@@ -56,17 +62,17 @@ class MlemMeta(MlemObject):
     __type_root__ = True
     abs_name: ClassVar[str] = "meta"
     __type_field__ = "object_type"
-    __transient_fields__ = {"_path", "_fs", "_root"}
+    __transient_fields__ = {"_path", "_fs", "_repo"}
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     _path: Optional[str] = None
-    _root: Optional[str] = None
+    _repo: Optional[str] = None
     _fs: ClassVar[Optional[AbstractFileSystem]] = None
 
     @property
     def name(self):
         """Name of the object in the repo"""
-        repo_path = os.path.relpath(self._path, self._root)[: -len(MLEM_EXT)]
+        repo_path = os.path.relpath(self._path, self._repo)[: -len(MLEM_EXT)]
         prefix = os.path.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
@@ -76,8 +82,12 @@ class MlemMeta(MlemObject):
     def is_saved(self):
         return self._path is not None
 
+    @property
+    def resolved_type(self):
+        return self.object_type
+
     @classmethod
-    def _get_metafile_path(cls, fullpath: str):
+    def get_metafile_path(cls, fullpath: str):
         """Augment path to point to metafile, if it is not"""
         if not fullpath.endswith(MLEM_EXT):
             fullpath += MLEM_EXT
@@ -87,54 +97,52 @@ class MlemMeta(MlemObject):
     def _get_location(
         cls,
         path: str,
-        mlem_root: Optional[str],
+        repo: Optional[str],
         fs: Optional[AbstractFileSystem],
         external: bool,
         ensure_mlem_root: bool,
         metafile_path: bool = True,
     ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
-        """Extract fs, path and mlem_root"""
+        """Extract fs, path and mlem repo"""
 
-        fullpath = os.path.join(mlem_root or "", path)
+        fullpath = os.path.join(repo or "", path)
         if metafile_path:
-            fullpath = cls._get_metafile_path(fullpath)
+            fullpath = cls.get_metafile_path(fullpath)
         if fs is None:
             fs, fullpath = get_fs(fullpath)
         elif isinstance(fs, LocalFileSystem):
             fullpath = os.path.abspath(fullpath)
-        if mlem_root is not None:
-            # check that mlem_root is mlem root
-            find_mlem_root(
-                mlem_root, fs, raise_on_missing=True, recursive=False
-            )
+        if repo is not None:
+            # check that repo is mlem repo root
+            find_repo_root(repo, fs, raise_on_missing=True, recursive=False)
         else:
-            mlem_root = find_mlem_root(fullpath, fs, raise_on_missing=False)
-        if ensure_mlem_root and mlem_root is None:
+            repo = find_repo_root(fullpath, fs, raise_on_missing=False)
+        if ensure_mlem_root and repo is None:
             raise MlemRootNotFound(fullpath, fs)
         if (
-            mlem_root is None
+            repo is None
             or external
             or fullpath.startswith(
-                os.path.join(mlem_root, MLEM_DIR, cls.object_type)
+                os.path.join(repo, MLEM_DIR, cls.object_type)
             )
         ):
             # orphan or external or inside .mlem
-            return fs, fullpath, mlem_root
+            return fs, fullpath, repo
 
         internal_path = os.path.join(
-            mlem_root,
+            repo,
             MLEM_DIR,
             cls.object_type,
-            os.path.relpath(fullpath, mlem_root),
+            os.path.relpath(fullpath, repo),
         )
-        return fs, internal_path, mlem_root
+        return fs, internal_path, repo
 
     def bind(
-        self, path: str, fs: AbstractFileSystem, root: Optional[str] = None
+        self, path: str, fs: AbstractFileSystem, repo: Optional[str] = None
     ):
         self._path = path
         self._fs = fs
-        self._root = root or find_mlem_root(path, fs, False)
+        self._repo = repo or find_repo_root(path, fs, False)
         return self
 
     @classmethod
@@ -142,7 +150,7 @@ class MlemMeta(MlemObject):
         cls: Type[T],
         path: str,
         fs: AbstractFileSystem = None,
-        mlem_root: str = None,
+        repo: str = None,
         follow_links: bool = True,
     ) -> T:
         """
@@ -152,7 +160,7 @@ class MlemMeta(MlemObject):
         Args:
             path: Exact path to MLEM metafile,
             fs: Filesystem on which path is located,
-            mlem_root: path to mlem repo, optional
+            repo: path to mlem repo, optional
             follow_links: If deserialised object is a MLEM link,
                 whether to load and return the linked object
                 or just return MlemLink object.
@@ -160,12 +168,10 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
-        fs, path, root = cls._get_location(
-            path, mlem_root, fs, True, False, False
-        )
+        fs, path, repo = cls._get_location(path, repo, fs, True, False, False)
         with fs.open(path) as f:
             payload = safe_load(f)
-        res = deserialize(payload, cls).bind(path, fs, root)
+        res = deserialize(payload, cls).bind(path, fs, repo)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
             if not isinstance(link, cls):
@@ -189,54 +195,53 @@ class MlemMeta(MlemObject):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem] = None,
-        mlem_root: Optional[str] = None,
+        repo: Optional[str] = None,
         link: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
         """Dumps metafile and possible artifacts to path.
 
         Args:
-            path: name of the object. Relative to mlem_root, if it is provided.
-            fs: filesystem to save to. if not provided, inferred from mlem_root and path
-            mlem_root: path to mlem repo
+            path: name of the object. Relative to repo, if it is provided.
+            fs: filesystem to save to. if not provided, inferred from repo and path
+            repo: path to mlem repo
             link: whether to create link if object is external.
                 If set to True, checks existanse of mlem repo
                 defaults to True if mlem repo exists and external is true
             external: whether to save object inside mlem dir or not.
-                Defaults to false if mlem_root is provided
+                Defaults to false if repo is provided
                 Forced to false if path points inside mlem dir
         """
-        fullpath, mlem_root, fs, link, external = self._parse_dump_args(
-            path, mlem_root, fs, link, external
+        fullpath, repo, fs, link, external = self._parse_dump_args(
+            path, repo, fs, link, external
         )
-        self._write_meta(fullpath, mlem_root, fs, link)
+        self._write_meta(fullpath, repo, fs, link)
 
     def _write_meta(
         self,
         path: str,
-        mlem_root: Optional[str],
+        repo: Optional[str],
         fs: AbstractFileSystem,
         link: bool,
     ):
-        """Write metadata to path in fs and possibly create link in mlem_root"""
+        """Write metadata to path in fs and possibly create link in mlem dir"""
         fs.makedirs(os.path.dirname(path), exist_ok=True)
         with fs.open(path, "w") as f:
             safe_dump(serialize(self), f)
-        if link and mlem_root:
-            self.make_link(self.name, fs, mlem_root=mlem_root, external=False)
+        if link and repo:
+            self.make_link(self.name, fs, repo=repo, external=False)
 
     def _parse_dump_args(
         self,
         path: str,
-        mlem_root: Optional[str],
+        repo: Optional[str],
         fs: Optional[AbstractFileSystem],
         link: Optional[bool],
         external: Optional[bool],
     ) -> Tuple[str, Optional[str], AbstractFileSystem, bool, bool]:
         """Parse arguments for .dump and bind meta"""
         if external is None:
-            # TODO default from mlem_root settings
-            external = False
+            external = CONFIG.DEFAULT_EXTERNAL
         # by default we make link only for external non-orphan objects
         if link is None:
             link = external
@@ -244,22 +249,22 @@ class MlemMeta(MlemObject):
         else:
             # if link manually set to True, there should be mlem repo
             ensure_mlem_root = link
-        fs, fullpath, mlem_root = self._get_location(
-            path, mlem_root, fs, external, ensure_mlem_root
+        fs, fullpath, repo = self._get_location(
+            path, repo, fs, external, ensure_mlem_root
         )
-        self.bind(fullpath, fs, mlem_root)
-        if mlem_root is not None:
+        self.bind(fullpath, fs, repo)
+        if repo is not None:
             # force external=False if fullpath inside MLEM_DIR
             external = os.path.join(MLEM_DIR, "") not in os.path.dirname(
                 fullpath
             )
-        return fullpath, mlem_root, fs, link and external, external
+        return fullpath, repo, fs, link and external, external
 
     def make_link(
         self,
         path: str = None,
         fs: Optional[AbstractFileSystem] = None,
-        mlem_root: Optional[str] = None,
+        repo: Optional[str] = None,
         external: Optional[bool] = None,
         absolute: bool = False,
     ) -> "MlemLink":
@@ -269,13 +274,15 @@ class MlemMeta(MlemObject):
             )
 
         link = MlemLink(
-            mlem_link=self._path
-            if absolute
-            else self._get_metafile_path(self.name),
-            link_type=self.object_type,
+            link_data=LinkData(
+                path=self._path
+                if absolute
+                else self.get_metafile_path(self.name)
+            ),
+            link_type=self.resolved_type,
         )
         if path is not None:
-            link.dump(path, fs, mlem_root, external=external, link=False)
+            link.dump(path, fs, repo, external=external, link=False)
         return link
 
     @classmethod
@@ -290,7 +297,7 @@ class MlemMeta(MlemObject):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
-        mlem_root: Optional[str] = None,
+        repo: Optional[str] = None,
         link: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
@@ -303,7 +310,7 @@ class MlemMeta(MlemObject):
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         new: MlemMeta = self.deepcopy()
         new.dump(
-            path, fs, mlem_root, link, external
+            path, fs, repo, link, external
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
@@ -318,23 +325,24 @@ class MlemMeta(MlemObject):
     #     self._write_meta(self._path, self._root, self._fs, False)
 
 
+class LinkData(BaseModel):
+    path: str
+    repo: Optional[str] = None
+    rev: Optional[str] = None
+
+
 class MlemLink(MlemMeta):
-    mlem_link: str
+    link_data: LinkData
     link_type: str
     object_type = "link"
 
     @property
-    def name(self):
-        """Name of the object in the repo"""
-        repo_path = os.path.relpath(self._path, self._root)[: -len(MLEM_EXT)]
-        prefix = os.path.join(MLEM_DIR, self.link_type)
-        if repo_path.startswith(prefix):
-            repo_path = repo_path[len(prefix) + 1 :]
-        return repo_path
-
-    @property
     def link_cls(self) -> Type[MlemMeta]:
         return MlemMeta.__type_map__[self.link_type]
+
+    @property
+    def resolved_type(self):
+        return self.link_type
 
     def load_link(self) -> MlemMeta:
         linked_obj_path, linked_obj_fs = self.parse_link()
@@ -344,39 +352,20 @@ class MlemLink(MlemMeta):
     def parse_link(self) -> Tuple[str, AbstractFileSystem]:
         if not self.is_saved:
             raise MlemObjectNotSavedError("Link is not saved")
-        if not isinstance(self.mlem_link, str):
-            raise NotImplementedError
-        fs, path = get_fs(self.mlem_link)
+        fs, path = get_fs(self.link_data.path)
         if not isinstance(fs, LocalFileSystem) or (
-            isinstance(fs, LocalFileSystem) and os.path.isabs(self.mlem_link)
+            isinstance(fs, LocalFileSystem)
+            and os.path.isabs(self.link_data.path)
         ):
             return path, fs
-        return os.path.join(self._root or "", self.mlem_link), self._fs
+        from mlem.core.metadata import find_meta_path
 
-    def _get_location(  # type: ignore  # TODO double linking
-        self,
-        path: str,
-        mlem_root: Optional[str],
-        fs: Optional[AbstractFileSystem],
-        external: bool,
-        ensure_mlem_root: bool,
-        metafile_path: bool = True,
-    ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
-        # TODO this fails when double linking
-        (
-            fs,
-            path,
-            root,
-        ) = self.link_cls._get_location(  # pylint: disable=protected-access
-            path=path,
-            mlem_root=mlem_root,
-            fs=fs,
-            external=external,
-            ensure_mlem_root=ensure_mlem_root,
-            metafile_path=False,
+        return (
+            find_meta_path(
+                os.path.join(self._repo or "", self.link_data.path), self._fs
+            ),
+            self._fs,
         )
-        path = self._get_metafile_path(path)
-        return fs, path, root
 
 
 class _WithArtifacts(ABC, MlemMeta):
@@ -385,7 +374,7 @@ class _WithArtifacts(ABC, MlemMeta):
     requirements: Requirements
 
     @classmethod
-    def _get_metafile_path(cls, fullpath: str):
+    def get_metafile_path(cls, fullpath: str):
         """Augment fullpath to point to metafile, if it is not"""
         if not fullpath.endswith(META_FILE_NAME):
             fullpath = os.path.join(fullpath, META_FILE_NAME)
@@ -393,7 +382,7 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @property
     def name(self):
-        repo_path = os.path.dirname(os.path.relpath(self._path, self._root))
+        repo_path = os.path.dirname(os.path.relpath(self._path, self._repo))
         prefix = os.path.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
@@ -403,15 +392,15 @@ class _WithArtifacts(ABC, MlemMeta):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
-        mlem_root: Optional[str] = None,
+        repo: Optional[str] = None,
         link: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
-        fullpath, mlem_root, fs, link, external = self._parse_dump_args(
-            path, mlem_root, fs, link, external
+        fullpath, repo, fs, link, external = self._parse_dump_args(
+            path, repo, fs, link, external
         )
         self.artifacts = self.write_value()
-        self._write_meta(fullpath, mlem_root, fs, link)
+        self._write_meta(fullpath, repo, fs, link)
 
     @abstractmethod
     def write_value(self) -> Artifacts:
@@ -429,7 +418,7 @@ class _WithArtifacts(ABC, MlemMeta):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
-        mlem_root: Optional[str] = None,
+        repo: Optional[str] = None,
         link: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
@@ -440,21 +429,25 @@ class _WithArtifacts(ABC, MlemMeta):
         new.artifacts = []
         (
             fullpath,
-            mlem_root,
+            repo,
             fs,
             link,
             external,
         ) = new._parse_dump_args(  # pylint: disable=protected-access
-            path, mlem_root, fs, link, external
+            path, repo, fs, link, external
         )
         fs.makedirs(new.art_dir, exist_ok=True)
         for art in self.relative_artifacts:
-            # TODO: copy artifacts to target fs/storage https://github.com/iterative/mlem/issues/108
-            download = art.download(new.art_dir)
-            download.uri = os.path.relpath(download.uri, path)
+            download = art.materialize(
+                new.art_dir, new._fs  # pylint: disable=protected-access
+            )
+            if isinstance(download, FSSpecArtifact):
+                download = LocalArtifact(
+                    uri=os.path.relpath(download.uri, path)
+                )
             new.artifacts.append(download)
         new._write_meta(  # pylint: disable=protected-access
-            fullpath, mlem_root, fs, link
+            fullpath, repo, fs, link
         )
         return new
 
@@ -619,7 +612,7 @@ def mlem_dir_path(
     name: str,
     fs: Optional[AbstractFileSystem],
     obj_type: Union[Type[MlemMeta], str],
-    mlem_root: Optional[str] = None,
+    repo: Optional[str] = None,
 ) -> str:
     """Construct path to object link in MLEM root dir
 
@@ -627,39 +620,46 @@ def mlem_dir_path(
         name ([type]): Path to the object.
         fs (AbstractFileSystem): FS where object is located.
         obj_type (Union[Type[MlemMeta], str]): Type of object.
-        mlem_root (str, optional): Path to MLEM root dir. If not provided,
+        repo (str, optional): Path to MLEM root dir. If not provided,
             we'll search mlem_root for given `name`.
 
     Returns:
         str: Path to the given object in MLEM root dir
     """
-    if mlem_root is None:
-        mlem_root = find_mlem_root(path=name, fs=fs)
+    if repo is None:
+        repo = find_repo_root(path=name, fs=fs)
     if not isinstance(obj_type, str):
         obj_type = obj_type.object_type
     if name.endswith(META_FILE_NAME) and not name.endswith(MLEM_EXT):
         name = os.path.dirname(name)
     if not name.endswith(MLEM_EXT):
         name += MLEM_EXT
-    if os.path.abspath(mlem_root) in os.path.abspath(name):
-        name = os.path.relpath(name, start=mlem_root)
-    return os.path.join(mlem_root, MLEM_DIR, obj_type, name)
+    if os.path.abspath(repo) in os.path.abspath(name):
+        name = os.path.relpath(name, start=repo)
+    return os.path.join(repo, MLEM_DIR, obj_type, name)
 
 
 def find_object(
-    path: str, fs: AbstractFileSystem, mlem_root: str = None
+    path: str, fs: AbstractFileSystem, repo: str = None
 ) -> Tuple[str, str]:
     """assumes .mlem/ content is valid"""
-    if mlem_root is None:
-        mlem_root = find_mlem_root(path, fs)
-    if mlem_root is not None and path.startswith(mlem_root):
-        path = os.path.relpath(path, mlem_root)
+    if repo is None:
+        repo = find_repo_root(path, fs)
+    if repo is not None and path.startswith(repo):
+        path = os.path.relpath(path, repo)
     source_paths = [
-        (tp, mlem_dir_path(path, fs, obj_type=cls, mlem_root=mlem_root))
+        (
+            tp,
+            os.path.join(
+                repo or "",
+                MLEM_DIR,
+                cls.object_type,
+                cls.get_metafile_path(path),
+            ),
+        )
         for tp, cls in MlemMeta.non_abstract_subtypes().items()
-        if issubclass(cls, MlemMeta)
     ]
-    source_paths = [p for p in source_paths if fs.exists(p[1])]
+    source_paths = [p for p in set(source_paths) if fs.exists(p[1])]
     if len(source_paths) == 0:
         raise ValueError(
             f"Object {path} not found, search of fs {fs} at {path}"

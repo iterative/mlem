@@ -3,17 +3,21 @@ Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
 import os
-from typing import Any, Optional, Type, TypeVar, Union, overload
-from urllib.parse import quote_plus
+from typing import Any, Optional, Tuple, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
 
 from mlem.core.errors import HookNotFound
-from mlem.core.meta_io import get_fs, get_meta_path, get_path_by_repo_path_rev
+from mlem.core.meta_io import (
+    get_fs,
+    get_meta_path,
+    get_path_by_repo_path_rev,
+    path_split_postfix,
+)
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
-from mlem.utils.root import find_mlem_root
+from mlem.utils.root import find_repo_root
 
 
 def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
@@ -27,7 +31,7 @@ def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
 def save(
     obj: Any,
     path: str,
-    mlem_root: Optional[str] = None,
+    repo: Optional[str] = None,
     dvc: bool = False,
     tmp_sample_data=None,
     fs: Union[str, AbstractFileSystem] = None,
@@ -51,7 +55,7 @@ def save(
         None
     """
     meta = get_object_metadata(obj, tmp_sample_data)
-    meta.dump(path, fs=fs, mlem_root=mlem_root, link=link, external=external)
+    meta.dump(path, fs=fs, repo=repo, link=link, external=external)
     if dvc:
         # TODO dvc add ./%name% https://github.com/iterative/mlem/issues/47
         raise NotImplementedError()
@@ -62,7 +66,6 @@ def load(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
-    mlem_root: str = None,
     follow_links: bool = True,
 ) -> Any:
     """Load python object saved by MLEM
@@ -80,7 +83,6 @@ def load(
         path,
         repo=repo,
         rev=rev,
-        mlem_root=mlem_root,
         follow_links=follow_links,
         load_value=True,
     )
@@ -95,7 +97,6 @@ def load_meta(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
-    mlem_root: str = None,
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
@@ -109,7 +110,6 @@ def load_meta(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
-    mlem_root: str = None,
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
@@ -129,29 +129,8 @@ def load_meta(
     Returns:
         MlemMeta: Saved MlemMeta object
     """
-    if fs is None:
-        if repo is not None:
-
-            path, fs_kwargs = get_path_by_repo_path_rev(
-                repo, os.path.join(mlem_root or "", path), rev
-            )
-        else:
-            fs_kwargs = {}
-        fs, new_path = get_fs(path, **fs_kwargs)
-        if (  # this branch is triggered if path is github:// uri, but different rev was specified
-            isinstance(fs, GithubFileSystem)
-            and rev is not None
-            and fs.root != rev
-        ):
-            fs, path = get_fs(path, sha=quote_plus(rev))
-        else:
-            path = new_path
-    elif repo is not None or rev is not None:
-        raise ValueError("Cannot use both fs and repo/rev")
-    path = find_meta_path(path, fs=fs)
-    meta = MlemMeta.read(
-        path, fs=fs, mlem_root=mlem_root, follow_links=follow_links
-    )
+    fs, repo, path = get_fs_repo_path_by_path_repo_rev_fs(path, repo, rev, fs)
+    meta = MlemMeta.read(path, fs=fs, repo=repo, follow_links=follow_links)
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
@@ -159,6 +138,41 @@ def load_meta(
             f"Wrong type of meta loaded, {meta} is not {force_type}"
         )
     return meta  # type: ignore[return-value]
+
+
+def get_fs_repo_path_by_path_repo_rev_fs(
+    path: str,
+    repo: Optional[str],
+    rev: Optional[str],
+    fs: Optional[AbstractFileSystem],
+) -> Tuple[AbstractFileSystem, Optional[str], str]:
+    if rev is not None:
+        if fs is not None:
+            if isinstance(fs, GithubFileSystem):
+                fs = GithubFileSystem(
+                    fs.org, fs.repo, rev, fs.username, fs.token
+                )
+            else:
+                raise NotImplementedError(
+                    f"rev is supported only for github, not {fs}"
+                )
+        else:
+            if repo is not None:
+                gh_path, fs_kwargs = get_path_by_repo_path_rev(repo, path, rev)
+            else:
+                gh_path, fs_kwargs = path, {"sha": rev}
+            fs, repo_path = get_fs(gh_path, **fs_kwargs)
+            if not isinstance(fs, GithubFileSystem):
+                raise NotImplementedError(
+                    f"rev is supported only for github, not {fs}"
+                )
+            if repo is not None:
+                repo = path_split_postfix(repo_path, path)
+            path = repo_path
+    if fs is None:
+        fs, path = get_fs(os.path.join(repo or "", path))
+    fullpath = find_meta_path(path, fs=fs)
+    return fs, repo, os.path.relpath(fullpath, repo or "")
 
 
 def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
@@ -187,7 +201,7 @@ def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
         # now search for objects in .mlem
         # TODO: exceptions thrown here doesn't explain that
         #  direct search by path was also failed. Need to clarify
-        mlem_root = find_mlem_root(path=path, fs=fs)
-        _, path = find_object(path, fs=fs, mlem_root=mlem_root)
+        repo = find_repo_root(path=path, fs=fs)
+        _, path = find_object(path, fs=fs, repo=repo)
 
     return path
