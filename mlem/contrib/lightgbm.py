@@ -90,7 +90,7 @@ class LightGBMModelIO(ModelIO):
             prefix="mlem_lightgbm_load"
         ) as tmpdir:
             local_path = os.path.join(tmpdir, self.model_file_name)
-            artifacts[0].download(
+            artifacts[0].materialize(
                 local_path,
             )
             return lgb.Booster(model_file=local_path)

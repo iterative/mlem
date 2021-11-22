@@ -33,18 +33,18 @@ class Artifact(MlemObject, ABC):
     abs_name: ClassVar = "artifact"
 
     @overload
-    def download(
+    def materialize(
         self, target_path: str, target_fs: Literal[None] = None
     ) -> "LocalArtifact":
         ...
 
     @overload
-    def download(
+    def materialize(
         self, target_path: str, target_fs: AbstractFileSystem = ...
     ) -> "Artifact":
         ...
 
-    def download(
+    def materialize(
         self, target_path: str, target_fs: Optional[AbstractFileSystem] = None
     ) -> "Artifact":
         if target_fs is None:

@@ -164,6 +164,7 @@ def test_model_cloning(model_path):
 
 
 @long
+@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")
@@ -199,6 +200,7 @@ def test_remote_model_cloning(remote_model_meta, repo):
 
 @long
 @need_test_repo_auth
+@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 @pytest.mark.parametrize("repo", ["dvc_pipeline", "simple"])
 def test_remote_model_cloning_to_remote(
     remote_model_meta, repo, s3_tmp_path, s3_storage_fs

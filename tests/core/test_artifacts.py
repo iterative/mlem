@@ -13,6 +13,7 @@ from mlem.core.artifacts import (
 from tests.conftest import long, resource_path
 
 
+@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 @long
 def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
     target = os.path.basename(s3_tmp_path("upload"))
@@ -20,7 +21,7 @@ def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
     artifact = s3_storage.upload(resource, target)
     assert isinstance(artifact, FSSpecArtifact)
     local_target = str(tmpdir / "file.txt")
-    artifact.download(local_target)
+    artifact.materialize(local_target)
     with open(local_target, "r", encoding="utf8") as actual, open(
         resource, "r", encoding="utf8"
     ) as expected:
@@ -28,6 +29,7 @@ def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
 
 
 @long
+@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 def test_fsspec_backend_s3_open(s3_tmp_path, s3_storage):
     target = os.path.basename(s3_tmp_path("open"))
     with s3_storage.open(target) as (f, artifact):

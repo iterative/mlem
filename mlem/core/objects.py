@@ -438,7 +438,7 @@ class _WithArtifacts(ABC, MlemMeta):
         )
         fs.makedirs(new.art_dir, exist_ok=True)
         for art in self.relative_artifacts:
-            download = art.download(
+            download = art.materialize(
                 new.art_dir, new._fs  # pylint: disable=protected-access
             )
             if isinstance(download, FSSpecArtifact):
