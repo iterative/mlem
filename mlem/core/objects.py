@@ -308,7 +308,7 @@ class MlemMeta(MlemObject):
         """
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot clone not saved object")
-        new: MlemMeta = self.deepcopy()
+        new: "MlemMeta" = self.deepcopy()
         new.dump(
             path, fs, repo, link, external
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
@@ -425,7 +425,7 @@ class _WithArtifacts(ABC, MlemMeta):
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         # clone is just dump with copying artifacts
-        new: _WithArtifacts = self.deepcopy()
+        new: "_WithArtifacts" = self.deepcopy()
         new.artifacts = []
         (
             fullpath,
