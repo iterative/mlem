@@ -2,20 +2,14 @@
 Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
-import os
-from typing import Any, Optional, Tuple, Type, TypeVar, Union, overload
+import os.path
+from typing import Any, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
-from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
 
 from mlem.core.errors import HookNotFound
-from mlem.core.meta_io import (
-    get_fs,
-    get_meta_path,
-    get_path_by_repo_path_rev,
-    path_split_postfix,
-)
+from mlem.core.meta_io import UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.root import find_repo_root
 
@@ -129,8 +123,18 @@ def load_meta(
     Returns:
         MlemMeta: Saved MlemMeta object
     """
-    fs, repo, path = get_fs_repo_path_by_path_repo_rev_fs(path, repo, rev, fs)
-    meta = MlemMeta.read(path, fs=fs, repo=repo, follow_links=follow_links)
+    location = UriResolver.resolve(
+        path=path, repo=repo, rev=rev, fs=fs, find_repo=True
+    )
+    location.path = find_meta_path(location.fullpath, fs=location.fs)
+    if location.repo is not None:
+        location.path = os.path.relpath(location.path, location.repo)
+    meta = MlemMeta.read(
+        location.path,
+        fs=location.fs,
+        repo=location.repo,
+        follow_links=follow_links,
+    )
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
@@ -138,41 +142,6 @@ def load_meta(
             f"Wrong type of meta loaded, {meta} is not {force_type}"
         )
     return meta  # type: ignore[return-value]
-
-
-def get_fs_repo_path_by_path_repo_rev_fs(
-    path: str,
-    repo: Optional[str],
-    rev: Optional[str],
-    fs: Optional[AbstractFileSystem],
-) -> Tuple[AbstractFileSystem, Optional[str], str]:
-    if rev is not None:
-        if fs is not None:
-            if isinstance(fs, GithubFileSystem):
-                fs = GithubFileSystem(
-                    fs.org, fs.repo, rev, fs.username, fs.token
-                )
-            else:
-                raise NotImplementedError(
-                    f"rev is supported only for github, not {fs}"
-                )
-        else:
-            if repo is not None:
-                gh_path, fs_kwargs = get_path_by_repo_path_rev(repo, path, rev)
-            else:
-                gh_path, fs_kwargs = path, {"sha": rev}
-            fs, repo_path = get_fs(gh_path, **fs_kwargs)
-            if not isinstance(fs, GithubFileSystem):
-                raise NotImplementedError(
-                    f"rev is supported only for github, not {fs}"
-                )
-            if repo is not None:
-                repo = path_split_postfix(repo_path, path)
-            path = repo_path
-    if fs is None:
-        fs, path = get_fs(os.path.join(repo or "", path))
-    fullpath = find_meta_path(path, fs=fs)
-    return fs, repo, os.path.relpath(fullpath, repo or "")
 
 
 def find_meta_path(path: str, fs: AbstractFileSystem) -> str:

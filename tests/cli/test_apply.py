@@ -1,3 +1,4 @@
+import os.path
 import tempfile
 
 from click.testing import CliRunner
@@ -5,7 +6,6 @@ from numpy import ndarray
 
 from mlem.api.commands import load
 from mlem.cli import apply
-from mlem.core.meta_io import get_path_by_repo_path_rev
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
 
 
@@ -59,11 +59,11 @@ def test_apply_fails_without_mlem_dir(model_path, data_path):
 @issue_110
 def test_apply_remote(current_test_branch, s3_tmp_path):
     runner = CliRunner()
-    model_path, _ = get_path_by_repo_path_rev(
-        MLEM_TEST_REPO, "simple/data/model", current_test_branch
+    model_path = os.path.join(
+        MLEM_TEST_REPO, "tree", current_test_branch, "simple/data/model"
     )
-    data_path, _ = get_path_by_repo_path_rev(
-        MLEM_TEST_REPO, "simple/data/test_x", current_test_branch
+    data_path = os.path.join(
+        MLEM_TEST_REPO, "tree", current_test_branch, "simple/data/test_x"
     )
     out = s3_tmp_path("apply_remote")
     result = runner.invoke(
