@@ -16,13 +16,13 @@ def mlem_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     """
     A simple settings source that loads variables from a yaml file in MLEM DIR
     """
-    from mlem.utils.root import find_mlem_root
+    from mlem.utils.root import find_repo_root
 
     encoding = settings.__config__.env_file_encoding
-    mlem_root = find_mlem_root(raise_on_missing=False)
-    if mlem_root is None:
+    repo = find_repo_root(raise_on_missing=False)
+    if repo is None:
         return {}
-    config_file = Path(mlem_root) / MLEM_DIR / CONFIG_FILE
+    config_file = Path(repo) / MLEM_DIR / CONFIG_FILE
     if not config_file.exists():
         return {}
     conf = yaml.safe_load(config_file.read_text(encoding=encoding))
@@ -43,6 +43,7 @@ class MlemConfig(BaseSettings):
     NO_ANALYTICS: bool = False
     TESTS: bool = False
     DEFAULT_STORAGE: Dict = {}
+    DEFAULT_EXTERNAL: bool = False
 
     # class Config:
     #     extra = Extra.allow

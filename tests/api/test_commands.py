@@ -34,9 +34,9 @@ def test_apply(m, d):
     assert isinstance(res, ndarray)
 
 
-def test_link_as_separate_file(model_path_mlem_root):
-    model_path, mlem_root = model_path_mlem_root
-    link_path = os.path.join(mlem_root, "latest.mlem.yaml")
+def test_link_as_separate_file(model_path_mlem_repo):
+    model_path, mlem_repo = model_path_mlem_repo
+    link_path = os.path.join(mlem_repo, "latest.mlem.yaml")
     link(model_path, target=link_path, external=True)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
@@ -45,18 +45,18 @@ def test_link_as_separate_file(model_path_mlem_root):
     assert isinstance(model, ModelMeta)
 
 
-def test_link_in_mlem_dir(model_path_mlem_root):
-    model_path, mlem_root = model_path_mlem_root
+def test_link_in_mlem_dir(model_path_mlem_repo):
+    model_path, mlem_repo = model_path_mlem_repo
     link_name = "latest"
     link_obj = link(
         model_path,
         target=link_name,
-        target_mlem_root=mlem_root,
+        target_repo=mlem_repo,
         external=False,
     )
     assert isinstance(link_obj, MlemLink)
     link_dumped_to = os.path.join(
-        mlem_root, MLEM_DIR, "model", link_name + MLEM_EXT
+        mlem_repo, MLEM_DIR, "link", link_name + MLEM_EXT
     )
     assert os.path.exists(link_dumped_to)
     loaded_link_object = load_meta(link_dumped_to, follow_links=False)
@@ -65,8 +65,8 @@ def test_link_in_mlem_dir(model_path_mlem_root):
     assert isinstance(model, ModelMeta)
 
 
-def test_ls_local(filled_mlem_root):
-    objects = ls(filled_mlem_root)
+def test_ls_local(filled_mlem_repo):
+    objects = ls(filled_mlem_repo)
     assert len(objects) == 1
     assert ModelMeta in objects
     models = objects[ModelMeta]
@@ -78,14 +78,16 @@ def test_ls_local(filled_mlem_root):
     assert isinstance(model, ModelMeta)
     assert isinstance(lnk, MlemLink)
     assert (
-        os.path.join(filled_mlem_root, lnk.mlem_link)
+        os.path.join(filled_mlem_repo, lnk.link_data.path)
         == model._path  # pylint: disable=protected-access
     )
 
 
 @long
-def test_ls_remote():
-    objects = ls(os.path.join(MLEM_TEST_REPO, "tree/main/simple"))
+def test_ls_remote(current_test_branch):
+    objects = ls(
+        os.path.join(MLEM_TEST_REPO, f"tree/{current_test_branch}/simple")
+    )
     assert len(objects) == 2
     assert ModelMeta in objects
     models = objects[ModelMeta]

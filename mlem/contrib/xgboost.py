@@ -130,7 +130,7 @@ class XGBoostModelIO(ModelIO):
         model = xgboost.Booster()
         with tempfile.TemporaryDirectory(prefix="mlem_xgboost_load") as f:
             lpath = os.path.join(f, self.model_file_name)
-            artifacts[0].download(lpath)
+            artifacts[0].materialize(lpath)
             model.load_model(lpath)
         return model
 

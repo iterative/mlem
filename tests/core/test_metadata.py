@@ -13,11 +13,12 @@ from mlem.api import init
 from mlem.constants import MLEM_DIR
 from mlem.core.meta_io import ART_DIR, META_FILE_NAME
 from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemLink, ModelMeta
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
     MLEM_TEST_REPO_ORG,
+    issue_110,
     long,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
@@ -30,10 +31,10 @@ def test_model_saving_without_sample_data(model, tmpdir_factory):
     save(model, dir, link=False)
 
 
-def test_model_saving_in_mlem_root(model_train_target, tmpdir_factory):
-    mlem_root = str(tmpdir_factory.mktemp("mlem-root"))
-    init(mlem_root)
-    model_dir = os.path.join(mlem_root, "generated-model")
+def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
+    repo = str(tmpdir_factory.mktemp("mlem-root"))
+    init(repo)
+    model_dir = os.path.join(repo, "generated-model")
     model, train, _ = model_train_target
     save(model, model_dir, tmp_sample_data=train, link=True)
 
@@ -78,8 +79,8 @@ def test_meta_loading(model_path):
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model/mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/data/model.mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/model/latest.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem.yaml",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
@@ -95,17 +96,17 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
 @pytest.mark.parametrize(
     "path",
     [
-        "simple/data/model",
-        "simple/data/model/mlem.yaml",
-        "simple/.mlem/model/data/model.mlem.yaml",
-        "simple/.mlem/model/latest.mlem.yaml",
+        "data/model",
+        "data/model/mlem.yaml",
+        ".mlem/link/data/model.mlem.yaml",
+        ".mlem/link/latest.mlem.yaml",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(
         path,
-        repo=MLEM_TEST_REPO,
+        repo=os.path.join(MLEM_TEST_REPO, "simple"),
         rev=current_test_branch,
     )
     train, _ = load_iris(return_X_y=True)
@@ -117,7 +118,9 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "mlem_link": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
+        "link_data": {
+            "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml"
+        },
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:
@@ -129,24 +132,24 @@ def test_load_link_with_fsspec_path(current_test_branch):
         model.predict(train)
 
 
-@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 @long
+@issue_110
 def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_save")
     init(path)
     model_path = os.path.join(path, "model")
-    save(model, model_path, fs=s3_storage_fs)
+    save(model, model_path, fs=s3_storage_fs, external=True)
     model_path = Path(model_path[len("s3:/") :])
     assert s3_storage_fs.isfile(
-        os.path.join(path, MLEM_DIR, "model", "model.mlem.yaml")
+        os.path.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
     )
     assert s3_storage_fs.isfile(str(model_path / META_FILE_NAME))
     assert s3_storage_fs.isdir(str(model_path / ART_DIR))
     assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))
 
 
-@pytest.mark.xfail  # TODO: https://github.com/iterative/mlem/issues/110
 @long
+@issue_110
 def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_load")
     init(path)

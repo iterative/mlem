@@ -8,7 +8,7 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
 import click
-from pydantic import parse_obj_as
+from pydantic import BaseModel, parse_obj_as
 from yaml import safe_load
 
 from mlem.core.base import MlemObject
@@ -80,14 +80,22 @@ def smart_split(string: str, char: str):
     ]
 
 
-def build_model(
+def build_poly_model(
     model: Type[MlemObject],
     subtype: str,
     conf: List[str],
     file_conf: List[str],
 ):
-    model_dict = {model.__type_field__: subtype}
+    return build_model(
+        model, conf, file_conf, **{model.__type_field__: subtype}
+    )
 
+
+def build_model(
+    model: Type[BaseModel], conf: List[str], file_conf: List[str], **kwargs
+):
+    model_dict = {}
+    model_dict.update(kwargs)
     for file in file_conf:
         keys, path = smart_split(file, "=")
         with open(path, "r", encoding="utf8") as f:
@@ -120,7 +128,7 @@ def config_arg(name: str, model: Type[MlemObject], **kwargs):
                 with open(load, "r", encoding="utf8") as of:
                     obj = deserialize(safe_load(of), model)
             else:
-                obj = build_model(model, subtype, conf, file_conf)
+                obj = build_poly_model(model, subtype, conf, file_conf)
             inner_kwargs[name] = obj
             return f(**inner_kwargs)
 

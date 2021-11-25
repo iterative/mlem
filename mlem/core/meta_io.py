@@ -57,6 +57,10 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     return f"{protocol}://{path}"
 
 
+def path_split_postfix(path, postfix):
+    return "/".join(path.split("/")[: -len(postfix.split("/"))])
+
+
 def get_path_by_repo_path_rev(
     repo: str, path: str, rev: str = None
 ) -> Tuple[str, Dict[str, Any]]:
@@ -67,7 +71,18 @@ def get_path_by_repo_path_rev(
             # https://github.com/org/repo/path
             return os.path.join(repo, path), {}
         # https://github.com/org/repo/tree/branch/path
-        return os.path.join(repo, "tree", rev, path), {}
+        fs, root_path = get_fs(repo)
+        assert isinstance(fs, GithubFileSystem)
+        return (
+            os.path.join(
+                path_split_postfix(repo, root_path),
+                "tree",
+                rev,
+                root_path,
+                path,
+            ),
+            {},
+        )
     # TODO: do something about git protocol
     return os.path.join(repo, path), {"rev": rev}
 
