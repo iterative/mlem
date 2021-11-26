@@ -2,41 +2,266 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import os
-from typing import Any, Dict, Tuple, Type, TypeVar
+from abc import ABC, abstractmethod
+from inspect import isabstract
+from typing import List, Optional, Tuple, Type, TypeVar
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
-from pydantic import parse_obj_as
+from pydantic import BaseModel, parse_obj_as
 
 from mlem.core.base import MlemObject
 from mlem.utils.github import get_github_envs, get_github_kwargs
-from mlem.utils.root import MLEM_DIR
+from mlem.utils.root import MLEM_DIR, find_repo_root
 
 MLEM_EXT = ".mlem.yaml"
-
 
 META_FILE_NAME = "mlem.yaml"
 ART_DIR = "artifacts"
 
 
-def get_fs(
-    uri: str, protocol: str = None, **kwargs
-) -> Tuple[AbstractFileSystem, str]:
-    """Parse given (uri, protocol) with fsspec and return (fs, path)"""
-    storage_options = {}
-    if protocol == "github" or uri.startswith("github://"):
-        storage_options.update(get_github_envs())
-    if protocol is None and uri.startswith("https://github.com"):
-        protocol = "github"
-        storage_options.update(get_github_envs())
-        github_kwargs = get_github_kwargs(uri)
-        uri = github_kwargs.pop("path")
-        storage_options.update(github_kwargs)
-    storage_options.update(kwargs)
-    fs, _, (path,) = get_fs_token_paths(
-        uri, protocol=protocol, storage_options=storage_options
-    )
-    return fs, path
+class Location(BaseModel):
+    path: str
+    repo: Optional[str]
+    rev: Optional[str]
+    uri: str
+    fs: AbstractFileSystem
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @property
+    def fullpath(self):
+        return os.path.join(self.repo or "", self.path)
+
+
+class UriResolver(ABC):
+    impls: List[Type["UriResolver"]] = []
+    versioning_support: bool = False
+
+    def __init_subclass__(cls, *args, **kwargs):
+        if not isabstract(cls) and cls not in cls.impls:
+            cls.impls.append(cls)
+        super(UriResolver, cls).__init_subclass__(*args, **kwargs)
+
+    @classmethod
+    def resolve(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+        find_repo: bool = False,
+    ) -> Location:
+        return cls.find_resolver(path, repo, rev, fs).process(
+            path, repo, rev, fs, find_repo
+        )
+
+    @classmethod
+    def find_resolver(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> Type["UriResolver"]:
+        for i in cls.impls:
+            if i.check(path, repo, rev, fs):
+                return i
+        raise ValueError("No valid UriResolver implementation found")
+
+    @classmethod
+    @abstractmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[AbstractFileSystem, str]:
+        raise NotImplementedError
+
+    @classmethod
+    def process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+        find_repo: bool,
+    ) -> Location:
+        path, repo, rev, fs = cls.pre_process(path, repo, rev, fs)
+        if rev is not None and not cls.versioning_support:
+            raise ValueError(
+                f"Rev {rev} was provided, but {cls} does not support versioning"
+            )
+        if fs is None:
+            if repo is not None:
+                fs, repo = cls.get_fs(repo, rev)
+            else:
+                fs, path = cls.get_fs(path, rev)
+                if find_repo:
+                    path, repo = cls.get_repo(path, fs)
+        return Location(
+            path=path,
+            repo=repo,
+            rev=rev,
+            uri=cls.get_uri(path, repo, rev, fs),
+            fs=fs,
+        )
+
+    @classmethod
+    @abstractmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: AbstractFileSystem,
+    ):
+        raise NotImplementedError
+
+    @classmethod
+    def pre_process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> Tuple[
+        str, Optional[str], Optional[str], Optional[AbstractFileSystem]
+    ]:
+        return path, repo, rev, fs
+
+    @classmethod
+    def get_repo(
+        cls, path: str, fs: AbstractFileSystem
+    ) -> Tuple[str, Optional[str]]:
+        repo = find_repo_root(path, fs, raise_on_missing=False)
+        if repo is not None:
+            path = os.path.relpath(path, repo)
+        return path, repo
+
+
+class GithubResolver(UriResolver):
+    PROTOCOL = "github://"
+    GITHUB_COM = "https://github.com"
+
+    # TODO: support on-prem github (other hosts)
+    PREFIXES = [GITHUB_COM, PROTOCOL]
+    versioning_support = True
+
+    @classmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        fullpath = os.path.join(repo or "", path)
+        return isinstance(fs, GithubFileSystem) or any(
+            fullpath.startswith(h) for h in cls.PREFIXES
+        )
+
+    @classmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[GithubFileSystem, str]:
+        options = get_github_envs()
+        if not uri.startswith(cls.PROTOCOL):
+            options.update(get_github_kwargs(uri))
+            uri = options.pop("path")
+            options["sha"] = rev or options.get("sha", None)
+
+        fs, _, (path,) = get_fs_token_paths(
+            uri, protocol="github", storage_options=options
+        )
+        return fs, path
+
+    @classmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: GithubFileSystem,
+    ):
+        fullpath = os.path.join(repo or "", path)
+        return (
+            f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{fullpath}"
+        )
+
+    @classmethod
+    def pre_process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ):
+        if fs is not None and not isinstance(fs, GithubFileSystem):
+            raise TypeError(
+                f"{path, repo, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
+            )
+        if (
+            isinstance(fs, GithubFileSystem)
+            and rev is not None
+            and fs.root != rev
+        ):
+            fs.root = rev
+            fs.invalidate_cache()
+
+        return path, repo, rev, fs
+
+
+class FSSpecResolver(UriResolver):
+    @classmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        return True
+
+    @classmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[AbstractFileSystem, str]:
+        fs, _, (path,) = get_fs_token_paths(uri)
+        return fs, path
+
+    @classmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: AbstractFileSystem,
+    ):
+        fullpath = os.path.join(repo or "", path)
+        protocol = fs.protocol
+        if isinstance(protocol, (tuple, list)):
+            if any(fullpath.startswith(p) for p in protocol):
+                return fullpath
+            protocol = protocol[0]
+        if fullpath.startswith(protocol):
+            return fullpath
+        return f"{protocol}://{fullpath}"
+
+
+def get_fs(uri: str):
+    location = UriResolver.resolve(path=uri, repo=None, rev=None, fs=None)
+    return location.fs, location.fullpath
 
 
 def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
@@ -44,47 +269,9 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
 
     Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
     Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
-    if isinstance(fs, GithubFileSystem):
-        # here "rev" should be already url encoded
-        return f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{path}"
-    protocol = fs.protocol
-    if isinstance(protocol, (list, tuple)):
-        if any(path.startswith(p) for p in protocol):
-            return path
-        protocol = protocol[0]
-    if path.startswith(f"{protocol}://"):
-        return path
-    return f"{protocol}://{path}"
-
-
-def path_split_postfix(path, postfix):
-    return "/".join(path.split("/")[: -len(postfix.split("/"))])
-
-
-def get_path_by_repo_path_rev(
-    repo: str, path: str, rev: str = None
-) -> Tuple[str, Dict[str, Any]]:
-    """Construct uri from repo url, relative path in repo and optional revision.
-    Also returns additional kwargs for fs"""
-    if repo.startswith("https://github.com"):
-        if rev is None:
-            # https://github.com/org/repo/path
-            return os.path.join(repo, path), {}
-        # https://github.com/org/repo/tree/branch/path
-        fs, root_path = get_fs(repo)
-        assert isinstance(fs, GithubFileSystem)
-        return (
-            os.path.join(
-                path_split_postfix(repo, root_path),
-                "tree",
-                rev,
-                root_path,
-                path,
-            ),
-            {},
-        )
-    # TODO: do something about git protocol
-    return os.path.join(repo, path), {"rev": rev}
+    return UriResolver.find_resolver(path, None, None, fs=fs).get_uri(
+        path, None, None, fs=fs
+    )
 
 
 def read(uri: str, mode: str = "r"):
