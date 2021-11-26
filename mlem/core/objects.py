@@ -135,7 +135,7 @@ class MlemMeta(MlemObject):
             repo,
             MLEM_DIR,
             cls.object_type,
-            os.path.relpath(fullpath, repo),
+            posixpath.relpath(fullpath, repo),
         )
         return fs, internal_path, repo
 
@@ -384,8 +384,10 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @property
     def name(self):
-        repo_path = os.path.dirname(os.path.relpath(self._path, self._repo))
-        prefix = os.path.join(MLEM_DIR, self.object_type)
+        repo_path = posixpath.dirname(
+            posixpath.relpath(self._path, self._repo)
+        )
+        prefix = posixpath.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
         return repo_path

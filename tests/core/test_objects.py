@@ -36,8 +36,8 @@ from tests.conftest import (
     need_test_repo_ssh_auth,
 )
 
-DEPLOY_NAME = "mydeploy"
-MODEL_NAME = "decision_tree"
+DEPLOY_NAME = "d/mydeploy"
+MODEL_NAME = "m/decision_tree"
 
 
 class MyDeployment(Deployment):
