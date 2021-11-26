@@ -4,7 +4,7 @@ import pytest
 from click.testing import CliRunner
 
 from mlem.cli import ls, pretty_print
-from mlem.core.meta_io import META_FILE_NAME, get_path_by_repo_path_rev
+from mlem.core.meta_io import META_FILE_NAME
 from tests.conftest import MLEM_TEST_REPO, long
 
 LOCAL_LS_EXPECTED_RESULT = """Models:
@@ -64,8 +64,8 @@ def test_pretty_print(model_path_mlem_repo):
 
 @long
 def test_pretty_print_remote(current_test_branch):
-    model_path, _ = get_path_by_repo_path_rev(
-        MLEM_TEST_REPO, "simple/data/model", current_test_branch
+    model_path = os.path.join(
+        MLEM_TEST_REPO, "tree", current_test_branch, "simple/data/model"
     )
     runner = CliRunner()
     result = runner.invoke(

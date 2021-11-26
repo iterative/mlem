@@ -9,12 +9,7 @@ from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
 from mlem import CONFIG
-from mlem.core.meta_io import (
-    get_fs,
-    get_path_by_fs_path,
-    get_path_by_repo_path_rev,
-    read,
-)
+from mlem.core.meta_io import get_fs, get_path_by_fs_path, read
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -124,25 +119,3 @@ def test_get_path_by_fs_path_github():
     fs2, path = get_fs(uri)
     assert loads(fs2.to_json()) == loads(fs.to_json())
     assert path == "path"
-
-
-@pytest.mark.parametrize(
-    "repo, rev, result",
-    [
-        (MLEM_TEST_REPO, None, os.path.join(MLEM_TEST_REPO, "path/file")),
-        (
-            MLEM_TEST_REPO,
-            "branch",
-            os.path.join(MLEM_TEST_REPO, "tree", "branch", "path/file"),
-        ),
-        (
-            "git:///other/path",
-            "branch",
-            ("git:///other/path/path/file", {"rev": "branch"}),
-        ),
-    ],
-)
-def test_get_path_by_repo_path_rev(repo, rev, result):
-    if isinstance(result, str):
-        result = result, {}
-    assert get_path_by_repo_path_rev(repo, "path/file", rev) == result

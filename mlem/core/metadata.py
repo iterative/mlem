@@ -2,22 +2,15 @@
 Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
-import os
-from typing import Any, Optional, Tuple, Type, TypeVar, Union, overload
+import os.path
+from typing import Any, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
-from fsspec.implementations.github import GithubFileSystem
 from typing_extensions import Literal
 
 from mlem.core.errors import HookNotFound
-from mlem.core.meta_io import (
-    get_fs,
-    get_meta_path,
-    get_path_by_repo_path_rev,
-    path_split_postfix,
-)
+from mlem.core.meta_io import UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
-from mlem.utils.root import find_repo_root
 
 
 def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
@@ -129,8 +122,18 @@ def load_meta(
     Returns:
         MlemMeta: Saved MlemMeta object
     """
-    fs, repo, path = get_fs_repo_path_by_path_repo_rev_fs(path, repo, rev, fs)
-    meta = MlemMeta.read(path, fs=fs, repo=repo, follow_links=follow_links)
+    location = UriResolver.resolve(
+        path=path, repo=repo, rev=rev, fs=fs, find_repo=True
+    )
+    path = find_meta_path(location.fullpath, fs=location.fs)
+    if location.repo is not None:
+        path = os.path.relpath(path, location.repo)
+    meta = MlemMeta.read(
+        path=path,
+        fs=location.fs,
+        repo=location.repo,
+        follow_links=follow_links,
+    )
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
@@ -140,42 +143,9 @@ def load_meta(
     return meta  # type: ignore[return-value]
 
 
-def get_fs_repo_path_by_path_repo_rev_fs(
-    path: str,
-    repo: Optional[str],
-    rev: Optional[str],
-    fs: Optional[AbstractFileSystem],
-) -> Tuple[AbstractFileSystem, Optional[str], str]:
-    if rev is not None:
-        if fs is not None:
-            if isinstance(fs, GithubFileSystem):
-                fs = GithubFileSystem(
-                    fs.org, fs.repo, rev, fs.username, fs.token
-                )
-            else:
-                raise NotImplementedError(
-                    f"rev is supported only for github, not {fs}"
-                )
-        else:
-            if repo is not None:
-                gh_path, fs_kwargs = get_path_by_repo_path_rev(repo, path, rev)
-            else:
-                gh_path, fs_kwargs = path, {"sha": rev}
-            fs, repo_path = get_fs(gh_path, **fs_kwargs)
-            if not isinstance(fs, GithubFileSystem):
-                raise NotImplementedError(
-                    f"rev is supported only for github, not {fs}"
-                )
-            if repo is not None:
-                repo = path_split_postfix(repo_path, path)
-            path = repo_path
-    if fs is None:
-        fs, path = get_fs(os.path.join(repo or "", path))
-    fullpath = find_meta_path(path, fs=fs)
-    return fs, repo, os.path.relpath(fullpath, repo or "")
-
-
-def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
+def find_meta_path(
+    path: str, fs: AbstractFileSystem, repo: Optional[str] = None
+) -> str:
     """Locate MlemMeta object by given path
 
     Args:
@@ -185,23 +155,18 @@ def find_meta_path(path: str, fs: AbstractFileSystem) -> str:
     Returns:
         str: Path to located object
 
-    TODO https://github.com/iterative/mlem/issues/4
-    We should do all the following types of addressing to object
-    * data/model # by original binary (good for autocomplition)
-    * .mlem/models/data/model.mlem.yaml # by path to metafile in mlem
-    * meta/aaa/bbb/mymetafile.yaml # by path to metafile not in
-    * http://example.com/file.mlem.yaml # remote metafile
-    * git+.... # remote git
     """
     try:
         # first, assume `path` is the filename
         # this allows to find the object not listed in .mlem/
-        path = get_meta_path(uri=path, fs=fs)
+        fullpath = os.path.join(repo or "", path)
+        path = get_meta_path(uri=fullpath, fs=fs)
+        if repo is not None:
+            path = os.path.relpath(path, repo)
     except FileNotFoundError:
         # now search for objects in .mlem
         # TODO: exceptions thrown here doesn't explain that
         #  direct search by path was also failed. Need to clarify
-        repo = find_repo_root(path=path, fs=fs)
         _, path = find_object(path, fs=fs, repo=repo)
 
     return path
