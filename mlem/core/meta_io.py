@@ -1,7 +1,7 @@
 """
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
-import os
+import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
 from typing import List, Optional, Tuple, Type, TypeVar
@@ -32,7 +32,7 @@ class Location(BaseModel):
 
     @property
     def fullpath(self):
-        return os.path.join(self.repo or "", self.path)
+        return posixpath.join(self.repo or "", self.path)
 
 
 class UriResolver(ABC):
@@ -146,7 +146,7 @@ class UriResolver(ABC):
     ) -> Tuple[str, Optional[str]]:
         repo = find_repo_root(path, fs, raise_on_missing=False)
         if repo is not None:
-            path = os.path.relpath(path, repo)
+            path = posixpath.relpath(path, repo)
         return path, repo
 
 
@@ -166,7 +166,7 @@ class GithubResolver(UriResolver):
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> bool:
-        fullpath = os.path.join(repo or "", path)
+        fullpath = posixpath.join(repo or "", path)
         return isinstance(fs, GithubFileSystem) or any(
             fullpath.startswith(h) for h in cls.PREFIXES
         )
@@ -194,7 +194,7 @@ class GithubResolver(UriResolver):
         rev: Optional[str],
         fs: GithubFileSystem,
     ):
-        fullpath = os.path.join(repo or "", path)
+        fullpath = posixpath.join(repo or "", path)
         return (
             f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{fullpath}"
         )
@@ -248,7 +248,7 @@ class FSSpecResolver(UriResolver):
         rev: Optional[str],
         fs: AbstractFileSystem,
     ):
-        fullpath = os.path.join(repo or "", path)
+        fullpath = posixpath.join(repo or "", path)
         protocol = fs.protocol
         if isinstance(protocol, (tuple, list)):
             if any(fullpath.startswith(p) for p in protocol):
@@ -300,12 +300,12 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     """Augments given path so it will point to a MLEM metafile
     if it points to a folder with dumped object
     """
-    if os.path.basename(uri) == META_FILE_NAME and fs.isfile(uri):
+    if posixpath.basename(uri) == META_FILE_NAME and fs.isfile(uri):
         # .../<META_FILE_NAME>
         return uri
-    if fs.isdir(uri) and fs.isfile(os.path.join(uri, META_FILE_NAME)):
+    if fs.isdir(uri) and fs.isfile(posixpath.join(uri, META_FILE_NAME)):
         # .../path and .../path/<META_FILE_NAME> exists
-        return os.path.join(uri, META_FILE_NAME)
+        return posixpath.join(uri, META_FILE_NAME)
     if fs.isfile(uri + MLEM_EXT):
         # .../name without <MLEM_EXT>
         return uri + MLEM_EXT

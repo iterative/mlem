@@ -1,4 +1,5 @@
 import os
+import posixpath
 import tempfile
 from pathlib import Path
 
@@ -80,20 +81,28 @@ def test_meta_dump__no_root(meta, tmpdir):
 def test_meta_dump_internal(mlem_repo, meta, path_and_root):
     path, root = path_and_root(DEPLOY_NAME)
     meta.dump(path, repo=root, external=False)
+    assert meta.name == DEPLOY_NAME
     meta_path = os.path.join(
         mlem_repo, MLEM_DIR, DeployMeta.object_type, DEPLOY_NAME + MLEM_EXT
     )
     assert os.path.isfile(meta_path)
-    assert isinstance(load_meta(meta_path), DeployMeta)
-    assert isinstance(load_meta(path, repo=root), DeployMeta)
+    load_path = load_meta(meta_path)
+    assert isinstance(load_path, DeployMeta)
+    assert load_path.name == meta.name
+    load_root = load_meta(path, repo=root)
+    assert isinstance(load_root, DeployMeta)
+    assert load_root.name == meta.name
 
 
 def test_meta_dump_external(mlem_repo, meta, path_and_root):
     path, root = path_and_root(DEPLOY_NAME)
     meta.dump(path, repo=root, external=True)
+    assert meta.name == DEPLOY_NAME
     meta_path = os.path.join(mlem_repo, DEPLOY_NAME + MLEM_EXT)
     assert os.path.isfile(meta_path)
-    assert isinstance(load_meta(meta_path), DeployMeta)
+    loaded = load_meta(meta_path)
+    assert isinstance(loaded, DeployMeta)
+    assert loaded.name == meta.name
     link_path = os.path.join(
         mlem_repo, MLEM_DIR, MlemLink.object_type, DEPLOY_NAME + MLEM_EXT
     )
@@ -104,6 +113,7 @@ def test_meta_dump_external(mlem_repo, meta, path_and_root):
 @pytest.mark.parametrize("external", [False])
 def test_model_dump_curdir(model_meta, mlem_curdir_repo, external):
     model_meta.dump(MODEL_NAME, external=external)
+    assert model_meta.name == MODEL_NAME
     if not external:
         prefix = Path(os.path.join(MLEM_DIR, model_meta.object_type))
     else:
@@ -118,6 +128,7 @@ def test_model_dump_curdir(model_meta, mlem_curdir_repo, external):
 def test_model_dump_internal(mlem_repo, model_meta, path_and_root):
     path, root = path_and_root(MODEL_NAME)
     model_meta.dump(path, repo=root, external=False)
+    assert model_meta.name == MODEL_NAME
     model_path = os.path.join(
         mlem_repo, MLEM_DIR, ModelMeta.object_type, MODEL_NAME
     )
@@ -129,6 +140,7 @@ def test_model_dump_internal(mlem_repo, model_meta, path_and_root):
 def test_model_dump_external(mlem_repo, model_meta, path_and_root):
     path, root = path_and_root(MODEL_NAME)
     model_meta.dump(path, repo=root, external=True)
+    assert model_meta.name == MODEL_NAME
     model_path = os.path.join(mlem_repo, MODEL_NAME)
     assert os.path.isdir(model_path)
     assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
@@ -151,9 +163,9 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
     assert len(cloned_model_meta.artifacts) == 1
     art = cloned_model_meta.artifacts[0]
     assert isinstance(art, LocalArtifact)
-    assert art.uri == os.path.join(ART_DIR, "data.pkl")
+    assert art.uri == posixpath.join(ART_DIR, "data.pkl")
     assert not os.path.isabs(art.uri)
-    assert fs.isfile(os.path.join(path, art.uri))
+    assert fs.isfile(posixpath.join(path, art.uri))
     cloned_model_meta.load_value()
     cloned_model = cloned_model_meta.get_value()
     assert cloned_model is not None
@@ -175,10 +187,10 @@ def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")
     model.clone(path, link=False)
-    s3path = Path(path[len("s3:/") :])
-    assert s3_storage_fs.isfile(s3path / META_FILE_NAME)
-    assert s3_storage_fs.isdir(s3path / ART_DIR)
-    assert s3_storage_fs.isfile(s3path / ART_DIR / "data.pkl")
+    s3path = path[len("s3:/") :]
+    assert s3_storage_fs.isfile(posixpath.join(s3path, META_FILE_NAME))
+    assert s3_storage_fs.isdir(posixpath.join(s3path, ART_DIR))
+    assert s3_storage_fs.isfile(posixpath.join(s3path, ART_DIR, "data.pkl"))
     cloned_model_meta = load_meta(path, load_value=False)
     _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
 
@@ -219,10 +231,10 @@ def test_remote_model_cloning_to_remote(
 ):
     path = s3_tmp_path("remote_model_cloning_to_remote")
     remote_model_meta(repo).clone(path, link=False)
-    s3path = Path(path[len("s3:/") :])
-    assert s3_storage_fs.isfile(s3path / META_FILE_NAME)
-    assert s3_storage_fs.isdir(s3path / ART_DIR)
-    assert s3_storage_fs.isfile(s3path / ART_DIR / "data.pkl")
+    s3path = path[len("s3:/") :]
+    assert s3_storage_fs.isfile(posixpath.join(s3path, META_FILE_NAME))
+    assert s3_storage_fs.isdir(posixpath.join(s3path, ART_DIR))
+    assert s3_storage_fs.isfile(posixpath.join(s3path, ART_DIR, "data.pkl"))
     cloned_model_meta = load_meta(path, load_value=False)
     _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
 
@@ -243,23 +255,24 @@ def test_mlem_dir_path(filled_mlem_repo):
         filled_mlem_repo, MLEM_DIR, "model", "data", "model" + MLEM_EXT
     )
     assert (
-        mlem_dir_path(
-            os.path.join(filled_mlem_repo, "data", "model"),
-            obj_type="model",
-            fs=None,
+        os.path.abspath(
+            mlem_dir_path(
+                os.path.join(filled_mlem_repo, "data", "model"),
+                obj_type="model",
+                fs=None,
+            )
         )
-        == model_link
+        == os.path.abspath(model_link)
     )
     # case when we provide object relative path
     model_link = os.path.join(
         filled_mlem_repo, MLEM_DIR, "model", "latest" + MLEM_EXT
     )
-    assert (
+    assert os.path.abspath(
         mlem_dir_path(
             "latest", fs=None, obj_type="model", repo=filled_mlem_repo
         )
-        == model_link
-    )
+    ) == os.path.abspath(model_link)
 
 
 def test_link_dump(model_path):

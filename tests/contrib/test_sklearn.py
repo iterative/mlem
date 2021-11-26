@@ -54,7 +54,7 @@ def test_hook(model_fixture, inp_data, request):
         data_type,
         NumpyNdarrayType(
             shape=(None,),
-            dtype="int64" if model_fixture == "classifier" else "float64",
+            dtype=model.predict(inp_data).dtype.name,
         ),
     )
 

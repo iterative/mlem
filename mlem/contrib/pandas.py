@@ -1,4 +1,4 @@
-import os
+import posixpath
 import re
 from abc import ABC
 from dataclasses import dataclass
@@ -467,7 +467,7 @@ class PandasFormat:
             write_kwargs.update(self.write_args)
         write_kwargs.update(kwargs)
 
-        with storage.open(os.path.join(path, self.file_name)) as (f, art):
+        with storage.open(posixpath.join(path, self.file_name)) as (f, art):
             self.write_func(df, f, **write_kwargs)
             return art
 

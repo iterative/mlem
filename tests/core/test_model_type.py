@@ -51,7 +51,9 @@ def test_infer_signatire_unspecified(model):
 def test_infer_signatire(model, train):
     signature = Signature.from_method(model.predict, auto_infer=True, X=train)
     assert signature.name == "predict"
-    assert signature.returns == NumpyNdarrayType(shape=(None,), dtype="int64")
+    assert signature.returns == NumpyNdarrayType(
+        shape=(None,), dtype=model.predict(train).dtype.name
+    )
     assert len(signature.args) == 2
     arg = signature.args[0]
     assert arg.name == "X"

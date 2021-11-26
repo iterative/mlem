@@ -1,4 +1,5 @@
 import os
+import posixpath
 import tempfile
 from typing import Any, ClassVar, Dict, List, Optional
 
@@ -118,7 +119,7 @@ class XGBoostModelIO(ModelIO):
         with tempfile.TemporaryDirectory(prefix="mlem_xgboost_dump") as f:
             local_path = os.path.join(f, self.model_file_name)
             model.save_model(local_path)
-            remote_path = os.path.join(path, self.model_file_name)
+            remote_path = posixpath.join(path, self.model_file_name)
             return [storage.upload(local_path, remote_path)]
 
     def load(self, artifacts: Artifacts):

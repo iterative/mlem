@@ -1,4 +1,5 @@
 import os
+import posixpath
 import tempfile
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -139,13 +140,15 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     init(path)
     model_path = os.path.join(path, "model")
     save(model, model_path, fs=s3_storage_fs, external=True)
-    model_path = Path(model_path[len("s3:/") :])
+    model_path = model_path[len("s3:/") :]
     assert s3_storage_fs.isfile(
-        os.path.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
+        posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
     )
-    assert s3_storage_fs.isfile(str(model_path / META_FILE_NAME))
-    assert s3_storage_fs.isdir(str(model_path / ART_DIR))
-    assert s3_storage_fs.isfile(str(model_path / ART_DIR / "data.pkl"))
+    assert s3_storage_fs.isfile(posixpath.join(model_path, META_FILE_NAME))
+    assert s3_storage_fs.isdir(posixpath.join(model_path, ART_DIR))
+    assert s3_storage_fs.isfile(
+        posixpath.join(model_path, ART_DIR, "data.pkl")
+    )
 
 
 @long

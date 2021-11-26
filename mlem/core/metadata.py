@@ -2,7 +2,7 @@
 Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
-import os.path
+import posixpath
 from typing import Any, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
@@ -11,6 +11,7 @@ from typing_extensions import Literal
 from mlem.core.errors import HookNotFound
 from mlem.core.meta_io import UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
+from mlem.utils.path import make_posix
 
 
 def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
@@ -123,11 +124,15 @@ def load_meta(
         MlemMeta: Saved MlemMeta object
     """
     location = UriResolver.resolve(
-        path=path, repo=repo, rev=rev, fs=fs, find_repo=True
+        path=make_posix(path),
+        repo=make_posix(repo),
+        rev=rev,
+        fs=fs,
+        find_repo=True,
     )
     path = find_meta_path(location.fullpath, fs=location.fs)
     if location.repo is not None:
-        path = os.path.relpath(path, location.repo)
+        path = posixpath.relpath(path, location.repo)
     meta = MlemMeta.read(
         path=path,
         fs=location.fs,
@@ -159,10 +164,10 @@ def find_meta_path(
     try:
         # first, assume `path` is the filename
         # this allows to find the object not listed in .mlem/
-        fullpath = os.path.join(repo or "", path)
+        fullpath = posixpath.join(repo or "", path)
         path = get_meta_path(uri=fullpath, fs=fs)
         if repo is not None:
-            path = os.path.relpath(path, repo)
+            path = posixpath.relpath(path, repo)
     except FileNotFoundError:
         # now search for objects in .mlem
         # TODO: exceptions thrown here doesn't explain that

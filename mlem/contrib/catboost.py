@@ -1,4 +1,5 @@
 import os
+import posixpath
 import tempfile
 from enum import Enum
 from typing import Any, ClassVar, Optional
@@ -31,7 +32,9 @@ class CatBoostModelIO(ModelIO):
             model_name = self._get_model_file_name(model)
             model_path = os.path.join(tmpdir, model_name)
             model.save_model(model_path)
-            return [storage.upload(model_path, os.path.join(path, model_name))]
+            return [
+                storage.upload(model_path, posixpath.join(path, model_name))
+            ]
 
     def load(self, artifacts: Artifacts):
         """

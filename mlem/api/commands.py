@@ -1,7 +1,7 @@
 """
 MLEM's Python API
 """
-import os
+import posixpath
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
@@ -138,7 +138,7 @@ def get(
 
 def init(path: str = ".") -> None:
     """Creates .mlem directory in `path`"""
-    path = os.path.join(path, MLEM_DIR)
+    path = posixpath.join(path, MLEM_DIR)
     fs, path = get_fs(path)
     if fs.exists(path):
         click.echo(f"{path} already exists, no need to run `mlem init` again")
@@ -153,7 +153,7 @@ def init(path: str = ".") -> None:
             )
         fs.makedirs(path)
         # some fs dont support creating empty dirs
-        with fs.open(os.path.join(path, CONFIG_FILE), "w"):
+        with fs.open(posixpath.join(path, CONFIG_FILE), "w"):
             pass
 
 
@@ -267,16 +267,18 @@ def ls(
     root = find_repo_root(path, fs)
     res = defaultdict(list)
     for cls in type_filter:
-        root_path = os.path.join(root, MLEM_DIR, cls.object_type)
+        root_path = posixpath.join(root, MLEM_DIR, cls.object_type)
         files = fs.glob(
-            os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True
+            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
         for file in files:
             meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
             obj_type = cls
             if isinstance(meta, MlemLink):
-                link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
-                is_auto_link = meta.link_data.path == os.path.join(
+                link_name = posixpath.relpath(file, root_path)[
+                    : -len(MLEM_EXT)
+                ]
+                is_auto_link = meta.link_data.path == posixpath.join(
                     link_name, META_FILE_NAME
                 )
                 obj_type = MlemMeta.__type_map__[meta.link_type]

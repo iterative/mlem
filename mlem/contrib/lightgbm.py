@@ -1,4 +1,5 @@
 import os
+import posixpath
 import tempfile
 from typing import Any, ClassVar, Optional
 
@@ -77,7 +78,7 @@ class LightGBMModelIO(ModelIO):
         with tempfile.TemporaryDirectory(prefix="mlem_lightgbm_dump") as f:
             model_path = os.path.join(f, self.model_file_name)
             model.save_model(model_path)
-            fs_path = os.path.join(path, self.model_file_name)
+            fs_path = posixpath.join(path, self.model_file_name)
             return [storage.upload(model_path, fs_path)]
 
     def load(self, artifacts: Artifacts):

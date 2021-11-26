@@ -1,4 +1,5 @@
 import os
+import posixpath
 import tempfile
 from pathlib import Path
 from typing import Any, Callable, Type
@@ -16,7 +17,7 @@ from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.artifacts import LOCAL_STORAGE
+from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage
 from mlem.core.dataset_type import (
     Dataset,
     DatasetReader,
@@ -265,7 +266,7 @@ def s3_tmp_path():
     fs, _ = get_fs(base_path)
 
     def gen(path):
-        path = os.path.join(base_path, path)
+        path = posixpath.join(base_path, path)
         if path in paths:
             raise ValueError(f"Already generated {path}")
         if fs.exists(path):
@@ -279,3 +280,15 @@ def s3_tmp_path():
             fs.delete(path, recursive=True)
         except FileNotFoundError:
             pass
+
+
+@pytest.fixture()
+def s3_storage():
+    return FSSpecStorage(
+        uri=f"s3://{MLEM_S3_TEST_BUCKET}/", storage_options={}
+    )
+
+
+@pytest.fixture()
+def s3_storage_fs(s3_storage):
+    return s3_storage.get_fs()
