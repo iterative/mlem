@@ -3,7 +3,8 @@ Artifacts which come with models and datasets,
 such as model binaries or .csv files
 """
 import contextlib
-import os.path
+import os
+import posixpath
 import tempfile
 from abc import ABC, abstractmethod
 from typing import (
@@ -54,7 +55,9 @@ class Artifact(MlemObject, ABC):
             return self._download(target_path)
         with tempfile.TemporaryDirectory() as buf:
             tmp = self._download(buf)
-            target_path = os.path.join(target_path, os.path.basename(tmp.uri))
+            target_path = posixpath.join(
+                target_path, posixpath.basename(tmp.uri)
+            )
             target_fs.upload(tmp.uri, target_path)
         return FSSpecArtifact(uri=get_path_by_fs_path(target_fs, target_path))
 
@@ -84,7 +87,7 @@ class FSSpecArtifact(Artifact):
         fs, path = get_fs(self.uri)
 
         if os.path.isdir(target_path):
-            target_path = os.path.join(target_path, os.path.basename(path))
+            target_path = posixpath.join(target_path, posixpath.basename(path))
         fs.download(path, target_path)
         return LocalArtifact(uri=target_path)
 
@@ -136,16 +139,16 @@ class FSSpecStorage(Storage):
 
     def upload(self, local_path: str, target_path: str) -> FSSpecArtifact:
         fs = self.get_fs()
-        path = os.path.join(self.base_path, target_path)
-        fs.makedirs(os.path.dirname(path), exist_ok=True)
+        path = posixpath.join(self.base_path, target_path)
+        fs.makedirs(posixpath.dirname(path), exist_ok=True)
         fs.upload(local_path, path)
         return FSSpecArtifact(uri=self.create_uri(target_path))
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, FSSpecArtifact]]:
         fs = self.get_fs()
-        fullpath = os.path.join(self.base_path, path)
-        fs.makedirs(os.path.dirname(fullpath), exist_ok=True)
+        fullpath = posixpath.join(self.base_path, path)
+        fs.makedirs(posixpath.dirname(fullpath), exist_ok=True)
         with fs.open(fullpath, "wb") as f:
             yield f, FSSpecArtifact(uri=(self.create_uri(path)))
 
@@ -157,7 +160,7 @@ class FSSpecStorage(Storage):
         return self
 
     def create_uri(self, path):
-        uri = os.path.join(self.uri, path)
+        uri = posixpath.join(self.uri, path)
         if os.path.isabs(path):
             protocol = urlparse(self.uri).scheme or "file"
             uri = f"{protocol}://{uri}"
@@ -215,10 +218,10 @@ class LocalArtifact(FSSpecArtifact):
     def relative(self, fs: AbstractFileSystem, path: str) -> "FSSpecArtifact":
 
         if isinstance(fs, LocalFileSystem):
-            return LocalArtifact(uri=os.path.join(path, self.uri))
+            return LocalArtifact(uri=posixpath.join(path, self.uri))
 
         return FSSpecArtifact(
-            uri=get_path_by_fs_path(fs, os.path.join(path, self.uri))
+            uri=get_path_by_fs_path(fs, posixpath.join(path, self.uri))
         )
 
 

@@ -1,5 +1,5 @@
-import os
 import pathlib
+import posixpath
 from typing import Dict, Optional
 from urllib.parse import quote_plus, urlparse
 
@@ -36,7 +36,7 @@ def get_github_kwargs(uri: str):
         "org": org,
         "repo": repo,
         "sha": sha,
-        "path": os.path.join(*path),
+        "path": posixpath.join(*path),
     }
 
 

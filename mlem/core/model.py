@@ -2,8 +2,8 @@
 Base classes to work with ML models in MLEM
 """
 import inspect
-import os
 import pickle
+import posixpath
 from abc import ABC, abstractmethod
 from typing import Any, Callable, ClassVar, Dict, List, Optional, TypeVar
 
@@ -49,7 +49,7 @@ class SimplePickleIO(ModelIO):
 
     def dump(self, storage: Storage, path: str, model) -> Artifacts:
 
-        path = os.path.join(path, self.file_name)
+        path = posixpath.join(path, self.file_name)
         with storage.open(path) as (f, art):
             pickle.dump(model, f)
         return [art]

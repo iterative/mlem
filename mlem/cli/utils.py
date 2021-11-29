@@ -3,7 +3,6 @@ Helper functions and wrappers for CLI commands created with click.
 These define reused functionality and configuration of complex objects in command line.
 """
 import shlex
-import sys
 from functools import wraps
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
@@ -14,6 +13,7 @@ from yaml import safe_load
 from mlem.core.base import MlemObject
 from mlem.core.meta_io import deserialize
 from mlem.core.metadata import load_meta
+from mlem.utils.path import make_posix
 
 OBJ_CTX_NAME = "model_meta"
 
@@ -74,9 +74,7 @@ def smart_split(string: str, char: str):
         string = string.replace(" ", SPECIAL).replace(char, " ")
     return [
         s.replace(" ", char).replace(SPECIAL, " ")
-        for s in shlex.split(
-            string, posix="win" not in sys.platform or "darwin" in sys.platform
-        )
+        for s in shlex.split(string, posix=True)
     ]
 
 
@@ -97,7 +95,7 @@ def build_model(
     model_dict = {}
     model_dict.update(kwargs)
     for file in file_conf:
-        keys, path = smart_split(file, "=")
+        keys, path = smart_split(make_posix(file), "=")
         with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
         _set_recursively(model_dict, smart_split(keys, "."), value)

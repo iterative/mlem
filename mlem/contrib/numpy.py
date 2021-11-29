@@ -1,4 +1,4 @@
-import os
+import posixpath
 from types import ModuleType
 from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
 
@@ -167,7 +167,7 @@ class NumpyArrayWriter(DatasetWriter):
     def write(
         self, dataset: Dataset, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
-        with storage.open(os.path.join(path, DATA_FILE)) as (f, art):
+        with storage.open(posixpath.join(path, DATA_FILE)) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})
         return NumpyArrayReader(dataset_type=dataset.dataset_type), [art]
 

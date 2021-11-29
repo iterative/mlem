@@ -1,14 +1,17 @@
 # pylint: disable=no-member
 import os
+import posixpath
 
 import pytest
 from numpy import ndarray
 
 from mlem.api import apply, link, load_meta
-from mlem.api.commands import ls
+from mlem.api.commands import init, ls
+from mlem.config import CONFIG_FILE
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
-from tests.conftest import MLEM_TEST_REPO, long
+from mlem.utils.path import make_posix
+from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 
 @pytest.mark.parametrize(
@@ -78,12 +81,13 @@ def test_ls_local(filled_mlem_repo):
     assert isinstance(model, ModelMeta)
     assert isinstance(lnk, MlemLink)
     assert (
-        os.path.join(filled_mlem_repo, lnk.link_data.path)
+        posixpath.join(make_posix(filled_mlem_repo), lnk.link_data.path)
         == model._path  # pylint: disable=protected-access
     )
 
 
 @long
+@need_test_repo_auth
 def test_ls_remote(current_test_branch):
     objects = ls(
         os.path.join(MLEM_TEST_REPO, f"tree/{current_test_branch}/simple")
@@ -101,3 +105,17 @@ def test_ls_remote(current_test_branch):
 
     assert DatasetMeta in objects
     assert len(objects[DatasetMeta]) == 3
+
+
+def test_init(tmpdir):
+    init(str(tmpdir))
+    assert os.path.isdir(tmpdir / MLEM_DIR)
+    assert os.path.isfile(tmpdir / MLEM_DIR / CONFIG_FILE)
+
+
+@long
+def test_init_remote(s3_tmp_path, s3_storage_fs):
+    path = s3_tmp_path("init")
+    init(path)
+    assert s3_storage_fs.isdir(f"{path}/{MLEM_DIR}")
+    assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE}")

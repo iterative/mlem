@@ -1,5 +1,6 @@
 import os.path
 from json import loads
+from pathlib import Path
 
 import pytest
 from fsspec.implementations.github import GithubFileSystem
@@ -47,7 +48,7 @@ def test_read(url_path_pairs):
         ("path", LocalFileSystem, lambda: os.path.abspath("path")),
         ("file://path", LocalFileSystem, lambda: os.path.abspath("path")),
         ("s3://path", S3FileSystem, "path"),
-        ("gcs://path", GCSFileSystem, "path"),
+        pytest.param("gcs://path", GCSFileSystem, "path", marks=long),
         # ("az://path", AzureBlobFileSystem),  # TODO: need credentials
         # TODO: see below in test_get_path_by_fs_path
         # (
@@ -63,7 +64,7 @@ def test_get_fs(uri, cls, result):
         result = result()
     fs, path = get_fs(uri)
     assert isinstance(fs, cls)
-    assert path == result
+    assert Path(path) == Path(result)
 
 
 @long
@@ -103,7 +104,7 @@ def test_get_path_by_fs_path(uri):
     if callable(result):
         result = result()
     uri2 = get_path_by_fs_path(*get_fs(uri))
-    assert uri2 == result
+    assert Path(uri2) == Path(result)
 
 
 @need_test_repo_auth

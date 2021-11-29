@@ -1,5 +1,6 @@
 import contextlib
 import os.path
+import posixpath
 from typing import IO, ClassVar, Iterator, Tuple
 from urllib.parse import unquote_plus
 
@@ -56,7 +57,9 @@ class DVCArtifact(LocalArtifact):
 
     def _download(self, target_path: str) -> LocalArtifact:
         if os.path.isdir(target_path):
-            target_path = os.path.join(target_path, os.path.basename(self.uri))
+            target_path = posixpath.join(
+                target_path, os.path.basename(self.uri)
+            )
         with self.open() as fin, open(target_path, "wb") as fout:
             batch = fin.read(BATCH_SIZE)
             while batch:

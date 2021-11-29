@@ -1,4 +1,5 @@
 import os
+import posixpath
 from typing import Optional, overload
 
 from fsspec import AbstractFileSystem
@@ -41,17 +42,17 @@ def find_repo_root(
     """
     if fs is None:
         fs = LocalFileSystem()
-    if isinstance(fs, LocalFileSystem):
+    if isinstance(fs, LocalFileSystem) and not os.path.isabs(path):
         path = os.path.abspath(path)
     _path = path[:]
     if not recursive:
-        if fs.exists(os.path.join(_path, MLEM_DIR)):
+        if fs.exists(posixpath.join(_path, MLEM_DIR)):
             return _path
     else:
         if fs.isfile(_path) or not fs.exists(_path):
             _path = os.path.dirname(_path)
         while True:
-            if fs.exists(os.path.join(_path, MLEM_DIR)):
+            if fs.exists(posixpath.join(_path, MLEM_DIR)):
                 return _path
             if _path == os.path.dirname(_path):
                 break
