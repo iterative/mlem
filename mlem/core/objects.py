@@ -435,7 +435,7 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @property
     def dirname(self):
-        return os.path.dirname(self.location.uri)
+        return os.path.dirname(self.location.fullpath)
 
     @property
     def relative_artifacts(self) -> Artifacts:
