@@ -8,8 +8,8 @@ from typing import Any, Optional, Type, TypeVar, Union, overload
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
 
-from mlem.core.errors import HookNotFound
-from mlem.core.meta_io import UriResolver, get_meta_path
+from mlem.core.errors import HookNotFound, MlemObjectNotFound
+from mlem.core.meta_io import Location, UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.path import make_posix
 
@@ -130,13 +130,8 @@ def load_meta(
         fs=fs,
         find_repo=True,
     )
-    path = find_meta_path(location.fullpath, fs=location.fs)
-    if location.repo is not None:
-        path = posixpath.relpath(path, location.repo)
     meta = MlemMeta.read(
-        path=path,
-        fs=location.fs,
-        repo=location.repo,
+        location=find_meta_location(location),
         follow_links=follow_links,
     )
     if load_value:
@@ -148,30 +143,31 @@ def load_meta(
     return meta  # type: ignore[return-value]
 
 
-def find_meta_path(
-    path: str, fs: AbstractFileSystem, repo: Optional[str] = None
-) -> str:
-    """Locate MlemMeta object by given path
+def find_meta_location(location: Location) -> Location:
+    """Locate MlemMeta object by given location
 
     Args:
-        path (str): Path to object or a link name.
-        fs (AbstractFileSystem): Filesystem for the given path
+        location: location to find meta
 
     Returns:
-        str: Path to located object
-
+        location: Resolved metadata file location
     """
+    location = location.copy()
     try:
         # first, assume `path` is the filename
         # this allows to find the object not listed in .mlem/
-        fullpath = posixpath.join(repo or "", path)
-        path = get_meta_path(uri=fullpath, fs=fs)
-        if repo is not None:
-            path = posixpath.relpath(path, repo)
+        path = get_meta_path(uri=location.fullpath, fs=location.fs)
     except FileNotFoundError:
         # now search for objects in .mlem
-        # TODO: exceptions thrown here doesn't explain that
-        #  direct search by path was also failed. Need to clarify
-        _, path = find_object(path, fs=fs, repo=repo)
-
-    return path
+        try:
+            _, path = find_object(
+                location.path, fs=location.fs, repo=location.repo
+            )
+        except ValueError as e:
+            raise MlemObjectNotFound(
+                f"MLEM object was not found at {location.uri}"
+            ) from e
+    if location.repo is not None:
+        path = posixpath.relpath(path, location.repo)
+    location.update_path(path)
+    return location

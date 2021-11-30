@@ -32,6 +32,7 @@ from mlem.core.meta_io import (
     Location,
     deserialize,
     get_fs,
+    get_path_by_fs_path,
     serialize,
 )
 from mlem.core.model import ModelAnalyzer, ModelType
@@ -79,9 +80,7 @@ class MlemMeta(MlemObject):
     @property
     def name(self):
         """Name of the object in the repo"""
-        repo_path = posixpath.relpath(self.location.uri, self.location.repo)[
-            : -len(MLEM_EXT)
-        ]
+        repo_path = self.loc.repo_path[: -len(MLEM_EXT)]
         prefix = posixpath.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
@@ -111,7 +110,7 @@ class MlemMeta(MlemObject):
         external: bool,
         ensure_mlem_root: bool,
         metafile_path: bool = True,
-    ) -> Tuple[AbstractFileSystem, str, Optional[str]]:
+    ) -> Location:
         """Extract fs, path and mlem repo"""
 
         fullpath = posixpath.join(repo or "", path)
@@ -136,7 +135,12 @@ class MlemMeta(MlemObject):
             )
         ):
             # orphan or external or inside .mlem
-            return fs, fullpath, repo
+            return Location(
+                fs=fs,
+                path=fullpath,
+                repo=repo,
+                uri=get_path_by_fs_path(fs, fullpath),
+            )
 
         internal_path = posixpath.join(
             repo,
@@ -144,7 +148,12 @@ class MlemMeta(MlemObject):
             cls.object_type,
             posixpath.relpath(fullpath, repo),
         )
-        return fs, internal_path, repo
+        return Location(
+            fs=fs,
+            path=internal_path,
+            repo=repo,
+            uri=get_path_by_fs_path(fs, internal_path),
+        )
 
     def bind(self, location: Location):
         self.location = location
@@ -153,9 +162,7 @@ class MlemMeta(MlemObject):
     @classmethod
     def read(
         cls: Type[T],
-        path: str,
-        fs: AbstractFileSystem = None,
-        repo: str = None,
+        location: Location,
         follow_links: bool = True,
     ) -> T:
         """
@@ -163,9 +170,7 @@ class MlemMeta(MlemObject):
             and try to deserialise it as `cls` instance
 
         Args:
-            path: Exact path to MLEM metafile,
-            fs: Filesystem on which path is located,
-            repo: path to mlem repo, optional
+            location: location of metafile
             follow_links: If deserialised object is a MLEM link,
                 whether to load and return the linked object
                 or just return MlemLink object.
@@ -173,12 +178,9 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
-        fs, path, repo = cls._get_location(path, repo, fs, True, False, False)
-        with fs.open(path) as f:
+        with location.fs.open(location.fullpath) as f:
             payload = safe_load(f)
-        res = deserialize(payload, cls).bind(
-            Location(path=path, repo=repo, fs=fs, uri=path)
-        )
+        res = deserialize(payload, cls).bind(location)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
             if not isinstance(link, cls):
@@ -219,24 +221,24 @@ class MlemMeta(MlemObject):
                 Defaults to false if repo is provided
                 Forced to false if path points inside mlem dir
         """
-        fullpath, repo, fs, link, external = self._parse_dump_args(
-            path, repo, fs, link, external
-        )
-        self._write_meta(fullpath, repo, fs, link)
+        location, link = self._parse_dump_args(path, repo, fs, link, external)
+        self._write_meta(location, link)
 
     def _write_meta(
         self,
-        path: str,
-        repo: Optional[str],
-        fs: AbstractFileSystem,
+        location: Location,
         link: bool,
     ):
         """Write metadata to path in fs and possibly create link in mlem dir"""
-        fs.makedirs(posixpath.dirname(path), exist_ok=True)
-        with fs.open(path, "w") as f:
+        location.fs.makedirs(
+            posixpath.dirname(location.fullpath), exist_ok=True
+        )
+        with location.fs.open(location.fullpath, "w") as f:
             safe_dump(serialize(self), f)
-        if link and repo:
-            self.make_link(self.name, fs, repo=repo, external=False)
+        if link and location.repo:
+            self.make_link(
+                self.name, location.fs, repo=location.repo, external=False
+            )
 
     def _parse_dump_args(
         self,
@@ -245,7 +247,7 @@ class MlemMeta(MlemObject):
         fs: Optional[AbstractFileSystem],
         link: Optional[bool],
         external: Optional[bool],
-    ) -> Tuple[str, Optional[str], AbstractFileSystem, bool, bool]:
+    ) -> Tuple[Location, bool]:
         """Parse arguments for .dump and bind meta"""
         if external is None:
             external = CONFIG.DEFAULT_EXTERNAL
@@ -256,16 +258,16 @@ class MlemMeta(MlemObject):
         else:
             # if link manually set to True, there should be mlem repo
             ensure_mlem_root = link
-        fs, fullpath, repo = self._get_location(
+        location = self._get_location(
             make_posix(path), make_posix(repo), fs, external, ensure_mlem_root
         )
-        self.bind(Location(path=path, repo=repo, uri=fullpath, fs=fs))
+        self.bind(location)
         if repo is not None:
             # force external=False if fullpath inside MLEM_DIR
             external = os.path.join(MLEM_DIR, "") not in os.path.dirname(
-                fullpath
+                location.fullpath
             )
-        return fullpath, repo, fs, link and external, external
+        return location, link and external
 
     def make_link(
         self,
@@ -352,11 +354,9 @@ class MlemLink(MlemMeta):
         return self.link_type
 
     def load_link(self) -> MlemMeta:
-        linked_obj_path, linked_obj_fs = self.parse_link()
-        obj = self.link_cls.read(linked_obj_path, fs=linked_obj_fs)
-        return obj
+        return self.link_cls.read(self.parse_link())
 
-    def parse_link(self) -> Tuple[str, AbstractFileSystem]:
+    def parse_link(self) -> Location:
         if self.location is None:
             raise MlemObjectNotSavedError("Link is not saved")
         fs, path = get_fs(self.link_data.path)
@@ -364,16 +364,12 @@ class MlemLink(MlemMeta):
             isinstance(fs, LocalFileSystem)
             and os.path.isabs(self.link_data.path)
         ):
-            return path, fs
-        from mlem.core.metadata import find_meta_path
+            return Location.abs(path=path, fs=fs)
+        from mlem.core.metadata import find_meta_location
 
-        return (
-            find_meta_path(
-                posixpath.join(self.location.repo or "", self.link_data.path),
-                self.location.fs,
-            ),
-            self.location.fs,
-        )
+        location = self.location.copy()
+        location.update_path(self.link_data.path)
+        return find_meta_location(location)
 
 
 class _WithArtifacts(ABC, MlemMeta):
@@ -390,9 +386,7 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @property
     def name(self):
-        repo_path = posixpath.dirname(
-            posixpath.relpath(self.location.uri, self.location.repo)
-        )
+        repo_path = posixpath.dirname(self.location.repo_path)
         prefix = posixpath.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
@@ -406,11 +400,9 @@ class _WithArtifacts(ABC, MlemMeta):
         link: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
-        fullpath, repo, fs, link, external = self._parse_dump_args(
-            path, repo, fs, link, external
-        )
+        location, link = self._parse_dump_args(path, repo, fs, link, external)
         self.artifacts = self.write_value()
-        self._write_meta(fullpath, repo, fs, link)
+        self._write_meta(location, link)
 
     @abstractmethod
     def write_value(self) -> Artifacts:
@@ -418,7 +410,7 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @property
     def art_dir(self):
-        return posixpath.join(os.path.dirname(self.location.uri), ART_DIR)
+        return posixpath.join(os.path.dirname(self.location.fullpath), ART_DIR)
 
     # def ensure_saved(self):
     #     if self.fs is None:
@@ -438,15 +430,12 @@ class _WithArtifacts(ABC, MlemMeta):
         new: "_WithArtifacts" = self.deepcopy()
         new.artifacts = []
         (
-            fullpath,
-            repo,
-            fs,
+            location,
             link,
-            external,
         ) = new._parse_dump_args(  # pylint: disable=protected-access
             path, repo, fs, link, external
         )
-        fs.makedirs(new.art_dir, exist_ok=True)
+        location.fs.makedirs(new.art_dir, exist_ok=True)
         for art in self.relative_artifacts:
             download = art.materialize(
                 new.art_dir, new.loc.fs  # pylint: disable=protected-access
@@ -456,9 +445,7 @@ class _WithArtifacts(ABC, MlemMeta):
                     uri=posixpath.relpath(download.uri, make_posix(path))
                 )
             new.artifacts.append(download)
-        new._write_meta(  # pylint: disable=protected-access
-            fullpath, repo, fs, link
-        )
+        new._write_meta(location, link)  # pylint: disable=protected-access
         return new
 
     @property
@@ -608,11 +595,11 @@ class DeployMeta(MlemMeta):
 
     @property  # TODO cached
     def env(self):
-        return TargetEnvMeta.read(self.env_path, self.location.fs)
+        return TargetEnvMeta.read(Location.abs(self.env_path, self.loc.fs))
 
     @property  # TODO cached
     def model(self):
-        return ModelMeta.read(self.model_path, self.location.fs)
+        return ModelMeta.read(Location.abs(self.model_path, self.loc.fs))
 
     @classmethod
     def find(
@@ -620,7 +607,7 @@ class DeployMeta(MlemMeta):
     ) -> Optional["DeployMeta"]:
         try:
             path = posixpath.join(env_path, model_path)
-            return cls.read(path, LocalFileSystem())  # TODO fs
+            return cls.read(Location.abs(path, LocalFileSystem()))  # TODO fs
         except FileNotFoundError:
             if raise_on_missing:
                 raise
