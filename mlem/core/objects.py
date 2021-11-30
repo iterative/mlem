@@ -30,9 +30,9 @@ from mlem.core.meta_io import (
     MLEM_DIR,
     MLEM_EXT,
     Location,
+    UriResolver,
     deserialize,
     get_fs,
-    get_path_by_fs_path,
     serialize,
 )
 from mlem.core.model import ModelAnalyzer, ModelType
@@ -101,6 +101,10 @@ class MlemMeta(MlemObject):
             fullpath += MLEM_EXT
         return fullpath
 
+    def bind(self, location: Location):
+        self.location = location
+        return self
+
     @classmethod
     def _get_location(
         cls,
@@ -111,53 +115,34 @@ class MlemMeta(MlemObject):
         ensure_mlem_root: bool,
         metafile_path: bool = True,
     ) -> Location:
-        """Extract fs, path and mlem repo"""
-
-        fullpath = posixpath.join(repo or "", path)
+        """Create location from arguments"""
         if metafile_path:
-            fullpath = cls.get_metafile_path(fullpath)
-        if fs is None:
-            fs, fullpath = get_fs(fullpath)
-        elif isinstance(fs, LocalFileSystem):
-            fullpath = make_posix(os.path.abspath(fullpath))
-        if repo is not None:
+            path = cls.get_metafile_path(path)
+        loc = UriResolver.resolve(path, repo, rev=None, fs=fs, find_repo=True)
+        if loc.repo is not None:
             # check that repo is mlem repo root
-            find_repo_root(repo, fs, raise_on_missing=True, recursive=False)
-        else:
-            repo = find_repo_root(fullpath, fs, raise_on_missing=False)
-        if ensure_mlem_root and repo is None:
-            raise MlemRootNotFound(fullpath, fs)
+            find_repo_root(
+                loc.repo, loc.fs, raise_on_missing=True, recursive=False
+            )
+        if ensure_mlem_root and loc.repo is None:
+            raise MlemRootNotFound(loc.fullpath, loc.fs)
         if (
-            repo is None
+            loc.repo is None
             or external
-            or fullpath.startswith(
-                posixpath.join(repo, MLEM_DIR, cls.object_type)
+            or loc.fullpath.startswith(
+                posixpath.join(loc.repo, MLEM_DIR, cls.object_type)
             )
         ):
             # orphan or external or inside .mlem
-            return Location(
-                fs=fs,
-                path=fullpath,
-                repo=repo,
-                uri=get_path_by_fs_path(fs, fullpath),
-            )
+            return loc
 
         internal_path = posixpath.join(
-            repo,
             MLEM_DIR,
             cls.object_type,
-            posixpath.relpath(fullpath, repo),
+            loc.repo_path,
         )
-        return Location(
-            fs=fs,
-            path=internal_path,
-            repo=repo,
-            uri=get_path_by_fs_path(fs, internal_path),
-        )
-
-    def bind(self, location: Location):
-        self.location = location
-        return self
+        loc.update_path(internal_path)
+        return loc
 
     @classmethod
     def read(

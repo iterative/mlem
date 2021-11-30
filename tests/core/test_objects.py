@@ -122,7 +122,7 @@ def test_meta_dump_external(mlem_repo, meta, path_and_root):
     assert isinstance(load_meta(link_path, follow_links=False), MlemLink)
 
 
-@pytest.mark.parametrize("external", [False])
+@pytest.mark.parametrize("external", [False, True])
 def test_model_dump_curdir(model_meta, mlem_curdir_repo, external):
     model_meta.dump(MODEL_NAME, external=external)
     assert model_meta.name == MODEL_NAME
