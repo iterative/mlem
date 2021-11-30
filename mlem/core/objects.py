@@ -262,7 +262,7 @@ class MlemMeta(MlemObject):
             make_posix(path), make_posix(repo), fs, external, ensure_mlem_root
         )
         self.bind(location)
-        if repo is not None:
+        if location.repo is not None:
             # force external=False if fullpath inside MLEM_DIR
             external = os.path.join(MLEM_DIR, "") not in os.path.dirname(
                 location.fullpath

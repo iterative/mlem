@@ -78,6 +78,18 @@ def test_meta_dump__no_root(meta, tmpdir):
         meta.dump(DEPLOY_NAME, repo=str(tmpdir))
 
 
+def test_meta_dump_fullpath_in_repo_no_link(mlem_repo, meta):
+    meta.dump(
+        os.path.join(mlem_repo, MLEM_DIR, meta.object_type, DEPLOY_NAME),
+        link=True,
+        external=True,
+    )
+    link_path = os.path.join(
+        mlem_repo, MLEM_DIR, MlemLink.object_type, DEPLOY_NAME + MLEM_EXT
+    )
+    assert not os.path.exists(link_path)
+
+
 def test_meta_dump_internal(mlem_repo, meta, path_and_root):
     path, root = path_and_root(DEPLOY_NAME)
     meta.dump(path, repo=root, external=False)
