@@ -178,7 +178,7 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
-        with location.fs.open(location.fullpath) as f:
+        with location.open() as f:
             payload = safe_load(f)
         res = deserialize(payload, cls).bind(location)
         if follow_links and isinstance(res, MlemLink):
@@ -233,7 +233,7 @@ class MlemMeta(MlemObject):
         location.fs.makedirs(
             posixpath.dirname(location.fullpath), exist_ok=True
         )
-        with location.fs.open(location.fullpath, "w") as f:
+        with location.open("w") as f:
             safe_dump(serialize(self), f)
         if link and location.repo:
             self.make_link(

@@ -1,6 +1,7 @@
 """
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
+import contextlib
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
@@ -37,6 +38,11 @@ class Location(BaseModel):
     @property
     def repo_path(self):
         return posixpath.relpath(self.fullpath, self.repo)
+
+    @contextlib.contextmanager
+    def open(self, mode="r", **kwargs):
+        with self.fs.open(self.fullpath, mode, **kwargs) as f:
+            yield f
 
     @classmethod
     def abs(cls, path: str, fs: AbstractFileSystem):
