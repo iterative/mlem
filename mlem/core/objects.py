@@ -249,7 +249,7 @@ class MlemMeta(MlemObject):
         self.bind(location)
         if location.repo is not None:
             # force external=False if fullpath inside MLEM_DIR
-            external = os.path.join(MLEM_DIR, "") not in os.path.dirname(
+            external = posixpath.join(MLEM_DIR, "") not in posixpath.dirname(
                 location.fullpath
             )
         return location, link and external
