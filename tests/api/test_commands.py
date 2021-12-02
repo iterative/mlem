@@ -82,7 +82,7 @@ def test_ls_local(filled_mlem_repo):
     assert isinstance(lnk, MlemLink)
     assert (
         posixpath.join(make_posix(filled_mlem_repo), lnk.link_data.path)
-        == model.loc.fullpath  # pylint: disable=protected-access
+        == model.loc.fullpath
     )
 
 

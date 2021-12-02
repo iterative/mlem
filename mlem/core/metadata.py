@@ -154,7 +154,7 @@ def find_meta_location(location: Location) -> Location:
     """
     location = location.copy()
     try:
-        # first, assume `path` is the filename
+        # first, assume `location` points to an external mlem object
         # this allows to find the object not listed in .mlem/
         path = get_meta_path(uri=location.fullpath, fs=location.fs)
     except FileNotFoundError:
