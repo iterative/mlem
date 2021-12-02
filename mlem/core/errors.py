@@ -44,6 +44,10 @@ class MlemObjectNotSavedError(ValueError, MlemError):
     """Thrown if we can't do something before we save MLEM object"""
 
 
+class MlemObjectNotFound(FileNotFoundError, MlemError):
+    """Thrown if we can't find MLEM object"""
+
+
 class ObjectExistsError(ValueError, MlemError):
     """Thrown if we attempt to write object, but something already exists in the given path"""
 

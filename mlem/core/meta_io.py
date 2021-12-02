@@ -1,6 +1,7 @@
 """
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
+import contextlib
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
@@ -33,6 +34,25 @@ class Location(BaseModel):
     @property
     def fullpath(self):
         return posixpath.join(self.repo or "", self.path)
+
+    @property
+    def path_in_repo(self):
+        return posixpath.relpath(self.fullpath, self.repo)
+
+    @contextlib.contextmanager
+    def open(self, mode="r", **kwargs):
+        with self.fs.open(self.fullpath, mode, **kwargs) as f:
+            yield f
+
+    @classmethod
+    def abs(cls, path: str, fs: AbstractFileSystem):
+        return Location(path=path, repo=None, fs=fs, uri=path)
+
+    def update_path(self, path):
+        if not self.uri.endswith(self.path):
+            raise ValueError("cannot automatically update uri")
+        self.uri = self.uri[: -len(self.path)] + path
+        self.path = path
 
 
 class UriResolver(ABC):
@@ -107,8 +127,8 @@ class UriResolver(ABC):
                 fs, repo = cls.get_fs(repo, rev)
             else:
                 fs, path = cls.get_fs(path, rev)
-                if find_repo:
-                    path, repo = cls.get_repo(path, fs)
+        if repo is None and find_repo:
+            path, repo = cls.get_repo(path, fs)
         return Location(
             path=path,
             repo=repo,

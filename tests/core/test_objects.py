@@ -78,6 +78,18 @@ def test_meta_dump__no_root(meta, tmpdir):
         meta.dump(DEPLOY_NAME, repo=str(tmpdir))
 
 
+def test_meta_dump_fullpath_in_repo_no_link(mlem_repo, meta):
+    meta.dump(
+        os.path.join(mlem_repo, MLEM_DIR, meta.object_type, DEPLOY_NAME),
+        link=True,
+        external=True,
+    )
+    link_path = os.path.join(
+        mlem_repo, MLEM_DIR, MlemLink.object_type, DEPLOY_NAME + MLEM_EXT
+    )
+    assert not os.path.exists(link_path)
+
+
 def test_meta_dump_internal(mlem_repo, meta, path_and_root):
     path, root = path_and_root(DEPLOY_NAME)
     meta.dump(path, repo=root, external=False)
@@ -110,7 +122,7 @@ def test_meta_dump_external(mlem_repo, meta, path_and_root):
     assert isinstance(load_meta(link_path, follow_links=False), MlemLink)
 
 
-@pytest.mark.parametrize("external", [False])
+@pytest.mark.parametrize("external", [False, True])
 def test_model_dump_curdir(model_meta, mlem_curdir_repo, external):
     model_meta.dump(MODEL_NAME, external=external)
     assert model_meta.name == MODEL_NAME
