@@ -36,7 +36,7 @@ class Location(BaseModel):
         return posixpath.join(self.repo or "", self.path)
 
     @property
-    def repo_path(self):
+    def path_in_repo(self):
         return posixpath.relpath(self.fullpath, self.repo)
 
     @contextlib.contextmanager

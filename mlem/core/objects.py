@@ -80,7 +80,7 @@ class MlemMeta(MlemObject):
     @property
     def name(self):
         """Name of the object in the repo"""
-        repo_path = self.loc.repo_path[: -len(MLEM_EXT)]
+        repo_path = self.loc.path_in_repo[: -len(MLEM_EXT)]
         prefix = posixpath.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
@@ -139,7 +139,7 @@ class MlemMeta(MlemObject):
         internal_path = posixpath.join(
             MLEM_DIR,
             cls.object_type,
-            loc.repo_path,
+            loc.path_in_repo,
         )
         loc.update_path(internal_path)
         return loc
@@ -371,7 +371,7 @@ class _WithArtifacts(ABC, MlemMeta):
 
     @property
     def name(self):
-        repo_path = posixpath.dirname(self.location.repo_path)
+        repo_path = posixpath.dirname(self.location.path_in_repo)
         prefix = posixpath.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
