@@ -11,7 +11,6 @@ from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import BaseModel
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
@@ -32,7 +31,6 @@ from mlem.core.meta_io import (
     Location,
     UriResolver,
     deserialize,
-    get_fs,
     serialize,
 )
 from mlem.core.model import ModelAnalyzer, ModelType
@@ -266,15 +264,18 @@ class MlemMeta(MlemObject):
             raise MlemObjectNotSavedError(
                 "Cannot create link for not saved meta object"
             )
-
-        link = MlemLink(
-            link_data=LinkData(
-                path=self.location.uri
-                if absolute
-                else self.get_metafile_path(self.name)
-            ),
-            link_type=self.resolved_type,
-        )
+        if absolute:
+            link = MlemLink(
+                path=self.loc.path,
+                repo=self.loc.repo_uri,
+                rev=self.loc.rev,
+                link_type=self.resolved_type,
+            )
+        else:
+            link = MlemLink(
+                path=self.get_metafile_path(self.name),
+                link_type=self.resolved_type,
+            )
         if path is not None:
             link.dump(path, fs, repo, external=external, link=False)
         return link
@@ -319,16 +320,13 @@ class MlemMeta(MlemObject):
     #     self._write_meta(self._path, self._root, self._fs, False)
 
 
-class LinkData(BaseModel):
+class MlemLink(MlemMeta):
     path: str
     repo: Optional[str] = None
     rev: Optional[str] = None
-
-
-class MlemLink(MlemMeta):
-    link_data: LinkData
     link_type: str
-    object_type = "link"
+
+    object_type: ClassVar = "link"
 
     @property
     def link_cls(self) -> Type[MlemMeta]:
@@ -338,23 +336,34 @@ class MlemLink(MlemMeta):
     def resolved_type(self):
         return self.link_type
 
-    def load_link(self) -> MlemMeta:
-        return self.link_cls.read(self.parse_link())
+    def load_link(self, follow_links: bool = True) -> MlemMeta:
+        return self.link_cls.read(self.parse_link(), follow_links=follow_links)
 
     def parse_link(self) -> Location:
-        if self.location is None:
-            raise MlemObjectNotSavedError("Link is not saved")
-        fs, path = get_fs(self.link_data.path)
-        if not isinstance(fs, LocalFileSystem) or (
-            isinstance(fs, LocalFileSystem)
-            and os.path.isabs(self.link_data.path)
-        ):
-            return Location.abs(path=path, fs=fs)
         from mlem.core.metadata import find_meta_location
 
-        location = self.location.copy()
-        location.update_path(self.link_data.path)
-        return find_meta_location(location)
+        if self.repo is None and self.rev is None:
+            # is it possible to have rev without repo?
+            location = UriResolver.resolve(
+                path=self.path, repo=None, rev=None, fs=None
+            )
+            if (
+                location.repo is None
+                and isinstance(location.fs, LocalFileSystem)
+                and not posixpath.isabs(self.path)
+            ):
+                # link is relative
+                if self.location is None:
+                    raise MlemObjectNotSavedError("Relative link is not saved")
+                location = self.location.copy()
+                location.update_path(self.path)
+            return find_meta_location(location)
+        # link is absolute
+        return find_meta_location(
+            UriResolver.resolve(
+                path=self.path, repo=self.repo, rev=self.rev, fs=None
+            )
+        )
 
 
 class _WithArtifacts(ABC, MlemMeta):

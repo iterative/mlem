@@ -119,9 +119,7 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "link_data": {
-            "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml"
-        },
+        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dir:

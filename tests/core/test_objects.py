@@ -22,7 +22,6 @@ from mlem.core.metadata import load, load_meta
 from mlem.core.objects import (
     Deployment,
     DeployMeta,
-    LinkData,
     MlemLink,
     MlemMeta,
     ModelMeta,
@@ -35,6 +34,8 @@ from tests.conftest import (
     need_test_repo_auth,
     need_test_repo_ssh_auth,
 )
+
+REV_LINK_TAG = "first_rev_link"
 
 DEPLOY_NAME = "d/mydeploy"
 MODEL_NAME = "m/decision_tree"
@@ -289,7 +290,7 @@ def test_mlem_dir_path(filled_mlem_repo):
 
 def test_link_dump(model_path):
     link = MlemLink(
-        link_data=LinkData(path=os.path.join(model_path, META_FILE_NAME)),
+        path=os.path.join(model_path, META_FILE_NAME),
         link_type="model",
     )
     with tempfile.TemporaryDirectory() as dir:
@@ -307,10 +308,29 @@ def test_double_link_load(filled_mlem_repo):
     assert isinstance(model, ModelMeta)
 
 
+@long
+@need_test_repo_auth
+def test_load_link_from_rev():
+    # obj can be any mlem object, it's just easier to test with link
+    obj = load(
+        "rev_link/the_link",
+        repo=MLEM_TEST_REPO,
+        rev=REV_LINK_TAG,
+        follow_links=False,
+    )
+    assert isinstance(obj, MlemLink)
+    assert obj.path == "first"
+
+    link = obj.make_link(absolute=True)
+    link = link.deepcopy()
+    loaded_link = link.load_link(follow_links=False)
+    assert loaded_link == obj
+
+
 def test_link_dump_in_mlem(model_path_mlem_repo):
     model_path, mlem_repo = model_path_mlem_repo
     link = MlemLink(
-        link_data=LinkData(path=os.path.join(model_path, META_FILE_NAME)),
+        path=os.path.join(model_path, META_FILE_NAME),
         link_type="model",
     )
     link_name = "latest"

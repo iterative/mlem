@@ -39,6 +39,12 @@ class Location(BaseModel):
     def path_in_repo(self):
         return posixpath.relpath(self.fullpath, self.repo)
 
+    @property
+    def repo_uri(self):
+        # not sure if this is ok
+        # maybe we need to merge Location with UriResolver and implement this separately for each case
+        return self.uri[: -len(self.path)]
+
     @contextlib.contextmanager
     def open(self, mode="r", **kwargs):
         with self.fs.open(self.fullpath, mode, **kwargs) as f:

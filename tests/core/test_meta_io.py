@@ -107,6 +107,7 @@ def test_get_path_by_fs_path(uri):
     assert Path(uri2) == Path(result)
 
 
+@long
 @need_test_repo_auth
 def test_get_path_by_fs_path_github():
     fs = GithubFileSystem(
