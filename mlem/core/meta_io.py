@@ -41,6 +41,8 @@ class Location(BaseModel):
 
     @property
     def repo_uri(self):
+        if self.repo is None:
+            return None
         # not sure if this is ok
         # maybe we need to merge Location with UriResolver and implement this separately for each case
         return self.uri[: -len(self.path)]

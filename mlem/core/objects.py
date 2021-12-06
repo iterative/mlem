@@ -11,6 +11,7 @@ from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from pydantic import validator
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
@@ -336,6 +337,12 @@ class MlemLink(MlemMeta):
     def resolved_type(self):
         return self.link_type
 
+    @validator("path", "repo")
+    def make_posix(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        return make_posix(value)
+
     def load_link(self, follow_links: bool = True) -> MlemMeta:
         return self.link_cls.read(self.parse_link(), follow_links=follow_links)
 
@@ -350,7 +357,9 @@ class MlemLink(MlemMeta):
             if (
                 location.repo is None
                 and isinstance(location.fs, LocalFileSystem)
-                and not posixpath.isabs(self.path)
+                and not os.path.isabs(
+                    self.path
+                )  # os is used for absolute win paths like c:/...
             ):
                 # link is relative
                 if self.location is None:
