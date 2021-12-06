@@ -7,6 +7,7 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError
 from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier
 
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
@@ -15,18 +16,22 @@ from mlem.core.meta_io import (
     META_FILE_NAME,
     MLEM_DIR,
     MLEM_EXT,
+    Location,
     deserialize,
     serialize,
 )
-from mlem.core.metadata import load, load_meta
+from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import (
+    Callable,
     Deployment,
     DeployMeta,
     MlemLink,
     MlemMeta,
     ModelMeta,
+    TrainModelReceipt,
     mlem_dir_path,
 )
+from mlem.core.requirements import Requirements
 from tests.conftest import (
     MLEM_TEST_REPO,
     issue_110,
@@ -363,3 +368,42 @@ def test_mlem_repo_root(filled_mlem_repo):
     assert os.path.isdir(model_dir)
     assert os.path.isfile(model_dir / META_FILE_NAME)
     assert os.path.isfile(model_dir / ART_DIR / "data.pkl")
+
+
+def test_train_model_receipt(
+    mlem_curdir_repo,
+    model_train_target,
+):
+    _, train, target = model_train_target
+    save(train, "train")
+    save(target, "target")
+    loc = Location.abs("", LocalFileSystem())
+    rec = TrainModelReceipt(
+        requirements=Requirements.new("sklearn"),
+        train_data=(MlemLink(path="train", link_type="dataset").bind(loc)),
+        train_target=(MlemLink(path="target", link_type="dataset").bind(loc)),
+        fit=Callable.from_callable(DecisionTreeClassifier().fit),
+    )
+
+    assert serialize(rec) == {
+        "fit": {
+            "cls": "sklearn.tree._classes.DecisionTreeClassifier",
+            "func": "fit",
+        },
+        "object_type": "mlem.core.objects.TrainModelReceipt",
+        "requirements": [{"module": "sklearn", "type": "installable"}],
+        "train_data": {
+            "link_type": "dataset",
+            "object_type": "link",
+            "path": "train",
+        },
+        "train_target": {
+            "link_type": "dataset",
+            "object_type": "link",
+            "path": "target",
+        },
+    }
+
+    rec.run("model")
+    model = load("model")
+    model.predict(train)

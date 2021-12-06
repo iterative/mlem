@@ -5,12 +5,13 @@ MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 import os
 import posixpath
 from abc import ABC, abstractmethod
-from functools import partial
-from inspect import isabstract
+from functools import partial, wraps
+from inspect import isabstract, ismethod
 from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from pydantic import BaseModel
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
@@ -36,6 +37,7 @@ from mlem.core.meta_io import (
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
+from mlem.utils.importing import import_string
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
 
@@ -557,6 +559,66 @@ class DatasetMeta(_WithArtifacts):
 
     def get_value(self):
         return self.data
+
+
+class Callable(BaseModel):
+    cls: Optional[str] = None
+    func: str
+
+    def get_callable(self):
+        if self.cls is None:
+            return import_string(self.func)
+
+        obj = import_string(self.cls)()
+        func = getattr(obj, self.func)
+
+        @wraps(func)
+        def call(*args, **kwargs):
+            func(*args, **kwargs)
+            return obj
+
+        return call
+
+    @classmethod
+    def from_callable(cls, func):
+        if ismethod(func):
+            obj = func.__self__
+            return Callable(
+                cls=f"{obj.__module__}.{obj.__class__.__name__}",
+                func=func.__name__,
+            )
+        return Callable(func=f"{func.__module__}.{func.__name__}")
+
+
+class ReceiptMeta(MlemMeta, ABC):
+    requirements: Requirements
+
+    def run(self, output: Optional[str] = None):
+        from mlem.core.metadata import save
+
+        result = self._run()
+        if output is not None:
+            save(result, output)
+        return result
+
+    @abstractmethod
+    def _run(self):
+        raise NotImplementedError
+
+
+class TrainModelReceipt(ReceiptMeta):
+    train_data: MlemLink
+    train_target: MlemLink
+    fit: Callable
+
+    def _run(self):
+        train = self.train_data.load_link()
+        train.load_value()
+        target = self.train_target.load_link()
+        target.load_value()
+        callable = self.fit.get_callable()
+        result = callable(train.get_value(), target.get_value())
+        return result
 
 
 class TargetEnvMeta(MlemMeta):
