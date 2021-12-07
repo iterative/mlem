@@ -81,7 +81,7 @@ def test_ls_local(filled_mlem_repo):
     assert isinstance(model, ModelMeta)
     assert isinstance(lnk, MlemLink)
     assert (
-        posixpath.join(make_posix(filled_mlem_repo), lnk.link_data.path)
+        posixpath.join(make_posix(filled_mlem_repo), lnk.path)
         == model.loc.fullpath
     )
 

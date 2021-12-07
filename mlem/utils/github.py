@@ -21,9 +21,12 @@ def get_github_kwargs(uri: str):
         return {"org": org, "repo": repo, "path": ""}
     if path[0] == "tree":
         sha = path[1]
-        branches = {quote_plus(k) for k in ls_github_branches(org, repo)}
+        refs = ls_github_branches(org, repo)
+        refs.update(ls_github_tags(org, repo))
+        branches = {quote_plus(k) for k in refs}
         # match beginning of path with one of existing branches
-        for i, part in enumerate(path[2:], start=2):
+        # "" is hack for cases with empty path (like 'github.com/org/rep/tree/branch/')
+        for i, part in enumerate(path[2:] + [""], start=2):
             if sha in branches:
                 path = path[i:]
                 break
@@ -36,7 +39,7 @@ def get_github_kwargs(uri: str):
         "org": org,
         "repo": repo,
         "sha": sha,
-        "path": posixpath.join(*path),
+        "path": posixpath.join(*path) if path else "",
     }
 
 
@@ -61,8 +64,16 @@ def ls_branches(repo_url: str) -> Dict[str, str]:
 
 
 def ls_github_branches(org: str, repo: str):
+    return _ls_github_refs(org, repo, "branches")
+
+
+def ls_github_tags(org: str, repo: str):
+    return _ls_github_refs(org, repo, "tags")
+
+
+def _ls_github_refs(org: str, repo: str, endpoint: str):
     result = requests.get(
-        f"https://api.github.com/repos/{org}/{repo}/branches",
+        f"https://api.github.com/repos/{org}/{repo}/{endpoint}",
         auth=(CONFIG.GITHUB_USERNAME, CONFIG.GITHUB_TOKEN),
     )
     if result.status_code == 200:

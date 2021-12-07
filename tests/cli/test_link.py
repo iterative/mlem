@@ -36,8 +36,6 @@ def test_link_mlem_repo(model_path_mlem_repo):
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
     assert isinstance(link_object, MlemLink)
-    assert os.path.dirname(link_object.link_data.path) == os.path.basename(
-        model_path
-    )
+    assert os.path.dirname(link_object.path) == os.path.basename(model_path)
     model = load_meta(link_path)
     assert isinstance(model, ModelMeta)

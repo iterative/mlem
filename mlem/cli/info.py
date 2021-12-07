@@ -17,9 +17,9 @@ def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
     for meta in objects:
         if (
             isinstance(meta, MlemLink)
-            and meta.name != meta.link_data.path[: -len(MLEM_EXT)]
+            and meta.name != meta.path[: -len(MLEM_EXT)]
         ):
-            link = f"-> {os.path.dirname(meta.link_data.path)}"
+            link = f"-> {os.path.dirname(meta.path)}"
         else:
             link = ""
         print("", "-", meta.name, *[link] if link else [])

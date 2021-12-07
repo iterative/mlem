@@ -278,7 +278,7 @@ def ls(
                 link_name = posixpath.relpath(file, root_path)[
                     : -len(MLEM_EXT)
                 ]
-                is_auto_link = meta.link_data.path == posixpath.join(
+                is_auto_link = meta.path == posixpath.join(
                     link_name, META_FILE_NAME
                 )
                 obj_type = MlemMeta.__type_map__[meta.link_type]
