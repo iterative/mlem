@@ -5,19 +5,12 @@ from pathlib import Path
 
 import pytest
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import ValidationError
+from pydantic import ValidationError, parse_obj_as
 from sklearn.datasets import load_iris
 
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
-from mlem.core.meta_io import (
-    ART_DIR,
-    META_FILE_NAME,
-    MLEM_DIR,
-    MLEM_EXT,
-    deserialize,
-    serialize,
-)
+from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import (
     Deployment,
@@ -165,7 +158,7 @@ def test_model_dump_external(mlem_repo, model_meta, path_and_root):
     link = load_meta(link_path, follow_links=False)
     assert isinstance(link, MlemLink)
     model = link.load_link()
-    assert serialize(model) == serialize(model_meta)
+    assert model.dict() == model_meta.dict()
 
 
 def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
@@ -345,7 +338,7 @@ def test_model_model_type_laziness():
         "object_type": "model",
         "requirements": [],
     }
-    model = deserialize(payload, ModelMeta)
+    model = parse_obj_as(ModelMeta, payload)
     assert model.model_type_raw == {"type": "doesnotexist"}
     with pytest.raises(ValidationError):
         print(model.model_type)

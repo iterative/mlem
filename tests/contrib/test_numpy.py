@@ -2,6 +2,7 @@ from json import loads
 
 import numpy as np
 import pytest
+from pydantic import parse_obj_as
 
 from mlem.contrib.numpy import (
     NumpyNdarrayType,
@@ -12,7 +13,6 @@ from mlem.contrib.numpy import (
 )
 from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.meta_io import deserialize
 from mlem.utils.module import get_object_requirements
 from tests.conftest import dataset_write_read_check
 
@@ -51,7 +51,7 @@ def test_number():
     assert isinstance(ndt, NumpyNumberType)
     assert ndt.get_requirements().modules == ["numpy"]
     payload = ndt.json()
-    ndt2 = deserialize(loads(payload), DatasetType)
+    ndt2 = parse_obj_as(DatasetType, loads(payload))
     assert ndt == ndt2
 
 
@@ -59,7 +59,7 @@ def test_ndarray(nat):
     assert isinstance(nat, NumpyNdarrayType)
     assert nat.get_requirements().modules == ["numpy"]
     payload = nat.json()
-    nat2 = deserialize(loads(payload), DatasetType)
+    nat2 = parse_obj_as(DatasetType, loads(payload))
 
     assert nat == nat2
 

@@ -5,6 +5,7 @@ from typing import Callable, List, Union
 
 import pandas as pd
 import pytest
+from pydantic import parse_obj_as
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
@@ -20,7 +21,6 @@ from mlem.contrib.pandas import (
 )
 from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.meta_io import deserialize, serialize
 from mlem.core.metadata import load, save
 from tests.conftest import dataset_write_read_check
 
@@ -181,8 +181,8 @@ def test_df_type(df_type_fx, request):
     df_type = request.getfixturevalue(df_type_fx)
     assert isinstance(df_type, DataFrameType)
 
-    obj = serialize(df_type)
-    new_df_type = deserialize(obj, DatasetType)
+    obj = df_type.dict()
+    new_df_type = parse_obj_as(DatasetType, obj)
 
     assert df_type == new_df_type
 

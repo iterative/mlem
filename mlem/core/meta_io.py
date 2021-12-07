@@ -5,13 +5,12 @@ import contextlib
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
-from typing import List, Optional, Tuple, Type, TypeVar
+from typing import List, Optional, Tuple, Type
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
-from pydantic import BaseModel, parse_obj_as
+from pydantic import BaseModel
 
-from mlem.core.base import MlemObject
 from mlem.utils.github import get_github_envs, get_github_kwargs
 from mlem.utils.root import MLEM_DIR, find_repo_root
 
@@ -307,21 +306,6 @@ def read(uri: str, mode: str = "r"):
     fs, path = get_fs(uri)
     with fs.open(path, mode=mode) as f:
         return f.read()
-
-
-def serialize(
-    obj, as_class: Type = None
-):  # pylint: disable=unused-argument # todo remove later
-    if not isinstance(obj, MlemObject):
-        raise ValueError(f"{type(obj)} is not a subclass of MlemObject")
-    return obj.dict(exclude_unset=True, exclude_defaults=True, by_alias=True)
-
-
-T = TypeVar("T")
-
-
-def deserialize(obj, as_class: Type[T]) -> T:
-    return parse_obj_as(as_class, obj)
 
 
 def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:

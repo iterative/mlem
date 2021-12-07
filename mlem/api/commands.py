@@ -10,13 +10,7 @@ from pydantic import parse_obj_as
 
 from mlem.config import CONFIG_FILE
 from mlem.core.errors import InvalidArgumentError, MlemObjectNotSavedError
-from mlem.core.meta_io import (
-    META_FILE_NAME,
-    MLEM_DIR,
-    MLEM_EXT,
-    deserialize,
-    get_fs,
-)
+from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT, get_fs
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
@@ -223,7 +217,9 @@ def pack(
             raise ValueError(f"{model} is not a model")
         model = meta
     if isinstance(packager, str):
-        packager = deserialize({"type": packager, **packager_kwargs}, Packager)
+        packager = parse_obj_as(
+            Packager, {"type": packager, **packager_kwargs}
+        )
     packager.package(model, out)
 
 

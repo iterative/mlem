@@ -11,7 +11,7 @@ from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import validator
+from pydantic import parse_obj_as, validator
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
@@ -31,8 +31,6 @@ from mlem.core.meta_io import (
     MLEM_EXT,
     Location,
     UriResolver,
-    deserialize,
-    serialize,
 )
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
@@ -164,7 +162,7 @@ class MlemMeta(MlemObject):
         """
         with location.open() as f:
             payload = safe_load(f)
-        res = deserialize(payload, cls).bind(location)
+        res = parse_obj_as(cls, payload).bind(location)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
             if not isinstance(link, cls):
@@ -218,7 +216,7 @@ class MlemMeta(MlemObject):
             posixpath.dirname(location.fullpath), exist_ok=True
         )
         with location.open("w") as f:
-            safe_dump(serialize(self), f)
+            safe_dump(self.dict(), f)
         if link and location.repo:
             self.make_link(
                 self.name, location.fs, repo=location.repo, external=False
@@ -311,8 +309,8 @@ class MlemMeta(MlemObject):
         return new
 
     def deepcopy(self):
-        return deserialize(
-            serialize(self, MlemMeta), MlemMeta
+        return parse_obj_as(
+            MlemMeta, self.dict()
         )  # easier than deep copy bc of possible attached objects
 
     # def update(self):

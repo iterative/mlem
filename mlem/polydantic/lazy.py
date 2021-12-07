@@ -1,7 +1,15 @@
-from typing import Any, Type
+from typing import TYPE_CHECKING, AbstractSet, Any, Dict, Mapping, Type, Union
 
 from pydantic import BaseModel, Field, parse_obj_as
 from pydantic.fields import FieldInfo
+
+if TYPE_CHECKING:
+
+    DictStrAny = Dict[str, Any]
+    IntStr = Union[int, str]
+    AbstractSetIntStr = AbstractSet[IntStr]
+    DictIntStrAny = Dict[IntStr, Any]
+    MappingIntStrAny = Mapping[IntStr, Any]
 
 
 class LazyModel(BaseModel):
@@ -19,6 +27,28 @@ class LazyModel(BaseModel):
             return
         super().__setattr__(name, value)
 
+    def dict(  # pylint: disable=useless-super-delegation
+        self,
+        *,
+        include: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+        exclude: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+        by_alias: bool = True,
+        skip_defaults: bool = None,
+        exclude_unset: bool = True,
+        exclude_defaults: bool = True,
+        exclude_none: bool = False,
+    ) -> "DictStrAny":
+        # changing defaults
+        return super().dict(
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            skip_defaults=skip_defaults,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+        )
+
 
 def lazy_field(
     type_: Type,
@@ -26,7 +56,7 @@ def lazy_field(
     alias_cache: str,
     *args,
     parse_as_type: Any = None,
-    **field_kwargs
+    **field_kwargs,
 ):
     field_info: FieldInfo = Field(*args, alias=alias, **field_kwargs)
 
