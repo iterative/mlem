@@ -44,14 +44,7 @@ def test_requirements_analyzer__model_works(tmpdir):
 
     reqs = get_object_requirements(model)
 
-    for r in reqs.custom:
-        for p, src in r.to_sources_dict().items():
-            join = os.path.join(tmpdir, p)
-            os.makedirs(os.path.dirname(join), exist_ok=True)
-            with open(
-                join, "w" if isinstance(src, str) else "wb", encoding="utf8"
-            ) as f:
-                f.write(src)
+    reqs.materialize_custom(tmpdir)
     assert os.path.exists(
         os.path.join(tmpdir, "pkg", "subpkg", "testfile.json")
     )

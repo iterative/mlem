@@ -44,7 +44,6 @@ def test_callable_analyze(model, tmpdir):
         mt.call_method(PREDICT_METHOD_NAME, 1)
 
     mt.load(artifacts)
-    assert mt.model is not model
     mt.call_method(PREDICT_METHOD_NAME, 1)
 
 
