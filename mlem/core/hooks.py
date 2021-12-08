@@ -73,11 +73,11 @@ class Hook(ABC, Generic[T]):
 
 
 class IsInstanceHookMixin(Hook, ABC):
-    types: ClassVar[Tuple[Type, ...]]
+    valid_types: ClassVar[Tuple[Type, ...]]
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return isinstance(obj, cls.types)
+        return isinstance(obj, cls.valid_types)
 
 
 # # noinspection PyAbstractClass

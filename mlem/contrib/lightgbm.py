@@ -35,7 +35,7 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     """
 
     type: ClassVar[str] = "lightgbm"
-    types: ClassVar = (lgb.Dataset,)
+    valid_types: ClassVar = (lgb.Dataset,)
     inner: DatasetType
 
     def serialize(self, instance: Any) -> dict:
@@ -103,7 +103,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     """
 
     type: ClassVar[str] = "lightgbm"
-    types: ClassVar = (lgb.Booster,)
+    valid_types: ClassVar = (lgb.Booster,)
     io: ModelIO = LightGBMModelIO()
 
     @classmethod

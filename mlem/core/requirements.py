@@ -240,7 +240,7 @@ class CustomRequirement(PythonRequirement):
             "non package requirement does not have sources attribute"
         )
 
-    def to_sources_dict(self):
+    def to_sources_dict(self) -> Dict[str, bytes]:
         """
         Mapping path -> source code for this requirement
 
@@ -248,7 +248,9 @@ class CustomRequirement(PythonRequirement):
         """
         if self.is_package:
             return self.sources
-        return {self.name.replace(".", "/") + ".py": self.source}
+        return {
+            self.name.replace(".", "/") + ".py": self.source.encode("utf8")
+        }
 
 
 class FileRequirement(CustomRequirement):
@@ -405,6 +407,14 @@ class Requirements(BaseModel):
         if requirements is None:
             return Requirements(__root__=[])
         return resolve_requirements(requirements)
+
+    def materialize_custom(self, path: str):
+        for cr in self.custom:
+            for part, src in cr.to_sources_dict().items():
+                p = os.path.join(path, part)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(src)
 
 
 def resolve_requirements(other: "AnyRequirements") -> Requirements:

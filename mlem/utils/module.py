@@ -535,6 +535,14 @@ class RequirementAnalyzer(dill.Pickler):
                     if local_req in self._modules:
                         continue
                     self.add_requirement(local_req)
+                # add imports of subpackage
+                if "." in module.__name__:
+                    parent_package_name, _ = module.__name__.rsplit(
+                        ".", maxsplit=1
+                    )
+                    if parent_package_name not in self._modules:
+                        parent_package = sys.modules[parent_package_name]
+                        self.add_requirement(parent_package)
 
     def save(self, obj, save_persistent_id=True):
         if id(obj) in self.seen:

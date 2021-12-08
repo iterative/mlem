@@ -179,9 +179,7 @@ class DockerModelDirectory(BaseModel):
             logger.debug('Putting model source "%s" to distribution...', path)
             full_path = posixpath.join(self.path, path)
             self.fs.makedirs(posixpath.dirname(full_path), exist_ok=True)
-            with self.fs.open(
-                full_path, "w" if isinstance(src, str) else "wb"
-            ) as f:
+            with self.fs.open(full_path, "wb") as f:
                 f.write(src)
 
         # pip_mlem = mlem_from_pip()
