@@ -149,7 +149,7 @@ class _ModelPickler(Pickler):
     def save(self, obj, save_persistent_id=True):
         """
         Checks if obj has IO.
-        If it does, serializes object with :meth:`~ebonite.core.objects.wrapper.ModelIO.dump`
+        If it does, serializes object with `ModelIO.dump`
         and creates a ref to it. Otherwise, saves object as default pickle would do
         :param obj: obj to save
         :param save_persistent_id:
@@ -193,12 +193,11 @@ class _ModelPickler(Pickler):
             return None
 
 
-# We couldn't use `EboniteUnpickler` here as it (in fact `dill`) subclasses `Unpickler`
 # `Unpickler`, unlike `_Unpickler`, doesn't support `load_build` overriding
 class _ModelUnpickler(_Unpickler):
     """
     A class to unpickle model saved with :class:`_ModelPickler`
-    :param refs: dict of object uuid -> it's :attr:`ModelWrapper.model`
+    :param refs: dict of object uuid -> ref_obj
     :param args: pickle._Unpickler args
     :param kwargs: pickle._Unpickle kwargs
     """
