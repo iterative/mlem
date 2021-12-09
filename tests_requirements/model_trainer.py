@@ -1,5 +1,5 @@
 """
-Here we test that functions local imports are also collected with another level of inderection
+Here we test that functions local imports are also collected with another level of indirection
 """
 import six  # pylint: disable=unused-import # noqa
 from sklearn.linear_model import LinearRegression
