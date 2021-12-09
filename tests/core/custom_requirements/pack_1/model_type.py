@@ -2,7 +2,7 @@ import typing
 from typing import Any, Optional
 
 import numpy as np
-from test_pack_1 import test_model
+from pack_1 import model
 
 from mlem.core.model import ModelHook, ModelType, SimplePickleIO
 
@@ -16,7 +16,7 @@ class TestModelType(ModelType, ModelHook):
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return isinstance(obj, test_model.TestM)
+        return isinstance(obj, model.TestM)
 
     def m1(self) -> typing.Dict[str, str]:
         return {}

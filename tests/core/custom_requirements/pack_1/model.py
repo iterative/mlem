@@ -1,4 +1,4 @@
-from test_pack_2 import name
+from pack_2 import name
 
 
 class TestM:

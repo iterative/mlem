@@ -3,7 +3,7 @@ import shutil
 import subprocess
 
 import dill
-from test_pack_1 import TestM
+from pack_1 import TestM
 
 from mlem.core.metadata import get_object_metadata
 from mlem.core.objects import ModelMeta
@@ -63,6 +63,10 @@ def test_requirements_analyzer__model_works(tmpdir):
 
 
 def test_model_custom_requirements(tmpdir):
+    from pack_1.model_type import (  # pylint: disable=unused-import  # noqa
+        TestModelType,
+    )
+
     model = get_object_metadata(TestM(), 1)
     assert isinstance(model, ModelMeta)
 
@@ -77,8 +81,8 @@ def test_model_custom_requirements(tmpdir):
     )
     assert cp.returncode == 0, cp.stderr
 
-    reqs = {x.name for x in model.requirements.custom}
-    assert reqs == {"test_pack_1", "test_pack_2"}
+    assert {x.name for x in model.requirements.custom} == {"pack_1", "pack_2"}
+    assert {x.module for x in model.requirements.installable} == {"numpy"}
 
 
 # Copyright 2019 Zyfra
