@@ -421,7 +421,7 @@ class Requirements(BaseModel):
                     f.write(src)
 
     @contextlib.contextmanager
-    def include_custom(self):
+    def import_custom(self):
         if not self.custom:
             return
         with tempfile.TemporaryDirectory(prefix="mlem_custom_reqs") as dirname:

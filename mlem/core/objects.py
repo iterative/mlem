@@ -506,7 +506,7 @@ class ModelMeta(_WithArtifacts):
         return artifacts
 
     def load_value(self):
-        with self.requirements.include_custom():
+        with self.requirements.import_custom():
             self.model_type.load(self.relative_artifacts)
 
     def get_value(self):
