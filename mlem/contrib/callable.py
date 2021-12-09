@@ -54,7 +54,7 @@ class PickleModelIO(ModelIO):
         refs = {}
         root = None
         if len(artifacts) > 1:
-            dirname = posixpath.commonprefix([a.uri for a in artifacts])
+            dirname = posixpath.commonpath([a.uri for a in artifacts])
             root_path = posixpath.join(dirname, self.file_name)
             ref_artifacts = defaultdict(list)
             ref_ios = {}
