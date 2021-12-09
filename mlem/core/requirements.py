@@ -2,10 +2,13 @@
 Base classes to work with requirements which come with ML models and datasets
 """
 import base64
+import contextlib
 import glob
 import itertools
 import json
 import os
+import sys
+import tempfile
 import zlib
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -28,6 +31,7 @@ from mlem.core.base import MlemObject
 # I dont know how to do this better
 from mlem.core.errors import HookNotFound
 from mlem.core.hooks import Analyzer, Hook
+from mlem.utils.importing import import_module
 
 MODULE_PACKAGE_MAPPING = {
     "sklearn": "scikit-learn",
@@ -415,6 +419,18 @@ class Requirements(BaseModel):
                 os.makedirs(os.path.dirname(p), exist_ok=True)
                 with open(p, "wb") as f:
                     f.write(src)
+
+    @contextlib.contextmanager
+    def include_custom(self):
+        if not self.custom:
+            return
+        with tempfile.TemporaryDirectory(prefix="mlem_custom_reqs") as dirname:
+            self.materialize_custom(dirname)
+            sys.path.insert(0, dirname)
+            for cr in self.custom:
+                import_module(cr.module)
+            yield
+            sys.path.remove(dirname)
 
 
 def resolve_requirements(other: "AnyRequirements") -> Requirements:
