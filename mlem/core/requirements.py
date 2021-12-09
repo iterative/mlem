@@ -423,6 +423,7 @@ class Requirements(BaseModel):
     @contextlib.contextmanager
     def import_custom(self):
         if not self.custom:
+            yield
             return
         with tempfile.TemporaryDirectory(prefix="mlem_custom_reqs") as dirname:
             self.materialize_custom(dirname)
