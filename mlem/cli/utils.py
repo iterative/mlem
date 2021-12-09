@@ -11,7 +11,6 @@ from pydantic import BaseModel, parse_obj_as
 from yaml import safe_load
 
 from mlem.core.base import MlemObject
-from mlem.core.meta_io import deserialize
 from mlem.core.metadata import load_meta
 from mlem.utils.path import make_posix
 
@@ -124,7 +123,7 @@ def config_arg(name: str, model: Type[MlemObject], **kwargs):
         ):
             if load is not None:
                 with open(load, "r", encoding="utf8") as of:
-                    obj = deserialize(safe_load(of), model)
+                    obj = parse_obj_as(model, safe_load(of))
             else:
                 obj = build_poly_model(model, subtype, conf, file_conf)
             inner_kwargs[name] = obj
@@ -156,4 +155,4 @@ def create_configurable(
             raise NotImplementedError(
                 f"Not yet implemented for type {field.type_}"
             ) from e
-    return deserialize(args, cls)
+    return parse_obj_as(cls, args)

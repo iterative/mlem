@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseSettings, Field
+from pydantic import BaseSettings, Field, parse_obj_as
 
 from mlem.constants import MLEM_DIR
 
@@ -51,11 +51,10 @@ class MlemConfig(BaseSettings):
     @property
     def default_storage(self):
         from mlem.core.artifacts import LOCAL_STORAGE, Storage
-        from mlem.core.meta_io import deserialize
 
         if not self.DEFAULT_STORAGE:
             return LOCAL_STORAGE
-        s = deserialize(self.DEFAULT_STORAGE, Storage)
+        s = parse_obj_as(Storage, self.DEFAULT_STORAGE)
         return s
 
     @property
