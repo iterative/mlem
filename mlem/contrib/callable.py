@@ -73,7 +73,9 @@ class PickleModelIO(ModelIO):
             for uuid, io in ref_ios.items():
                 refs[uuid] = io.load(ref_artifacts.get(uuid, []))
             if root is None:
-                raise ValueError(f"Cant find root artifact for loading {self}")
+                raise ValueError(
+                    f"Cant find root artifact for loading {self} in {artifacts} (root path should be {root_path})"
+                )
         else:
             root = artifacts[0]
         with root.open() as f:
