@@ -1,14 +1,16 @@
 # pylint: disable=no-member
 import os
+import pickle
 import posixpath
 
 import pytest
 from numpy import ndarray
 
 from mlem.api import apply, link, load_meta
-from mlem.api.commands import init, ls
+from mlem.api.commands import import_path, init, ls
 from mlem.config import CONFIG_FILE
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
+from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT
+from mlem.core.metadata import load
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
@@ -120,3 +122,18 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
     init(path)
     assert s3_storage_fs.isdir(f"{path}/{MLEM_DIR}")
     assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE}")
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle(model, train, tmpdir, file_ext, type_):
+    path = str(tmpdir / "mymodel" + file_ext)
+    with open(path, "wb") as f:
+        pickle.dump(model, f)
+
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_path(path, out=out_path, type_=type_)
+    assert isinstance(meta, ModelMeta)
+    assert os.path.isdir(out_path)
+    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    loaded = load(out_path)
+    loaded.predict(train)

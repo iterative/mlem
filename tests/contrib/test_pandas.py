@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from datetime import datetime, timezone
 from typing import Callable, List, Union
 
@@ -9,6 +10,7 @@ from pydantic import parse_obj_as
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
+from mlem.api.commands import import_path
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     DataFrameType,
@@ -21,7 +23,9 @@ from mlem.contrib.pandas import (
 )
 from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.meta_io import META_FILE_NAME
 from mlem.core.metadata import load, save
+from mlem.core.objects import DatasetMeta
 from tests.conftest import dataset_write_read_check
 
 PD_DATA_FRAME = pd.DataFrame(
@@ -293,6 +297,25 @@ def test_save_load(iris_data, tmpdir):
     data2 = load(tmpdir)
 
     pandas_assert(data2, iris_data)
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".csv", None), ("", "pandas")])
+def test_import_data_csv(tmpdir, file_ext, type_):
+    path = str(tmpdir / "mydata" + file_ext)
+    with open(path, "wb") as f:
+        f.write(b"a,b\n1,2")
+
+    out_path = str(tmpdir / "mlem_data")
+    meta = import_path(path, out=out_path, type_=type_)
+    assert isinstance(meta, DatasetMeta)
+    dt = meta.dataset.dataset_type
+    assert isinstance(dt, DataFrameType)
+    assert dt.columns == ["a", "b"]
+    assert dt.dtypes == ["int64", "int64"]
+    assert os.path.isdir(out_path)
+    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    loaded = load(out_path)
+    assert isinstance(loaded, pd.DataFrame)
 
 
 # Copyright 2019 Zyfra

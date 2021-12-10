@@ -10,7 +10,14 @@ from pydantic import parse_obj_as
 
 from mlem.config import CONFIG_FILE
 from mlem.core.errors import InvalidArgumentError, MlemObjectNotSavedError
-from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT, get_fs
+from mlem.core.file_import import ImportAnalyzer
+from mlem.core.meta_io import (
+    META_FILE_NAME,
+    MLEM_DIR,
+    MLEM_EXT,
+    UriResolver,
+    get_fs,
+)
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
@@ -286,3 +293,29 @@ def ls(
                     continue
             res[obj_type].append(meta)
     return res
+
+
+def import_path(
+    path: str,
+    out: Optional[str] = None,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    move: bool = True,
+    type_: Optional[str] = None,
+):
+    loc = UriResolver.resolve(path, repo, rev, None)
+    if type_ is not None:
+        if type_ not in ImportAnalyzer.types:
+            raise ValueError(f"Unknown import type {type_}")
+        meta = ImportAnalyzer.types[type_].process(loc)
+    else:
+        meta = ImportAnalyzer.analyze(loc)
+    if move:
+        # TODO
+        pass
+    else:
+        pass
+    if out is not None:
+        # TODO: add other dump args
+        meta.dump(out)
+    return meta

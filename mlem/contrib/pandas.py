@@ -37,6 +37,10 @@ from mlem.core.dataset_type import (
     DatasetWriter,
 )
 from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.file_import import ExtImportHook
+from mlem.core.meta_io import Location
+from mlem.core.metadata import get_object_metadata
+from mlem.core.objects import MlemMeta
 from mlem.core.requirements import LibRequirementsMixin
 
 _PD_EXT_TYPES = {
@@ -534,3 +538,18 @@ class PandasWriter(DatasetWriter, _PandasIO):
         return PandasReader(
             dataset_type=dataset.dataset_type, format=self.format
         ), [art]
+
+
+class PandasImport(ExtImportHook):
+    EXTS = (".csv",)
+    type_ = "pandas"
+
+    @classmethod
+    def is_object_valid(cls, obj: Location) -> bool:
+        return super().is_object_valid(obj) and obj.fs.isfile(obj.fullpath)
+
+    @classmethod
+    def process(cls, obj: Location, **kwargs) -> MlemMeta:
+        with obj.open("rb") as f:
+            data = pd.read_csv(f, **kwargs)
+        return get_object_metadata(data)
