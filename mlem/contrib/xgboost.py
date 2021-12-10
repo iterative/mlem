@@ -47,7 +47,7 @@ class DMatrixDatasetType(
     """
 
     type: ClassVar[str] = "xgboost_dmatrix"
-    types: ClassVar = (xgboost.DMatrix,)
+    valid_types: ClassVar = (xgboost.DMatrix,)
 
     is_from_list: bool
     feature_type_names: Optional[List[str]]
@@ -142,7 +142,7 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
     """
 
     type: ClassVar[str] = "xgboost"
-    types: ClassVar = (xgboost.Booster,)
+    valid_types: ClassVar = (xgboost.Booster,)
 
     io: ModelIO = XGBoostModelIO()
 

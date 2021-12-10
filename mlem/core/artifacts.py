@@ -32,6 +32,7 @@ class Artifact(MlemObject, ABC):
     __type_root__ = True
     __default_type__: ClassVar = "local"
     abs_name: ClassVar = "artifact"
+    uri: str
 
     @overload
     def materialize(

@@ -73,10 +73,11 @@ class CatBoostModel(ModelType, ModelHook):
     type: ClassVar[str] = "catboost"
     io: ModelIO = CatBoostModelIO()
     model: ClassVar[Optional[CatBoost]]
+    valid_types: ClassVar = (CatBoostClassifier, CatBoostRegressor)
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return isinstance(obj, (CatBoostClassifier, CatBoostRegressor))
+        return isinstance(obj, tuple(cls.valid_types))
 
     @classmethod
     def process(

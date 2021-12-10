@@ -5,7 +5,17 @@ import inspect
 import pickle
 import posixpath
 from abc import ABC, abstractmethod
-from typing import Any, Callable, ClassVar, Dict, List, Optional, TypeVar
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 from pydantic import BaseModel
 
@@ -59,9 +69,6 @@ class SimplePickleIO(ModelIO):
             raise ValueError("Invalid artifacts: should be one .pkl file")
         with artifacts[0].open() as f:
             return pickle.load(f)
-
-
-_NOOBJ = type("NOOBJ", (), {})
 
 
 class Argument(BaseModel):
@@ -260,6 +267,8 @@ class ModelType(ABC, MlemObject, WithRequirements):
 
 
 class ModelHook(Hook[ModelType], ABC):
+    valid_types: ClassVar[Optional[Tuple[Type, ...]]] = None
+
     @classmethod
     @abstractmethod
     def process(  # pylint: disable=arguments-differ # so what
@@ -270,6 +279,7 @@ class ModelHook(Hook[ModelType], ABC):
 
 class ModelAnalyzer(Analyzer[ModelType]):
     base_hook_class = ModelHook
+    hooks: List[Type[ModelHook]]  # type: ignore
 
     @classmethod
     def analyze(  # pylint: disable=arguments-differ # so what

@@ -11,7 +11,7 @@ from mlem.config import CONFIG_FILE
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
-from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
+from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
 
 
 @pytest.mark.parametrize(
@@ -114,6 +114,7 @@ def test_init(tmpdir):
 
 
 @long
+@issue_110
 def test_init_remote(s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("init")
     init(path)
