@@ -443,7 +443,9 @@ class _WithArtifacts(ABC, MlemMeta):
             )
             if isinstance(download, FSSpecArtifact):
                 download = LocalArtifact(
-                    uri=posixpath.relpath(download.uri, make_posix(path))
+                    uri=posixpath.relpath(download.uri, make_posix(path)),
+                    size=download.size,
+                    hash=download.hash,
                 )
             new.artifacts.append(download)
         new._write_meta(location, link)  # pylint: disable=protected-access

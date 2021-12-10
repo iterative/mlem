@@ -3,6 +3,7 @@ Artifacts which come with models and datasets,
 such as model binaries or .csv files
 """
 import contextlib
+import hashlib
 import os
 import posixpath
 import tempfile
@@ -22,10 +23,17 @@ from urllib.parse import urlparse
 import fsspec
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from typing_extensions import Literal
+from typing_extensions import Literal, TypedDict
 
 from mlem.core.base import MlemObject
 from mlem.core.meta_io import get_fs, get_path_by_fs_path
+
+CHUNK_SIZE = 2 ** 20  # 1 mb
+
+
+class ArtifactInfo(TypedDict):
+    size: int
+    hash: str
 
 
 class Artifact(MlemObject, ABC):
@@ -33,6 +41,8 @@ class Artifact(MlemObject, ABC):
     __default_type__: ClassVar = "local"
     abs_name: ClassVar = "artifact"
     uri: str
+    size: int
+    hash: str
 
     @overload
     def materialize(
@@ -60,7 +70,11 @@ class Artifact(MlemObject, ABC):
                 target_path, posixpath.basename(tmp.uri)
             )
             target_fs.upload(tmp.uri, target_path)
-        return FSSpecArtifact(uri=get_path_by_fs_path(target_fs, target_path))
+        return FSSpecArtifact(
+            uri=get_path_by_fs_path(target_fs, target_path),
+            size=self.size,
+            hash=self.hash,
+        )
 
     @abstractmethod
     def _download(self, target_path: str) -> "LocalArtifact":
@@ -90,7 +104,7 @@ class FSSpecArtifact(Artifact):
         if os.path.isdir(target_path):
             target_path = posixpath.join(target_path, posixpath.basename(path))
         fs.download(path, target_path)
-        return LocalArtifact(uri=target_path)
+        return LocalArtifact(uri=target_path, size=self.size, hash=self.hash)
 
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
@@ -143,15 +157,21 @@ class FSSpecStorage(Storage):
         path = posixpath.join(self.base_path, target_path)
         fs.makedirs(posixpath.dirname(path), exist_ok=True)
         fs.upload(local_path, path)
-        return FSSpecArtifact(uri=self.create_uri(target_path))
+        return FSSpecArtifact(
+            uri=self.create_uri(target_path), **get_local_file_info(local_path)
+        )
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, FSSpecArtifact]]:
         fs = self.get_fs()
         fullpath = posixpath.join(self.base_path, path)
         fs.makedirs(posixpath.dirname(fullpath), exist_ok=True)
+        art = FSSpecArtifact(uri=(self.create_uri(path)), size=-1, hash="")
         with fs.open(fullpath, "wb") as f:
-            yield f, FSSpecArtifact(uri=(self.create_uri(path)))
+            yield f, art
+        file_info = get_file_info(fullpath, fs)
+        art.size = file_info["size"]
+        art.hash = file_info["hash"]
 
     def relative(
         self,
@@ -205,12 +225,17 @@ class LocalStorage(FSSpecStorage):
 
     def upload(self, local_path: str, target_path: str) -> "LocalArtifact":
         super().upload(local_path, target_path)
-        return LocalArtifact(uri=target_path)
+        return LocalArtifact(
+            uri=target_path, **get_local_file_info(local_path)
+        )
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, "LocalArtifact"]]:
-        with super().open(path) as (io, _):
-            yield io, LocalArtifact(uri=path)
+        with super().open(path) as (io, art):
+            local_art = LocalArtifact(uri=path, size=-1, hash="")
+            yield io, local_art
+        local_art.size = art.size
+        local_art.hash = art.hash
 
 
 class LocalArtifact(FSSpecArtifact):
@@ -219,11 +244,35 @@ class LocalArtifact(FSSpecArtifact):
     def relative(self, fs: AbstractFileSystem, path: str) -> "FSSpecArtifact":
 
         if isinstance(fs, LocalFileSystem):
-            return LocalArtifact(uri=posixpath.join(path, self.uri))
+            return LocalArtifact(
+                uri=posixpath.join(path, self.uri),
+                size=self.size,
+                hash=self.hash,
+            )
 
         return FSSpecArtifact(
-            uri=get_path_by_fs_path(fs, posixpath.join(path, self.uri))
+            uri=get_path_by_fs_path(fs, posixpath.join(path, self.uri)),
+            size=self.size,
+            hash=self.hash,
         )
+
+
+def md5_fileobj(fobj):
+    hash_md5 = hashlib.md5()
+    for chunk in iter(lambda: fobj.read(CHUNK_SIZE), b""):
+        hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+
+def get_file_info(path: str, fs: AbstractFileSystem) -> ArtifactInfo:
+    info = fs.info(path)
+    with fs.open(path) as fobj:
+        hash_value = md5_fileobj(fobj)
+    return {"size": info["size"], "hash": hash_value}
+
+
+def get_local_file_info(path: str):
+    return get_file_info(path, LocalFileSystem())
 
 
 LOCAL_STORAGE = LocalStorage(uri="")
