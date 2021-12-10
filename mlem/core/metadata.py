@@ -3,7 +3,7 @@ Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
 import posixpath
-from typing import Any, Optional, Type, TypeVar, Union, overload
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
@@ -14,12 +14,26 @@ from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.path import make_posix
 
 
-def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
+def get_object_metadata(
+    obj: Any,
+    tmp_sample_data=None,
+    description: str = None,
+    params: Dict[str, str] = None,
+    tags: List[str] = None,
+) -> MlemMeta:
     """Convert given object to appropriate MlemMeta subclass"""
     try:
-        return DatasetMeta.from_data(obj)
+        return DatasetMeta.from_data(
+            obj, description=description, params=params, tags=tags
+        )
     except HookNotFound:
-        return ModelMeta.from_obj(obj, sample_data=tmp_sample_data)
+        return ModelMeta.from_obj(
+            obj,
+            sample_data=tmp_sample_data,
+            description=description,
+            params=params,
+            tags=tags,
+        )
 
 
 def save(
@@ -29,8 +43,11 @@ def save(
     dvc: bool = False,
     tmp_sample_data=None,
     fs: Union[str, AbstractFileSystem] = None,
-    link: bool = True,
+    link: bool = None,
     external: Optional[bool] = None,
+    description: str = None,
+    params: Dict[str, str] = None,
+    tags: List[str] = None,
 ) -> MlemMeta:
     """Saves given object to a given path
 
@@ -38,17 +55,24 @@ def save(
         obj: Object to dump
         path: If not located on LocalFileSystem, then should be uri
             or `fs` argument should be provided
+        repo: path to mlem repo (optional)
         dvc: Store the object's artifacts with dvc
         tmp_sample_data: If the object is a model or function, you can
             provide input data sample, so MLEM will include it's schema
             in the model's metadata
         fs: FileSystem for the `path` argument
         link: Whether to create a link in .mlem folder found for `path`
+        external: if obj is saved to repo, whether to put it outside of .mlem dir
+        description: description for object
+        params: arbitrary params for object
+        tags: tags for object
 
     Returns:
         None
     """
-    meta = get_object_metadata(obj, tmp_sample_data)
+    meta = get_object_metadata(
+        obj, tmp_sample_data, description=description, params=params, tags=tags
+    )
     meta.dump(path, fs=fs, repo=repo, link=link, external=external)
     if dvc:
         # TODO dvc add ./%name% https://github.com/iterative/mlem/issues/47
@@ -68,7 +92,8 @@ def load(
         path (str): Path to the object. Could be local path or path inside a git repo.
         repo (Optional[str], optional): URL to repo if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load the actual object link points to. Defaults to True.
+        follow_links (bool, optional): If object we read is a MLEM link, whether to load the
+            actual object link points to. Defaults to True.
 
     Returns:
         Any: Python object saved by MLEM
@@ -100,6 +125,20 @@ def load_meta(
     ...
 
 
+@overload
+def load_meta(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    follow_links: bool = True,
+    load_value: bool = False,
+    fs: Optional[AbstractFileSystem] = None,
+    *,
+    force_type: Optional[Type[T]] = None,
+) -> T:
+    ...
+
+
 def load_meta(
     path: str,
     repo: Optional[str] = None,
@@ -116,7 +155,8 @@ def load_meta(
         path (str): Path to the object. Could be local path or path inside a git repo.
         repo (Optional[str], optional): URL to repo if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load the actual object link points to. Defaults to True.
+        follow_links (bool, optional): If object we read is a MLEM link, whether to load the
+            actual object link points to. Defaults to True.
         load_value (bool, optional): Load actual python object incorporated in MlemMeta object. Defaults to False.
         fs: filesystem to load from. If not provided, will be inferred from path
         force_type: type of meta to be loaded. Defaults to MlemMeta (any mlem meta)

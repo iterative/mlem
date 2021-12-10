@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 
 import pytest
 import yaml
+from pytest_lazyfixture import lazy_fixture
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -26,10 +27,26 @@ from tests.conftest import (
 )
 
 
+@pytest.mark.parametrize("obj", [lazy_fixture("model"), lazy_fixture("train")])
+def test_save_with_meta_fields(obj, tmpdir):
+    path = str(tmpdir / "obj")
+    save(obj, path, description="desc", params={"a": "b"}, tags=["tag"])
+    new = load_meta(path)
+    assert new.description == "desc"
+    assert new.params == {"a": "b"}
+    assert new.tags == ["tag"]
+
+
+def test_saving_with_repo(model, tmpdir):
+    path = str(tmpdir / "obj")
+    save(model, path)
+    load_meta(path)
+
+
 def test_model_saving_without_sample_data(model, tmpdir_factory):
-    dir = str(tmpdir_factory.mktemp("saving-models-without-sample-data"))
+    path = str(tmpdir_factory.mktemp("saving-models-without-sample-data"))
     # link=True would require having .mlem folder somewhere
-    save(model, dir, link=False)
+    save(model, path, link=False)
 
 
 def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
@@ -122,8 +139,8 @@ def test_load_link_with_fsspec_path(current_test_branch):
         "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
         "object_type": "link",
     }
-    with tempfile.TemporaryDirectory() as dir:
-        path = os.path.join(dir, "link.mlem.yaml")
+    with tempfile.TemporaryDirectory() as dirname:
+        path = os.path.join(dirname, "link.mlem.yaml")
         with open(path, "w", encoding="utf-8") as f:
             f.write(yaml.safe_dump(link_contents))
         model = load(path)
