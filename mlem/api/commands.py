@@ -26,7 +26,7 @@ from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.utils.root import find_repo_root
+from mlem.utils.root import mlem_repo_exists
 
 
 def _get_dataset(dataset: Any) -> Any:
@@ -275,16 +275,22 @@ def ls(
     loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
     if loc.repo is None:
         raise MlemRootNotFound(repo, loc.fs)
-    repo = find_repo_root(loc.repo, loc.fs, recursive=False)
+    mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+    repo, fs = loc.repo, loc.fs
     res = defaultdict(list)
     for cls in type_filter:
         root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
-        files = loc.fs.glob(
+        files = fs.glob(
             posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
         for file in files:
             meta = load_meta(
-                file, follow_links=False, fs=loc.fs, load_value=False
+                posixpath.relpath(file, repo),
+                repo=repo,
+                rev=rev,
+                follow_links=False,
+                fs=fs,
+                load_value=False,
             )
             obj_type = cls
             if isinstance(meta, MlemLink):

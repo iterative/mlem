@@ -10,6 +10,15 @@ from mlem.constants import MLEM_DIR
 from mlem.core.errors import MlemRootNotFound
 
 
+def mlem_repo_exists(
+    path: str, fs: AbstractFileSystem, raise_on_missing: bool = False
+):
+    exists = fs.exists(posixpath.join(path, MLEM_DIR))
+    if not exists and raise_on_missing:
+        raise MlemRootNotFound(path, fs)
+    return exists
+
+
 @overload
 def find_repo_root(
     path: str = ".",
@@ -46,13 +55,13 @@ def find_repo_root(
         path = os.path.abspath(path)
     _path = path[:]
     if not recursive:
-        if fs.exists(posixpath.join(_path, MLEM_DIR)):
+        if mlem_repo_exists(_path, fs):
             return _path
     else:
         if fs.isfile(_path) or not fs.exists(_path):
             _path = os.path.dirname(_path)
         while True:
-            if fs.exists(posixpath.join(_path, MLEM_DIR)):
+            if mlem_repo_exists(_path, fs):
                 return _path
             if _path == os.path.dirname(_path):
                 break
