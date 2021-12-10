@@ -169,6 +169,8 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
     assert len(cloned_model_meta.artifacts) == 1
     art = cloned_model_meta.artifacts[0]
     assert isinstance(art, LocalArtifact)
+    assert art.hash != ""
+    assert art.size > 0
     assert art.uri == posixpath.join(ART_DIR, "data.pkl")
     assert not os.path.isabs(art.uri)
     assert fs.isfile(posixpath.join(path, art.uri))
