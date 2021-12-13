@@ -67,7 +67,7 @@ def save(
         description: description for object
         params: arbitrary params for object
         tags: tags for object
-        update: wheter to keep old description/tags/params if new values was not provided
+        update: whether to keep old description/tags/params if new values were not provided
 
     Returns:
         None
