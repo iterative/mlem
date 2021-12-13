@@ -1,6 +1,6 @@
 import os
 from pprint import pprint
-from typing import List, Type
+from typing import List, Optional, Type
 
 import click
 
@@ -38,8 +38,9 @@ TYPE_ALIASES = {
     default="all",
 )
 @option_repo
+@option_rev
 @click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
-def ls(type_filter: str, repo: str, links: bool):
+def ls(type_filter: str, repo: str, rev: Optional[str], links: bool):
     """List MLEM objects of {type} in repo."""
     from mlem.api.commands import ls
 
@@ -50,7 +51,7 @@ def ls(type_filter: str, repo: str, links: bool):
             TYPE_ALIASES.get(type_filter, type_filter)
         ]
 
-    objects = ls(repo or ".", types, include_links=links)
+    objects = ls(repo or ".", rev=rev, type_filter=types, include_links=links)
     for cls, objs in objects.items():
         _print_objects_of_type(cls, objs)
     return {"type_filter": type_filter}
