@@ -14,7 +14,9 @@ from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.path import make_posix
 
 
-def get_object_metadata(obj: Any, tmp_sample_data=None) -> MlemMeta:
+def get_object_metadata(
+    obj: Any, tmp_sample_data=None
+) -> Union[DatasetMeta, ModelMeta]:
     """Convert given object to appropriate MlemMeta subclass"""
     try:
         return DatasetMeta.from_data(obj)

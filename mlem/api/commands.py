@@ -302,14 +302,15 @@ def import_path(
     rev: Optional[str] = None,
     move: bool = True,
     type_: Optional[str] = None,
+    external: bool = None,
 ):
     loc = UriResolver.resolve(path, repo, rev, None)
     if type_ is not None:
         if type_ not in ImportAnalyzer.types:
             raise ValueError(f"Unknown import type {type_}")
-        meta = ImportAnalyzer.types[type_].process(loc)
+        meta = ImportAnalyzer.types[type_].process(loc, move=move)
     else:
-        meta = ImportAnalyzer.analyze(loc)
+        meta = ImportAnalyzer.analyze(loc, move=move)
     if move:
         # TODO
         pass
@@ -317,5 +318,5 @@ def import_path(
         pass
     if out is not None:
         # TODO: add other dump args
-        meta.dump(out)
+        meta.dump(out, external=external)
     return meta

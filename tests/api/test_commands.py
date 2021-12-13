@@ -1,16 +1,18 @@
-# pylint: disable=no-member
 import os
 import pickle
 import posixpath
 
 import pytest
 from numpy import ndarray
+from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, link, load_meta
 from mlem.api.commands import import_path, init, ls
 from mlem.config import CONFIG_FILE
-from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT
+from mlem.core.artifacts import LocalArtifact
+from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
+from mlem.core.model import SimplePickleIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
@@ -20,18 +22,18 @@ from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
     "m, d",
     [
         (
-            pytest.lazy_fixture("model_meta"),
-            pytest.lazy_fixture("dataset_meta"),
+            lazy_fixture("model_meta"),
+            lazy_fixture("dataset_meta"),
         ),
         (
-            pytest.lazy_fixture("model_meta_saved"),
-            pytest.lazy_fixture("dataset_meta_saved"),
+            lazy_fixture("model_meta_saved"),
+            lazy_fixture("dataset_meta_saved"),
         ),
         (
-            pytest.lazy_fixture("model_meta_saved"),
-            pytest.lazy_fixture("train"),
+            lazy_fixture("model_meta_saved"),
+            lazy_fixture("train"),
         ),
-        (pytest.lazy_fixture("model_path"), pytest.lazy_fixture("data_path")),
+        (lazy_fixture("model_path"), lazy_fixture("data_path")),
     ],
 )
 def test_apply(m, d):
@@ -125,15 +127,67 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle(model, train, tmpdir, file_ext, type_):
+def test_import_model_pickle__move(model, train, tmpdir, file_ext, type_):
     path = str(tmpdir / "mymodel" + file_ext)
     with open(path, "wb") as f:
         pickle.dump(model, f)
 
     out_path = str(tmpdir / "mlem_model")
-    meta = import_path(path, out=out_path, type_=type_)
+    meta = import_path(path, out=out_path, type_=type_, move=True)
     assert isinstance(meta, ModelMeta)
     assert os.path.isdir(out_path)
     assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    assert os.path.isdir(os.path.join(out_path, ART_DIR))
+    assert os.path.isfile(
+        os.path.join(out_path, ART_DIR, SimplePickleIO.file_name)
+    )
     loaded = load(out_path)
+    loaded.predict(train)
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle__no_move(model, train, tmpdir, file_ext, type_):
+    path = str(tmpdir / "mymodel" + file_ext)
+    with open(path, "wb") as f:
+        pickle.dump(model, f)
+
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_path(path, out=out_path, type_=type_, move=False)
+    assert isinstance(meta, ModelMeta)
+    assert os.path.isdir(out_path)
+    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    assert not os.path.exists(os.path.join(out_path, ART_DIR))
+    loaded_meta = load_meta(out_path, load_value=True)
+    assert isinstance(loaded_meta, ModelMeta)
+    assert len(loaded_meta.artifacts) == 1
+    art = loaded_meta.artifacts[0]
+    assert loaded_meta.loc.fs.exists(art.uri)
+    loaded = loaded_meta.get_value()
+    loaded.predict(train)
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle__no_move_in_mlem_repo(
+    model, train, mlem_repo, file_ext, type_
+):
+    filename = "mymodel" + file_ext
+    path = os.path.join(mlem_repo, filename)
+    with open(path, "wb") as f:
+        pickle.dump(model, f)
+
+    out_path = os.path.join(mlem_repo, "mlem_model")
+    meta = import_path(
+        path, out=out_path, type_=type_, move=False, external=True
+    )
+    assert isinstance(meta, ModelMeta)
+    assert os.path.isdir(out_path)
+    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    assert not os.path.exists(os.path.join(out_path, ART_DIR))
+    loaded_meta = load_meta(out_path, load_value=True)
+    assert isinstance(loaded_meta, ModelMeta)
+    assert len(loaded_meta.artifacts) == 1
+    art = loaded_meta.artifacts[0]
+    assert isinstance(art, LocalArtifact)
+    assert art.uri == f"../{filename}"
+    loaded = loaded_meta.get_value()
     loaded.predict(train)

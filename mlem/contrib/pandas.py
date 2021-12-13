@@ -27,7 +27,7 @@ from pandas.core.dtypes.dtypes import (
 from pydantic import BaseModel, create_model, validator
 
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
-from mlem.core.artifacts import Artifact, Artifacts, Storage
+from mlem.core.artifacts import Artifact, Artifacts, FSSpecArtifact, Storage
 from mlem.core.dataset_type import (
     Dataset,
     DatasetHook,
@@ -549,7 +549,10 @@ class PandasImport(ExtImportHook):
         return super().is_object_valid(obj) and obj.fs.isfile(obj.fullpath)
 
     @classmethod
-    def process(cls, obj: Location, **kwargs) -> MlemMeta:
+    def process(cls, obj: Location, move: bool = True, **kwargs) -> MlemMeta:
         with obj.open("rb") as f:
             data = pd.read_csv(f, **kwargs)
-        return get_object_metadata(data)
+        meta = get_object_metadata(data)
+        if not move:
+            meta.artifacts = [FSSpecArtifact(uri=obj.uri)]
+        return meta

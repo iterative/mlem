@@ -2,6 +2,7 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Type
 
+from mlem.core.artifacts import FSSpecArtifact
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
@@ -18,7 +19,9 @@ class ImportHook(Hook[MlemMeta], ABC):
 
     @classmethod
     @abstractmethod
-    def process(cls, obj: Location, **kwargs) -> MlemMeta:
+    def process(  # pylint: disable=arguments-differ # so what
+        cls, obj: Location, move: bool = True, **kwargs
+    ) -> MlemMeta:
         raise NotImplementedError
 
     def __init_subclass__(cls, *args, **kwargs):
@@ -32,8 +35,10 @@ class ImportAnalyzer(Analyzer[MlemMeta]):
     types: Dict[str, Type[ImportHook]] = {}
 
     @classmethod
-    def analyze(cls, obj: Location, **kwargs) -> MlemMeta:
-        return super().analyze(obj, **kwargs)
+    def analyze(  # pylint: disable=arguments-differ # so what
+        cls, obj: Location, move: bool = True, **kwargs
+    ) -> MlemMeta:
+        return super().analyze(obj, move=move, **kwargs)
 
 
 class ExtImportHook(ImportHook, ABC):
@@ -49,7 +54,10 @@ class PickleImportHook(ExtImportHook):
     type_ = "pickle"
 
     @classmethod
-    def process(cls, obj: Location, **kwargs) -> MlemMeta:
+    def process(cls, obj: Location, move: bool = True, **kwargs) -> MlemMeta:
         with obj.open("rb") as f:
             data = pickle.load(f)
-        return get_object_metadata(data, **kwargs)
+        meta = get_object_metadata(data, **kwargs)
+        if not move:
+            meta.artifacts = [FSSpecArtifact(uri=obj.uri)]
+        return meta
