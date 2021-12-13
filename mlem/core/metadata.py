@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
 
-from mlem.core.errors import HookNotFound, MlemObjectNotFound
+from mlem.core.errors import HookNotFound, MlemObjectNotFound, MlemRootNotFound
 from mlem.core.meta_io import Location, UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.path import make_posix
@@ -48,6 +48,7 @@ def save(
     description: str = None,
     params: Dict[str, str] = None,
     tags: List[str] = None,
+    update: bool = False,
 ) -> MlemMeta:
     """Saves given object to a given path
 
@@ -66,10 +67,19 @@ def save(
         description: description for object
         params: arbitrary params for object
         tags: tags for object
+        update: wheter to keep old description/tags/params if new values was not provided
 
     Returns:
         None
     """
+    if update and (description is None or params is None or tags is None):
+        try:
+            old_meta = load_meta(path, repo=repo, fs=fs, load_value=False)
+            description = description or old_meta.description
+            params = params or old_meta.params
+            tags = tags or old_meta.tags
+        except MlemObjectNotFound:
+            pass
     meta = get_object_metadata(
         obj, tmp_sample_data, description=description, params=params, tags=tags
     )
@@ -203,7 +213,7 @@ def find_meta_location(location: Location) -> Location:
             _, path = find_object(
                 location.path, fs=location.fs, repo=location.repo
             )
-        except ValueError as e:
+        except (ValueError, MlemRootNotFound) as e:
             raise MlemObjectNotFound(
                 f"MLEM object was not found at {location.uri}"
             ) from e
