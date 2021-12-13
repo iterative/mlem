@@ -25,7 +25,7 @@ def import_path(
     move: bool,
     type_: str,
 ):
-    """Download MLEM object from {uri} and save it to {out}."""
+    """Make MLEM model (or dataset) out of object found at {uri} and save it to {out}."""
     from mlem.api.commands import import_path
 
     click.echo(f"Importing {uri} to {out}")
