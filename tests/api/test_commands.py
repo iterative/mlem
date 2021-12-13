@@ -8,6 +8,7 @@ from numpy import ndarray
 from mlem.api import apply, link, load_meta
 from mlem.api.commands import init, ls
 from mlem.config import CONFIG_FILE
+from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
@@ -84,6 +85,11 @@ def test_ls_local(filled_mlem_repo):
         posixpath.join(make_posix(filled_mlem_repo), lnk.path)
         == model.loc.fullpath
     )
+
+
+def test_ls_no_repo(tmpdir):
+    with pytest.raises(MlemRootNotFound):
+        ls(str(tmpdir))
 
 
 @long

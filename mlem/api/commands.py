@@ -6,16 +6,27 @@ from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import click
+from fsspec import AbstractFileSystem
 from pydantic import parse_obj_as
 
 from mlem.config import CONFIG_FILE
-from mlem.core.errors import InvalidArgumentError, MlemObjectNotSavedError
-from mlem.core.meta_io import META_FILE_NAME, MLEM_DIR, MLEM_EXT, get_fs
+from mlem.core.errors import (
+    InvalidArgumentError,
+    MlemObjectNotSavedError,
+    MlemRootNotFound,
+)
+from mlem.core.meta_io import (
+    META_FILE_NAME,
+    MLEM_DIR,
+    MLEM_EXT,
+    UriResolver,
+    get_fs,
+)
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.utils.root import find_repo_root
+from mlem.utils.root import mlem_repo_exists
 
 
 def _get_dataset(dataset: Any) -> Any:
@@ -247,6 +258,8 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
 
 def ls(
     repo: str = ".",
+    rev: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
     type_filter: Union[Type[MlemMeta], Iterable[Type[MlemMeta]], None] = None,
     include_links: bool = True,
 ) -> Dict[Type[MlemMeta], List[MlemMeta]]:
@@ -259,16 +272,26 @@ def ls(
         return {}
     if MlemLink not in type_filter:
         type_filter.add(MlemLink)
-    fs, path = get_fs(repo)
-    root = find_repo_root(path, fs)
+    loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
+    if loc.repo is None:
+        raise MlemRootNotFound(repo, loc.fs)
+    mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+    repo, fs = loc.repo, loc.fs
     res = defaultdict(list)
     for cls in type_filter:
-        root_path = posixpath.join(root, MLEM_DIR, cls.object_type)
+        root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
         files = fs.glob(
             posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
         for file in files:
-            meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
+            meta = load_meta(
+                posixpath.relpath(file, repo),
+                repo=repo,
+                rev=rev,
+                follow_links=False,
+                fs=fs,
+                load_value=False,
+            )
             obj_type = cls
             if isinstance(meta, MlemLink):
                 link_name = posixpath.relpath(file, root_path)[
