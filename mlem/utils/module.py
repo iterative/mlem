@@ -155,7 +155,8 @@ class ISortModuleFinder:
     def __init__(self):
         config = default.copy()
         config["known_first_party"].append("mlem")
-        config["known_third_party"].append("xgboost")
+        # TODO: https://github.com/iterative/mlem/issues/45
+        config["known_third_party"].extend(["xgboost", "lightgbm", "catboost"])
         config["known_standard_library"].extend(
             [
                 "opcode",

@@ -7,7 +7,17 @@ import posixpath
 from abc import ABC, abstractmethod
 from functools import partial
 from inspect import isabstract
-from typing import Any, ClassVar, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
@@ -67,6 +77,9 @@ class MlemMeta(MlemObject):
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     location: Optional[Location] = None
+    description: Optional[str] = None
+    params: Dict[str, str] = {}
+    tags: List[str] = []
 
     @property
     def loc(self) -> Location:
@@ -443,7 +456,9 @@ class _WithArtifacts(ABC, MlemMeta):
             )
             if isinstance(download, FSSpecArtifact):
                 download = LocalArtifact(
-                    uri=posixpath.relpath(download.uri, make_posix(path))
+                    uri=posixpath.relpath(download.uri, make_posix(path)),
+                    size=download.size,
+                    hash=download.hash,
                 )
             new.artifacts.append(download)
         new._write_meta(location, link)  # pylint: disable=protected-access
@@ -484,11 +499,22 @@ class ModelMeta(_WithArtifacts):
     )
 
     @classmethod
-    def from_obj(cls, model: Any, sample_data: Any = None) -> "ModelMeta":
+    def from_obj(
+        cls,
+        model: Any,
+        sample_data: Any = None,
+        description: str = None,
+        tags: List[str] = None,
+        params: Dict[str, str] = None,
+    ) -> "ModelMeta":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
         mt.model = model
         return ModelMeta(
-            model_type=mt, requirements=mt.get_requirements().expanded
+            model_type=mt,
+            requirements=mt.get_requirements().expanded,
+            description=description,
+            tags=tags or [],
+            params=params or {},
         )
 
     def write_value(self) -> Artifacts:
@@ -536,12 +562,21 @@ class DatasetMeta(_WithArtifacts):
         return self.dataset.data
 
     @classmethod
-    def from_data(cls, data: Any) -> "DatasetMeta":
+    def from_data(
+        cls,
+        data: Any,
+        description: str = None,
+        params: Dict[str, str] = None,
+        tags: List[str] = None,
+    ) -> "DatasetMeta":
         dataset = Dataset.create(
             data,
         )
         meta = DatasetMeta(
-            requirements=dataset.dataset_type.get_requirements().expanded
+            requirements=dataset.dataset_type.get_requirements().expanded,
+            description=description,
+            params=params or {},
+            tags=tags or [],
         )
         meta.dataset = dataset
         return meta
@@ -673,5 +708,5 @@ def find_object(
         )
     if len(source_paths) > 1:
         raise ValueError(f"Ambiguous object {path}: {source_paths}")
-    type, source_path = source_paths[0]
-    return type, source_path
+    type_, source_path = source_paths[0]
+    return type_, source_path

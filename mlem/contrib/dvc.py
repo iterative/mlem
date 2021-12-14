@@ -8,7 +8,12 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
-from mlem.core.artifacts import LocalArtifact, LocalStorage, Storage
+from mlem.core.artifacts import (
+    LocalArtifact,
+    LocalStorage,
+    Storage,
+    get_local_file_info,
+)
 from mlem.core.meta_io import get_fs
 
 BATCH_SIZE = 10 ** 5
@@ -37,12 +42,18 @@ class DVCStorage(LocalStorage):
     uri: str = ""
 
     def upload(self, local_path: str, target_path: str) -> "DVCArtifact":
-        return DVCArtifact(uri=super().upload(local_path, target_path).uri)
+        return DVCArtifact(
+            uri=super().upload(local_path, target_path).uri,
+            **get_local_file_info(local_path),
+        )
 
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, "DVCArtifact"]]:
-        with super().open(path) as (io, _):
-            yield io, DVCArtifact(uri=path)
+        with super().open(path) as (io, art):
+            dvc_art = DVCArtifact(uri=path, size=-1, hash="")
+            yield io, dvc_art
+        dvc_art.size = art.size
+        dvc_art.hash = art.hash
 
     def relative(self, fs: AbstractFileSystem, path: str) -> Storage:
         storage = super().relative(fs, path)
@@ -65,7 +76,7 @@ class DVCArtifact(LocalArtifact):
             while batch:
                 fout.write(batch)
                 batch = fin.read(BATCH_SIZE)
-        return LocalArtifact(uri=target_path)
+        return LocalArtifact(uri=target_path, size=self.size, hash=self.hash)
 
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
@@ -96,4 +107,4 @@ class DVCArtifact(LocalArtifact):
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "DVCArtifact":
         relative = super().relative(fs, path)
-        return DVCArtifact(uri=relative.uri)  # pylint: disable=no-member
+        return DVCArtifact(uri=relative.uri, size=self.size, hash=self.hash)

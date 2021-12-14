@@ -10,6 +10,7 @@ from mlem.api import apply, link, load_meta
 from mlem.api.commands import import_path, init, ls
 from mlem.config import CONFIG_FILE
 from mlem.core.artifacts import LocalArtifact
+from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import SimplePickleIO
@@ -88,6 +89,11 @@ def test_ls_local(filled_mlem_repo):
         posixpath.join(make_posix(filled_mlem_repo), lnk.path)
         == model.loc.fullpath
     )
+
+
+def test_ls_no_repo(tmpdir):
+    with pytest.raises(MlemRootNotFound):
+        ls(str(tmpdir))
 
 
 @long
