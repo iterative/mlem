@@ -2,6 +2,7 @@
 Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
+import logging
 import posixpath
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 
@@ -12,6 +13,8 @@ from mlem.core.errors import HookNotFound, MlemObjectNotFound, MlemRootNotFound
 from mlem.core.meta_io import Location, UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.path import make_posix
+
+logger = logging.getLogger(__name__)
 
 
 def get_object_metadata(
@@ -79,7 +82,12 @@ def save(
             params = params or old_meta.params
             tags = tags or old_meta.tags
         except MlemObjectNotFound:
-            pass
+            logger.warning(
+                "Saving with update=True, but no existing object found at %s %s %s",
+                repo,
+                path,
+                fs,
+            )
     meta = get_object_metadata(
         obj, tmp_sample_data, description=description, params=params, tags=tags
     )
