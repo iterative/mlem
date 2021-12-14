@@ -3,6 +3,7 @@ import pickle
 import posixpath
 
 import pytest
+from fsspec.implementations.local import LocalFileSystem
 from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
@@ -17,6 +18,8 @@ from mlem.core.model import SimplePickleIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
+
+IMPORT_MODEL_FILENAME = "mymodel"
 
 
 @pytest.mark.parametrize(
@@ -132,17 +135,33 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
     assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE}")
 
 
+def _check_meta(meta, out_path, fs=None):
+    assert isinstance(meta, ModelMeta)
+    fs = fs or LocalFileSystem()
+    assert fs.isdir(out_path)
+    assert fs.isfile(posixpath.join(out_path, META_FILE_NAME))
+
+
+@pytest.fixture
+def write_model_pickle(model):
+    def write(path, fs=None):
+        fs = fs or LocalFileSystem()
+        with fs.open(path, "wb") as f:
+            pickle.dump(model, f)
+
+    return write
+
+
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__move(model, train, tmpdir, file_ext, type_):
+def test_import_model_pickle__move(
+    write_model_pickle, train, tmpdir, file_ext, type_
+):
     path = str(tmpdir / "mymodel" + file_ext)
-    with open(path, "wb") as f:
-        pickle.dump(model, f)
+    write_model_pickle(path)
 
     out_path = str(tmpdir / "mlem_model")
     meta = import_path(path, out=out_path, type_=type_, move=True)
-    assert isinstance(meta, ModelMeta)
-    assert os.path.isdir(out_path)
-    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    _check_meta(meta, out_path)
     assert os.path.isdir(os.path.join(out_path, ART_DIR))
     assert os.path.isfile(
         os.path.join(out_path, ART_DIR, SimplePickleIO.file_name)
@@ -151,49 +170,85 @@ def test_import_model_pickle__move(model, train, tmpdir, file_ext, type_):
     loaded.predict(train)
 
 
-@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__no_move(model, train, tmpdir, file_ext, type_):
-    path = str(tmpdir / "mymodel" + file_ext)
-    with open(path, "wb") as f:
-        pickle.dump(model, f)
-
-    out_path = str(tmpdir / "mlem_model")
-    meta = import_path(path, out=out_path, type_=type_, move=False)
+def _check_load_artifact(
+    meta,
+    out_path,
+    is_abs,
+    train,
+    filename=IMPORT_MODEL_FILENAME,
+):
+    assert not meta.loc.fs.exists(posixpath.join(out_path, ART_DIR))
     assert isinstance(meta, ModelMeta)
-    assert os.path.isdir(out_path)
-    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
-    assert not os.path.exists(os.path.join(out_path, ART_DIR))
+    assert len(meta.artifacts) == 1
+    art = meta.artifacts[0]
+    if is_abs:
+        assert meta.loc.fs.exists(art.uri)
+    else:
+        assert isinstance(art, LocalArtifact)
+        assert art.uri == f"../{filename}"
     loaded_meta = load_meta(out_path, load_value=True)
-    assert isinstance(loaded_meta, ModelMeta)
-    assert len(loaded_meta.artifacts) == 1
-    art = loaded_meta.artifacts[0]
-    assert loaded_meta.loc.fs.exists(art.uri)
     loaded = loaded_meta.get_value()
     loaded.predict(train)
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__no_move_in_mlem_repo(
-    model, train, mlem_repo, file_ext, type_
+def test_import_model_pickle__no_move(
+    write_model_pickle, train, tmpdir, file_ext, type_
 ):
-    filename = "mymodel" + file_ext
+    path = str(tmpdir / IMPORT_MODEL_FILENAME + file_ext)
+    write_model_pickle(path)
+
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_path(path, out=out_path, type_=type_, move=False)
+    _check_meta(meta, out_path)
+    _check_load_artifact(meta, out_path, True, train)
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle__no_move_in_mlem_repo(
+    write_model_pickle, train, mlem_repo, file_ext, type_
+):
+    filename = IMPORT_MODEL_FILENAME + file_ext
     path = os.path.join(mlem_repo, filename)
-    with open(path, "wb") as f:
-        pickle.dump(model, f)
+    write_model_pickle(path)
 
     out_path = os.path.join(mlem_repo, "mlem_model")
     meta = import_path(
         path, out=out_path, type_=type_, move=False, external=True
     )
-    assert isinstance(meta, ModelMeta)
-    assert os.path.isdir(out_path)
-    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
-    assert not os.path.exists(os.path.join(out_path, ART_DIR))
-    loaded_meta = load_meta(out_path, load_value=True)
-    assert isinstance(loaded_meta, ModelMeta)
-    assert len(loaded_meta.artifacts) == 1
-    art = loaded_meta.artifacts[0]
-    assert isinstance(art, LocalArtifact)
-    assert art.uri == f"../{filename}"
-    loaded = loaded_meta.get_value()
+    _check_meta(meta, out_path)
+    _check_load_artifact(meta, out_path, False, train, filename)
+
+
+@long
+@issue_110
+def test_import_model_pickle_remote(
+    s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
+):
+    path = posixpath.join(
+        s3_tmp_path("import_model_no_repo"), IMPORT_MODEL_FILENAME
+    )
+    write_model_pickle(path, s3_storage_fs)
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_path(path, out_path, move=False, type_="pickle")
+    _check_meta(meta, out_path)
+
+    loaded = load(out_path)
     loaded.predict(train)
+
+
+@long
+@issue_110
+def test_import_model_pickle_remote_in_repo(
+    s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
+):
+    repo_path = s3_tmp_path("import_model_repo")
+    init(repo_path)
+    path = posixpath.join(repo_path, IMPORT_MODEL_FILENAME)
+    write_model_pickle(path, s3_storage_fs)
+    out_path = posixpath.join(repo_path, "mlem_model")
+    meta = import_path(
+        path, out_path, move=False, type_="pickle", external=True
+    )
+    _check_meta(meta, out_path, s3_storage_fs)
+    _check_load_artifact(meta, out_path, False, train)

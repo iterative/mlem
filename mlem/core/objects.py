@@ -30,6 +30,7 @@ from mlem.core.artifacts import (
     FSSpecArtifact,
     FSSpecStorage,
     LocalArtifact,
+    PlaceholderArtifact,
 )
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
@@ -415,7 +416,7 @@ class _WithArtifacts(ABC, MlemMeta):
         external: Optional[bool] = None,
     ):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
-        self.artifacts = self.write_value()
+        self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
 
     @abstractmethod
@@ -489,6 +490,16 @@ class _WithArtifacts(ABC, MlemMeta):
             )
         return FSSpecStorage.from_fs_path(self.location.fs, self.dirname)
 
+    def get_artifacts(self):
+        if self.artifacts is None:
+            return self.write_value()
+        return [
+            a.relative_to(self.loc)
+            if isinstance(a, PlaceholderArtifact)
+            else a
+            for a in self.artifacts
+        ]
+
 
 class ModelMeta(_WithArtifacts):
     object_type: ClassVar = "model"
@@ -518,8 +529,6 @@ class ModelMeta(_WithArtifacts):
         )
 
     def write_value(self) -> Artifacts:
-        if self.artifacts is not None:
-            return self.artifacts
         if self.model_type.model is not None:
             return self.model_type.io.dump(
                 self.storage,
@@ -582,8 +591,6 @@ class DatasetMeta(_WithArtifacts):
         return meta
 
     def write_value(self) -> Artifacts:
-        if self.artifacts is not None:
-            return self.artifacts
         if self.dataset is not None:
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
                 self.dataset,

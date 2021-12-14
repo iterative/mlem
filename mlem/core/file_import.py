@@ -2,7 +2,7 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Type
 
-from mlem.core.artifacts import FSSpecArtifact
+from mlem.core.artifacts import PlaceholderArtifact
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
@@ -59,5 +59,5 @@ class PickleImportHook(ExtImportHook):
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)
         if not move:
-            meta.artifacts = [FSSpecArtifact(uri=obj.uri)]
+            meta.artifacts = [PlaceholderArtifact(location=obj, uri=obj.uri)]
         return meta
