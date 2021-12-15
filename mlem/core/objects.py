@@ -389,7 +389,7 @@ class MlemLink(MlemMeta):
 class _WithArtifacts(ABC, MlemMeta):
     __abstract__: ClassVar[bool] = True
     artifacts: Optional[Artifacts] = None
-    requirements: Requirements
+    requirements: Requirements = Requirements.new()
 
     @classmethod
     def get_metafile_path(cls, fullpath: str):
