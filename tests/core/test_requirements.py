@@ -1,5 +1,8 @@
 import pytest
+from pydantic import parse_obj_as
 
+from mlem.contrib.sklearn import SklearnModel
+from mlem.core.objects import ModelMeta
 from mlem.core.requirements import (
     CustomRequirement,
     InstallableRequirement,
@@ -106,6 +109,17 @@ def test_resolve_unique_req():
     reqs = Requirements.new(reqs_list)
     assert len(reqs.__root__) == 1
     assert reqs.installable[0] == req
+
+
+def test_serialize_empty():
+    mt = SklearnModel(methods={}, model="")
+    obj = ModelMeta(model_type=mt)
+    payload = obj.dict()
+    obj2 = ModelMeta(model_type=mt)
+    obj2.requirements.__root__.append(InstallableRequirement(module="sklearn"))
+    assert obj.requirements.__root__ == []
+    new_obj = parse_obj_as(ModelMeta, payload)
+    assert new_obj == obj
 
 
 # Copyright 2019 Zyfra
