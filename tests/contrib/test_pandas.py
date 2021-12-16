@@ -348,7 +348,7 @@ def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
     write_csv(path, s3_storage_fs)
     out_path = posixpath.join(repo_path, "imported_data")
     meta = import_path(path, out=out_path)
-    _chech_data(meta, out_path, s3_storage_fs)
+    _check_data(meta, out_path, s3_storage_fs)
 
 
 # Copyright 2019 Zyfra
