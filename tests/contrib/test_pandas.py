@@ -311,7 +311,7 @@ def write_csv():
     return write
 
 
-def _chech_data(meta, out_path, fs=None):
+def _check_data(meta, out_path, fs=None):
     fs = fs or LocalFileSystem()
     assert isinstance(meta, DatasetMeta)
     dt = meta.dataset.dataset_type
