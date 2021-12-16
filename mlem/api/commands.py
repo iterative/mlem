@@ -16,7 +16,7 @@ from mlem.core.errors import (
     MlemObjectNotSavedError,
     MlemRootNotFound,
 )
-from mlem.core.file_import import ImportAnalyzer
+from mlem.core.import_objects import ImportAnalyzer
 from mlem.core.meta_io import (
     META_FILE_NAME,
     MLEM_DIR,
@@ -320,7 +320,7 @@ def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
     return match.group(1), match.group(2)
 
 
-def import_path(
+def import_object(
     path: str,
     out: Optional[str] = None,
     repo: Optional[str] = None,

@@ -12,7 +12,7 @@ from pydantic import parse_obj_as
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
-from mlem.api.commands import import_path
+from mlem.api.commands import import_object
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     DataFrameType,
@@ -145,6 +145,7 @@ def test_with_multiindex(data, format):
     exclude=[
         "excel",  # Excel does not support datetimes with timezones
         "parquet",  # Casting from timestamp[ns] to timestamp[ms] would lose data
+        "strata",  # Data type datetime64[ns, UTC] not supported.
     ]
 )
 @pytest.mark.parametrize(
@@ -336,8 +337,8 @@ def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
     path = str(tmpdir / "mydata" + file_ext)
     write_csv(data, path)
     out_path = str(tmpdir / "mlem_data")
-    meta = import_path(path, out=out_path, type_=type_)
-    _chech_data(meta, out_path)
+    meta = import_object(path, out=out_path, type_=type_)
+    _check_data(meta, out_path)
 
 
 @long
@@ -345,9 +346,9 @@ def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
 def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
     repo_path = s3_tmp_path("test_csv_import")
     path = posixpath.join(repo_path, "data.csv")
-    write_csv(path, s3_storage_fs)
+    write_csv(b"a,b\n1,2", path, s3_storage_fs)
     out_path = posixpath.join(repo_path, "imported_data")
-    meta = import_path(path, out=out_path)
+    meta = import_object(path, out=out_path)
     _check_data(meta, out_path, s3_storage_fs)
 
 

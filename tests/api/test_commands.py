@@ -8,7 +8,7 @@ from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, link, load_meta
-from mlem.api.commands import import_path, init, ls
+from mlem.api.commands import import_object, init, ls
 from mlem.config import CONFIG_FILE
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
@@ -160,7 +160,7 @@ def test_import_model_pickle__move(
     write_model_pickle(path)
 
     out_path = str(tmpdir / "mlem_model")
-    meta = import_path(path, out=out_path, type_=type_, move=True)
+    meta = import_object(path, out=out_path, type_=type_, move=True)
     _check_meta(meta, out_path)
     assert os.path.isdir(os.path.join(out_path, ART_DIR))
     assert os.path.isfile(
@@ -199,7 +199,7 @@ def test_import_model_pickle__no_move(
     write_model_pickle(path)
 
     out_path = str(tmpdir / "mlem_model")
-    meta = import_path(path, out=out_path, type_=type_, move=False)
+    meta = import_object(path, out=out_path, type_=type_, move=False)
     _check_meta(meta, out_path)
     _check_load_artifact(meta, out_path, True, train)
 
@@ -213,7 +213,7 @@ def test_import_model_pickle__no_move_in_mlem_repo(
     write_model_pickle(path)
 
     out_path = os.path.join(mlem_repo, "mlem_model")
-    meta = import_path(
+    meta = import_object(
         path, out=out_path, type_=type_, move=False, external=True
     )
     _check_meta(meta, out_path)
@@ -230,7 +230,7 @@ def test_import_model_pickle_remote(
     )
     write_model_pickle(path, s3_storage_fs)
     out_path = str(tmpdir / "mlem_model")
-    meta = import_path(path, out_path, move=False, type_="pickle")
+    meta = import_object(path, out_path, move=False, type_="pickle")
     _check_meta(meta, out_path)
 
     loaded = load(out_path)
@@ -247,7 +247,7 @@ def test_import_model_pickle_remote_in_repo(
     path = posixpath.join(repo_path, IMPORT_MODEL_FILENAME)
     write_model_pickle(path, s3_storage_fs)
     out_path = posixpath.join(repo_path, "mlem_model")
-    meta = import_path(
+    meta = import_object(
         path, out_path, move=False, type_="pickle", external=True
     )
     _check_meta(meta, out_path, s3_storage_fs)

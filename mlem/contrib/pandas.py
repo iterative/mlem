@@ -3,6 +3,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass
 from typing import (
+    IO,
     Any,
     Callable,
     ClassVar,
@@ -43,7 +44,7 @@ from mlem.core.dataset_type import (
     DatasetWriter,
 )
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.file_import import ExtImportHook
+from mlem.core.import_objects import ExtImportHook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
 from mlem.core.objects import MlemMeta
@@ -282,76 +283,6 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         return PandasWriter(format=format)  # TODO env configuration
 
 
-# class PandasFormat2:
-#     """ABC for reading and writing different formats supported in pandas
-#
-#     :param read_args: additional arguments for reading
-#     :param write_args: additional arguments for writing
-#     """
-#     # renamed type to _type so mypy and flake8 won't complain
-#     _type: str = None
-#     read_func: typing.Callable = None
-#     write_func: typing.Callable = None
-#     buffer_type: typing.Type[typing.IO] = None
-#
-#     def __init__(self, read_args: Dict[str, Any] = None, write_args: Dict[str, Any] = None):
-#         self.write_args = write_args or {}
-#         self.read_args = read_args or {}
-#
-#     def read(self, file_or_path):
-#         """Read DataFrame
-#
-#         :param file_or_path: source for read function"""
-#         kwargs = self.add_read_args()
-#         kwargs.update(self.read_args)
-#         return type(self).read_func(file_or_path, **kwargs)
-#
-#     def write(self, dataframe) -> typing.IO:
-#         """Write DataFrame to buffer
-#
-#         :param dataframe: DataFrame to write
-#         """
-#         buf = self.buffer_type()
-#         kwargs = self.add_write_args()
-#         kwargs.update(self.write_args)
-#         if has_index(dataframe):
-#             dataframe = reset_index(dataframe)
-#         type(self).write_func(dataframe, buf, **kwargs)
-#         return buf
-#
-#     def add_read_args(self) -> Dict[str, Any]:
-#         """Fuction with additional read argumnets for child classes to override"""
-#         return {}
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         """Fuction with additional write argumnets for child classes to override"""
-#         return {}
-
-
-# class PandasFormatHtml(PandasFormat):
-#     type = 'html'
-#     read_func = pd.read_html
-#     write_func = pd.DataFrame.to_html
-#     buffer_type = io.StringIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'index': False}
-#
-#     def read(self, file_or_path):
-#         # read_html returns list of dataframes
-#         df = super(PandasFormatHtml, self).read(file_or_path)
-#         return df[0]
-#
-#
-# class PandasFormatExcel(PandasFormat):
-#     type = 'excel'
-#     read_func = pd.read_excel
-#     write_func = pd.DataFrame.to_excel
-#     buffer_type = io.BytesIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'index': False}
-#
 #
 # class PandasFormatHdf(PandasFormat):
 #     type = 'hdf'
@@ -396,34 +327,15 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 #         return df.reset_index(drop=True)
 #
 #
-# class PandasFormatFeather(PandasFormat):
-#     type = 'feather'
-#     read_func = pd.read_feather
-#     write_func = pd.DataFrame.to_feather
-#     buffer_type = io.BytesIO
-#
-#
-# class PandasFormatParquet(PandasFormat):
-#     type = 'parquet'
-#     read_func = pd.read_parquet
-#     write_func = pd.DataFrame.to_parquet
-#     buffer_type = io.BytesIO
 
 
-# class PandasFormatStata(PandasFormat): # TODO int32 converts to int64 for some reason
-#     type = 'stata'
-#     read_func = pd.read_stata
-#     write_func = pd.DataFrame.to_stata
-#     buffer_type = io.BytesIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'write_index': False}
-#
-# class PandasFormatPickle(PandasFormat): # TODO buffer closed error for some reason
-#     type = 'pickle'
-#     read_func = pd.read_pickle
-#     write_func = pd.DataFrame.to_pickle
-#     buffer_type = io.BytesIO
+class ToBytesIO(IO[Any]):
+    def __init__(self, fileobj, encoding: str = "utf8"):
+        self.encoding = encoding
+        self.fileobj = fileobj
+
+    def write(self, payload: str):
+        self.fileobj.write(payload.encode(self.encoding))
 
 
 @dataclass
@@ -433,6 +345,7 @@ class PandasFormat:
     read_args: Optional[Dict[str, Any]] = None
     write_args: Optional[Dict[str, Any]] = None
     file_name: str = "data.pd"
+    string_buffer: bool = False
 
     def read(self, artifacts: Artifacts, **kwargs):
         """Read DataFrame"""
@@ -455,7 +368,12 @@ class PandasFormat:
             write_kwargs.update(self.write_args)
         write_kwargs.update(kwargs)
 
+        if has_index(df):
+            df = reset_index(df)
+
         with storage.open(posixpath.join(path, self.file_name)) as (f, art):
+            if self.string_buffer:
+                f = ToBytesIO(f)  # type: ignore[abstract]
             self.write_func(df, f, **write_kwargs)
             return art
 
@@ -475,15 +393,48 @@ def read_json_reset_index(*args, **kwargs):
     return pd.read_json(*args, **kwargs).reset_index(drop=True)
 
 
+def read_html(*args, **kwargs):
+    # read_html returns list of dataframes
+    return pd.read_html(*args, **kwargs)[0]
+
+
 PANDAS_FORMATS = {
     "csv": PandasFormat(
-        read_csv_with_unnamed, pd.DataFrame.to_csv, file_name="data.csv"
+        read_csv_with_unnamed,
+        pd.DataFrame.to_csv,
+        file_name="data.csv",
+        write_args={"index": False},
     ),
     "json": PandasFormat(
         read_json_reset_index,
         pd.DataFrame.to_json,
         file_name="data.json",
         write_args={"date_format": "iso", "date_unit": "ns"},
+    ),
+    "html": PandasFormat(
+        read_html,
+        pd.DataFrame.to_html,
+        file_name="data.html",
+        write_args={"index": False},
+        string_buffer=True,
+    ),
+    "excel": PandasFormat(
+        pd.read_excel,
+        pd.DataFrame.to_excel,
+        file_name="data.xlsx",
+        write_args={"index": False},
+    ),
+    "parquet": PandasFormat(
+        pd.read_parquet, pd.DataFrame.to_parquet, file_name="data.parquet"
+    ),
+    "feather": PandasFormat(
+        pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
+    ),
+    "pickle": PandasFormat(  # TODO buffer closed error for some reason
+        pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
+    ),
+    "strata": PandasFormat(  # TODO int32 converts to int64 for some reason
+        pd.read_stata, pd.DataFrame.to_stata, write_args={"write_index": False}
     ),
 }
 
