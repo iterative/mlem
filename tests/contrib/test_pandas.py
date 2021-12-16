@@ -1,11 +1,13 @@
 import io
 import json
 import os
+import posixpath
 from datetime import datetime, timezone
 from typing import Callable, List, Union
 
 import pandas as pd
 import pytest
+from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
@@ -26,7 +28,7 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import META_FILE_NAME
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
-from tests.conftest import dataset_write_read_check
+from tests.conftest import dataset_write_read_check, issue_110, long
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -299,23 +301,54 @@ def test_save_load(iris_data, tmpdir):
     pandas_assert(data2, iris_data)
 
 
-@pytest.mark.parametrize("file_ext, type_", [(".csv", None), ("", "pandas")])
-def test_import_data_csv(tmpdir, file_ext, type_):
-    path = str(tmpdir / "mydata" + file_ext)
-    with open(path, "wb") as f:
-        f.write(b"a,b\n1,2")
+@pytest.fixture
+def write_csv():
+    def write(data, path, fs=None):
+        fs = fs or LocalFileSystem()
+        with fs.open(path, "wb") as f:
+            f.write(data)
 
-    out_path = str(tmpdir / "mlem_data")
-    meta = import_path(path, out=out_path, type_=type_)
+    return write
+
+
+def _chech_data(meta, out_path, fs=None):
+    fs = fs or LocalFileSystem()
     assert isinstance(meta, DatasetMeta)
     dt = meta.dataset.dataset_type
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a", "b"]
     assert dt.dtypes == ["int64", "int64"]
-    assert os.path.isdir(out_path)
-    assert os.path.isfile(os.path.join(out_path, META_FILE_NAME))
+    assert fs.isdir(out_path)
+    assert fs.isfile(os.path.join(out_path, META_FILE_NAME))
     loaded = load(out_path)
     assert isinstance(loaded, pd.DataFrame)
+
+
+@pytest.mark.parametrize(
+    "file_ext, type_, data",
+    [
+        (".csv", None, b"a,b\n1,2"),
+        ("", "pandas[csv]", b"a,b\n1,2"),
+        (".json", None, b'[{"a":1,"b":2}]'),
+    ],
+)
+def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
+    path = str(tmpdir / "mydata" + file_ext)
+    write_csv(data, path)
+    out_path = str(tmpdir / "mlem_data")
+    meta = import_path(path, out=out_path, type_=type_)
+    _chech_data(meta, out_path)
+
+
+@long
+@issue_110
+def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
+    repo_path = s3_tmp_path("test_csv_import")
+    path = posixpath.join(repo_path, "data.csv")
+    write_csv(path, s3_storage_fs)
+    out_path = posixpath.join(repo_path, "imported_data")
+    meta = import_path(path, out=out_path)
+    _chech_data(meta, out_path, s3_storage_fs)
 
 
 # Copyright 2019 Zyfra

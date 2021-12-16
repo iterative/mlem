@@ -27,7 +27,13 @@ from pandas.core.dtypes.dtypes import (
 from pydantic import BaseModel, create_model, validator
 
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
-from mlem.core.artifacts import Artifact, Artifacts, FSSpecArtifact, Storage
+from mlem.core.artifacts import (
+    Artifact,
+    Artifacts,
+    PlaceholderArtifact,
+    Storage,
+    get_file_info,
+)
 from mlem.core.dataset_type import (
     Dataset,
     DatasetHook,
@@ -164,9 +170,6 @@ class SeriesType(_PandasDatasetType, DatasetHook):
     def serialize(self, instance: pd.Series):
         return instance.to_dict()
 
-    # def get_spec(self):
-    #     return [Field(c, python_type_from_pd_string_repr(d), False) for c, d in zip(self.columns, self.dtypes)]
-
 
 def has_index(df: pd.DataFrame):
     """Returns true if df has non-trivial index"""
@@ -265,11 +268,7 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 
         return {"values": (instance.to_dict("records"))}
 
-    # def get_spec(self) -> ArgList:
-    #     return [Field('values', List[self.row_type], False)]
-
     def row_type(self):
-        # return SeriesType(columns=self.columns, dtypes=self.dtypes, index_cols=self.index_cols)
         return create_model(
             "DataFrameRow",
             **{
@@ -329,21 +328,6 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 #         return {}
 
 
-#
-# class PandasFormatJson(PandasFormat):
-#     type = 'json'
-#     read_func = pd.read_json
-#     write_func = pd.DataFrame.to_json
-#     buffer_type = io.StringIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'date_format': 'iso', 'date_unit': 'ns'}
-#
-#     def read(self, file_or_path):
-#         # read_json creates index for some reason
-#         return super(PandasFormatJson, self).read(file_or_path).reset_index(drop=True)
-#
-#
 # class PandasFormatHtml(PandasFormat):
 #     type = 'html'
 #     read_func = pd.read_html
@@ -487,10 +471,20 @@ def read_csv_with_unnamed(*args, **kwargs):
     return df.rename(unnamed, axis=1)  # pylint: disable=no-member
 
 
+def read_json_reset_index(*args, **kwargs):
+    return pd.read_json(*args, **kwargs).reset_index(drop=True)
+
+
 PANDAS_FORMATS = {
     "csv": PandasFormat(
         read_csv_with_unnamed, pd.DataFrame.to_csv, file_name="data.csv"
-    )
+    ),
+    "json": PandasFormat(
+        read_json_reset_index,
+        pd.DataFrame.to_json,
+        file_name="data.json",
+        write_args={"date_format": "iso", "date_unit": "ns"},
+    ),
 }
 
 
@@ -541,7 +535,7 @@ class PandasWriter(DatasetWriter, _PandasIO):
 
 
 class PandasImport(ExtImportHook):
-    EXTS = (".csv",)
+    EXTS = tuple(f".{k}" for k in PANDAS_FORMATS)
     type_ = "pandas"
 
     @classmethod
@@ -549,10 +543,26 @@ class PandasImport(ExtImportHook):
         return super().is_object_valid(obj) and obj.fs.isfile(obj.fullpath)
 
     @classmethod
-    def process(cls, obj: Location, move: bool = True, **kwargs) -> MlemMeta:
+    def process(
+        cls,
+        obj: Location,
+        move: bool = True,
+        modifier: Optional[str] = None,
+        **kwargs,
+    ) -> MlemMeta:
+        ext = modifier or posixpath.splitext(obj.path)[1][1:]
+        fmt = PANDAS_FORMATS[ext]
+        read_args = fmt.read_args or {}
+        read_args.update(kwargs)
         with obj.open("rb") as f:
-            data = pd.read_csv(f, **kwargs)
+            data = fmt.read_func(f, **read_args)
         meta = get_object_metadata(data)
         if not move:
-            meta.artifacts = [FSSpecArtifact(uri=obj.uri)]
+            meta.artifacts = [
+                PlaceholderArtifact(
+                    location=obj,
+                    uri=obj.uri,
+                    **get_file_info(obj.fullpath, obj.fs),
+                )
+            ]
         return meta

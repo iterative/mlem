@@ -2,8 +2,9 @@
 MLEM's Python API
 """
 import posixpath
+import re
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import click
 from fsspec import AbstractFileSystem
@@ -312,6 +313,13 @@ def ls(
     return res
 
 
+def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
+    match = re.match(r"(\w*)\[(\w*)]", type_)
+    if not match:
+        return type_, None
+    return match.group(1), match.group(2)
+
+
 def import_path(
     path: str,
     out: Optional[str] = None,
@@ -323,9 +331,12 @@ def import_path(
 ):
     loc = UriResolver.resolve(path, repo, rev, None)
     if type_ is not None:
+        type_, modifier = _get_type_modifier(type_)
         if type_ not in ImportAnalyzer.types:
             raise ValueError(f"Unknown import type {type_}")
-        meta = ImportAnalyzer.types[type_].process(loc, move=move)
+        meta = ImportAnalyzer.types[type_].process(
+            loc, move=move, modifier=modifier
+        )
     else:
         meta = ImportAnalyzer.analyze(loc, move=move)
     if move:

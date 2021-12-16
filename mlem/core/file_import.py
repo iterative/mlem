@@ -1,8 +1,8 @@
 import pickle
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Type
+from typing import Dict, Optional, Tuple, Type
 
-from mlem.core.artifacts import PlaceholderArtifact
+from mlem.core.artifacts import PlaceholderArtifact, get_file_info
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
@@ -20,7 +20,11 @@ class ImportHook(Hook[MlemMeta], ABC):
     @classmethod
     @abstractmethod
     def process(  # pylint: disable=arguments-differ # so what
-        cls, obj: Location, move: bool = True, **kwargs
+        cls,
+        obj: Location,
+        move: bool = True,
+        modifier: Optional[str] = None,
+        **kwargs
     ) -> MlemMeta:
         raise NotImplementedError
 
@@ -54,10 +58,22 @@ class PickleImportHook(ExtImportHook):
     type_ = "pickle"
 
     @classmethod
-    def process(cls, obj: Location, move: bool = True, **kwargs) -> MlemMeta:
+    def process(
+        cls,
+        obj: Location,
+        move: bool = True,
+        modifier: Optional[str] = None,
+        **kwargs
+    ) -> MlemMeta:
         with obj.open("rb") as f:
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)
         if not move:
-            meta.artifacts = [PlaceholderArtifact(location=obj, uri=obj.uri)]
+            meta.artifacts = [
+                PlaceholderArtifact(
+                    location=obj,
+                    uri=obj.uri,
+                    **get_file_info(obj.fullpath, obj.fs)
+                )
+            ]
         return meta
