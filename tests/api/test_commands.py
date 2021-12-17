@@ -153,7 +153,7 @@ def write_model_pickle(model):
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__move(
+def test_import_model_pickle_move(
     write_model_pickle, train, tmpdir, file_ext, type_
 ):
     path = str(tmpdir / "mymodel" + file_ext)
