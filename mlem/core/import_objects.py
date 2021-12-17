@@ -22,7 +22,7 @@ class ImportHook(Hook[MlemMeta], ABC):
     def process(  # pylint: disable=arguments-differ # so what
         cls,
         obj: Location,
-        move: bool = True,
+        copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs
     ) -> MlemMeta:
@@ -40,9 +40,9 @@ class ImportAnalyzer(Analyzer[MlemMeta]):
 
     @classmethod
     def analyze(  # pylint: disable=arguments-differ # so what
-        cls, obj: Location, move: bool = True, **kwargs
+        cls, obj: Location, copy_data: bool = True, **kwargs
     ) -> MlemMeta:
-        return super().analyze(obj, move=move, **kwargs)
+        return super().analyze(obj, copy_data=copy_data, **kwargs)
 
 
 class ExtImportHook(ImportHook, ABC):
@@ -61,14 +61,14 @@ class PickleImportHook(ExtImportHook):
     def process(
         cls,
         obj: Location,
-        move: bool = True,
+        copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs
     ) -> MlemMeta:
         with obj.open("rb") as f:
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)
-        if not move:
+        if not copy_data:
             meta.artifacts = [
                 PlaceholderArtifact(
                     location=obj,

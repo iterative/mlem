@@ -322,29 +322,33 @@ def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
 
 def import_object(
     path: str,
-    out: Optional[str] = None,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
-    move: bool = True,
+    fs: Optional[AbstractFileSystem] = None,
+    target: Optional[str] = None,
+    target_repo: Optional[str] = None,
+    target_fs: Optional[AbstractFileSystem] = None,
     type_: Optional[str] = None,
+    copy_data: bool = True,
     external: bool = None,
+    link: bool = None,
 ):
-    loc = UriResolver.resolve(path, repo, rev, None)
+    loc = UriResolver.resolve(path, repo, rev, fs)
     if type_ is not None:
         type_, modifier = _get_type_modifier(type_)
         if type_ not in ImportAnalyzer.types:
             raise ValueError(f"Unknown import type {type_}")
         meta = ImportAnalyzer.types[type_].process(
-            loc, move=move, modifier=modifier
+            loc, copy_data=copy_data, modifier=modifier
         )
     else:
-        meta = ImportAnalyzer.analyze(loc, move=move)
-    if move:
-        # TODO
-        pass
-    else:
-        pass
-    if out is not None:
-        # TODO: add other dump args
-        meta.dump(out, external=external)
+        meta = ImportAnalyzer.analyze(loc, copy_data=copy_data)
+    if target is not None:
+        meta.dump(
+            target,
+            fs=target_fs,
+            repo=target_repo,
+            link=link,
+            external=external,
+        )
     return meta

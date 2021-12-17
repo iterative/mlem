@@ -16,6 +16,7 @@ from mlem.api.commands import import_object
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     DataFrameType,
+    PandasConfig,
     PandasReader,
     PandasWriter,
     pd_type_from_string,
@@ -336,9 +337,9 @@ def _check_data(meta, out_path, fs=None):
 def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
     path = str(tmpdir / "mydata" + file_ext)
     write_csv(data, path)
-    out_path = str(tmpdir / "mlem_data")
-    meta = import_object(path, out=out_path, type_=type_)
-    _check_data(meta, out_path)
+    target_path = str(tmpdir / "mlem_data")
+    meta = import_object(path, target=target_path, type_=type_)
+    _check_data(meta, target_path)
 
 
 @long
@@ -347,9 +348,15 @@ def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
     repo_path = s3_tmp_path("test_csv_import")
     path = posixpath.join(repo_path, "data.csv")
     write_csv(b"a,b\n1,2", path, s3_storage_fs)
-    out_path = posixpath.join(repo_path, "imported_data")
-    meta = import_object(path, out=out_path)
-    _check_data(meta, out_path, s3_storage_fs)
+    target_path = posixpath.join(repo_path, "imported_data")
+    meta = import_object(path, target=target_path)
+    _check_data(meta, target_path, s3_storage_fs)
+
+
+def test_default_format(set_mlem_repo_root, df_type):
+    set_mlem_repo_root("pandas", __file__)
+    config = PandasConfig()
+    assert config.DEFAULT_FORMAT == "json"
 
 
 # Copyright 2019 Zyfra

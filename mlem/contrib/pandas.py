@@ -27,6 +27,7 @@ from pandas.core.dtypes.dtypes import (
 )
 from pydantic import BaseModel, create_model, validator
 
+from mlem.config import MlemConfigBase
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
 from mlem.core.artifacts import (
     Artifact,
@@ -103,6 +104,16 @@ def need_string_value(dtype):
         np.datetime64,
         np.object_,
     )
+
+
+class PandasConfig(MlemConfigBase):
+    DEFAULT_FORMAT: str = "csv"
+
+    class Config:
+        section = "pandas"
+
+
+PANDAS_CONFIG = PandasConfig()
 
 
 class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
@@ -279,8 +290,8 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         )
 
     def get_writer(self, **kwargs):
-        format = kwargs.get("format", "csv")
-        return PandasWriter(format=format)  # TODO env configuration
+        fmt = kwargs.get("format", PANDAS_CONFIG.DEFAULT_FORMAT)
+        return PandasWriter(format=fmt)  # TODO env configuration
 
 
 #
@@ -497,7 +508,7 @@ class PandasImport(ExtImportHook):
     def process(
         cls,
         obj: Location,
-        move: bool = True,
+        copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs,
     ) -> MlemMeta:
@@ -508,7 +519,7 @@ class PandasImport(ExtImportHook):
         with obj.open("rb") as f:
             data = fmt.read_func(f, **read_args)
         meta = get_object_metadata(data)
-        if not move:
+        if not copy_data:
             meta.artifacts = [
                 PlaceholderArtifact(
                     location=obj,

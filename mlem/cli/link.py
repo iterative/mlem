@@ -2,8 +2,12 @@ from typing import Optional
 
 import click
 
-from mlem.cli.main import mlem_command, option_rev
-from mlem.core.meta_io import MLEM_DIR
+from mlem.cli.main import (
+    mlem_command,
+    option_external,
+    option_rev,
+    option_target_repo,
+)
 
 
 @mlem_command("link")
@@ -16,19 +20,8 @@ from mlem.core.meta_io import MLEM_DIR
     help="Load source from mlem repo found in {source_repo} path.",
 )
 @click.argument("target")
-@click.option(
-    "--target-repo",
-    "--tr",
-    default=None,
-    help="Save link to mlem dir found in {target_repo} path.",
-)
-@click.option(
-    "--external",
-    "-e",
-    default=False,
-    is_flag=True,
-    help=f"Save link not in {MLEM_DIR}, but as a plain file.",
-)
+@option_target_repo
+@option_external
 @click.option(
     "--follow-links/--no-follow-links",
     "--f/--nf",

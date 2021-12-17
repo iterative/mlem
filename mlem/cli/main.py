@@ -5,6 +5,7 @@ import click
 
 from mlem import version
 from mlem.analytics import send_cli_call
+from mlem.constants import MLEM_DIR
 
 
 @click.group()
@@ -73,3 +74,21 @@ option_repo = click.option(
     "-r", "--repo", default=None, help="Path to MLEM repo"
 )
 option_rev = click.option("--rev", default=None, help="Repo revision to use.")
+option_link = click.option(
+    "--link/--no-link",
+    default=False,
+    help="Whether to create link for output in .mlem directory.",
+)
+option_external = click.option(
+    "--external",
+    "-e",
+    default=False,
+    is_flag=True,
+    help=f"Save object not in {MLEM_DIR}, but directly in repo.",
+)
+option_target_repo = click.option(
+    "--target-repo",
+    "--tr",
+    default=None,
+    help="Save object to mlem dir found in {target_repo} path.",
+)
