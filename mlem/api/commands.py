@@ -333,6 +333,9 @@ def import_object(
     external: bool = None,
     link: bool = None,
 ):
+    """Try to load an object as MLEM model (or dataset) and return it,
+    optionally saving to the specified target location
+    """
     loc = UriResolver.resolve(path, repo, rev, fs)
     if type_ is not None:
         type_, modifier = _get_type_modifier(type_)
