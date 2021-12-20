@@ -5,7 +5,7 @@ from mlem.cli.apply import apply
 from mlem.cli.config import config
 from mlem.cli.deploy import deploy
 from mlem.cli.env import environment
-from mlem.cli.get import get
+from mlem.cli.get import clone
 from mlem.cli.info import ls, pretty_print
 from mlem.cli.init import init
 from mlem.cli.link import link
@@ -23,7 +23,7 @@ __all__ = [
     "pretty_print",
     "link",
     "ls",
-    "get",
+    "clone",
     "serve",
     "config",
 ]
