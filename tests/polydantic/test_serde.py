@@ -1,8 +1,9 @@
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
-from pydantic import BaseModel, parse_obj_as
+from pydantic import BaseModel, parse_obj_as, validator
 
 from mlem.polydantic import PolyModel
+from mlem.polydantic.lazy import lazy_field
 
 
 def test_poly_model_dict():
@@ -109,3 +110,38 @@ def test_multi_parent():
     obj2 = parse_obj_as(Parent2, payload)
     assert isinstance(obj2, Child)
     assert obj2 == obj
+
+
+class PayloadParent(PolyModel):
+    __transient_fields__ = {"trans"}
+    trans: ClassVar[Any] = None
+
+
+class Payload(PayloadParent):
+    value: int
+
+    @validator("value")
+    def counter(cls, value):  # pylint: disable=no-self-argument  # noqa: B902
+        return value + 1
+
+
+class Parent(PolyModel):
+    __type_root__ = True
+
+
+class Model(Parent):
+    field_cache: Any
+    field: Payload
+    field, field_raw, field_cache = lazy_field(Payload, "field", "field_cache")
+
+
+def test_lazy_transient():
+    payload = Payload(value=1)
+    payload.trans = "value"
+    model = Model(field=payload)
+    assert isinstance(model.__dict__["field_cache"], Payload)
+    model_dict = model.dict()
+    assert "trans" not in model_dict["field"]
+    new_obj = parse_obj_as(Parent, model_dict)
+    assert isinstance(new_obj.__dict__["field_cache"], dict)
+    assert "trans" not in new_obj.dict()["field"]

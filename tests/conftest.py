@@ -292,3 +292,14 @@ def s3_storage():
 @pytest.fixture()
 def s3_storage_fs(s3_storage):
     return s3_storage.get_fs()
+
+
+@pytest.fixture
+def set_mlem_repo_root(mocker):
+    def set(path, __file__=__file__):
+        mocker.patch(
+            "mlem.utils.root.find_repo_root",
+            return_value=resource_path(__file__, path),
+        )
+
+    return set

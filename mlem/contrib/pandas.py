@@ -3,6 +3,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass
 from typing import (
+    IO,
     Any,
     Callable,
     ClassVar,
@@ -26,8 +27,15 @@ from pandas.core.dtypes.dtypes import (
 )
 from pydantic import BaseModel, create_model, validator
 
+from mlem.config import MlemConfigBase
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
-from mlem.core.artifacts import Artifact, Artifacts, Storage
+from mlem.core.artifacts import (
+    Artifact,
+    Artifacts,
+    PlaceholderArtifact,
+    Storage,
+    get_file_info,
+)
 from mlem.core.dataset_type import (
     Dataset,
     DatasetHook,
@@ -37,6 +45,10 @@ from mlem.core.dataset_type import (
     DatasetWriter,
 )
 from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.import_objects import ExtImportHook
+from mlem.core.meta_io import Location
+from mlem.core.metadata import get_object_metadata
+from mlem.core.objects import MlemMeta
 from mlem.core.requirements import LibRequirementsMixin
 
 _PD_EXT_TYPES = {
@@ -92,6 +104,16 @@ def need_string_value(dtype):
         np.datetime64,
         np.object_,
     )
+
+
+class PandasConfig(MlemConfigBase):
+    DEFAULT_FORMAT: str = "csv"
+
+    class Config:
+        section = "pandas"
+
+
+PANDAS_CONFIG = PandasConfig()
 
 
 class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
@@ -159,9 +181,6 @@ class SeriesType(_PandasDatasetType, DatasetHook):
 
     def serialize(self, instance: pd.Series):
         return instance.to_dict()
-
-    # def get_spec(self):
-    #     return [Field(c, python_type_from_pd_string_repr(d), False) for c, d in zip(self.columns, self.dtypes)]
 
 
 def has_index(df: pd.DataFrame):
@@ -261,11 +280,7 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 
         return {"values": (instance.to_dict("records"))}
 
-    # def get_spec(self) -> ArgList:
-    #     return [Field('values', List[self.row_type], False)]
-
     def row_type(self):
-        # return SeriesType(columns=self.columns, dtypes=self.dtypes, index_cols=self.index_cols)
         return create_model(
             "DataFrameRow",
             **{
@@ -275,95 +290,10 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         )
 
     def get_writer(self, **kwargs):
-        format = kwargs.get("format", "csv")
-        return PandasWriter(format=format)  # TODO env configuration
+        fmt = kwargs.get("format", PANDAS_CONFIG.DEFAULT_FORMAT)
+        return PandasWriter(format=fmt)  # TODO env configuration
 
 
-# class PandasFormat2:
-#     """ABC for reading and writing different formats supported in pandas
-#
-#     :param read_args: additional arguments for reading
-#     :param write_args: additional arguments for writing
-#     """
-#     # renamed type to _type so mypy and flake8 won't complain
-#     _type: str = None
-#     read_func: typing.Callable = None
-#     write_func: typing.Callable = None
-#     buffer_type: typing.Type[typing.IO] = None
-#
-#     def __init__(self, read_args: Dict[str, Any] = None, write_args: Dict[str, Any] = None):
-#         self.write_args = write_args or {}
-#         self.read_args = read_args or {}
-#
-#     def read(self, file_or_path):
-#         """Read DataFrame
-#
-#         :param file_or_path: source for read function"""
-#         kwargs = self.add_read_args()
-#         kwargs.update(self.read_args)
-#         return type(self).read_func(file_or_path, **kwargs)
-#
-#     def write(self, dataframe) -> typing.IO:
-#         """Write DataFrame to buffer
-#
-#         :param dataframe: DataFrame to write
-#         """
-#         buf = self.buffer_type()
-#         kwargs = self.add_write_args()
-#         kwargs.update(self.write_args)
-#         if has_index(dataframe):
-#             dataframe = reset_index(dataframe)
-#         type(self).write_func(dataframe, buf, **kwargs)
-#         return buf
-#
-#     def add_read_args(self) -> Dict[str, Any]:
-#         """Fuction with additional read argumnets for child classes to override"""
-#         return {}
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         """Fuction with additional write argumnets for child classes to override"""
-#         return {}
-
-
-#
-# class PandasFormatJson(PandasFormat):
-#     type = 'json'
-#     read_func = pd.read_json
-#     write_func = pd.DataFrame.to_json
-#     buffer_type = io.StringIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'date_format': 'iso', 'date_unit': 'ns'}
-#
-#     def read(self, file_or_path):
-#         # read_json creates index for some reason
-#         return super(PandasFormatJson, self).read(file_or_path).reset_index(drop=True)
-#
-#
-# class PandasFormatHtml(PandasFormat):
-#     type = 'html'
-#     read_func = pd.read_html
-#     write_func = pd.DataFrame.to_html
-#     buffer_type = io.StringIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'index': False}
-#
-#     def read(self, file_or_path):
-#         # read_html returns list of dataframes
-#         df = super(PandasFormatHtml, self).read(file_or_path)
-#         return df[0]
-#
-#
-# class PandasFormatExcel(PandasFormat):
-#     type = 'excel'
-#     read_func = pd.read_excel
-#     write_func = pd.DataFrame.to_excel
-#     buffer_type = io.BytesIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'index': False}
-#
 #
 # class PandasFormatHdf(PandasFormat):
 #     type = 'hdf'
@@ -408,34 +338,15 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 #         return df.reset_index(drop=True)
 #
 #
-# class PandasFormatFeather(PandasFormat):
-#     type = 'feather'
-#     read_func = pd.read_feather
-#     write_func = pd.DataFrame.to_feather
-#     buffer_type = io.BytesIO
-#
-#
-# class PandasFormatParquet(PandasFormat):
-#     type = 'parquet'
-#     read_func = pd.read_parquet
-#     write_func = pd.DataFrame.to_parquet
-#     buffer_type = io.BytesIO
 
 
-# class PandasFormatStata(PandasFormat): # TODO int32 converts to int64 for some reason
-#     type = 'stata'
-#     read_func = pd.read_stata
-#     write_func = pd.DataFrame.to_stata
-#     buffer_type = io.BytesIO
-#
-#     def add_write_args(self) -> Dict[str, Any]:
-#         return {'write_index': False}
-#
-# class PandasFormatPickle(PandasFormat): # TODO buffer closed error for some reason
-#     type = 'pickle'
-#     read_func = pd.read_pickle
-#     write_func = pd.DataFrame.to_pickle
-#     buffer_type = io.BytesIO
+class ToBytesIO(IO[Any]):
+    def __init__(self, fileobj, encoding: str = "utf8"):
+        self.encoding = encoding
+        self.fileobj = fileobj
+
+    def write(self, payload: str):
+        self.fileobj.write(payload.encode(self.encoding))
 
 
 @dataclass
@@ -445,6 +356,7 @@ class PandasFormat:
     read_args: Optional[Dict[str, Any]] = None
     write_args: Optional[Dict[str, Any]] = None
     file_name: str = "data.pd"
+    string_buffer: bool = False
 
     def read(self, artifacts: Artifacts, **kwargs):
         """Read DataFrame"""
@@ -467,7 +379,12 @@ class PandasFormat:
             write_kwargs.update(self.write_args)
         write_kwargs.update(kwargs)
 
+        if has_index(df):
+            df = reset_index(df)
+
         with storage.open(posixpath.join(path, self.file_name)) as (f, art):
+            if self.string_buffer:
+                f = ToBytesIO(f)  # type: ignore[abstract]
             self.write_func(df, f, **write_kwargs)
             return art
 
@@ -483,10 +400,53 @@ def read_csv_with_unnamed(*args, **kwargs):
     return df.rename(unnamed, axis=1)  # pylint: disable=no-member
 
 
+def read_json_reset_index(*args, **kwargs):
+    return pd.read_json(*args, **kwargs).reset_index(drop=True)
+
+
+def read_html(*args, **kwargs):
+    # read_html returns list of dataframes
+    return pd.read_html(*args, **kwargs)[0]
+
+
 PANDAS_FORMATS = {
     "csv": PandasFormat(
-        read_csv_with_unnamed, pd.DataFrame.to_csv, file_name="data.csv"
-    )
+        read_csv_with_unnamed,
+        pd.DataFrame.to_csv,
+        file_name="data.csv",
+        write_args={"index": False},
+    ),
+    "json": PandasFormat(
+        read_json_reset_index,
+        pd.DataFrame.to_json,
+        file_name="data.json",
+        write_args={"date_format": "iso", "date_unit": "ns"},
+    ),
+    "html": PandasFormat(
+        read_html,
+        pd.DataFrame.to_html,
+        file_name="data.html",
+        write_args={"index": False},
+        string_buffer=True,
+    ),
+    "excel": PandasFormat(
+        pd.read_excel,
+        pd.DataFrame.to_excel,
+        file_name="data.xlsx",
+        write_args={"index": False},
+    ),
+    "parquet": PandasFormat(
+        pd.read_parquet, pd.DataFrame.to_parquet, file_name="data.parquet"
+    ),
+    "feather": PandasFormat(
+        pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
+    ),
+    "pickle": PandasFormat(  # TODO buffer closed error for some reason
+        pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
+    ),
+    "strata": PandasFormat(  # TODO int32 converts to int64 for some reason
+        pd.read_stata, pd.DataFrame.to_stata, write_args={"write_index": False}
+    ),
 }
 
 
@@ -534,3 +494,37 @@ class PandasWriter(DatasetWriter, _PandasIO):
         return PandasReader(
             dataset_type=dataset.dataset_type, format=self.format
         ), [art]
+
+
+class PandasImport(ExtImportHook):
+    EXTS = tuple(f".{k}" for k in PANDAS_FORMATS)
+    type_ = "pandas"
+
+    @classmethod
+    def is_object_valid(cls, obj: Location) -> bool:
+        return super().is_object_valid(obj) and obj.fs.isfile(obj.fullpath)
+
+    @classmethod
+    def process(
+        cls,
+        obj: Location,
+        copy_data: bool = True,
+        modifier: Optional[str] = None,
+        **kwargs,
+    ) -> MlemMeta:
+        ext = modifier or posixpath.splitext(obj.path)[1][1:]
+        fmt = PANDAS_FORMATS[ext]
+        read_args = fmt.read_args or {}
+        read_args.update(kwargs)
+        with obj.open("rb") as f:
+            data = fmt.read_func(f, **read_args)
+        meta = get_object_metadata(data)
+        if not copy_data:
+            meta.artifacts = [
+                PlaceholderArtifact(
+                    location=obj,
+                    uri=obj.uri,
+                    **get_file_info(obj.fullpath, obj.fs),
+                )
+            ]
+        return meta
