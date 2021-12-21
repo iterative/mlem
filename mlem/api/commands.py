@@ -2,8 +2,9 @@
 MLEM's Python API
 """
 import posixpath
+import re
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import click
 from fsspec import AbstractFileSystem
@@ -15,6 +16,7 @@ from mlem.core.errors import (
     MlemObjectNotSavedError,
     MlemRootNotFound,
 )
+from mlem.core.import_objects import ImportAnalyzer
 from mlem.core.meta_io import (
     META_FILE_NAME,
     MLEM_DIR,
@@ -309,3 +311,51 @@ def ls(
                     continue
             res[obj_type].append(meta)
     return res
+
+
+def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
+    """If the same object can be imported from different types of files,
+    modifier helps to specify which format do you want to use
+    like this: pandas[csv] or pandas[json]
+    """
+    match = re.match(r"(\w*)\[(\w*)]", type_)
+    if not match:
+        return type_, None
+    return match.group(1), match.group(2)
+
+
+def import_object(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
+    target: Optional[str] = None,
+    target_repo: Optional[str] = None,
+    target_fs: Optional[AbstractFileSystem] = None,
+    type_: Optional[str] = None,
+    copy_data: bool = True,
+    external: bool = None,
+    link: bool = None,
+):
+    """Try to load an object as MLEM model (or dataset) and return it,
+    optionally saving to the specified target location
+    """
+    loc = UriResolver.resolve(path, repo, rev, fs)
+    if type_ is not None:
+        type_, modifier = _get_type_modifier(type_)
+        if type_ not in ImportAnalyzer.types:
+            raise ValueError(f"Unknown import type {type_}")
+        meta = ImportAnalyzer.types[type_].process(
+            loc, copy_data=copy_data, modifier=modifier
+        )
+    else:
+        meta = ImportAnalyzer.analyze(loc, copy_data=copy_data)
+    if target is not None:
+        meta.dump(
+            target,
+            fs=target_fs,
+            repo=target_repo,
+            link=link,
+            external=external,
+        )
+    return meta

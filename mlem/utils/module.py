@@ -11,7 +11,7 @@ from collections import namedtuple
 from functools import wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 import dill
 import requests
@@ -399,12 +399,26 @@ def lstrip_lines(lines: Union[str, List[str]], check=True) -> str:
     return "\n".join(line[to_strip:] for line in lines)
 
 
+_SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
+    "globals": {"re": {"_cache"}},
+    "nonlocals": {},
+}
+
+
 def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
         closure = inspect.getclosurevars(obj)
+        base_module_name = getattr(
+            get_object_base_module(obj), "__name__", None
+        )
+
         for field in ["nonlocals", "globals"]:
-            for o in getattr(closure, field).values():
+            for k, o in getattr(closure, field).items():
+                if k in _SKIP_CLOSURE_OBJECTS[field].get(
+                    base_module_name, set()
+                ):
+                    continue
                 if isinstance(o, ModuleType):
                     pickler.add_requirement(o)
                 else:

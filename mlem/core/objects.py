@@ -30,6 +30,7 @@ from mlem.core.artifacts import (
     FSSpecArtifact,
     FSSpecStorage,
     LocalArtifact,
+    PlaceholderArtifact,
 )
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
@@ -415,7 +416,7 @@ class _WithArtifacts(ABC, MlemMeta):
         external: Optional[bool] = None,
     ):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
-        self.artifacts = self.write_value()
+        self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
 
     @abstractmethod
@@ -489,10 +490,20 @@ class _WithArtifacts(ABC, MlemMeta):
             )
         return FSSpecStorage.from_fs_path(self.location.fs, self.dirname)
 
+    def get_artifacts(self):
+        if self.artifacts is None:
+            return self.write_value()
+        return [
+            a.relative_to(self.loc)
+            if isinstance(a, PlaceholderArtifact)
+            else a
+            for a in self.artifacts
+        ]
+
 
 class ModelMeta(_WithArtifacts):
     object_type: ClassVar = "model"
-    model_type_cache: Dict
+    model_type_cache: Any
     model_type: ModelType
     model_type, model_type_raw, model_type_cache = lazy_field(
         ModelType, "model_type", "model_type_cache"
@@ -519,15 +530,12 @@ class ModelMeta(_WithArtifacts):
 
     def write_value(self) -> Artifacts:
         if self.model_type.model is not None:
-            artifacts = self.model_type.io.dump(
+            return self.model_type.io.dump(
                 self.storage,
                 ART_DIR,
                 self.model_type.model,
             )
-        else:
-            raise NotImplementedError  # TODO: https://github.com/iterative/mlem/issues/37
-            # self.get_artifacts().materialize(path)
-        return artifacts
+        raise ValueError("Meta is not binded to actual model")
 
     def load_value(self):
         with self.requirements.import_custom():
@@ -590,10 +598,8 @@ class DatasetMeta(_WithArtifacts):
                 ART_DIR,
             )
             self.reader = reader
-        else:
-            raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/37
-            # artifacts = self.get_artifacts()
-        return artifacts
+            return artifacts
+        raise ValueError("Meta is not binded to actual data")
 
     def load_value(self):
         self.dataset = self.reader.read(self.relative_artifacts)

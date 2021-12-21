@@ -1,36 +1,43 @@
-# pylint: disable=no-member
 import os
+import pickle
 import posixpath
 
 import pytest
+from fsspec.implementations.local import LocalFileSystem
 from numpy import ndarray
+from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, link, load_meta
-from mlem.api.commands import init, ls
+from mlem.api.commands import import_object, init, ls
 from mlem.config import CONFIG_FILE
+from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
+from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
+from mlem.core.metadata import load
+from mlem.core.model import SimplePickleIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
+
+IMPORT_MODEL_FILENAME = "mymodel"
 
 
 @pytest.mark.parametrize(
     "m, d",
     [
         (
-            pytest.lazy_fixture("model_meta"),
-            pytest.lazy_fixture("dataset_meta"),
+            lazy_fixture("model_meta"),
+            lazy_fixture("dataset_meta"),
         ),
         (
-            pytest.lazy_fixture("model_meta_saved"),
-            pytest.lazy_fixture("dataset_meta_saved"),
+            lazy_fixture("model_meta_saved"),
+            lazy_fixture("dataset_meta_saved"),
         ),
         (
-            pytest.lazy_fixture("model_meta_saved"),
-            pytest.lazy_fixture("train"),
+            lazy_fixture("model_meta_saved"),
+            lazy_fixture("train"),
         ),
-        (pytest.lazy_fixture("model_path"), pytest.lazy_fixture("data_path")),
+        (lazy_fixture("model_path"), lazy_fixture("data_path")),
     ],
 )
 def test_apply(m, d):
@@ -126,3 +133,122 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
     init(path)
     assert s3_storage_fs.isdir(f"{path}/{MLEM_DIR}")
     assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE}")
+
+
+def _check_meta(meta, out_path, fs=None):
+    assert isinstance(meta, ModelMeta)
+    fs = fs or LocalFileSystem()
+    assert fs.isdir(out_path)
+    assert fs.isfile(posixpath.join(out_path, META_FILE_NAME))
+
+
+@pytest.fixture
+def write_model_pickle(model):
+    def write(path, fs=None):
+        fs = fs or LocalFileSystem()
+        with fs.open(path, "wb") as f:
+            pickle.dump(model, f)
+
+    return write
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle_move(
+    write_model_pickle, train, tmpdir, file_ext, type_
+):
+    path = str(tmpdir / "mymodel" + file_ext)
+    write_model_pickle(path)
+
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_object(path, target=out_path, type_=type_, copy_data=True)
+    _check_meta(meta, out_path)
+    assert os.path.isdir(os.path.join(out_path, ART_DIR))
+    assert os.path.isfile(
+        os.path.join(out_path, ART_DIR, SimplePickleIO.file_name)
+    )
+    loaded = load(out_path)
+    loaded.predict(train)
+
+
+def _check_load_artifact(
+    meta,
+    out_path,
+    is_abs,
+    train,
+    filename=IMPORT_MODEL_FILENAME,
+):
+    assert not meta.loc.fs.exists(posixpath.join(out_path, ART_DIR))
+    assert isinstance(meta, ModelMeta)
+    assert len(meta.artifacts) == 1
+    art = meta.artifacts[0]
+    if is_abs:
+        assert meta.loc.fs.exists(art.uri)
+    else:
+        assert isinstance(art, LocalArtifact)
+        assert art.uri == f"../{filename}"
+    loaded_meta = load_meta(out_path, load_value=True)
+    loaded = loaded_meta.get_value()
+    loaded.predict(train)
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle__no_move(
+    write_model_pickle, train, tmpdir, file_ext, type_
+):
+    path = str(tmpdir / IMPORT_MODEL_FILENAME + file_ext)
+    write_model_pickle(path)
+
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_object(path, target=out_path, type_=type_, copy_data=False)
+    _check_meta(meta, out_path)
+    _check_load_artifact(meta, out_path, True, train)
+
+
+@pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
+def test_import_model_pickle__no_move_in_mlem_repo(
+    write_model_pickle, train, mlem_repo, file_ext, type_
+):
+    filename = IMPORT_MODEL_FILENAME + file_ext
+    path = os.path.join(mlem_repo, filename)
+    write_model_pickle(path)
+
+    out_path = os.path.join(mlem_repo, "mlem_model")
+    meta = import_object(
+        path, target=out_path, type_=type_, copy_data=False, external=True
+    )
+    _check_meta(meta, out_path)
+    _check_load_artifact(meta, out_path, False, train, filename)
+
+
+@long
+@issue_110
+def test_import_model_pickle_remote(
+    s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
+):
+    path = posixpath.join(
+        s3_tmp_path("import_model_no_repo"), IMPORT_MODEL_FILENAME
+    )
+    write_model_pickle(path, s3_storage_fs)
+    out_path = str(tmpdir / "mlem_model")
+    meta = import_object(path, out_path, copy_data=False, type_="pickle")
+    _check_meta(meta, out_path)
+
+    loaded = load(out_path)
+    loaded.predict(train)
+
+
+@long
+@issue_110
+def test_import_model_pickle_remote_in_repo(
+    s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
+):
+    repo_path = s3_tmp_path("import_model_repo")
+    init(repo_path)
+    path = posixpath.join(repo_path, IMPORT_MODEL_FILENAME)
+    write_model_pickle(path, s3_storage_fs)
+    out_path = posixpath.join(repo_path, "mlem_model")
+    meta = import_object(
+        path, out_path, copy_data=False, type_="pickle", external=True
+    )
+    _check_meta(meta, out_path, s3_storage_fs)
+    _check_load_artifact(meta, out_path, False, train)

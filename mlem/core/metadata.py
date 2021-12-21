@@ -23,7 +23,7 @@ def get_object_metadata(
     description: str = None,
     params: Dict[str, str] = None,
     tags: List[str] = None,
-) -> MlemMeta:
+) -> Union[DatasetMeta, ModelMeta]:
     """Convert given object to appropriate MlemMeta subclass"""
     try:
         return DatasetMeta.from_data(

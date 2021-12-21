@@ -26,7 +26,7 @@ from fsspec.implementations.local import LocalFileSystem
 from typing_extensions import Literal, TypedDict
 
 from mlem.core.base import MlemObject
-from mlem.core.meta_io import get_fs, get_path_by_fs_path
+from mlem.core.meta_io import Location, get_fs, get_path_by_fs_path
 
 CHUNK_SIZE = 2 ** 20  # 1 mb
 
@@ -93,6 +93,10 @@ class Artifact(MlemObject, ABC):
         # TODO: maybe change fs and path to meta_storage in the future
         raise NotImplementedError
 
+    @property
+    def info(self):
+        return {"hash": self.hash, "size": self.size}
+
 
 class FSSpecArtifact(Artifact):
     type: ClassVar = "fsspec"
@@ -104,13 +108,13 @@ class FSSpecArtifact(Artifact):
         if os.path.isdir(target_path):
             target_path = posixpath.join(target_path, posixpath.basename(path))
         fs.download(path, target_path)
-        return LocalArtifact(uri=target_path, size=self.size, hash=self.hash)
+        return LocalArtifact(uri=target_path, **self.info)
 
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
 
         fs, path = get_fs(self.uri)
-        with fs.open(path) as f:
+        with fs.open(posixpath.normpath(path)) as f:
             yield f
 
     def relative(
@@ -119,6 +123,36 @@ class FSSpecArtifact(Artifact):
         path: str,
     ) -> "Artifact":
         return self
+
+
+class PlaceholderArtifact(Artifact):
+    """On dumping this artifact will be replaced with actual artifact that
+    is relative to repo root (if there is a repo)"""
+
+    location: Location
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
+        raise NotImplementedError
+
+    def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self) -> Iterator[IO]:
+        raise NotImplementedError
+
+    def relative_to(self, location: Location) -> "Artifact":
+        if location.repo is None:
+            return FSSpecArtifact(uri=self.location.uri, **self.info)
+        if self.location.fs == location.fs:
+            return LocalArtifact(
+                uri=posixpath.relpath(
+                    self.location.fullpath,
+                    posixpath.dirname(location.fullpath),
+                ),
+                **self.info,
+            )
+        return FSSpecArtifact(uri=self.uri, **self.info)
 
 
 class Storage(MlemObject, ABC):
