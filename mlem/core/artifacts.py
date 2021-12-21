@@ -126,6 +126,9 @@ class FSSpecArtifact(Artifact):
 
 
 class PlaceholderArtifact(Artifact):
+    """On dumping this artifact will be replaced with actual artifact that
+    is relative to repo root (if there is a repo)"""
+
     location: Location
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
