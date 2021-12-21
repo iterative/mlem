@@ -314,6 +314,10 @@ def ls(
 
 
 def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
+    """If the same object can be imported from different types of files,
+    modifier helps to specify which format do you want to use
+    like this: pandas[csv] or pandas[json]
+    """
     match = re.match(r"(\w*)\[(\w*)]", type_)
     if not match:
         return type_, None
