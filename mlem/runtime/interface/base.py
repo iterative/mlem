@@ -166,8 +166,10 @@ class ModelInterface(Interface):
         meta = load_meta(uri)
         if not isinstance(meta, ModelMeta):
             raise ValueError("Interface can be created only from models")
+        if meta.artifacts is None:
+            raise ValueError("Cannot load not saved object")
         self.model_type = meta.model_type
-        self.model_type.load(meta.fs, uri)
+        self.model_type.load(meta.artifacts)
 
     @classmethod
     def from_model(cls, model: ModelMeta):

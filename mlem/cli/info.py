@@ -1,43 +1,28 @@
 import os
 from pprint import pprint
-from typing import List, Type
+from typing import List, Optional, Type
 
 import click
-from fsspec.implementations.local import LocalFileSystem
 
-from mlem.cli.main import mlem_command
-from mlem.core.meta_io import get_fs
-from mlem.core.objects import (
-    MLEM_DIR,
-    MLEM_EXT,
-    MlemLink,
-    MlemMeta,
-    find_object,
-)
-from mlem.utils.root import find_mlem_root
+from mlem.cli.main import mlem_command, option_repo, option_rev
+from mlem.core.metadata import load_meta
+from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
 
 
-def _print_objects_of_type(
-    cls: Type[MlemMeta], objects: List[MlemMeta], mlem_root: str
-):
+def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
     if len(objects) == 0:
         return
 
     print(cls.object_type.capitalize() + "s:")
     for meta in objects:
-        obj_name = os.path.relpath(meta.name or "?", mlem_root)
         if (
             isinstance(meta, MlemLink)
-            and obj_name != meta.mlem_link[: -len(MLEM_EXT)]
+            and meta.name != meta.path[: -len(MLEM_EXT)]
         ):
-            link = f"-> {os.path.dirname(meta.mlem_link)}"
-            obj_name = os.path.relpath(
-                obj_name, os.path.join(MLEM_DIR, cls.object_type)
-            )[: -len(MLEM_EXT)]
+            link = f"-> {os.path.dirname(meta.path)}"
         else:
             link = ""
-            obj_name = os.path.dirname(obj_name)
-        print("", "-", obj_name, *[link] if link else [])
+        print("", "-", meta.name, *[link] if link else [])
 
 
 TYPE_ALIASES = {
@@ -52,10 +37,11 @@ TYPE_ALIASES = {
     "type_filter",
     default="all",
 )
-@click.option("-r", "--repo", default=".")
+@option_repo
+@option_rev
 @click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
-def ls(type_filter: str, repo: str, links: bool):
-    """List MLEM objects of {type} in current mlem_root."""
+def ls(type_filter: str, repo: str, rev: Optional[str], links: bool):
+    """List MLEM objects of {type} in repo."""
     from mlem.api.commands import ls
 
     if type_filter == "all":
@@ -65,16 +51,14 @@ def ls(type_filter: str, repo: str, links: bool):
             TYPE_ALIASES.get(type_filter, type_filter)
         ]
 
-    objects = ls(repo, types, include_links=links)
-    fs, path = get_fs(repo)
-    mlem_root = find_mlem_root(path, fs)
+    objects = ls(repo or ".", rev=rev, type_filter=types, include_links=links)
     for cls, objs in objects.items():
-        _print_objects_of_type(cls, objs, mlem_root)
+        _print_objects_of_type(cls, objs)
     return {"type_filter": type_filter}
 
 
 @mlem_command("pprint")
-@click.argument("obj")
+@click.argument("path")
 @click.option(
     "-f",
     "--follow-links",
@@ -83,12 +67,12 @@ def ls(type_filter: str, repo: str, links: bool):
     is_flag=True,
     help="If specified, follow the link to the actual object.",
 )
-def pretty_print(obj: str, follow_links: bool):
+@option_repo
+@option_rev
+def pretty_print(
+    path: str, repo: str = None, rev: str = None, follow_links: bool = False
+):
     """Print __str__ for the specified MLEM object."""
-    fs = LocalFileSystem()  # TODO: https://github.com/iterative/mlem/issues/31
-    tp, _ = find_object(obj, fs)
     pprint(
-        MlemMeta.subtype_mapping()[tp].read(
-            obj, follow_links=follow_links, fs=fs
-        )
+        load_meta(path, repo, rev, follow_links=follow_links, load_value=False)
     )

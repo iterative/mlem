@@ -1,12 +1,11 @@
-import os
+import posixpath
 from types import ModuleType
 from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
 
 import numpy as np
-from fsspec import AbstractFileSystem
 from pydantic import BaseModel, conlist, create_model
 
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     Dataset,
     DatasetHook,
@@ -166,12 +165,11 @@ class NumpyArrayWriter(DatasetWriter):
     type: ClassVar[str] = "numpy"
 
     def write(
-        self, dataset: Dataset, fs: AbstractFileSystem, path: str
+        self, dataset: Dataset, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
-        fs.makedirs(path, True)
-        with fs.open(os.path.join(path, DATA_FILE), mode="wb") as f:
+        with storage.open(posixpath.join(path, DATA_FILE)) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})
-        return NumpyArrayReader(dataset_type=dataset.dataset_type), [DATA_FILE]
+        return NumpyArrayReader(dataset_type=dataset.dataset_type), [art]
 
 
 class NumpyArrayReader(DatasetReader):
@@ -179,7 +177,11 @@ class NumpyArrayReader(DatasetReader):
 
     type: ClassVar[str] = "numpy"
 
-    def read(self, fs: AbstractFileSystem, path: str) -> Dataset:
-        with fs.open(os.path.join(path, DATA_FILE)) as f:
+    def read(self, artifacts: Artifacts) -> Dataset:
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be oe {DATA_FILE} file"
+            )
+        with artifacts[0].open() as f:
             data = np.load(f)[DATA_KEY]
         return Dataset(data, self.dataset_type)

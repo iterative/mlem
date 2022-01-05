@@ -6,10 +6,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
-from fsspec import AbstractFileSystem
 from pydantic import BaseModel
 
-from mlem.core.artifacts import Artifacts
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.base import MlemObject
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import Analyzer, Hook
@@ -343,7 +342,7 @@ class DatasetReader(MlemObject, ABC):
     abs_name: ClassVar[str] = "dataset_reader"
 
     @abstractmethod
-    def read(self, fs: AbstractFileSystem, path: str) -> Dataset:
+    def read(self, artifacts: Artifacts) -> Dataset:
         raise NotImplementedError()
 
 
@@ -353,7 +352,7 @@ class DatasetWriter(MlemObject):
 
     @abstractmethod
     def write(
-        self, dataset: Dataset, fs: AbstractFileSystem, path: str
+        self, dataset: Dataset, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         raise NotImplementedError()
 

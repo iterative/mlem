@@ -1,5 +1,6 @@
 import logging
 import os
+import posixpath
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
@@ -28,7 +29,7 @@ class DockerBuildArgs(BaseModel):
     :param templates_dir: directory or list of directories for Dockerfile templates, default: ./docker_templates
        - `pre_install.j2` - Dockerfile commands to run before pip
        - `post_install.j2` - Dockerfile commands to run after pip
-       - `post_copy.j2` - Dockerfile commands to run after pip and Ebonite distribution copy
+       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy
     :param run_cmd: command to run in container, default: sh run.sh
     :param package_install_cmd: command to install packages. Default is apt-get, change it for other package manager
     :param prebuild_hook: callable to call before build, accepts python version. Used for pre-building server images
@@ -176,11 +177,9 @@ class DockerModelDirectory(BaseModel):
         sources.update(self.server.get_sources())
         for path, src in sources.items():
             logger.debug('Putting model source "%s" to distribution...', path)
-            full_path = os.path.join(self.path, path)
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            with self.fs.open(
-                full_path, "w" if isinstance(src, str) else "wb"
-            ) as f:
+            full_path = posixpath.join(self.path, path)
+            self.fs.makedirs(posixpath.dirname(full_path), exist_ok=True)
+            with self.fs.open(full_path, "wb") as f:
                 f.write(src)
 
         # pip_mlem = mlem_from_pip()
@@ -193,7 +192,7 @@ class DockerModelDirectory(BaseModel):
         #     shutil.copy(pip_mlem, target_dir)
 
     def write_run_file(self):
-        with self.fs.open(os.path.join(self.path, "run.sh"), "w") as sh:
+        with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
             sh.write("mlem serve .")
 
     def write_mlem_whl(self):

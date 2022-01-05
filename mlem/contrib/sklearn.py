@@ -26,10 +26,11 @@ class SklearnModel(ModelType, ModelHook):
 
     type: ClassVar[str] = "sklearn"
     io: ModelIO = SimplePickleIO()
+    valid_types: ClassVar = (RegressorMixin, ClassifierMixin)
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return isinstance(obj, (RegressorMixin, ClassifierMixin))
+        return isinstance(obj, cls.valid_types)
 
     @classmethod
     def process(
@@ -66,4 +67,6 @@ class SklearnModel(ModelType, ModelHook):
             )  # FIXME: https://github.com/iterative/mlem/issues/34 # optimize methods reqs
 
         # some sklearn compatible model (either from library or user code) - fallback
-        return super().get_requirements()
+        return super().get_requirements() + InstallableRequirement.from_module(
+            sklearn
+        )

@@ -3,17 +3,16 @@ Helper functions and wrappers for CLI commands created with click.
 These define reused functionality and configuration of complex objects in command line.
 """
 import shlex
-import sys
 from functools import wraps
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
 import click
-from pydantic import parse_obj_as
+from pydantic import BaseModel, parse_obj_as
 from yaml import safe_load
 
 from mlem.core.base import MlemObject
-from mlem.core.meta_io import deserialize
 from mlem.core.metadata import load_meta
+from mlem.utils.path import make_posix
 
 OBJ_CTX_NAME = "model_meta"
 
@@ -74,22 +73,28 @@ def smart_split(string: str, char: str):
         string = string.replace(" ", SPECIAL).replace(char, " ")
     return [
         s.replace(" ", char).replace(SPECIAL, " ")
-        for s in shlex.split(
-            string, posix="win" not in sys.platform or "darwin" in sys.platform
-        )
+        for s in shlex.split(string, posix=True)
     ]
 
 
-def build_model(
+def build_poly_model(
     model: Type[MlemObject],
     subtype: str,
     conf: List[str],
     file_conf: List[str],
 ):
-    model_dict = {model.__type_field__: subtype}
+    return build_model(
+        model, conf, file_conf, **{model.__type_field__: subtype}
+    )
 
+
+def build_model(
+    model: Type[BaseModel], conf: List[str], file_conf: List[str], **kwargs
+):
+    model_dict = {}
+    model_dict.update(kwargs)
     for file in file_conf:
-        keys, path = smart_split(file, "=")
+        keys, path = smart_split(make_posix(file), "=")
         with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
         _set_recursively(model_dict, smart_split(keys, "."), value)
@@ -118,9 +123,9 @@ def config_arg(name: str, model: Type[MlemObject], **kwargs):
         ):
             if load is not None:
                 with open(load, "r", encoding="utf8") as of:
-                    obj = deserialize(safe_load(of), model)
+                    obj = parse_obj_as(model, safe_load(of))
             else:
-                obj = build_model(model, subtype, conf, file_conf)
+                obj = build_poly_model(model, subtype, conf, file_conf)
             inner_kwargs[name] = obj
             return f(**inner_kwargs)
 
@@ -150,4 +155,4 @@ def create_configurable(
             raise NotImplementedError(
                 f"Not yet implemented for type {field.type_}"
             ) from e
-    return deserialize(args, cls)
+    return parse_obj_as(cls, args)

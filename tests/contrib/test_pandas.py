@@ -1,16 +1,22 @@
 import io
 import json
+import os
+import posixpath
 from datetime import datetime, timezone
 from typing import Callable, List, Union
 
 import pandas as pd
 import pytest
+from fsspec.implementations.local import LocalFileSystem
+from pydantic import parse_obj_as
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
+from mlem.api.commands import import_object
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     DataFrameType,
+    PandasConfig,
     PandasReader,
     PandasWriter,
     pd_type_from_string,
@@ -20,9 +26,10 @@ from mlem.contrib.pandas import (
 )
 from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.meta_io import deserialize, serialize
+from mlem.core.meta_io import META_FILE_NAME
 from mlem.core.metadata import load, save
-from tests.conftest import dataset_write_read_check
+from mlem.core.objects import DatasetMeta
+from tests.conftest import dataset_write_read_check, issue_110, long
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -139,6 +146,7 @@ def test_with_multiindex(data, format):
     exclude=[
         "excel",  # Excel does not support datetimes with timezones
         "parquet",  # Casting from timestamp[ns] to timestamp[ms] would lose data
+        "strata",  # Data type datetime64[ns, UTC] not supported.
     ]
 )
 @pytest.mark.parametrize(
@@ -181,8 +189,8 @@ def test_df_type(df_type_fx, request):
     df_type = request.getfixturevalue(df_type_fx)
     assert isinstance(df_type, DataFrameType)
 
-    obj = serialize(df_type)
-    new_df_type = deserialize(obj, DatasetType)
+    obj = df_type.dict()
+    new_df_type = parse_obj_as(DatasetType, obj)
 
     assert df_type == new_df_type
 
@@ -293,6 +301,62 @@ def test_save_load(iris_data, tmpdir):
     data2 = load(tmpdir)
 
     pandas_assert(data2, iris_data)
+
+
+@pytest.fixture
+def write_csv():
+    def write(data, path, fs=None):
+        fs = fs or LocalFileSystem()
+        with fs.open(path, "wb") as f:
+            f.write(data)
+
+    return write
+
+
+def _check_data(meta, out_path, fs=None):
+    fs = fs or LocalFileSystem()
+    assert isinstance(meta, DatasetMeta)
+    dt = meta.dataset.dataset_type
+    assert isinstance(dt, DataFrameType)
+    assert dt.columns == ["a", "b"]
+    assert dt.dtypes == ["int64", "int64"]
+    assert fs.isdir(out_path)
+    assert fs.isfile(os.path.join(out_path, META_FILE_NAME))
+    loaded = load(out_path)
+    assert isinstance(loaded, pd.DataFrame)
+
+
+@pytest.mark.parametrize(
+    "file_ext, type_, data",
+    [
+        (".csv", None, b"a,b\n1,2"),
+        ("", "pandas[csv]", b"a,b\n1,2"),
+        (".json", None, b'[{"a":1,"b":2}]'),
+    ],
+)
+def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
+    path = str(tmpdir / "mydata" + file_ext)
+    write_csv(data, path)
+    target_path = str(tmpdir / "mlem_data")
+    meta = import_object(path, target=target_path, type_=type_)
+    _check_data(meta, target_path)
+
+
+@long
+@issue_110
+def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
+    repo_path = s3_tmp_path("test_csv_import")
+    path = posixpath.join(repo_path, "data.csv")
+    write_csv(b"a,b\n1,2", path, s3_storage_fs)
+    target_path = posixpath.join(repo_path, "imported_data")
+    meta = import_object(path, target=target_path)
+    _check_data(meta, target_path, s3_storage_fs)
+
+
+def test_default_format(set_mlem_repo_root, df_type):
+    set_mlem_repo_root("pandas", __file__)
+    config = PandasConfig()
+    assert config.DEFAULT_FORMAT == "json"
 
 
 # Copyright 2019 Zyfra

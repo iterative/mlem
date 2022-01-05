@@ -11,7 +11,7 @@ from collections import namedtuple
 from functools import wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 import dill
 import requests
@@ -155,12 +155,14 @@ class ISortModuleFinder:
     def __init__(self):
         config = default.copy()
         config["known_first_party"].append("mlem")
-        config["known_third_party"].append("xgboost")
+        # TODO: https://github.com/iterative/mlem/issues/45
+        config["known_third_party"].extend(["xgboost", "lightgbm", "catboost"])
         config["known_standard_library"].extend(
             [
                 "opcode",
                 "nturl2path",  # pytest requirements missed by isort
-                "pkg_resources",  # EBNT-112: workaround for imports from setup.py (see build/builder/docker.py)
+                "pkg_resources",  # workaround for imports from setup.py (see build/builder/docker.py)
+                "sre_compile",
                 "posixpath",
                 "setuptools",
                 "pydevconsole",
@@ -348,7 +350,7 @@ def get_module_as_requirement(
     mod: ModuleType, validate_pypi=False
 ) -> InstallableRequirement:
     """
-    Builds Ebonite representation of given module object
+    Builds MLEM representation of given module object
 
     :param mod: module object to use
     :param validate_pypi: if `True` (default is `False`) perform representation validation in PyPi repository
@@ -397,12 +399,26 @@ def lstrip_lines(lines: Union[str, List[str]], check=True) -> str:
     return "\n".join(line[to_strip:] for line in lines)
 
 
+_SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
+    "globals": {"re": {"_cache"}},
+    "nonlocals": {},
+}
+
+
 def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
         closure = inspect.getclosurevars(obj)
+        base_module_name = getattr(
+            get_object_base_module(obj), "__name__", None
+        )
+
         for field in ["nonlocals", "globals"]:
-            for o in getattr(closure, field).values():
+            for k, o in getattr(closure, field).items():
+                if k in _SKIP_CLOSURE_OBJECTS[field].get(
+                    base_module_name, set()
+                ):
+                    continue
                 if isinstance(o, ModuleType):
                     pickler.add_requirement(o)
                 else:
@@ -507,6 +523,7 @@ class RequirementAnalyzer(dill.Pickler):
             any(mod.__name__.startswith(i) for i in self.ignoring)
             or is_private_module(mod)
             or is_pseudo_module(mod)
+            or is_builtin_module(mod)
         )
 
     def add_requirement(self, obj_or_module):
@@ -533,6 +550,14 @@ class RequirementAnalyzer(dill.Pickler):
                     if local_req in self._modules:
                         continue
                     self.add_requirement(local_req)
+                # add imports of subpackage
+                if "." in module.__name__:
+                    parent_package_name, _ = module.__name__.rsplit(
+                        ".", maxsplit=1
+                    )
+                    if parent_package_name not in self._modules:
+                        parent_package = sys.modules[parent_package_name]
+                        self.add_requirement(parent_package)
 
     def save(self, obj, save_persistent_id=True):
         if id(obj) in self.seen:
@@ -565,7 +590,10 @@ def get_object_requirements(obj) -> Requirements:
     :param obj: obj to analyze
     :return: :class:`.Requirements` object containing all required packages
     """
-    a = RequirementAnalyzer(recurse=True)
+    # there was recurse=True here for some reason, but this caused infinite recursion in some cases
+    # (def a(): b(); def b(): a(); def func(): a(); get_obj_reqs(func) - smth like that)
+    # I removed it and none of the tests failed ¯\_(ツ)_/¯
+    a = RequirementAnalyzer()
     a.dump(obj)
     return a.to_requirements()
 

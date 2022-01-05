@@ -1,8 +1,8 @@
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 import click
 
-from mlem.cli.main import mlem_command
+from mlem.cli.main import mlem_command, option_link
 from mlem.cli.utils import with_model_meta
 from mlem.core.objects import ModelMeta
 
@@ -19,19 +19,21 @@ from mlem.core.objects import ModelMeta
     help="Which model method is to apply (if the model is instance of class).",
 )
 @click.argument("args", nargs=-1)
-@click.option(
-    "--link/--no-link",
-    default=False,
-    help="Whether to create links for outputs in .mlem directory.",
-)
+@option_link
 def apply(
-    model: ModelMeta, output: str, method: str, args: Tuple[Any], link: bool
+    model: ModelMeta,
+    output: Optional[str],
+    method: str,
+    args: Tuple[Any],
+    link: bool,
 ):
     """Apply a model to supplied data."""
     from mlem.api import apply
 
     click.echo("applying")
-    apply(model, *args, method=method, output=output, link=link)
+    result = apply(model, *args, method=method, output=output, link=link)
+    if output is None:
+        click.echo(result)
 
 
 @mlem_command()

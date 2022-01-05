@@ -1,84 +1,304 @@
 """
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
-import os
-import pathlib
-from typing import Dict, Tuple, Type, TypeVar, Union
-from urllib.parse import urlparse
+import contextlib
+import posixpath
+from abc import ABC, abstractmethod
+from inspect import isabstract
+from typing import List, Optional, Tuple, Type
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
-from fsspec.implementations.local import LocalFileSystem
-from pydantic import parse_obj_as
+from pydantic import BaseModel
 
-from mlem.config import CONFIG
-from mlem.core.base import MlemObject
-from mlem.utils.root import MLEM_DIR
+from mlem.utils.github import get_github_envs, get_github_kwargs
+from mlem.utils.root import MLEM_DIR, find_repo_root
 
 MLEM_EXT = ".mlem.yaml"
-
 
 META_FILE_NAME = "mlem.yaml"
 ART_DIR = "artifacts"
 
 
-def get_github_kwargs(uri: str):
-    """Parse URI to git repo to get dict with all URI parts"""
-    # TODO: do we lose URL to the site, like https://github.com?
-    # should be resolved as part of https://github.com/iterative/mlem/issues/4
-    parsed = urlparse(uri)
-    parts = pathlib.Path(parsed.path).parts
-    org, repo, *path = parts[1:]
-    if not path:
-        return {"org": org, "repo": repo, "path": ""}
-    if path[0] == "tree":
-        sha = path[1]
-        path = path[2:]
-    else:
-        sha = CONFIG.DEFAULT_BRANCH
-    return {
-        "org": org,
-        "repo": repo,
-        "sha": sha,
-        "path": os.path.join(*path),
-    }
+class Location(BaseModel):
+    path: str
+    repo: Optional[str]
+    rev: Optional[str]
+    uri: str
+    fs: AbstractFileSystem
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @property
+    def fullpath(self):
+        return posixpath.join(self.repo or "", self.path)
+
+    @property
+    def path_in_repo(self):
+        return posixpath.relpath(self.fullpath, self.repo)
+
+    @property
+    def repo_uri(self):
+        if self.repo is None:
+            return None
+        # not sure if this is ok
+        # maybe we need to merge Location with UriResolver and implement this separately for each case
+        return self.uri[: -len(self.path)]
+
+    @contextlib.contextmanager
+    def open(self, mode="r", **kwargs):
+        with self.fs.open(self.fullpath, mode, **kwargs) as f:
+            yield f
+
+    @classmethod
+    def abs(cls, path: str, fs: AbstractFileSystem):
+        return Location(path=path, repo=None, fs=fs, uri=path)
+
+    def update_path(self, path):
+        if not self.uri.endswith(self.path):
+            raise ValueError("cannot automatically update uri")
+        self.uri = self.uri[: -len(self.path)] + path
+        self.path = path
 
 
-def resolve_fs(
-    fs: Union[str, AbstractFileSystem] = None, protocol: str = None
-):
-    """Try to resolve fs from given fs or URI"""
-    # TODO: do we really need this function?
-    # address in https://github.com/iterative/mlem/issues/4
-    if fs is None:
-        return LocalFileSystem()
-    if isinstance(fs, AbstractFileSystem):
-        return fs
-    fs, _ = get_fs(uri=fs, protocol=protocol)
-    return fs
+class UriResolver(ABC):
+    impls: List[Type["UriResolver"]] = []
+    versioning_support: bool = False
+
+    def __init_subclass__(cls, *args, **kwargs):
+        if not isabstract(cls) and cls not in cls.impls:
+            cls.impls.append(cls)
+        super(UriResolver, cls).__init_subclass__(*args, **kwargs)
+
+    @classmethod
+    def resolve(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+        find_repo: bool = False,
+    ) -> Location:
+        return cls.find_resolver(path, repo, rev, fs).process(
+            path, repo, rev, fs, find_repo
+        )
+
+    @classmethod
+    def find_resolver(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> Type["UriResolver"]:
+        for i in cls.impls:
+            if i.check(path, repo, rev, fs):
+                return i
+        raise ValueError("No valid UriResolver implementation found")
+
+    @classmethod
+    @abstractmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[AbstractFileSystem, str]:
+        raise NotImplementedError
+
+    @classmethod
+    def process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+        find_repo: bool,
+    ) -> Location:
+        path, repo, rev, fs = cls.pre_process(path, repo, rev, fs)
+        if rev is not None and not cls.versioning_support:
+            raise ValueError(
+                f"Rev {rev} was provided, but {cls} does not support versioning"
+            )
+        if fs is None:
+            if repo is not None:
+                fs, repo = cls.get_fs(repo, rev)
+            else:
+                fs, path = cls.get_fs(path, rev)
+        if repo is None and find_repo:
+            path, repo = cls.get_repo(path, fs)
+        return Location(
+            path=path,
+            repo=repo,
+            rev=rev,
+            uri=cls.get_uri(path, repo, rev, fs),
+            fs=fs,
+        )
+
+    @classmethod
+    @abstractmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: AbstractFileSystem,
+    ):
+        raise NotImplementedError
+
+    @classmethod
+    def pre_process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> Tuple[
+        str, Optional[str], Optional[str], Optional[AbstractFileSystem]
+    ]:
+        return path, repo, rev, fs
+
+    @classmethod
+    def get_repo(
+        cls, path: str, fs: AbstractFileSystem
+    ) -> Tuple[str, Optional[str]]:
+        repo = find_repo_root(path, fs, raise_on_missing=False)
+        if repo is not None:
+            path = posixpath.relpath(path, repo)
+        return path, repo
 
 
-def get_envs() -> Dict:
-    """Get authentification envs"""
-    kwargs = {}
-    if CONFIG.GITHUB_TOKEN is not None:
-        kwargs["username"] = CONFIG.GITHUB_USERNAME
-        kwargs["token"] = CONFIG.GITHUB_TOKEN
-    return kwargs
+class GithubResolver(UriResolver):
+    PROTOCOL = "github://"
+    GITHUB_COM = "https://github.com"
+
+    # TODO: support on-prem github (other hosts)
+    PREFIXES = [GITHUB_COM, PROTOCOL]
+    versioning_support = True
+
+    @classmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        fullpath = posixpath.join(repo or "", path)
+        return isinstance(fs, GithubFileSystem) or any(
+            fullpath.startswith(h) for h in cls.PREFIXES
+        )
+
+    @classmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[GithubFileSystem, str]:
+        options = get_github_envs()
+        if not uri.startswith(cls.PROTOCOL):
+            options.update(get_github_kwargs(uri))
+            uri = options.pop("path")
+            options["sha"] = rev or options.get("sha", None)
+
+        fs, _, (path,) = get_fs_token_paths(
+            uri, protocol="github", storage_options=options
+        )
+        return fs, path
+
+    @classmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: GithubFileSystem,
+    ):
+        fullpath = posixpath.join(repo or "", path)
+        return (
+            f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{fullpath}"
+        )
+
+    @classmethod
+    def pre_process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ):
+        if fs is not None and not isinstance(fs, GithubFileSystem):
+            raise TypeError(
+                f"{path, repo, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
+            )
+        if (
+            isinstance(fs, GithubFileSystem)
+            and rev is not None
+            and fs.root != rev
+        ):
+            fs.root = rev
+            fs.invalidate_cache()
+
+        return path, repo, rev, fs
 
 
-def get_fs(uri: str, protocol: str = None) -> Tuple[AbstractFileSystem, str]:
-    """Parse given (uri, protocol) with fsspec and return (fs, path)"""
-    kwargs = get_envs()
-    if protocol is None and uri.startswith("https://github.com"):
-        protocol = "github"
-        github_kwargs = get_github_kwargs(uri)
-        uri = github_kwargs.pop("path")
-        kwargs.update(github_kwargs)
-    fs, _, (path,) = get_fs_token_paths(
-        uri, protocol=protocol, storage_options=kwargs
+class FSSpecResolver(UriResolver):
+    @classmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        return True
+
+    @classmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[AbstractFileSystem, str]:
+        fs, _, (path,) = get_fs_token_paths(uri)
+        return fs, path
+
+    @classmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: AbstractFileSystem,
+    ):
+        fullpath = posixpath.join(repo or "", path)
+        protocol = fs.protocol
+        if isinstance(protocol, (tuple, list)):
+            if any(fullpath.startswith(p) for p in protocol):
+                return fullpath
+            protocol = protocol[0]
+        if fullpath.startswith(protocol):
+            return fullpath
+        return f"{protocol}://{fullpath}"
+
+
+def get_fs(uri: str):
+    location = UriResolver.resolve(path=uri, repo=None, rev=None, fs=None)
+    return location.fs, location.fullpath
+
+
+def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
+    """Restore full uri from fs and path
+
+    Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
+    Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
+    return UriResolver.find_resolver(path, None, None, fs=fs).get_uri(
+        path, None, None, fs=fs
     )
-    return fs, path
 
 
 def read(uri: str, mode: str = "r"):
@@ -88,73 +308,24 @@ def read(uri: str, mode: str = "r"):
         return f.read()
 
 
-def serialize(
-    obj, as_class: Type = None
-):  # pylint: disable=unused-argument # todo remove later
-    if not isinstance(obj, MlemObject):
-        raise ValueError(f"{type(obj)} is not a subclass of MlemObject")
-    return obj.dict(exclude_unset=True, exclude_defaults=True)
-
-
-T = TypeVar("T")
-
-
-def deserialize(obj, as_class: Type[T]) -> T:
-    return parse_obj_as(as_class, obj)
-
-
-def is_mlem_dir(uri: str, fs: AbstractFileSystem):
-    """Check if given dir contains save MLEM model or dataset"""
-    return fs.isdir(uri) and fs.exists(os.path.join(uri, META_FILE_NAME))
-
-
 def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     """Augments given path so it will point to a MLEM metafile
     if it points to a folder with dumped object
     """
-    if os.path.basename(uri) == META_FILE_NAME and fs.isfile(uri):
+    if posixpath.basename(uri) == META_FILE_NAME and fs.isfile(uri):
+        # .../<META_FILE_NAME>
         return uri
-    if is_mlem_dir(uri, fs):
-        return os.path.join(uri, META_FILE_NAME)
+    if fs.isdir(uri) and fs.isfile(posixpath.join(uri, META_FILE_NAME)):
+        # .../path and .../path/<META_FILE_NAME> exists
+        return posixpath.join(uri, META_FILE_NAME)
+    if fs.isfile(uri + MLEM_EXT):
+        # .../name without <MLEM_EXT>
+        return uri + MLEM_EXT
     if MLEM_DIR in uri and fs.isfile(uri):
+        # .../<MLEM_DIR>/.../file
         return uri
     if fs.exists(uri):
         raise Exception(
             f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or dataset"
         )
     raise FileNotFoundError(uri)
-
-
-# def blobs_from_path(path: str, fs: AbstractFileSystem = None):
-#     if fs is None:
-#         fs, path = get_fs(path)
-#     file_list = fs.glob(f'{path}/*', recursive=True)
-#     if fs.protocol == 'file':
-#         return Blobs({os.path.relpath(name, path): RepoFileBlob(name) for name in file_list})
-#     return Blobs({os.path.relpath(name, path): FSBlob(name, fs) for name in file_list})
-
-
-# class RepoFileBlob(LocalFileBlob):
-#     def __init__(self, path: str):
-#         super().__init__(os.path.relpath(path, repo_root()))
-
-
-# @dataclass
-# class FSBlob(Blob, Unserializable):
-#     path: str
-#     fs: AbstractFileSystem
-#
-#     def materialize(self, path):
-#         self.fs.get_file(self.path, path)
-#
-#     @contextlib.contextmanager
-#     def bytestream(self) -> StreamContextManager:
-#         with self.fs.open(self.path) as f:
-#             yield f
-
-
-def get_with_dvc(fs: GithubFileSystem, source_path, target_path):
-    from dvc.repo import Repo
-
-    repo_url = f"https://github.com/{fs.org}/{fs.repo}"
-    Repo.get(repo_url, path=source_path, out=target_path, rev=fs.root)

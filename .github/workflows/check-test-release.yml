@@ -14,6 +14,10 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@0.9.1
+      with:
+        access_token: ${{ github.token }}
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -28,24 +32,56 @@ jobs:
     - run: SKIP=pylint pre-commit run -a --show-diff-on-failure
   test:
     if: startsWith(github.ref, 'refs/tags') || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.repository_owner != 'iterative'
-    name: Test py${{ matrix.python }}
-    runs-on: ubuntu-latest
+    name: Test ${{ matrix.os }} with py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.7", "3.8", "3.9"]
+        exclude:
+        # no HDF5 support installed for tables
+        - os: windows-latest
+          python: "3.9"
+      fail-fast: true
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
       with:
-         python-version: ${{ matrix.python }}
+        python-version: ${{ matrix.python }}
+    - name: get pip cache dir
+      id: pip-cache-dir
+      run: |
+        echo "::set-output name=dir::$(pip cache dir)"
+    - name: set pip cache
+      id: pip-cache
+      uses: actions/cache@v2.1.6
+      with:
+        path: ${{ steps.pip-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Install Mac-specific dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install hdf5 wget c-blosc
+        wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
+        brew install ./libomp.rb
     # legacy-resolver makes install faster by order of magnitude
-    - run: pip install -U pre-commit .[tests] --use-deprecated=legacy-resolver
-    - run: pytest
+    - name: Install
+      if: steps.cache.pip-cache-dir.cache-hit != 'true'
+      run: |
+        pip install --upgrade pip setuptools wheel
+        pip install pre-commit .[tests] --use-deprecated=legacy-resolver
+    - name: Run tests
+      timeout-minutes: 15
+      run: pytest
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     - run: pre-commit run pylint -a --show-diff-on-failure
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v1

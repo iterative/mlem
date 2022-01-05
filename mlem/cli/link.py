@@ -2,39 +2,31 @@ from typing import Optional
 
 import click
 
-from mlem.cli.main import mlem_command
-from mlem.core.errors import InvalidArgumentError
-from mlem.core.meta_io import MLEM_DIR
+from mlem.cli.main import (
+    mlem_command,
+    option_external,
+    option_rev,
+    option_target_repo,
+)
 
 
 @mlem_command("link")
 @click.argument("source")
+@option_rev
 @click.option(
-    "--repo", default=None, help="Repo in which {source} can be found."
-)
-@click.option("--rev", default=None, help="Repo revision to use.")
-@click.argument("target")
-@click.option(
-    "--mlem-root",
+    "--source-repo",
+    "--sr",
     default=None,
-    help="Save link to mlem dir found in {mlem_root} path.",
+    help="Load source from mlem repo found in {source_repo} path.",
 )
-@click.option(
-    "--no-mlem-root",
-    "-o",
-    default=False,
-    is_flag=True,
-    help=f"Save link not in {MLEM_DIR}, but as a plain file.",
-)
+@click.argument("target")
+@option_target_repo
+@option_external
 @click.option(
     "--follow-links/--no-follow-links",
+    "--f/--nf",
     default=True,
     help="If True, first follow links while reading {source} before creating this link.",
-)
-@click.option(
-    "--check-extension/--no-check-extension",
-    default=True,
-    help="If True and --no-mlem-root specified, check that {target} endswith MLEM extension.",
 )
 @click.option(
     "--absolute/--relative",
@@ -44,34 +36,24 @@ from mlem.core.meta_io import MLEM_DIR
 )
 def link(
     source: str,
-    repo: Optional[str],
+    source_repo: Optional[str],
     rev: Optional[str],
     target: str,
-    mlem_root: Optional[str],
-    no_mlem_root: bool,
+    target_repo: Optional[str],
+    external: bool,
     follow_links: bool,
-    check_extension: bool,
     absolute: bool,
 ):
     """Create link for {source} MLEM object and place it in {target}."""
     from mlem.api.commands import link
 
-    if no_mlem_root:
-        if mlem_root is not None:
-            raise InvalidArgumentError(
-                "--mlem-root and --no-mlem-root are mitually exclusive."
-            )
-        mlem_root = None
-    elif mlem_root is None:
-        mlem_root = "."
-
     link(
         source=source,
-        repo=repo,
+        source_repo=source_repo,
         rev=rev,
         target=target,
-        mlem_root=mlem_root,
+        target_repo=target_repo,
         follow_links=follow_links,
-        check_extension=check_extension,
+        external=external,
         absolute=absolute,
     )

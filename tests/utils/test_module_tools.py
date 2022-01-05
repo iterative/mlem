@@ -19,6 +19,7 @@ from mlem.utils.module import (
     is_private_module,
     is_pseudo_module,
 )
+from tests.conftest import long
 
 
 class Obj:
@@ -30,6 +31,7 @@ class Obj:
 #     assert reqs == {get_module_repr(pytest)}
 
 
+@long
 def test_check_pypi_module():
     assert check_pypi_module("numpy", "1.17.3")
     assert check_pypi_module("pandas")

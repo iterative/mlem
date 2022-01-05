@@ -1,27 +1,34 @@
 """
 MLEM's Python API
 """
-import os
+import posixpath
+import re
 from collections import defaultdict
-from inspect import isabstract
-from typing import Any, Dict, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import click
+from fsspec import AbstractFileSystem
 from pydantic import parse_obj_as
 
-from mlem.core.errors import InvalidArgumentError
+from mlem.config import CONFIG_FILE
+from mlem.core.errors import (
+    InvalidArgumentError,
+    MlemObjectNotSavedError,
+    MlemRootNotFound,
+)
+from mlem.core.import_objects import ImportAnalyzer
 from mlem.core.meta_io import (
     META_FILE_NAME,
     MLEM_DIR,
     MLEM_EXT,
-    deserialize,
+    UriResolver,
     get_fs,
 )
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.utils.root import find_mlem_root
+from mlem.utils.root import mlem_repo_exists
 
 
 def _get_dataset(dataset: Any) -> Any:
@@ -103,24 +110,35 @@ def apply(
     )
 
 
-def get(
+def clone(
     path: str,
-    out: str,
+    target: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
+    target_repo: Optional[str] = None,
+    target_fs: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
+    link: bool = None,
+    external: bool = None,
 ) -> MlemMeta:
     """Clones MLEM object from `path` to `out`
         and returns Python representation for the created object
 
     Args:
         path (str): Path to the object. Could be local path or path inside a git repo.
-        out (str): Path to save the copy of initial object to.
+        target (str): Path to save the copy of initial object to.
         repo (Optional[str], optional): URL to repo if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load the actual object link points to. Defaults to True.
+        fs (Optional[AbstractFileSystem], optional): filesystem to load object from
+        target_repo (Optional[str], optional): path to repo to save cloned object to
+        target_fs (Optional[AbstractFileSystem], optional): target filesystem
+        follow_links (bool, optional): If object we read is a MLEM link, whether to load
+            the actual object link points to. Defaults to True.
         load_value (bool, optional): Load actual python object incorporated in MlemMeta object. Defaults to False.
+        link: whether to create link in target repo
+        external: wheter to put object inside mlem dir in target repo
 
     Returns:
         MlemMeta: Copy of initial object saved to `out`
@@ -129,77 +147,80 @@ def get(
         path,
         repo=repo,
         rev=rev,
+        fs=fs,
         follow_links=follow_links,
         load_value=load_value,
     )
-    return meta.clone(out)
+    return meta.clone(
+        target, fs=target_fs, repo=target_repo, link=link, external=external
+    )
 
 
 def init(path: str = ".") -> None:
     """Creates .mlem directory in `path`"""
-    path = os.path.join(path, MLEM_DIR)
-    if os.path.exists(path):
+    path = posixpath.join(path, MLEM_DIR)
+    fs, path = get_fs(path)
+    if fs.exists(path):
         click.echo(f"{path} already exists, no need to run `mlem init` again")
     else:
         from mlem import analytics
 
         if analytics.is_enabled():
             click.echo(
-                "MLEM has been initialized."
+                "MLEM has been initialized.\n"
                 "MLEM has anonymous aggregate usage analytics enabled.\n"
                 "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
             )
-        os.makedirs(path)
+        fs.makedirs(path)
+        # some fs dont support creating empty dirs
+        with fs.open(posixpath.join(path, CONFIG_FILE), "w"):
+            pass
 
 
 def link(
     source: Union[str, MlemMeta],
-    repo: Optional[str] = None,
+    source_repo: Optional[str] = None,
     rev: Optional[str] = None,
     target: Optional[str] = None,
-    mlem_root: Optional[str] = ".",
+    target_repo: [str] = None,
+    external: Optional[bool] = None,
     follow_links: bool = True,
-    check_extension: bool = True,
     absolute: bool = False,
 ) -> MlemLink:
     """Creates MlemLink for an `source` object and dumps it if `target` is provided
 
     Args:
         source (Union[str, MlemMeta]): The object to create link from.
-        repo (str, optional): Repo if object is stored in git repo.
+        source_repo (str, optional): Path to mlem repo where to load obj from
         rev (str, optional): Revision if object is stored in git repo.
         target (str, optional): Where to store the link object.
-        mlem_root (str, optional): If provided,
+        target_repo (str, optional): If provided,
             treat `target` as link name and dump link in MLEM DIR
         follow_links (bool): Whether to make link to the underlying object
             if `source` is itself a link. Defaults to True.
-        check_extension (bool): Whether to check if `target` ends
-            with MLEM file extenstion. Defaults to True.
+        external (bool): Whether to save link outside mlem dir
+        absolute (bool): Whether to make link absolute or relative to mlem repo
 
     Returns:
         MlemLink: Link object to the `source`.
     """
-    # TODO: https://github.com/iterative/mlem/issues/12
-    # right now this only works when source and target are on local FS
-    # (we don't even throw an NotImplementedError yet)
-    # need to support other cases, like `source="github://..."`
-    if repo is not None or rev is not None:
-        raise NotImplementedError()
     if isinstance(source, MlemMeta):
-        if source.name is None:
-            raise ValueError("Cannot link not saved meta object")
+        if not source.is_saved:
+            raise MlemObjectNotSavedError("Cannot link not saved meta object")
     else:
-        source = load_meta(source, follow_links=follow_links)
-
-    link = source.make_link()
-    if target is not None:
-        link.dump(
-            target,
-            mlem_root=mlem_root,
-            check_extension=check_extension,
-            absolute=absolute,
+        source = load_meta(
+            source,
+            repo=source_repo,
+            rev=rev,
+            follow_links=follow_links,
         )
-    return link
+
+    return source.make_link(
+        target,
+        repo=target_repo,
+        external=external,
+        absolute=absolute,
+    )
 
 
 def pack(
@@ -222,7 +243,9 @@ def pack(
             raise ValueError(f"{model} is not a model")
         model = meta
     if isinstance(packager, str):
-        packager = deserialize({"type": packager, **packager_kwargs}, Packager)
+        packager = parse_obj_as(
+            Packager, {"type": packager, **packager_kwargs}
+        )
     packager.package(model, out)
 
 
@@ -250,35 +273,102 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
 
 def ls(
     repo: str = ".",
-    type_filter: Union[Type[MlemMeta], Sequence[Type[MlemMeta]], None] = None,
+    rev: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
+    type_filter: Union[Type[MlemMeta], Iterable[Type[MlemMeta]], None] = None,
     include_links: bool = True,
 ) -> Dict[Type[MlemMeta], List[MlemMeta]]:
     if type_filter is None:
-        type_filter = [
-            cls
-            for cls in MlemMeta.__type_map__.values()
-            if not isabstract(cls)
-        ]
+        type_filter = set(MlemMeta.non_abstract_subtypes().values())
     if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
-        type_filter = [type_filter]
-    fs, path = get_fs(repo)
-    mlem_root = find_mlem_root(path, fs)
+        type_filter = {type_filter}
+    type_filter = set(type_filter)
+    if len(type_filter) == 0:
+        return {}
+    if MlemLink not in type_filter:
+        type_filter.add(MlemLink)
+    loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
+    if loc.repo is None:
+        raise MlemRootNotFound(repo, loc.fs)
+    mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+    repo, fs = loc.repo, loc.fs
     res = defaultdict(list)
     for cls in type_filter:
-        root_path = os.path.join(mlem_root, MLEM_DIR, cls.object_type)
+        root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
         files = fs.glob(
-            os.path.join(root_path, f"**{MLEM_EXT}"), recursive=True
+            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
         for file in files:
-            meta = load_meta(file, follow_links=False, fs=fs, load_value=False)
+            meta = load_meta(
+                posixpath.relpath(file, repo),
+                repo=repo,
+                rev=rev,
+                follow_links=False,
+                fs=fs,
+                load_value=False,
+            )
+            obj_type = cls
             if isinstance(meta, MlemLink):
-                link_name = os.path.relpath(file, root_path)[: -len(MLEM_EXT)]
-                is_auto_link = meta.mlem_link == os.path.join(
+                link_name = posixpath.relpath(file, root_path)[
+                    : -len(MLEM_EXT)
+                ]
+                is_auto_link = meta.path == posixpath.join(
                     link_name, META_FILE_NAME
                 )
+                obj_type = MlemMeta.__type_map__[meta.link_type]
+                if obj_type not in type_filter:
+                    continue
                 if is_auto_link:
                     meta = meta.load_link()
                 elif not include_links:
                     continue
-            res[cls].append(meta)
+            res[obj_type].append(meta)
     return res
+
+
+def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
+    """If the same object can be imported from different types of files,
+    modifier helps to specify which format do you want to use
+    like this: pandas[csv] or pandas[json]
+    """
+    match = re.match(r"(\w*)\[(\w*)]", type_)
+    if not match:
+        return type_, None
+    return match.group(1), match.group(2)
+
+
+def import_object(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
+    target: Optional[str] = None,
+    target_repo: Optional[str] = None,
+    target_fs: Optional[AbstractFileSystem] = None,
+    type_: Optional[str] = None,
+    copy_data: bool = True,
+    external: bool = None,
+    link: bool = None,
+):
+    """Try to load an object as MLEM model (or dataset) and return it,
+    optionally saving to the specified target location
+    """
+    loc = UriResolver.resolve(path, repo, rev, fs)
+    if type_ is not None:
+        type_, modifier = _get_type_modifier(type_)
+        if type_ not in ImportAnalyzer.types:
+            raise ValueError(f"Unknown import type {type_}")
+        meta = ImportAnalyzer.types[type_].process(
+            loc, copy_data=copy_data, modifier=modifier
+        )
+    else:
+        meta = ImportAnalyzer.analyze(loc, copy_data=copy_data)
+    if target is not None:
+        meta.dump(
+            target,
+            fs=target_fs,
+            repo=target_repo,
+            link=link,
+            external=external,
+        )
+    return meta

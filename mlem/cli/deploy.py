@@ -1,4 +1,5 @@
 import os
+import posixpath
 
 import click
 from fsspec.implementations.local import LocalFileSystem
@@ -46,14 +47,14 @@ def deploy(model, target_environment, deploy_args):
     deploy_meta = DeployMeta(
         env_path=target_environment, model_path=model, deployment=deployment
     )
-    deploy_meta.dump(os.path.join(target_environment, model))
+    deploy_meta.dump(posixpath.join(target_environment, model))
 
 
 @mlem_command()
 @click.argument("target_environment")
 @click.argument("model")
 def destroy(target_environment, model):
-    deployed = os.path.join(target_environment, model)
+    deployed = posixpath.join(target_environment, model)
     deploy_meta = load_meta(deployed, force_type=DeployMeta)
     deploy_meta.deployment.destroy()
     os.unlink(mlem_dir_path(deployed, LocalFileSystem(), obj_type=DeployMeta))

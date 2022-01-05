@@ -2,12 +2,15 @@
 Base classes to work with requirements which come with ML models and datasets
 """
 import base64
+import contextlib
 import glob
 import itertools
 import json
 import os
+import sys
+import tempfile
 import zlib
-from abc import ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
 from types import ModuleType
 from typing import (
@@ -26,6 +29,10 @@ from pydantic import BaseModel
 from mlem.core.base import MlemObject
 
 # I dont know how to do this better
+from mlem.core.errors import HookNotFound
+from mlem.core.hooks import Analyzer, Hook
+from mlem.utils.importing import import_module
+
 MODULE_PACKAGE_MAPPING = {
     "sklearn": "scikit-learn",
     "skimage": "scikit-image",
@@ -132,7 +139,6 @@ class CustomRequirement(PythonRequirement):
     """
 
     type: ClassVar[str] = "custom"
-
     name: str
     source64zip: str
     is_package: bool
@@ -162,7 +168,10 @@ class CustomRequirement(PythonRequirement):
                 Path(mod.__file__).read_text(encoding="utf8")
             )
         return CustomRequirement(
-            name=mod.__name__, source64zip=src, is_package=is_package
+            module=mod.__name__.split(".")[0],
+            name=mod.__name__,
+            source64zip=src,
+            is_package=is_package,
         )
 
     @staticmethod
@@ -235,7 +244,7 @@ class CustomRequirement(PythonRequirement):
             "non package requirement does not have sources attribute"
         )
 
-    def to_sources_dict(self):
+    def to_sources_dict(self) -> Dict[str, bytes]:
         """
         Mapping path -> source code for this requirement
 
@@ -243,7 +252,9 @@ class CustomRequirement(PythonRequirement):
         """
         if self.is_package:
             return self.sources
-        return {self.name.replace(".", "/") + ".py": self.source}
+        return {
+            self.name.replace(".", "/") + ".py": self.source.encode("utf8")
+        }
 
 
 class FileRequirement(CustomRequirement):
@@ -311,6 +322,10 @@ class Requirements(BaseModel):
         List of module names
         """
         return [r.module for r in self.of_type(PythonRequirement)]
+
+    @property
+    def expanded(self) -> "Requirements":
+        return expand_requirements(self)
 
     def _add_installable(self, requirement: InstallableRequirement):
         for req in self.installable:
@@ -397,6 +412,27 @@ class Requirements(BaseModel):
             return Requirements(__root__=[])
         return resolve_requirements(requirements)
 
+    def materialize_custom(self, path: str):
+        for cr in self.custom:
+            for part, src in cr.to_sources_dict().items():
+                p = os.path.join(path, part)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(src)
+
+    @contextlib.contextmanager
+    def import_custom(self):
+        if not self.custom:
+            yield
+            return
+        with tempfile.TemporaryDirectory(prefix="mlem_custom_reqs") as dirname:
+            self.materialize_custom(dirname)
+            sys.path.insert(0, dirname)
+            for cr in self.custom:
+                import_module(cr.module)
+            yield
+            sys.path.remove(dirname)
+
 
 def resolve_requirements(other: "AnyRequirements") -> Requirements:
     """
@@ -407,35 +443,40 @@ def resolve_requirements(other: "AnyRequirements") -> Requirements:
     :param other: requirement in supported format
     :return: :class:`Requirements` instance
     """
-    if not isinstance(other, Requirements):
-        if isinstance(other, list):
-            if len(other) == 0:
-                return Requirements.new()
-            if isinstance(other[0], str):
-                other = Requirements(
-                    __root__=[
-                        InstallableRequirement.from_str(r) for r in other
-                    ]
-                )
-            elif isinstance(other[0], Requirement):
-                other = Requirements(__root__=other)
-            else:
-                raise TypeError(
-                    "only other Requirements, Requirement, list of Requirement objects, string "
-                    "(or list of strings) can be added"
-                )
-        elif isinstance(other, Requirement):
-            other = Requirements(__root__=[other])
-        elif isinstance(other, str):
-            other = Requirements(
-                __root__=[InstallableRequirement.from_str(other)]
+    if isinstance(other, Requirements):
+        return other
+
+    if isinstance(other, list):
+        if len(other) == 0:
+            return Requirements.new()
+
+        if isinstance(other[0], str):
+            return Requirements(
+                __root__=[
+                    InstallableRequirement.from_str(r) for r in set(other)
+                ]
             )
-        else:
-            raise TypeError(
-                "only other Requirements, Requirement, list of Requirement objects, string "
-                "(or list of strings) can be added"
-            )
-    return other
+
+        if isinstance(other[0], Requirement):
+            res = Requirements.new()
+            for r in other:
+                res.add(r)
+            return res
+
+        raise TypeError(
+            "only other Requirements, Requirement, list of Requirement objects, string "
+            "(or list of strings) can be added"
+        )
+    if isinstance(other, Requirement):
+        return Requirements(__root__=[other])
+
+    if isinstance(other, str):
+        return Requirements(__root__=[InstallableRequirement.from_str(other)])
+
+    raise TypeError(
+        "only other Requirements, Requirement, list of Requirement objects, string "
+        "(or list of strings) can be added"
+    )
 
 
 AnyRequirements = Union[
@@ -462,6 +503,40 @@ class LibRequirementsMixin(WithRequirements):
         return Requirements.new(
             [InstallableRequirement.from_module(lib) for lib in self.libraries]
         )
+
+
+class RequirementsHook(Hook[Requirements], ABC):
+    @classmethod
+    @abstractmethod
+    def is_object_valid(cls, obj: Requirement) -> bool:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def process(cls, obj: Requirement, **kwargs) -> Requirements:
+        raise NotImplementedError
+
+
+class AddRequirementHook(RequirementsHook, ABC):
+    to_add: AnyRequirements = []
+
+    @classmethod
+    def process(cls, obj: Requirement, **kwargs) -> Requirements:
+        return resolve_requirements(cls.to_add) + obj
+
+
+class RequirementsAnalyzer(Analyzer[Requirements]):
+    base_hook_class = RequirementsHook
+
+
+def expand_requirements(requirements: Requirements) -> Requirements:
+    res = Requirements.new()
+    for req in requirements.__root__:
+        try:
+            res += RequirementsAnalyzer.analyze(req)
+        except HookNotFound:
+            res += req
+    return res
 
 
 # Copyright 2019 Zyfra
