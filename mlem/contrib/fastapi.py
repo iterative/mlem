@@ -58,7 +58,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         return handler, response_model
 
-    def serve(self, interface: Interface):
+    def app_init(self, interface: Interface):
         app = FastAPI()
 
         for method, signature in interface.iter_methods():
@@ -73,6 +73,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 methods=["POST"],
                 response_model=response_model,
             )
-            # app.route(f'/{method}', methods=['post'])(handler)
 
+        return app
+
+    def serve(self, interface: Interface):
+        app = self.app_init(interface)
         uvicorn.run(app, host=self.host, port=self.port)
