@@ -26,6 +26,7 @@ from mlem.core.requirements import (
     InstallableRequirement,
     Requirements,
 )
+from mlem.polydantic.core import PolyModelMetaclass
 from mlem.utils import importing
 
 logger = logging.getLogger(__name__)
@@ -495,6 +496,7 @@ class RequirementAnalyzer(dill.Pickler):
     )
     dispatch[TypeType] = save_type_with_classvars
     dispatch[ModelMetaclass] = save_type_with_classvars
+    dispatch[PolyModelMetaclass] = save_type_with_classvars
 
     def __init__(self, *args, **kwargs):
         super().__init__(io.BytesIO(), *args, **kwargs)

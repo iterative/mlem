@@ -197,7 +197,10 @@ class ModelType(ABC, MlemObject, WithRequirements):
 
     __type_root__: ClassVar[bool] = True
     abs_name: ClassVar[str] = "model_type"
-    __transient_fields__ = {"model"}
+
+    class Config:
+        exclude = {"model"}
+
     model: Any = None
 
     io: ModelIO

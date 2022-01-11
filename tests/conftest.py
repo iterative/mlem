@@ -34,8 +34,10 @@ from mlem.utils.github import ls_github_branches
 RESOURCES = "resources"
 
 long = pytest.mark.long
-issue_110 = pytest.mark.xfail(
-    reason="https://github.com/iterative/mlem/issues/110"
+issue_110 = (
+    pytest.mark.xfail(reason="https://github.com/iterative/mlem/issues/110")
+    if os.environ.get("GITHUB_ACTIONS") == "True"
+    else lambda x: x
 )
 MLEM_TEST_REPO_ORG = "iterative"
 MLEM_TEST_REPO_NAME = "mlem-test"

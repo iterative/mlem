@@ -77,11 +77,16 @@ def test_nested_poly():
 
 
 def test_transient():
+    print()
+
     class TransTest(PolyModel):
-        __transient_fields__ = {"t_field"}
         __type_root__ = True
         field: str
         t_field: Optional[str] = None
+
+        class Config:
+            exclude = {"t_field"}
+            # fields = {"t_field": {"exclude": True}}
 
     obj = TransTest(field="a", t_field="b")
     payload = {"field": "a", "type": "tests.polydantic.test_serde.TransTest"}
@@ -113,8 +118,10 @@ def test_multi_parent():
 
 
 class PayloadParent(PolyModel):
-    __transient_fields__ = {"trans"}
-    trans: ClassVar[Any] = None
+    class Config:
+        exclude = {"trans"}
+
+    trans: Any = None
 
 
 class Payload(PayloadParent):

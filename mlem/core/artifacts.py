@@ -177,18 +177,19 @@ class Storage(MlemObject, ABC):
 
 
 class FSSpecStorage(Storage):
+    class Config:
+        exclude = {"fs", "base_path"}
+        arbitrary_types_allowed = True
+
     type: ClassVar = "fsspec"
-
-    __transient_fields__: ClassVar = {"fs", "base_path"}
-
-    fs: ClassVar[Optional[AbstractFileSystem]] = None
-    base_path: ClassVar[str] = ""
+    fs: Optional[AbstractFileSystem] = None
+    base_path: str = ""
     uri: str
     storage_options: Optional[Dict[str, str]] = {}
 
     def upload(self, local_path: str, target_path: str) -> FSSpecArtifact:
         fs = self.get_fs()
-        path = posixpath.join(self.base_path, target_path)
+        path = posixpath.join(self.get_base_path(), target_path)
         fs.makedirs(posixpath.dirname(path), exist_ok=True)
         fs.upload(local_path, path)
         return FSSpecArtifact(
@@ -198,7 +199,7 @@ class FSSpecStorage(Storage):
     @contextlib.contextmanager
     def open(self, path) -> Iterator[Tuple[IO, FSSpecArtifact]]:
         fs = self.get_fs()
-        fullpath = posixpath.join(self.base_path, path)
+        fullpath = posixpath.join(self.get_base_path(), path)
         fs.makedirs(posixpath.dirname(fullpath), exist_ok=True)
         art = FSSpecArtifact(uri=(self.create_uri(path)), size=-1, hash="")
         with fs.open(fullpath, "wb") as f:
@@ -228,6 +229,9 @@ class FSSpecStorage(Storage):
             )
         return self.fs
 
+    def get_base_path(self):
+        return self.base_path
+
     @classmethod
     def from_fs_path(cls, fs: AbstractFileSystem, path: str):
         storage = cls(uri=get_path_by_fs_path(fs, path))
@@ -242,8 +246,7 @@ class LocalStorage(FSSpecStorage):
     type: ClassVar = "local"
     fs = LocalFileSystem()
 
-    @property
-    def base_path(self):
+    def get_base_path(self):
         return self.uri
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":

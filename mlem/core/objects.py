@@ -71,10 +71,12 @@ T = TypeVar("T", bound="MlemMeta")
 
 
 class MlemMeta(MlemObject):
+    class Config:
+        exclude = {"location"}
+
     __type_root__ = True
     abs_name: ClassVar[str] = "meta"
     __type_field__ = "object_type"
-    __transient_fields__ = {"location"}
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     location: Optional[Location] = None
@@ -553,7 +555,9 @@ class ModelMeta(_WithArtifacts):
 
 
 class DatasetMeta(_WithArtifacts):
-    __transient_fields__ = {"dataset"}
+    class Config:
+        exclude = {"dataset"}
+
     object_type: ClassVar = "dataset"
     reader_cache: Optional[Dict]
     reader: Optional[DatasetReader]
@@ -564,7 +568,7 @@ class DatasetMeta(_WithArtifacts):
         parse_as_type=Optional[DatasetReader],
         default=None,
     )
-    dataset: ClassVar[Optional[Dataset]] = None
+    dataset: Optional[Dataset] = None
 
     @property
     def data(self):
