@@ -297,10 +297,9 @@ def get_module_version(mod: ModuleType):
     :param mod: module object to use
     :return: version as `str` or `None` if version could not be determined
     """
-    if hasattr(mod, "__version__"):
-        return mod.__version__  # type: ignore
-    if hasattr(mod, "VERSION"):
-        return mod.VERSION  # type: ignore
+    for attr in "__version__", "VERSION":
+        if hasattr(mod, attr):
+            return getattr(mod, attr)
     for name in os.listdir(os.path.dirname(mod.__file__)):
         m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
         if m:
