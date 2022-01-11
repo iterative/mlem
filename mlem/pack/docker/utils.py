@@ -49,7 +49,7 @@ def build_image_with_logs(
                 image_id = match.group(2)
         last_event = chunk
     if image_id:
-        return (client.images.get(image_id), result_stream)
+        return client.images.get(image_id), result_stream
     raise BuildError(last_event or "Unknown", result_stream)
 
 

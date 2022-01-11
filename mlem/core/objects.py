@@ -547,7 +547,7 @@ class ModelMeta(_WithArtifacts):
     def __getattr__(self, item):
         if item not in self.model_type.methods:
             raise AttributeError(
-                f"{self.model_type.__class__} does not have {item} method"
+                f"{self.model_type.__class__} does not have {item} attribute"
             )
         return partial(self.model_type.call_method, item)
 

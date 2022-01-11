@@ -25,7 +25,7 @@ from mlem.core.meta_io import (
     get_fs,
 )
 from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
+from mlem.core.objects import DatasetMeta, DeployMeta, MlemLink, MlemMeta, ModelMeta, TargetEnvMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
 from mlem.utils.root import mlem_repo_exists
@@ -372,3 +372,27 @@ def import_object(
             external=external,
         )
     return meta
+
+
+def deploy(model_meta: ModelMeta, env_meta: TargetEnvMeta, deploy_args: List[str]):
+    if len(env_meta.additional_args) != len(deploy_args):
+        raise ValueError(
+            f"Invalid arguments for {env_meta.alias} deploy: {env_meta.additional_args} needed"
+        )
+    args = dict(zip(env_meta.additional_args, deploy_args))
+
+    # previous = DeployMeta.find(env_meta.loc.path, model_meta.loc.path, False)
+    # if previous is not None:
+    #     if not isinstance(previous.deployment, env_meta.deployment_type):
+    #         raise ValueError(
+    #             f"Cant redeploy {previous.deployment.__class__} to {env_meta.__class__}"
+    #         )
+    #     click.echo("Already deployed, updating")
+    #     deployment = env_meta.update(model_meta, previous.deployment)
+    # else:
+    #     deployment = env_meta.deploy(model_meta, **args)
+    deployment = env_meta.deploy(model_meta, **args)
+    deploy_meta = DeployMeta(
+        env_path=env_meta.loc.path, model_path=model_meta.loc.path, deployment=deployment
+    )
+    deploy_meta.dump(posixpath.join(env_meta.loc.path, model_meta.loc.path))

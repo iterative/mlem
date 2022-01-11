@@ -3,14 +3,12 @@ import os
 
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import ModelMeta
-from mlem.core.requirements import MODULE_PACKAGE_MAPPING
-from mlem.deploy.heroku.config import HEROKU_API_KEY
+from mlem.deploy.heroku.config import HEROKU_CONFIG
 from mlem.pack.docker.base import DockerEnv, RemoteRegistry
-from mlem.pack.docker.utils import build_image_with_logs
+from mlem.pack.docker.helpers import build_model_image
 from mlem.runtime import Interface
 
 logger = logging.getLogger(__name__)
-MODULE_PACKAGE_MAPPING["yaml"] = "PyYAML"
 
 
 class HerokuRemoteRegistry(RemoteRegistry):
@@ -19,14 +17,12 @@ class HerokuRemoteRegistry(RemoteRegistry):
         return uri.split(":")[0]
 
     def login(self, client):
-        client.login(registry=self.host, username="_", password=HEROKU_API_KEY)
+        client.login(registry=self.host, username="_", password=HEROKU_CONFIG.API_KEY)
 
 
-# should we use some abstract server class instead of FastAPI?
-# or it's ok for now?
 class HerokuServer(FastAPIServer):
     def serve(self, interface: Interface):
-        self.port = os.environ.get("PORT")
+        self.port = int(os.environ.get("PORT"))
         logger.info("Switching port to %s", self.port)
         return super().serve(interface)
 
@@ -35,13 +31,10 @@ def build_model_docker(
     meta: ModelMeta, app_name: str, process_type: str = "web"
 ):
     model = meta.model
-    model.wrapper.load(meta.path)
-    # this is not needed, it was instead of fsspec to keep artifacts somewhere (crunch)
-    # model._unpersisted_artifacts = WrapperArtifactCollection(model.wrapper)
-    docker_env = DockerEnv(HerokuRemoteRegistry("registry.heroku.com"))
-    return build_image_with_logs(
-        process_type,
+    docker_env = DockerEnv(registry=HerokuRemoteRegistry(host="registry.heroku.com"))
+    return build_model_image(
         model,
+        process_type,
         server=HerokuServer(),
         env=docker_env,
         repository=app_name,

@@ -1,3 +1,11 @@
-import os
+from mlem.config import MlemConfigBase
 
-HEROKU_API_KEY = os.environ.get("HEROKU_API_KEY")
+
+class HerokuConfig(MlemConfigBase):
+    API_KEY: str = None
+
+    class Config:
+        env_prefix = "heroku_"
+        section = "heroku"
+
+HEROKU_CONFIG = HerokuConfig()

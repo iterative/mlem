@@ -14,7 +14,7 @@ class HerokuDeployment(Deployment):
     meta_info: dict
 
     def get_client(self) -> HTTPClient:
-        return HTTPClient(urlparse(self.web_url).netloc, 80)
+        return HTTPClient(host=urlparse(self.web_url).netloc, port=80)
 
     def get_status(self):
         from .utils import heroku_api_request
@@ -37,11 +37,12 @@ class HerokuDeployment(Deployment):
 class HerokuTargetEnvMeta(TargetEnvMeta):
     alias = "heroku"
     deployment_type = HerokuDeployment
+    api_key: str = None
 
     def deploy(self, meta: ModelMeta, **kwargs) -> "Deployment":
         from mlem.deploy.heroku.utils import create_app
 
-        deployment = create_app(meta)
+        deployment = create_app(meta, api_key=self.api_key)
         return self.update(meta, deployment)
 
     def update(
@@ -50,5 +51,5 @@ class HerokuTargetEnvMeta(TargetEnvMeta):
         from mlem.deploy.heroku.utils import release_docker_app
 
         image = build_model_docker(meta, previous.app_name)
-        release_docker_app(previous.app_name, image.image.image_id)
+        release_docker_app(previous.app_name, image.image.image_id, api_key=self.api_key)
         return previous
