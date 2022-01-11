@@ -297,14 +297,15 @@ def get_module_version(mod: ModuleType):
     :param mod: module object to use
     :return: version as `str` or `None` if version could not be determined
     """
-    try:
+    if hasattr(mod, "__version__"):
         return mod.__version__  # type: ignore
-    except AttributeError:
-        for name in os.listdir(os.path.dirname(mod.__file__)):
-            m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
-            if m:
-                return m.group(1)
-        return None
+    if hasattr(mod, "VERSION"):
+        return mod.VERSION  # type: ignore
+    for name in os.listdir(os.path.dirname(mod.__file__)):
+        m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
+        if m:
+            return m.group(1)
+    return None
 
 
 def get_python_version():
