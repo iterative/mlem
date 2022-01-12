@@ -1,7 +1,6 @@
-from functools import wraps
 from typing import TYPE_CHECKING, ClassVar, Dict, Optional, Set, Type, Union
 
-from pydantic import BaseConfig, BaseModel
+from pydantic import BaseConfig
 from pydantic.main import ModelMetaclass
 
 from mlem.polydantic.lazy import LazyModel
@@ -78,18 +77,6 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             )
         child_cls = cls.__type_map__[type_name]
         return child_cls(**value)
-
-    @wraps(BaseModel.dict)
-    def dict(self, **kwargs):
-        """Add alias field"""
-        result = super().dict(**kwargs)
-        alias = self.__get_alias__()
-        if (
-            not kwargs.get("exclude_defaults", False)
-            or alias != self.__config__.default_type
-        ):
-            result[self.__config__.type_field] = alias
-        return result
 
     def _iter(
         self,
