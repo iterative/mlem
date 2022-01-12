@@ -24,7 +24,9 @@ class InterfaceDescriptor(BaseModel):
 
 
 class Interface(ABC, MlemObject):
-    __type_root__: ClassVar[bool] = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "interface"
 
     @abstractmethod

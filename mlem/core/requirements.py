@@ -46,7 +46,9 @@ class Requirement(MlemObject):
     Base class for python requirement
     """
 
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...
 

@@ -51,7 +51,9 @@ from mlem.utils.root import find_repo_root
 
 
 class Deployment(MlemObject):
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "deployment"
 
     # @abstractmethod
@@ -73,10 +75,10 @@ T = TypeVar("T", bound="MlemMeta")
 class MlemMeta(MlemObject):
     class Config:
         exclude = {"location"}
+        type_root = True
+        type_field = "object_type"
 
-    __type_root__ = True
     abs_name: ClassVar[str] = "meta"
-    __type_field__ = "object_type"
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     location: Optional[Location] = None
@@ -613,7 +615,9 @@ class DatasetMeta(_WithArtifacts):
 
 
 class TargetEnvMeta(MlemMeta):
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     object_type: ClassVar = "env"
     alias: ClassVar = ...
     deployment_type: ClassVar = ...

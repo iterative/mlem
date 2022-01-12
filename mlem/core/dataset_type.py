@@ -21,7 +21,9 @@ class DatasetType(ABC, MlemObject, WithRequirements):
     Base class for dataset type metadata.
     """
 
-    __type_root__: ClassVar[bool] = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "dataset_type"
 
     @staticmethod
@@ -337,7 +339,9 @@ class Dataset:
 
 
 class DatasetReader(MlemObject, ABC):
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     dataset_type: DatasetType
     abs_name: ClassVar[str] = "dataset_reader"
 
@@ -347,7 +351,9 @@ class DatasetReader(MlemObject, ABC):
 
 
 class DatasetWriter(MlemObject):
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "dataset_writer"
 
     @abstractmethod

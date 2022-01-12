@@ -44,7 +44,7 @@ class LazyModel(BaseModel):
             exclude_none=exclude_none,
         )
 
-    def json(
+    def json(  # pylint: disable=useless-super-delegation
         self,
         *,
         include: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,

@@ -8,8 +8,9 @@ from mlem.polydantic.lazy import lazy_field
 
 def test_poly_model_dict():
     class Parent(PolyModel):
-        __type_root__ = True
-        __type_field__ = "type1"
+        class Config:
+            type_root = True
+            type_field = "type1"
 
     class ChildA(Parent):
         type1: ClassVar[str] = "a"
@@ -31,9 +32,12 @@ def test_poly_model_dict():
 
 
 def test_deserialize_poly_model():
+    print()
+
     class Parent(PolyModel):
-        __type_root__ = True
-        __type_field__ = "type1"
+        class Config:
+            type_root = True
+            type_field = "type1"
 
     class ChildA(Parent):
         type1 = "a"
@@ -54,14 +58,18 @@ def test_deserialize_poly_model():
 
 def test_nested_poly():
     class InnerParent(PolyModel):
-        __type_root__: ClassVar = True
+        class Config:
+            type_root = True
+
         field: str
 
     class InnerChild(InnerParent):
         type: ClassVar[str] = "ic"
 
     class OuterParent(PolyModel):
-        __type_root__: ClassVar = True
+        class Config:
+            type_root = True
+
         inner: InnerParent
 
     class OuterChild(OuterParent):
@@ -80,13 +88,12 @@ def test_transient():
     print()
 
     class TransTest(PolyModel):
-        __type_root__ = True
+        class Config:
+            type_root = True
+            exclude = {"t_field"}
+
         field: str
         t_field: Optional[str] = None
-
-        class Config:
-            exclude = {"t_field"}
-            # fields = {"t_field": {"exclude": True}}
 
     obj = TransTest(field="a", t_field="b")
     payload = {"field": "a", "type": "tests.polydantic.test_serde.TransTest"}
@@ -101,7 +108,9 @@ def test_multi_parent():
         field1: str
 
     class Parent2(PolyModel):
-        __type_root__ = True
+        class Config:
+            type_root = True
+
         field2: str
 
     class Child(Parent1, Parent2):
@@ -133,7 +142,8 @@ class Payload(PayloadParent):
 
 
 class Parent(PolyModel):
-    __type_root__ = True
+    class Config:
+        type_root = True
 
 
 class Model(Parent):

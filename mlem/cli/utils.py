@@ -84,7 +84,7 @@ def build_poly_model(
     file_conf: List[str],
 ):
     return build_model(
-        model, conf, file_conf, **{model.__type_field__: subtype}
+        model, conf, file_conf, **{model.__config__.type_field: subtype}
     )
 
 

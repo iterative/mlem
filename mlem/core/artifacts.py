@@ -37,8 +37,10 @@ class ArtifactInfo(TypedDict):
 
 
 class Artifact(MlemObject, ABC):
-    __type_root__ = True
-    __default_type__: ClassVar = "local"
+    class Config:
+        type_root = True
+        default_type = "local"
+
     abs_name: ClassVar = "artifact"
     uri: str
     size: int
@@ -156,7 +158,9 @@ class PlaceholderArtifact(Artifact):
 
 
 class Storage(MlemObject, ABC):
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar = "storage"
 
     def relative(

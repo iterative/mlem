@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 class DockerRegistry(MlemObject):
     """Registry for docker images. This is the default implementation that represents registry of the docker daemon"""
 
-    __type_root__: ClassVar[bool] = True
+    class Config:
+        type_root = True
 
     def get_host(self) -> Optional[str]:
         """Returns registry host or emty string for local"""

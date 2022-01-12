@@ -36,7 +36,9 @@ class ModelIO(MlemObject):
     IO base class for models
     """
 
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "model_io"
 
     @abstractmethod
@@ -195,11 +197,11 @@ class ModelType(ABC, MlemObject, WithRequirements):
     Base class for dataset type metadata.
     """
 
-    __type_root__: ClassVar[bool] = True
-    abs_name: ClassVar[str] = "model_type"
-
     class Config:
+        type_root = True
         exclude = {"model"}
+
+    abs_name: ClassVar[str] = "model_type"
 
     model: Any = None
 
