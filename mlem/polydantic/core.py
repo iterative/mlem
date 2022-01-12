@@ -134,6 +134,6 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
                 cls.__parent__ = parent
                 break
         else:
-            raise ValueError("No parent with type__root == True found")
+            raise ValueError("No parent with type_root == True found")
 
         super(PolyModel, cls).__init_subclass__()
