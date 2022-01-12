@@ -32,8 +32,6 @@ def test_poly_model_dict():
 
 
 def test_deserialize_poly_model():
-    print()
-
     class Parent(PolyModel):
         class Config:
             type_root = True
@@ -85,8 +83,6 @@ def test_nested_poly():
 
 
 def test_transient():
-    print()
-
     class TransTest(PolyModel):
         class Config:
             type_root = True

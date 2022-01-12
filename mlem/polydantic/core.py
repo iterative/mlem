@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 class PolyModelMetaclass(ModelMetaclass):
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: B902
+        """Manipulate config to support `exclude` and set `__is_root__` attribute"""
         config = namespace.get("Config", None)
         if config is not None:
             namespace["__is_root__"] = config.__dict__.get("type_root", False)
@@ -55,7 +56,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
         """
 
         exclude: Set[str] = set()
-        type_root: bool = True
+        type_root: bool = True  # actual default is kinda False via metaclass TODO: fix this strange logic
         type_field: str = "type"
         default_type: Optional[str] = None
 
