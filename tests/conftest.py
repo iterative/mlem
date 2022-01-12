@@ -36,7 +36,7 @@ RESOURCES = "resources"
 long = pytest.mark.long
 issue_110 = (
     pytest.mark.xfail(reason="https://github.com/iterative/mlem/issues/110")
-    if os.environ.get("GITHUB_ACTIONS") == "True"
+    if os.environ.get("GITHUB_ACTIONS") is not None
     else lambda x: x
 )
 MLEM_TEST_REPO_ORG = "iterative"
