@@ -24,7 +24,9 @@ class InterfaceDescriptor(BaseModel):
 
 
 class Interface(ABC, MlemObject):
-    __type_root__: ClassVar[bool] = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "interface"
 
     @abstractmethod
@@ -158,9 +160,11 @@ class SimpleInterface(Interface):
 
 
 class ModelInterface(Interface):
-    __transient_fields__: ClassVar[set] = {"model_type"}
+    class Config:
+        exclude = {"model_type"}
+
     type: ClassVar[str] = "model"
-    model_type: ClassVar[ModelType]
+    model_type: ModelType
 
     def load(self, uri: str):
         meta = load_meta(uri)
@@ -173,9 +177,7 @@ class ModelInterface(Interface):
 
     @classmethod
     def from_model(cls, model: ModelMeta):
-        interface = cls()
-        interface.model_type = model.model_type
-        return interface
+        return cls(model_type=model.model_type)
 
     def get_method_signature(self, method_name: str) -> Signature:
         return self.model_type.methods[method_name]
