@@ -230,7 +230,9 @@ def test_import_model_pickle_remote(
     )
     write_model_pickle(path, s3_storage_fs)
     out_path = str(tmpdir / "mlem_model")
-    meta = import_object(path, out_path, copy_data=False, type_="pickle")
+    meta = import_object(
+        path, target=out_path, copy_data=False, type_="pickle"
+    )
     _check_meta(meta, out_path)
 
     loaded = load(out_path)
@@ -248,7 +250,7 @@ def test_import_model_pickle_remote_in_repo(
     write_model_pickle(path, s3_storage_fs)
     out_path = posixpath.join(repo_path, "mlem_model")
     meta = import_object(
-        path, out_path, copy_data=False, type_="pickle", external=True
+        path, target=out_path, copy_data=False, type_="pickle", external=True
     )
     _check_meta(meta, out_path, s3_storage_fs)
     _check_load_artifact(meta, out_path, False, train)

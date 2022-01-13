@@ -26,6 +26,7 @@ from mlem.core.requirements import (
     InstallableRequirement,
     Requirements,
 )
+from mlem.polydantic.core import PolyModelMetaclass
 from mlem.utils import importing
 
 logger = logging.getLogger(__name__)
@@ -297,14 +298,14 @@ def get_module_version(mod: ModuleType):
     :param mod: module object to use
     :return: version as `str` or `None` if version could not be determined
     """
-    try:
-        return mod.__version__  # type: ignore
-    except AttributeError:
-        for name in os.listdir(os.path.dirname(mod.__file__)):
-            m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
-            if m:
-                return m.group(1)
-        return None
+    for attr in "__version__", "VERSION":
+        if hasattr(mod, attr):
+            return getattr(mod, attr)
+    for name in os.listdir(os.path.dirname(mod.__file__)):
+        m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
+        if m:
+            return m.group(1)
+    return None
 
 
 def get_python_version():
@@ -495,6 +496,7 @@ class RequirementAnalyzer(dill.Pickler):
     )
     dispatch[TypeType] = save_type_with_classvars
     dispatch[ModelMetaclass] = save_type_with_classvars
+    dispatch[PolyModelMetaclass] = save_type_with_classvars
 
     def __init__(self, *args, **kwargs):
         super().__init__(io.BytesIO(), *args, **kwargs)

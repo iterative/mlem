@@ -53,7 +53,7 @@ install_requires = [
     "requests",
     "isort==4.3.21",  # TODO: https://github.com/iterative/mlem/issues/45 version
     "docker",
-    "pydantic<2",
+    "pydantic>=1.9.0,<2",
     "click<9",
     "aiohttp<4",
     "aiohttp_swagger<2",

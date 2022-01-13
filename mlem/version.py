@@ -9,7 +9,7 @@ Providing MLEM version under different circumstances
 import os
 import subprocess
 
-_BASE_VERSION = "0.1.6"
+_BASE_VERSION = "0.1.7"
 
 
 def _generate_version(base_version):

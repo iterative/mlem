@@ -67,10 +67,12 @@ class MlemObject(PolyModel):
         if isinstance(value, cls):
             return value
         value = value.copy()
-        type_name = value.pop(cls.__type_field__, cls.__default_type__)
+        type_name = value.pop(
+            cls.__config__.type_field, cls.__config__.default_type
+        )
         if type_name is None:
             raise ValueError(
-                f"Type field was not provided and no default type specified in {cls.parent.__name__}"
+                f"Type field was not provided and no default type specified in {cls.__parent__.__name__}"
             )
         child_cls: Type[MlemObject] = cls.resolve_subtype(type_name)
         return child_cls(**value)

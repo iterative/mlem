@@ -8,7 +8,9 @@ from mlem.core.objects import ModelMeta
 
 
 class EnvDescriptor(MlemObject, ABC):
-    __type_root__ = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "env_descriptor"
 
     @abstractmethod
@@ -20,7 +22,9 @@ class EnvDescriptor(MlemObject, ABC):
 
 
 class Packager(MlemObject):
-    __type_root__: ClassVar[bool] = True
+    class Config:
+        type_root = True
+
     abs_name: ClassVar[str] = "packager"
 
     @abstractmethod

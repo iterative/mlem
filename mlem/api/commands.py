@@ -259,12 +259,11 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     from mlem.runtime.interface.base import ModelInterface
 
     model.load_value()
-    interface = ModelInterface()
-    interface.model_type = model.model_type
+    interface = ModelInterface(model_type=model.model_type)
 
     if not isinstance(server, Server):
         server_obj = parse_obj_as(
-            Server, {Server.__type_field__: server, **server_kwargs}
+            Server, {Server.__config__.type_field: server, **server_kwargs}
         )
     else:
         server_obj = server

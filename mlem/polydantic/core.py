@@ -1,33 +1,66 @@
-from functools import wraps
-from typing import AbstractSet, ClassVar, Dict, Optional, Set, Type
+from typing import TYPE_CHECKING, ClassVar, Dict, Optional, Set, Type, Union
 
-from pydantic import BaseModel
+from pydantic import BaseConfig
+from pydantic.main import ModelMetaclass
 
 from mlem.polydantic.lazy import LazyModel
 
+if TYPE_CHECKING:
+    from pydantic.typing import (
+        AbstractSetIntStr,
+        MappingIntStrAny,
+        TupleGenerator,
+    )
 
-class PolyModel(LazyModel):
+
+class PolyModelMetaclass(ModelMetaclass):
+    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: B902
+        """Manipulate config to support `exclude` and set `__is_root__` attribute"""
+        config = namespace.get("Config", None)
+        if config is not None:
+            namespace["__is_root__"] = config.__dict__.get("type_root", False)
+
+            fields = getattr(config, "fields", {})
+            exclude = getattr(config, "exclude", set())
+            for exclude_field in exclude:
+                field_conf = fields.get(exclude_field, {})
+                field_conf["exclude"] = True
+                fields[exclude_field] = field_conf
+            config.fields = fields
+        else:
+            namespace["__is_root__"] = False
+
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+
+class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
     """Base class that enable polymorphism in pydantic models
 
     Attributes:
         __type_root__: set to True for root of your hierarchy (parent model)
         __type_map__: mapping subclass alias -> subclass (fills up automatically when you subclass parent model)
         __type_field__: name of the field containing subclass alias in serialized model
-        __transient_fields__: set of fields that will not be serialized (you must annotate them as ClassVar)
-        __inherit_transient_fields__: whether to inherit __transient_fields__ from parents
     """
 
-    __type_root__: ClassVar[bool] = True
     __type_map__: ClassVar[Dict[str, Type]] = {}
-    __type_field__: ClassVar[str] = "type"
-    __default_type__: ClassVar[Optional[str]] = None
-    __transient_fields__: ClassVar[Set[str]] = set()
-    __inherit_transient_fields__: ClassVar[bool] = True
-    parent: ClassVar[Optional[Type["PolyModel"]]] = None
+    __parent__: ClassVar[Optional[Type["PolyModel"]]] = None
+    __is_root__: ClassVar[bool]
 
-    @classmethod
-    def __is_root__(cls):
-        return cls.__dict__.get("__type_root__", False)
+    class Config:
+        """
+        Attributes:
+            type_root: set to True for root of your hierarchy (parent model)
+            type_field: name of the field containing subclass alias in serialized model
+            default_type: default type to assume if not type_field is provided
+        """
+
+        exclude: Set[str] = set()
+        type_root: bool = True  # actual default is kinda False via metaclass TODO: fix this strange logic
+        type_field: str = "type"
+        default_type: Optional[str] = None
+
+    if TYPE_CHECKING:
+        __config__: ClassVar[Config, BaseConfig]
 
     @classmethod
     def validate(cls, value):
@@ -35,80 +68,72 @@ class PolyModel(LazyModel):
         if isinstance(value, cls):
             return value
         value = value.copy()
-        type_name = value.pop(cls.__type_field__, cls.__default_type__)
+        type_name = value.pop(
+            cls.__config__.type_field, cls.__config__.default_type
+        )
         if type_name is None:
             raise ValueError(
-                f"Type field was not provided and no default type specified in {cls.parent.__name__}"
+                f"Type field was not provided and no default type specified in {cls.__parent__.__name__}"
             )
         child_cls = cls.__type_map__[type_name]
         return child_cls(**value)
 
-    @wraps(BaseModel.dict)
-    def dict(self, **kwargs):
-        """Add alias field"""
-        result = super().dict(**kwargs)
+    def _iter(
+        self,
+        to_dict: bool = False,
+        by_alias: bool = False,
+        include: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+        exclude: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+    ) -> "TupleGenerator":
+        yield from super()._iter(
+            to_dict=to_dict,
+            by_alias=by_alias,
+            include=include,
+            exclude=exclude,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+        )
         alias = self.__get_alias__()
-        if (
-            not kwargs.get("exclude_defaults", False)
-            or alias != self.__default_type__
-        ):
-            result[self.__type_field__] = alias
-        return result
-
-    @wraps(BaseModel._calculate_keys)  # pylint: disable=protected-access
-    def _calculate_keys(self, *args, **kwargs) -> Optional[AbstractSet[str]]:
-        """Exclude transient stuff"""
-        kwargs["exclude"] = (
-            kwargs.get("exclude", None) or set()
-        ) | self.__transient_fields__
-        return super()._calculate_keys(*args, **kwargs)
+        if not exclude_defaults or alias != self.__config__.default_type:
+            yield self.__config__.type_field, alias
 
     def __iter__(self):
         """Add alias field"""
         yield from super().__iter__()
-        yield self.__type_field__, self.__get_alias__()
+        yield self.__config__.type_field, self.__get_alias__()
 
     @classmethod
     def __get_alias__(cls):
         return cls.__dict__.get(
-            cls.__type_field__, f"{cls.__module__}.{cls.__name__}"
+            cls.__config__.type_field, f"{cls.__module__}.{cls.__name__}"
         )
-
-    def __setattr__(self, key, value):
-        """Allow setting for transient fields"""
-        if key in self.__transient_fields__:
-            self.__dict__[key] = value
-            return
-        super().__setattr__(key, value)
 
     def __init_subclass__(cls: Type["PolyModel"]):
         """Register subtypes to __type_map__"""
-        if cls.__is_root__():  # Parent model initialization
+        if cls.__is_root__:  # Parent model initialization
             cls.__type_map__ = {}
             cls.__annotations__[  # pylint: disable=no-member
-                cls.__type_field__
+                cls.__config__.type_field
             ] = ClassVar[str]
-            cls.__class_vars__.add(cls.__type_field__)
+            cls.__class_vars__.add(cls.__config__.type_field)
 
         for parent in cls.mro():  # Looking for parent model
             if not issubclass(parent, PolyModel):
                 continue
-            if parent.__is_root__():
+            if parent.__is_root__:  # pylint: disable=no-member
                 if parent == PolyModel:
                     break
                 alias = cls.__get_alias__()
                 if alias is not None and alias is not ...:
                     parent.__type_map__[alias] = cls
-                    setattr(cls, cls.__type_field__, alias)
-                cls.parent = parent
+                    setattr(cls, cls.__config__.type_field, alias)
+                cls.__parent__ = parent
                 break
         else:
-            raise ValueError("No parent with __type__root__ == True found")
+            raise ValueError("No parent with type_root == True found")
 
-        if cls.__inherit_transient_fields__:
-            cls.__transient_fields__ = {
-                f
-                for c in cls.mro()
-                for f in getattr(c, "__transient_fields__", [])
-            }
         super(PolyModel, cls).__init_subclass__()
