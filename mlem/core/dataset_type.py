@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
 from pydantic import BaseModel
+from pydantic.main import create_model
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.base import MlemObject
@@ -80,7 +81,21 @@ class DatasetAnalyzer(Analyzer):
     base_hook_class = DatasetHook
 
 
-class PrimitiveType(DatasetType, DatasetHook):
+class DatasetSerializer(ABC):
+    @abstractmethod
+    def serialize(self, obj: Any) -> dict:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def deserialize(self, payload: dict) -> Any:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_model(self) -> Type[BaseModel]:
+        raise NotImplementedError()
+
+
+class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
     """
     DatasetType for int, str, bool, complex and float types
     """
@@ -114,6 +129,9 @@ class PrimitiveType(DatasetType, DatasetHook):
 
     def get_requirements(self) -> Requirements:
         return Requirements.new()
+
+    def get_model(self) -> Type[BaseModel]:
+        return create_model("Primitive", __root__=self.to_type)
 
 
 class ListTypeWithSpec(DatasetType):
@@ -360,18 +378,4 @@ class DatasetWriter(MlemObject):
     def write(
         self, dataset: Dataset, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
-        raise NotImplementedError()
-
-
-class DatasetSerializer(ABC):
-    @abstractmethod
-    def serialize(self, obj: Any) -> dict:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def deserialize(self, payload: dict) -> Any:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def get_model(self) -> Type[BaseModel]:
         raise NotImplementedError()

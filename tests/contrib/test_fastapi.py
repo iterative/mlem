@@ -40,7 +40,7 @@ def payload_model(signature):
 @pytest.fixture
 def interface(model, train):
     model = ModelMeta.from_obj(model, sample_data=train)
-    interface = ModelInterface().from_model(model)
+    interface = ModelInterface.from_model(model)
     return interface
 
 
@@ -81,20 +81,23 @@ def test_create_handler(signature, executor):
 
 
 def test_endpoint(client):
-    pass
-    # response = client.post(
-    #     f"/{PREDICT_METHOD_NAME}",
-    #     json={"data": {"values": pd.DataFrame([
-    #   {
-    #     "": 0,
-    #     "sepal length (cm)": 89,
-    #     "sepal width (cm)": 90,
-    #     "petal length (cm)": 45,
-    #     "petal width (cm)": 27
-    #   }
-    # ])}},
-    # )
-
+    response = client.post(
+        f"/{PREDICT_METHOD_NAME}",
+        json={
+            "data": {
+                "values": [
+                    {
+                        "": 0,
+                        "sepal length (cm)": 89,
+                        "sepal width (cm)": 90,
+                        "petal length (cm)": 45,
+                        "petal width (cm)": 27,
+                    }
+                ]
+            }
+        },
+    )
+    print(response.content)
     # ## am I passing data correctly??
     # ## need to assert contents of response once we pass data correctly
     # print(response)
