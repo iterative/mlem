@@ -1,3 +1,5 @@
+# pylint: disable=W0212
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, create_model
@@ -69,7 +71,7 @@ def test_rename_recursively(payload_model):
 
 def test_create_handler(signature, executor):
     server = FastAPIServer()
-    handler, response_model = server._create_handler(
+    _, response_model = server._create_handler(
         PREDICT_METHOD_NAME, signature, executor
     )
     assert (
@@ -77,7 +79,6 @@ def test_create_handler(signature, executor):
         == f"{PREDICT_METHOD_NAME}{signature.returns.get_model().__name__}"
     )
     assert isinstance(response_model, ModelMetaclass)
-    # test handler(), what to pass in here?
 
 
 def test_endpoint(client, interface, train):
@@ -89,9 +90,10 @@ def test_endpoint(client, interface, train):
     )
     response = client.post(
         f"/{PREDICT_METHOD_NAME}",
-        json=payload,
+        json={"data": payload},
     )
-    print(response.content)
-    # ## am I passing data correctly??
-    # ## need to assert contents of response once we pass data correctly
-    # print(response)
+    assert response.status_code == 200
+    assert (
+        response.content
+        == str([0] * 50 + [1] * 50 + [2] * 50).replace(" ", "").encode()
+    )
