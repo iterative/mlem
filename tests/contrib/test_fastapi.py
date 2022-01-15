@@ -80,22 +80,16 @@ def test_create_handler(signature, executor):
     # test handler(), what to pass in here?
 
 
-def test_endpoint(client):
+def test_endpoint(client, interface, train):
+    payload = (
+        interface.model_type.methods[PREDICT_METHOD_NAME]
+        .args[0]
+        .type_.get_serializer()
+        .serialize(train)
+    )
     response = client.post(
         f"/{PREDICT_METHOD_NAME}",
-        json={
-            "data": {
-                "values": [
-                    {
-                        "": 0,
-                        "sepal length (cm)": 89,
-                        "sepal width (cm)": 90,
-                        "petal length (cm)": 45,
-                        "petal width (cm)": 27,
-                    }
-                ]
-            }
-        },
+        json=payload,
     )
     print(response.content)
     # ## am I passing data correctly??

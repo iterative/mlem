@@ -46,12 +46,14 @@ class FastAPIServer(Server, LibRequirementsMixin):
         print(f"registring {method_name} with {payload_model} ")
 
         def handler(model: payload_model):  # type: ignore[valid-type]
-            kwargs = {
-                a.name: serializers[a.name].deserialize(
-                    getattr(model, a.name).dict()
-                )
-                for a in signature.args
-            }
+            kwargs = {}
+            for a in signature.args:
+                d = getattr(model, a.name).dict()
+                obj = d.get("__root__", None)
+                if obj is not None:
+                    kwargs[a.name] = serializers[a.name].deserialize(obj)
+                else:
+                    kwargs[a.name] = serializers[a.name].deserialize(d)
             result = executor(**kwargs)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
