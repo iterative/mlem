@@ -93,7 +93,4 @@ def test_endpoint(client, interface, train):
         json={"data": payload},
     )
     assert response.status_code == 200
-    assert (
-        response.content
-        == str([0] * 50 + [1] * 50 + [2] * 50).replace(" ", "").encode()
-    )
+    assert response.json() == [0] * 50 + [1] * 50 + [2] * 50

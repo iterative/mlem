@@ -49,14 +49,14 @@ class DatasetType(ABC, MlemObject, WithRequirements):
 
     @abstractmethod
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_serializer(
         self, **kwargs  # pylint: disable=unused-argument
     ) -> "DatasetSerializer":
         if isinstance(self, DatasetSerializer):
             return self
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class UnspecifiedDatasetType(DatasetType):
@@ -70,7 +70,7 @@ class UnspecifiedDatasetType(DatasetType):
         return Requirements()
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class DatasetHook(Hook[DatasetType], ABC):
@@ -84,15 +84,15 @@ class DatasetAnalyzer(Analyzer):
 class DatasetSerializer(ABC):
     @abstractmethod
     def serialize(self, obj: Any) -> dict:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def deserialize(self, payload: dict) -> Any:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
@@ -125,7 +125,7 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return instance
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
+        raise NotImplementedError  # TODO: https://github.com/iterative/mlem/issues/35
 
     def get_requirements(self) -> Requirements:
         return Requirements.new()
@@ -144,7 +144,7 @@ class ListTypeWithSpec(DatasetType):
 
     @abstractmethod
     def list_size(self):
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
 
 class SizedTypedListType(ListTypeWithSpec):
@@ -178,7 +178,7 @@ class ListDatasetType(SizedTypedListType):
         return [self.dtype.serialize(o) for o in instance]
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class _TupleLikeDatasetType(DatasetType):
@@ -213,7 +213,7 @@ class _TupleLikeDatasetType(DatasetType):
         )
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 def _check_type_and_size(obj, dtype, size, exc_type):
@@ -314,7 +314,7 @@ class DictDatasetType(DatasetType):
         )
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 #
@@ -365,7 +365,7 @@ class DatasetReader(MlemObject, ABC):
 
     @abstractmethod
     def read(self, artifacts: Artifacts) -> Dataset:
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class DatasetWriter(MlemObject):
@@ -378,4 +378,4 @@ class DatasetWriter(MlemObject):
     def write(
         self, dataset: Dataset, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
-        raise NotImplementedError()
+        raise NotImplementedError
