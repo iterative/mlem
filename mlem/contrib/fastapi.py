@@ -47,6 +47,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         def handler(model: payload_model):  # type: ignore[valid-type]
             kwargs = {}
+            # TODO: https://github.com/iterative/mlem/issues/149
             for a in signature.args:
                 d = getattr(model, a.name).dict()
                 obj = d.get("__root__", None)
