@@ -46,19 +46,22 @@ class FastAPIServer(Server, LibRequirementsMixin):
         print(f"registring {method_name} with {payload_model} ")
 
         def handler(model: payload_model):  # type: ignore[valid-type]
-            kwargs = {
-                a.name: serializers[a.name].deserialize(
-                    getattr(model, a.name).dict()
-                )
-                for a in signature.args
-            }
+            kwargs = {}
+            # TODO: https://github.com/iterative/mlem/issues/149
+            for a in signature.args:
+                d = getattr(model, a.name).dict()
+                obj = d.get("__root__", None)
+                if obj is not None:
+                    kwargs[a.name] = serializers[a.name].deserialize(obj)
+                else:
+                    kwargs[a.name] = serializers[a.name].deserialize(d)
             result = executor(**kwargs)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
         return handler, response_model
 
-    def serve(self, interface: Interface):
+    def app_init(self, interface: Interface):
         app = FastAPI()
 
         for method, signature in interface.iter_methods():
@@ -73,6 +76,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 methods=["POST"],
                 response_model=response_model,
             )
-            # app.route(f'/{method}', methods=['post'])(handler)
 
+        return app
+
+    def serve(self, interface: Interface):
+        app = self.app_init(interface)
         uvicorn.run(app, host=self.host, port=self.port)
