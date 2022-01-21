@@ -1,3 +1,3 @@
-from .meta import HerokuDeployment, HerokuTargetEnvMeta
+from .meta import HerokuDeployState, HerokuTargetEnvMeta
 
-__all__ = ["HerokuTargetEnvMeta", "HerokuDeployment"]
+__all__ = ["HerokuTargetEnvMeta", "HerokuDeployState"]

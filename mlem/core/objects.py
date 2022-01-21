@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from functools import partial
 from inspect import isabstract
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
@@ -17,11 +18,13 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as, validator
+from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
@@ -34,7 +37,11 @@ from mlem.core.artifacts import (
 )
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
-from mlem.core.errors import MlemObjectNotSavedError, MlemRootNotFound
+from mlem.core.errors import (
+    MlemObjectNotSavedError,
+    MlemRootNotFound,
+    WrongMetaType,
+)
 from mlem.core.meta_io import (
     ART_DIR,
     META_FILE_NAME,
@@ -48,26 +55,6 @@ from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
-
-
-class Deployment(MlemObject):
-    class Config:
-        type_root = True
-
-    abs_name: ClassVar[str] = "deployment"
-
-    # @abstractmethod
-    # def get_client(self) -> BaseClient:
-    #     pass
-
-    @abstractmethod
-    def get_status(self):
-        pass
-
-    @abstractmethod
-    def destroy(self):
-        pass
-
 
 T = TypeVar("T", bound="MlemMeta")
 
@@ -331,10 +318,10 @@ class MlemMeta(MlemObject):
             MlemMeta, self.dict()
         )  # easier than deep copy bc of possible attached objects
 
-    # def update(self):
-    #     if not self.is_saved:
-    #         raise MlemObjectNotSavedError("Cannot update not saved object")
-    #     self._write_meta(self._path, self._root, self._fs, False)
+    def update(self):
+        if not self.is_saved:
+            raise MlemObjectNotSavedError("Cannot update not saved object")
+        self._write_meta(self.location, False)
 
 
 class MlemLink(MlemMeta):
@@ -359,7 +346,23 @@ class MlemLink(MlemMeta):
     ):
         return make_posix(value)
 
-    def load_link(self, follow_links: bool = True) -> MlemMeta:
+    @overload
+    def load_link(
+        self, follow_links: bool = True, *, force_type: Type[T]
+    ) -> T:
+        ...
+
+    @overload
+    def load_link(
+        self, follow_links: bool = True, *, force_type: Literal[None] = None
+    ) -> MlemMeta:
+        ...
+
+    def load_link(
+        self, follow_links: bool = True, *, force_type: Type[MlemMeta] = None
+    ) -> MlemMeta:
+        if force_type is not None and self.link_cls != force_type:
+            raise WrongMetaType(self.link_type, force_type)
         return self.link_cls.read(self.parse_link(), follow_links=follow_links)
 
     def parse_link(self) -> Location:
@@ -625,44 +628,56 @@ class TargetEnvMeta(MlemMeta):
     additional_args = ()
 
     @abstractmethod
-    def deploy(self, meta: "ModelMeta", **kwargs) -> "Deployment":
+    def deploy(self, meta: "DeployMeta", **kwargs) -> "DeployState":
         """"""
         raise NotImplementedError
 
+
+class DeployState(MlemObject):
+    class Config:
+        type_root = True
+
+    abs_name: ClassVar[str] = "deployment"
+
+    # @abstractmethod
+    # def get_client(self) -> BaseClient:
+    #     pass
+
     @abstractmethod
-    def update(
-        self, meta: "ModelMeta", previous: "Deployment", **kwargs
-    ) -> "Deployment":
-        """"""
-        raise NotImplementedError
+    def get_status(self):
+        pass
+
+    @abstractmethod
+    def destroy(self):
+        pass
 
 
 class DeployMeta(MlemMeta):
     object_type: ClassVar = "deployment"
 
-    env_path: str
-    model_path: str
-    deployment: Deployment
+    class Config:
+        exclude = {"model", "env"}
+        link_fields = ["env_link", "model_link"]
 
-    @property  # TODO cached
-    def env(self):
-        return TargetEnvMeta.read(Location.abs(self.env_path, self.loc.fs))
+    env_link: MlemLink
+    env: Optional[TargetEnvMeta]
+    model_link: MlemLink
+    model: Optional[ModelMeta]
+    state: Optional[DeployState]
 
-    @property  # TODO cached
-    def model(self):
-        return ModelMeta.read(Location.abs(self.model_path, self.loc.fs))
+    def get_env(self):
+        if self.env is None:
+            self.env = self.env_link.bind(self.loc).load_link(
+                force_type=TargetEnvMeta
+            )
+        return self.env
 
-    @classmethod
-    def find(
-        cls, env_path: str, model_path: str, raise_on_missing=True
-    ) -> Optional["DeployMeta"]:
-        try:
-            path = posixpath.join(env_path, model_path)
-            return cls.read(Location.abs(path, LocalFileSystem()))  # TODO fs
-        except FileNotFoundError:
-            if raise_on_missing:
-                raise
-            return None
+    def get_model(self):
+        if self.model is None:
+            self.model = self.model_link.bind(self.loc).load_link(
+                force_type=ModelMeta
+            )
+        return self.model
 
 
 def mlem_dir_path(

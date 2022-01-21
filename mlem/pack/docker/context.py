@@ -42,6 +42,7 @@ class DockerBuildArgs(BaseModel):
     package_install_cmd: str = "apt-get install -y"
     prebuild_hook: Optional[Callable[[str], Any]] = None
     mlem_whl: Optional[str] = None
+    platform: Optional[str] = None
 
     def get_base_image(self):
         if self.base_image is None:

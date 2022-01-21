@@ -5,11 +5,13 @@ import re
 import time
 from contextlib import contextmanager
 from threading import Lock
+from typing import Tuple
 
 import docker
 import requests
 import six
 from docker.errors import BuildError, DockerException
+from docker.models.images import Image
 from docker.utils.json_stream import json_stream
 
 logger = logging.getLogger(__name__)
@@ -28,7 +30,7 @@ def build_image_with_logs(
     path: str,
     level=logging.DEBUG,
     **kwargs,
-):
+) -> Tuple[Image, Union[str, Iterator[Any]]]:
     resp = client.api.build(path=path, **kwargs)
     if isinstance(resp, six.string_types):
         return client.images.get(resp)

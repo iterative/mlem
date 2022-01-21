@@ -35,17 +35,17 @@ def deploy(model, target_environment, deploy_args):
 
     previous = DeployMeta.find(target_environment, model, False)
     if previous is not None:
-        if not isinstance(previous.deployment, env_meta.deployment_type):
+        if not isinstance(previous.state, env_meta.deployment_type):
             raise ValueError(
-                f"Cant redeploy {previous.deployment.__class__} to {env_meta.__class__}"
+                f"Cant redeploy {previous.state.__class__} to {env_meta.__class__}"
             )
         click.echo("Already deployed, updating")
-        deployment = env_meta.update(model_meta, previous.deployment)
+        deployment = env_meta.update(model_meta, previous.state)
     else:
         deployment = env_meta.deploy(model_meta, **args)
 
     deploy_meta = DeployMeta(
-        env_path=target_environment, model_path=model, deployment=deployment
+        env_path=target_environment, model_path=model, state=deployment
     )
     deploy_meta.dump(posixpath.join(target_environment, model))
 
@@ -56,7 +56,7 @@ def deploy(model, target_environment, deploy_args):
 def destroy(target_environment, model):
     deployed = posixpath.join(target_environment, model)
     deploy_meta = load_meta(deployed, force_type=DeployMeta)
-    deploy_meta.deployment.destroy()
+    deploy_meta.state.destroy()
     os.unlink(mlem_dir_path(deployed, LocalFileSystem(), obj_type=DeployMeta))
 
 
@@ -65,4 +65,4 @@ def destroy(target_environment, model):
 @click.argument("model")
 def status(target_environment, model):
     deploy_meta = DeployMeta.find(target_environment, model)
-    print(deploy_meta.deployment.get_status())
+    print(deploy_meta.state.get_status())

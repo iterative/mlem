@@ -1,13 +1,29 @@
 from mlem.core.objects import ModelMeta
 from mlem.pack.docker import DockerImagePackager
-from mlem.pack.docker.base import DockerEnv, DockerImage, DockerBuildArgs
+from mlem.pack.docker.base import DockerBuildArgs, DockerEnv, DockerImage
 from mlem.runtime.server.base import Server
 
 
-def build_model_image(model: ModelMeta, name: str, server: Server = None, env: DockerEnv = None, tag: str = 'latest',
-                      repository: str = None, force_overwrite: bool = False, **build_args):
-    packager = DockerImagePackager(
-        server=server, args=DockerBuildArgs(**build_args), image=DockerImage(name=name, tag=tag, repository=repository),
-        env=env, force_overwrite=force_overwrite
+def build_model_image(
+    model: ModelMeta,
+    name: str,
+    server: Server = None,
+    env: DockerEnv = None,
+    tag: str = "latest",
+    repository: str = None,
+    force_overwrite: bool = False,
+    **build_args
+) -> DockerImage:
+    env = env or DockerEnv()
+    image = DockerImage(
+        name=name, tag=tag, repository=repository, registry=env.registry
     )
-    return packager.package(model, name)
+    packager = DockerImagePackager(
+        server=server,
+        args=DockerBuildArgs(**build_args),
+        image=image,
+        env=env,
+        force_overwrite=force_overwrite,
+    )
+    packager.package(model, image.uri)
+    return packager.image

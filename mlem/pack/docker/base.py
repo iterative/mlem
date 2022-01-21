@@ -307,7 +307,7 @@ class DockerImagePackager(DockerDirPackager):
             return self.build(tempdir, out)
 
     def build(self, context_dir: str, image_name: str) -> Image:
-        tag = image_name
+        tag = image_name  # todo registry
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         with self.env.daemon.client() as client:
             self.image.registry.login(client)
@@ -322,8 +322,13 @@ class DockerImagePackager(DockerDirPackager):
 
             try:
                 image, _ = build_image_with_logs(
-                    client, path=context_dir, tag=tag, rm=True
+                    client,
+                    path=context_dir,
+                    tag=tag,
+                    rm=True,
+                    platform=self.args.platform,
                 )
+                self.image.image_id = image.id
                 logger.info("Built docker image %s", tag)
 
                 self.image.registry.push(client, tag)

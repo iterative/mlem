@@ -13,6 +13,7 @@ from pydantic import parse_obj_as
 from mlem.config import CONFIG_FILE
 from mlem.core.errors import (
     InvalidArgumentError,
+    MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
 )
@@ -25,7 +26,14 @@ from mlem.core.meta_io import (
     get_fs,
 )
 from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import DatasetMeta, DeployMeta, MlemLink, MlemMeta, ModelMeta, TargetEnvMeta
+from mlem.core.objects import (
+    DatasetMeta,
+    DeployMeta,
+    MlemLink,
+    MlemMeta,
+    ModelMeta,
+    TargetEnvMeta,
+)
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
 from mlem.utils.root import mlem_repo_exists
@@ -373,25 +381,36 @@ def import_object(
     return meta
 
 
-def deploy(model_meta: ModelMeta, env_meta: TargetEnvMeta, deploy_args: List[str]):
+def deploy(
+    model_meta: ModelMeta,
+    env_meta: TargetEnvMeta,
+    deploy_args: List[str],
+    name: str = None,
+):
     if len(env_meta.additional_args) != len(deploy_args):
         raise ValueError(
             f"Invalid arguments for {env_meta.alias} deploy: {env_meta.additional_args} needed"
         )
-    args = dict(zip(env_meta.additional_args, deploy_args))
+    args: Dict[str, str] = dict(zip(env_meta.additional_args, deploy_args))
+    name = name or posixpath.join(env_meta.loc.path, model_meta.loc.path)
 
-    # previous = DeployMeta.find(env_meta.loc.path, model_meta.loc.path, False)
-    # if previous is not None:
-    #     if not isinstance(previous.deployment, env_meta.deployment_type):
-    #         raise ValueError(
-    #             f"Cant redeploy {previous.deployment.__class__} to {env_meta.__class__}"
-    #         )
-    #     click.echo("Already deployed, updating")
-    #     deployment = env_meta.update(model_meta, previous.deployment)
-    # else:
-    #     deployment = env_meta.deploy(model_meta, **args)
-    deployment = env_meta.deploy(model_meta, **args)
-    deploy_meta = DeployMeta(
-        env_path=env_meta.loc.path, model_path=model_meta.loc.path, deployment=deployment
-    )
-    deploy_meta.dump(posixpath.join(env_meta.loc.path, model_meta.loc.path))
+    try:
+        deploy_meta = load_meta(name, force_type=DeployMeta)
+        click.echo("Already deployed, updating")
+    except MlemObjectNotFound:
+        deploy_meta = DeployMeta(
+            model=model_meta,
+            env=env_meta,
+            env_link=env_meta.make_link(),
+            model_link=model_meta.make_link(),
+        )
+        deploy_meta.dump(name)  # TODO add other dump args
+
+    if deploy_meta.state is not None and not isinstance(
+        deploy_meta.state, env_meta.deployment_type
+    ):
+        raise ValueError(
+            f"Cant redeploy {deploy_meta.state.__class__} to {env_meta.__class__}"
+        )
+
+    env_meta.deploy(deploy_meta, **args)

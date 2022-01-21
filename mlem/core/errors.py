@@ -58,3 +58,10 @@ class HookNotFound(MlemError):
 
 class MultipleHooksFound(MlemError):
     """Thrown if more than one hook found for object"""
+
+
+class WrongMetaType(TypeError, MlemError):
+    def __init__(self, meta, force_type):
+        super().__init__(
+            f"Wrong type of meta loaded, {meta} is not {force_type}"
+        )

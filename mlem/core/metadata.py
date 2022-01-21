@@ -9,7 +9,12 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
 
-from mlem.core.errors import HookNotFound, MlemObjectNotFound, MlemRootNotFound
+from mlem.core.errors import (
+    HookNotFound,
+    MlemObjectNotFound,
+    MlemRootNotFound,
+    WrongMetaType,
+)
 from mlem.core.meta_io import Location, UriResolver, get_meta_path
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta, find_object
 from mlem.utils.path import make_posix
@@ -195,9 +200,7 @@ def load_meta(
     if load_value:
         meta.load_value()
     if not isinstance(meta, force_type or MlemMeta):
-        raise TypeError(
-            f"Wrong type of meta loaded, {meta} is not {force_type}"
-        )
+        raise WrongMetaType(meta, force_type)
     return meta  # type: ignore[return-value]
 
 
