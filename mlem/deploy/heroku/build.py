@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import ModelMeta
@@ -12,11 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class HerokuRemoteRegistry(RemoteRegistry):
-    api_key: str = None
+    api_key: Optional[str] = None
 
     def uri(self, image: str):
-        uri = super(HerokuRemoteRegistry, self).uri(image)
-        return uri.split(":")[0]
+        return super().uri(image).split(":")[0]
 
     def login(self, client):
         password = self.api_key or HEROKU_CONFIG.API_KEY
@@ -29,7 +29,7 @@ class HerokuRemoteRegistry(RemoteRegistry):
 
 class HerokuServer(FastAPIServer):
     def serve(self, interface: Interface):
-        self.port = int(os.environ.get("PORT"))
+        self.port = int(os.environ["PORT"])
         logger.info("Switching port to %s", self.port)
         return super().serve(interface)
 

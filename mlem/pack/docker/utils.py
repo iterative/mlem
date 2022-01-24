@@ -5,7 +5,7 @@ import re
 import time
 from contextlib import contextmanager
 from threading import Lock
-from typing import Tuple
+from typing import Any, Iterator, Tuple, Union
 
 import docker
 import requests

@@ -194,7 +194,7 @@ class DockerModelDirectory(BaseModel):
 
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
-            sh.write("mlem serve .")
+            sh.write(f"mlem serve . {self.server.type}")
 
     def write_mlem_whl(self):
         import re

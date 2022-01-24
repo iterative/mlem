@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 from functools import partial
 from inspect import isabstract
 from typing import (
-    TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,

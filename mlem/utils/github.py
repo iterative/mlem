@@ -3,7 +3,6 @@ import posixpath
 from typing import Dict, Optional
 from urllib.parse import quote_plus, urlparse
 
-import git
 import requests
 
 from mlem.config import CONFIG
@@ -53,6 +52,8 @@ def get_github_envs() -> Dict:
 
 
 def ls_branches(repo_url: str) -> Dict[str, str]:
+    import git
+
     git.cmd.Git().ls_remote(repo_url)
     g = git.cmd.Git()
     remote_refs: Dict[str, str] = dict(

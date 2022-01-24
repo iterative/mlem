@@ -21,25 +21,35 @@ class HerokuDeployState(DeployState):
     image: Optional[DockerImage]
     release_state: Optional[dict]
 
+    @property
+    def ensured_app(self) -> HerokuAppMeta:
+        if self.app is None:
+            raise ValueError("App is not created yet")
+        return self.app
+
     def get_client(self) -> HTTPClient:
-        return HTTPClient(host=urlparse(self.app.web_url).netloc, port=80)
+        return HTTPClient(
+            host=urlparse(self.ensured_app.web_url).netloc, port=80
+        )
 
     def get_status(self):
         from .utils import heroku_api_request
 
-        dynos = heroku_api_request("get", f"/apps/{self.app.name}/dynos")
+        dynos = heroku_api_request(
+            "get", f"/apps/{self.ensured_app.name}/dynos"
+        )
         dynos = [d for d in dynos if d["type"] == "web"]
         if not dynos:
             return (
                 f"No heroku web dynos found, check your dashboard "
-                f"at https://dashboard.heroku.com/apps/{self.app.name}"
+                f"at https://dashboard.heroku.com/apps/{self.ensured_app.name}"
             )
         return dynos[0]["state"]
 
     def destroy(self):
         from .utils import heroku_api_request
 
-        pprint(heroku_api_request("delete", f"/apps/{self.app.name}"))
+        pprint(heroku_api_request("delete", f"/apps/{self.ensured_app.name}"))
 
 
 class HerokuTargetEnvMeta(TargetEnvMeta):
