@@ -44,7 +44,11 @@ class MyDeployState(DeployState):
 
 @pytest.fixture()
 def meta():
-    return DeployMeta(env_path="", model_path="", state=MyDeployState())
+    return DeployMeta(
+        env_link=MlemLink(path="", link_type="env"),
+        model_link=MlemLink(path="", link_type="model"),
+        state=MyDeployState(),
+    )
 
 
 @pytest.fixture(params=["fullpath", "with_root"])
