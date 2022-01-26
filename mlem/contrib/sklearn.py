@@ -8,6 +8,7 @@ from mlem.constants import (
     PREDICT_METHOD_NAME,
     PREDICT_PROBA_METHOD_NAME,
 )
+from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import (
     ModelHook,
     ModelIO,
@@ -19,7 +20,7 @@ from mlem.core.requirements import InstallableRequirement, Requirements
 from mlem.utils.module import get_object_base_module, get_object_requirements
 
 
-class SklearnModel(ModelType, ModelHook):
+class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
     """
     :class:`mlem.core.model.ModelType implementation for `scikit-learn` models
     """
@@ -27,10 +28,6 @@ class SklearnModel(ModelType, ModelHook):
     type: ClassVar[str] = "sklearn"
     io: ModelIO = SimplePickleIO()
     valid_types: ClassVar = (RegressorMixin, ClassifierMixin)
-
-    @classmethod
-    def is_object_valid(cls, obj: Any) -> bool:
-        return isinstance(obj, cls.valid_types)
 
     @classmethod
     def process(

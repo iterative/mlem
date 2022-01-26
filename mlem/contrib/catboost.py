@@ -8,6 +8,7 @@ import catboost
 from catboost import CatBoost, CatBoostClassifier, CatBoostRegressor
 
 from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
@@ -64,7 +65,7 @@ class CatBoostModelIO(ModelIO):
         use_enum_values = True
 
 
-class CatBoostModel(ModelType, ModelHook):
+class CatBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
     """
     :class:`mlem.core.model.ModelType` for CatBoost models.
     `.model` attribute is a `catboost.CatBoostClassifier` or `catboost.CatBoostRegressor` instance
@@ -74,10 +75,6 @@ class CatBoostModel(ModelType, ModelHook):
     io: ModelIO = CatBoostModelIO()
     model: ClassVar[Optional[CatBoost]]
     valid_types: ClassVar = (CatBoostClassifier, CatBoostRegressor)
-
-    @classmethod
-    def is_object_valid(cls, obj: Any) -> bool:
-        return isinstance(obj, tuple(cls.valid_types))
 
     @classmethod
     def process(
