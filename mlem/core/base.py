@@ -62,23 +62,7 @@ class MlemObject(PolyModel):
     abs_name: ClassVar[str]
 
     @classmethod
-    def validate(cls, value):
-        """Polymorphic magic goes here"""
-        if isinstance(value, cls):
-            return value
-        value = value.copy()
-        type_name = value.pop(
-            cls.__config__.type_field, cls.__config__.default_type
-        )
-        if type_name is None:
-            raise ValueError(
-                f"Type field was not provided and no default type specified in {cls.__parent__.__name__}"
-            )
-        child_cls: Type[MlemObject] = cls.resolve_subtype(type_name)
-        return child_cls(**value)
-
-    @classmethod
-    def resolve_subtype(cls, type_name: str) -> Type["MlemObject"]:
+    def __resolve_subtype__(cls, type_name: str) -> Type["MlemObject"]:
         """The __type_map__ contains an entry only if the subclass was imported.
         If it is there, we return it.
         If not, we try to load extension using entrypoints registered in setup.py.

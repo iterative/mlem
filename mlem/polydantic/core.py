@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, ClassVar, Dict, Optional, Set, Type, Union
 
-from pydantic import BaseConfig
+from pydantic import BaseConfig, parse_obj_as
 from pydantic.main import ModelMetaclass
 
 from mlem.polydantic.lazy import LazyModel
@@ -55,7 +55,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
         """
 
         exclude: Set[str] = set()
-        type_root: bool = True  # actual default is kinda False via metaclass TODO: fix this strange logic
+        type_root: bool = False  # actual default is kinda False via metaclass TODO: fix this strange logic
         type_field: str = "type"
         default_type: Optional[str] = None
 
@@ -67,16 +67,25 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
         """Polymorphic magic goes here"""
         if isinstance(value, cls):
             return value
+        if not cls.__is_root__:
+            return super().validate(value)
         value = value.copy()
         type_name = value.pop(
             cls.__config__.type_field, cls.__config__.default_type
         )
+
         if type_name is None:
             raise ValueError(
                 f"Type field was not provided and no default type specified in {cls.__parent__.__name__}"
             )
-        child_cls = cls.__type_map__[type_name]
-        return child_cls(**value)
+        child_cls = cls.__resolve_subtype__(type_name)
+        if child_cls is cls:
+            return super().validate(value)
+        return parse_obj_as(child_cls, value)
+
+    @classmethod
+    def __resolve_subtype__(cls, type_name: str) -> Type["PolyModel"]:
+        return cls.__type_map__[type_name]
 
     def _iter(
         self,
@@ -97,43 +106,75 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             exclude_defaults=exclude_defaults,
             exclude_none=exclude_none,
         )
-        alias = self.__get_alias__()
-        if not exclude_defaults or alias != self.__config__.default_type:
-            yield self.__config__.type_field, alias
+        if self.__is_root__:
+            alias = self.__get_alias__(self.__config__.type_field)
+            if not exclude_defaults or alias != self.__config__.default_type:
+                yield self.__config__.type_field, alias
+
+        for parent in self.__iter_parents__(include_top=False):
+            alias = parent.__get_alias__()
+            if not exclude_defaults or alias != parent.__config__.default_type:
+                yield parent.__type_field__(), alias
 
     def __iter__(self):
         """Add alias field"""
         yield from super().__iter__()
-        yield self.__config__.type_field, self.__get_alias__()
+        for parent in self.__iter_parents__(include_top=False):
+            yield parent.__type_field__(), parent.__get_alias__()
 
     @classmethod
-    def __get_alias__(cls):
+    def __iter_parents__(cls, include_top=True):
+        if cls.__parent__ is None:
+            return
+        if include_top or not cls.__is_top_root__():
+            yield cls
+        if not cls.__is_top_root__():
+            yield from cls.__parent__.__iter_parents__(include_top=include_top)
+
+    @classmethod
+    def __type_field__(cls):
+        return cls.__parent__.__config__.type_field
+
+    @classmethod
+    def __is_top_root__(cls):
+        return cls.__parent__ is cls
+
+    @classmethod
+    def __get_alias__(cls, type_field: str = None):
         return cls.__dict__.get(
-            cls.__config__.type_field, f"{cls.__module__}.{cls.__name__}"
+            type_field or cls.__type_field__(),
+            f"{cls.__module__}.{cls.__name__}",
         )
 
     def __init_subclass__(cls: Type["PolyModel"]):
         """Register subtypes to __type_map__"""
+        if cls is PolyModel:
+            super(PolyModel, cls).__init_subclass__()
+            return
         if cls.__is_root__:  # Parent model initialization
+            type_field = cls.__config__.type_field
             cls.__type_map__ = {}
+            alias = cls.__get_alias__(type_field)
+            if alias is not None and alias is not ...:
+                cls.__type_map__[alias] = cls
             cls.__annotations__[  # pylint: disable=no-member
-                cls.__config__.type_field
+                type_field
             ] = ClassVar[str]
-            cls.__class_vars__.add(cls.__config__.type_field)
+            cls.__class_vars__.add(type_field)
+            cls.__parent__ = cls
 
-        for parent in cls.mro():  # Looking for parent model
-            if not issubclass(parent, PolyModel):
-                continue
-            if parent.__is_root__:  # pylint: disable=no-member
-                if parent == PolyModel:
-                    break
-                alias = cls.__get_alias__()
-                if alias is not None and alias is not ...:
-                    parent.__type_map__[alias] = cls
-                    setattr(cls, cls.__config__.type_field, alias)
-                cls.__parent__ = parent
-                break
-        else:
-            raise ValueError("No parent with type_root == True found")
+        parents = [
+            p
+            for p in cls.mro()[1:]
+            if issubclass(p, PolyModel)
+            and p.__is_root__  # pylint: disable=no-member
+        ]
+        if len(parents) > 0:
+            parent: Type[PolyModel] = parents[0]
+            cls.__parent__ = parent
+            alias = cls.__get_alias__()
+            if alias is not None and alias is not ...:
+                parent.__type_map__[alias] = cls
+                setattr(cls, parent.__config__.type_field, alias)
 
         super(PolyModel, cls).__init_subclass__()
