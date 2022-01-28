@@ -5,12 +5,14 @@ MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 import os
 import posixpath
 from abc import ABC, abstractmethod
+from enum import Enum
 from functools import partial
 from inspect import isabstract
 from typing import (
     Any,
     ClassVar,
     Dict,
+    Generic,
     List,
     Optional,
     Tuple,
@@ -48,6 +50,7 @@ from mlem.core.meta_io import (
     MLEM_EXT,
     Location,
     UriResolver,
+    get_path_by_fs_path,
 )
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
@@ -392,6 +395,19 @@ class MlemLink(MlemMeta):
             )
         )
 
+    @classmethod
+    def from_location(
+        cls, loc: Location, link_type: Union[str, Type[MlemMeta]]
+    ) -> "MlemLink":
+        return MlemLink(
+            path=get_path_by_fs_path(loc.fs, loc.path_in_repo),
+            repo=loc.repo,
+            rev=loc.rev,
+            link_type=link_type.object_type
+            if not isinstance(link_type, str)
+            else link_type,
+        )
+
 
 class _WithArtifacts(ABC, MlemMeta):
     __abstract__: ClassVar[bool] = True
@@ -616,47 +632,71 @@ class DatasetMeta(_WithArtifacts):
         return self.data
 
 
-class TargetEnvMeta(MlemMeta):
-    class Config:
-        type_root = True
-
-    object_type: ClassVar = "env"
-    alias: ClassVar = ...
-    deployment_type: ClassVar = ...
-
-    additional_args = ()
-
-    @abstractmethod
-    def deploy(self, meta: "DeployMeta", **kwargs) -> "DeployState":
-        """"""
-        raise NotImplementedError
-
-
 class DeployState(MlemObject):
     class Config:
         type_root = True
 
-    abs_name: ClassVar[str] = "deployment"
+    abs_name: ClassVar[str] = "deploy_state"
 
     # @abstractmethod
     # def get_client(self) -> BaseClient:
     #     pass
 
-    @abstractmethod
-    def get_status(self):
-        pass
+
+DT = TypeVar("DT", bound="DeployMeta")
+
+
+class TargetEnvMeta(MlemMeta, Generic[DT]):
+    class Config:
+        type_root = True
+        type_field = "type"
+
+    abs_name = "env"
+    object_type: ClassVar = "env"
+    type: ClassVar = ...
+    deploy_type: ClassVar[Type[DT]]
 
     @abstractmethod
-    def destroy(self):
-        pass
+    def deploy(self, meta: DT):
+        """"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def destroy(self, meta: DT):
+        """"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_status(self, meta: DT) -> "DeployStatus":
+        raise NotImplementedError
+
+    def check_type(self, deploy: "DeployMeta"):
+        if not isinstance(deploy, self.deploy_type):
+            raise ValueError(
+                f"Meta of the {self.type} deployment should be {self.deploy_type}, not {deploy.__class__}"
+            )
+
+
+class DeployStatus(Enum):
+    UNKNOWN = "unknown"
+    NOT_DEPLOYED = "not_deployed"
+    STARTING = "starting"
+    CRASHED = "crashed"
+    STOPPED = "stopped"
+    RUNNING = "running"
 
 
 class DeployMeta(MlemMeta):
     object_type: ClassVar = "deployment"
 
     class Config:
+        type_root = True
+        type_field = "type"
         exclude = {"model", "env"}
-        link_fields = ["env_link", "model_link"]
+        use_enum_values = True
+
+    abs_name = "deploy"
+    type: ClassVar = ...
 
     env_link: MlemLink
     env: Optional[TargetEnvMeta]
@@ -677,6 +717,15 @@ class DeployMeta(MlemMeta):
                 force_type=ModelMeta
             )
         return self.model
+
+    def deploy(self):
+        return self.get_env().deploy(self)
+
+    def destroy(self):
+        self.get_env().destroy(self)
+
+    def get_status(self) -> DeployStatus:
+        return self.get_env().get_status(self)
 
 
 def mlem_dir_path(

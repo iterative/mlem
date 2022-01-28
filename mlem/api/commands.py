@@ -4,13 +4,23 @@ MLEM's Python API
 import posixpath
 import re
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import click
 from fsspec import AbstractFileSystem
-from pydantic import parse_obj_as
 
 from mlem.config import CONFIG_FILE
+from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import (
     InvalidArgumentError,
     MlemObjectNotFound,
@@ -71,6 +81,17 @@ def _get_model_meta(model: Any) -> ModelMeta:
     raise InvalidArgumentError(
         f"The object {model} is neither ModelMeta nor path to it"
     )
+
+
+MT = TypeVar("MT", bound=MlemMeta)
+
+
+def _get_meta(as_class: Type[MT], obj_or_path: Union[str, MT]) -> MT:
+    if isinstance(obj_or_path, str):
+        return load_meta(obj_or_path, force_type=as_class)
+    if isinstance(obj_or_path, as_class):
+        return obj_or_path
+    raise ValueError(f"Cannot get {as_class} from '{obj_or_path}'")
 
 
 def apply(
@@ -231,6 +252,17 @@ def link(
     )
 
 
+T = TypeVar("T", bound=MlemObject)
+
+
+def _get_mlem_object(as_class: Type[T], obj: Union[str, T], **kwargs) -> T:
+    if isinstance(obj, str):
+        return build_mlem_object(as_class, obj, conf=kwargs)
+    if isinstance(obj, as_class):
+        return obj
+    raise ValueError(f"Cannot create {as_class} from '{obj}'")
+
+
 def pack(
     packager: Union[str, Packager],
     model: Union[str, ModelMeta],
@@ -245,16 +277,8 @@ def pack(
         model (Union[str, ModelMeta]): The model to pack.
         out (str): Path for "docker_dir", image name for "docker".
     """
-    if isinstance(model, str):
-        meta = load_meta(model)
-        if not isinstance(meta, ModelMeta):
-            raise ValueError(f"{model} is not a model")
-        model = meta
-    if isinstance(packager, str):
-        packager = parse_obj_as(
-            Packager, {"type": packager, **packager_kwargs}
-        )
-    packager.package(model, out)
+    model = _get_model_meta(model)
+    _get_mlem_object(Packager, packager, **packager_kwargs).package(model, out)
 
 
 def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
@@ -269,12 +293,7 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     model.load_value()
     interface = ModelInterface(model_type=model.model_type)
 
-    if not isinstance(server, Server):
-        server_obj = parse_obj_as(
-            Server, {Server.__config__.type_field: server, **server_kwargs}
-        )
-    else:
-        server_obj = server
+    server_obj = _get_mlem_object(Server, server, **server_kwargs)
     server_obj.serve(interface)
 
 
@@ -382,35 +401,40 @@ def import_object(
 
 
 def deploy(
-    model_meta: ModelMeta,
-    env_meta: TargetEnvMeta,
-    deploy_args: List[str],
-    name: str = None,
-):
-    if len(env_meta.additional_args) != len(deploy_args):
-        raise ValueError(
-            f"Invalid arguments for {env_meta.alias} deploy: {env_meta.additional_args} needed"
-        )
-    args: Dict[str, str] = dict(zip(env_meta.additional_args, deploy_args))
-    name = name or posixpath.join(env_meta.loc.path, model_meta.loc.path)
+    deploy_meta_or_path: Union[DeployMeta, str],
+    model: Union[ModelMeta, str] = None,
+    env: Union[TargetEnvMeta, str] = None,
+    repo: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
+    external: bool = None,
+    link: bool = None,
+    **deploy_kwargs,
+) -> DeployMeta:
+    if isinstance(deploy_meta_or_path, str):
+        try:
+            deploy_meta = load_meta(
+                path=deploy_meta_or_path,
+                repo=repo,
+                fs=fs,
+                force_type=DeployMeta,
+            )
+        except MlemObjectNotFound as e:
+            if model is None or env is None:
+                raise ValueError(
+                    "Please provide model and env args for new deployment"
+                ) from e
+            model_meta = _get_model_meta(model)
+            env_meta = _get_meta(TargetEnvMeta, env)
+            deploy_meta = env_meta.deploy_type(
+                model=model_meta,
+                env=env_meta,
+                env_link=env_meta.make_link(),
+                model_link=model_meta.make_link(),
+                **deploy_kwargs,
+            )
+            deploy_meta.dump(deploy_meta_or_path, fs, repo, link, external)
+    else:
+        deploy_meta = deploy_meta_or_path
 
-    try:
-        deploy_meta = load_meta(name, force_type=DeployMeta)
-        click.echo("Already deployed, updating")
-    except MlemObjectNotFound:
-        deploy_meta = DeployMeta(
-            model=model_meta,
-            env=env_meta,
-            env_link=env_meta.make_link(),
-            model_link=model_meta.make_link(),
-        )
-        deploy_meta.dump(name)  # TODO add other dump args
-
-    if deploy_meta.state is not None and not isinstance(
-        deploy_meta.state, env_meta.deployment_type
-    ):
-        raise ValueError(
-            f"Cant redeploy {deploy_meta.state.__class__} to {env_meta.__class__}"
-        )
-
-    env_meta.deploy(deploy_meta, **args)
+    deploy_meta.deploy()
+    return deploy_meta

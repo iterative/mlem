@@ -3,9 +3,9 @@ from typing import Optional
 import requests
 from requests import HTTPError
 
-from mlem.core.objects import ModelMeta
-from mlem.deploy.heroku.config import HEROKU_CONFIG
-from mlem.deploy.heroku.meta import HerokuAppMeta
+from ...core.errors import DeploymentError
+from .config import HEROKU_CONFIG
+from .meta import HerokuAppMeta, HerokuDeploy
 
 
 def heroku_api_request(
@@ -30,23 +30,21 @@ def heroku_api_request(
     )
     try:
         r.raise_for_status()
-    except HTTPError:
-        print(r.json())
-        raise
+    except HTTPError as e:
+        raise DeploymentError(r.json()["message"]) from e
     return r.json()
 
 
-def create_app(
-    meta: ModelMeta, name=None, region=None, stack=None, api_key: str = None
-) -> HerokuAppMeta:
-    name = name or f"mlem-deploy-{meta.name}"
-    region = region or "us"
-    stack = stack or "container"
+def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
 
     res = heroku_api_request(
         "post",
         "/apps",
-        {"name": name, "region": region, "stack": stack},
+        {
+            "name": params.app_name,
+            "region": params.region,
+            "stack": params.stack,
+        },
         api_key=api_key,
     )
     return HerokuAppMeta(

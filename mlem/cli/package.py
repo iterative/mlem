@@ -1,7 +1,6 @@
 import click
 
-from mlem.cli.main import mlem_command
-from mlem.cli.utils import config_arg, with_model_meta
+from mlem.cli.main import config_arg, mlem_command, with_model_meta
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
 

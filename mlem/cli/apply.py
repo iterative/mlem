@@ -2,8 +2,7 @@ from typing import Any, Optional, Tuple
 
 import click
 
-from mlem.cli.main import mlem_command, option_link
-from mlem.cli.utils import with_model_meta
+from mlem.cli.main import mlem_command, option_link, with_model_meta
 from mlem.core.objects import ModelMeta
 
 

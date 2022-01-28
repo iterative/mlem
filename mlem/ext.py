@@ -308,12 +308,14 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
 
         for obj in module.__dict__.values():
 
+            # pylint: disable=too-many-boolean-expressions
             if (
                 isinstance(obj, type)
                 and obj.__module__ == module.__name__
                 and issubclass(obj, MlemObject)
                 and not obj.__is_root__
                 and not isabstract(obj)
+                and hasattr(obj, "abs_name")
             ):
                 impls[obj] = f"{obj.__module__}:{obj.__name__}"
 

@@ -1,18 +1,20 @@
 import logging
 import os
-from typing import Optional
+from typing import ClassVar, Optional
 
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import ModelMeta
-from mlem.deploy.heroku.config import HEROKU_CONFIG
 from mlem.pack.docker.base import DockerEnv, RemoteRegistry
 from mlem.pack.docker.helpers import build_model_image
 from mlem.runtime import Interface
+
+from .config import HEROKU_CONFIG
 
 logger = logging.getLogger(__name__)
 
 
 class HerokuRemoteRegistry(RemoteRegistry):
+    type: ClassVar = "heroku"
     api_key: Optional[str] = None
 
     def uri(self, image: str):
@@ -28,6 +30,8 @@ class HerokuRemoteRegistry(RemoteRegistry):
 
 
 class HerokuServer(FastAPIServer):
+    type: ClassVar = "heroku"
+
     def serve(self, interface: Interface):
         self.port = int(os.environ["PORT"])
         logger.info("Switching port to %s", self.port)

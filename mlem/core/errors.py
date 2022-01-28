@@ -65,3 +65,7 @@ class WrongMetaType(TypeError, MlemError):
         super().__init__(
             f"Wrong type of meta loaded, {meta} is not {force_type}"
         )
+
+
+class DeploymentError(MlemError):
+    """Thrown if something goes wrong during deployment process"""
