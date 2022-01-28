@@ -169,7 +169,7 @@ class MlemMeta(MlemObject):
         """
         with location.open() as f:
             payload = safe_load(f)
-        res = parse_obj_as(cls, payload).bind(location)
+        res = parse_obj_as(MlemMeta, payload).bind(location)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
             if not isinstance(link, cls):
