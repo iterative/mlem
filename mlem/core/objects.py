@@ -696,7 +696,7 @@ class DeployMeta(MlemMeta):
         use_enum_values = True
 
     abs_name = "deploy"
-    type: ClassVar = ...
+    type: ClassVar[str]
 
     env_link: MlemLink
     env: Optional[TargetEnvMeta]

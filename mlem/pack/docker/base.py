@@ -304,10 +304,14 @@ class DockerImagePackager(DockerDirPackager):
                     self.args.python_version
                 )
             super().package(obj, tempdir)
-            return self.build(tempdir, out)
+            if not self.image.name:
+                # TODO: https://github.com/iterative/mlem/issues/65
+                self.image.name = out
 
-    def build(self, context_dir: str, image_name: str) -> Image:
-        tag = image_name  # todo registry
+            return self.build(tempdir)
+
+    def build(self, context_dir: str) -> Image:
+        tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         with self.env.daemon.client() as client:
             self.image.registry.login(client)

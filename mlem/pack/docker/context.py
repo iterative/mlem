@@ -33,6 +33,8 @@ class DockerBuildArgs(BaseModel):
     :param run_cmd: command to run in container, default: sh run.sh
     :param package_install_cmd: command to install packages. Default is apt-get, change it for other package manager
     :param prebuild_hook: callable to call before build, accepts python version. Used for pre-building server images
+    :param mlem_whl: a path to mlem .whl file. If it is empty, mlem will be installed from pip TODO
+    :param platform: platform to build docker for, see https://docs.docker.com/desktop/multi-arch/
     """
 
     base_image: Optional[Union[str, Callable[[str], str]]] = None
