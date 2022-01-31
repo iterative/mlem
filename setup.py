@@ -86,6 +86,7 @@ lightgbm = ["lightgbm"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]
+grpc = ["grpcio", "grpcio-tools"]
 sagemaker = ["boto3==1.19.12", "sagemaker"]
 
 all_libs = (
@@ -98,6 +99,7 @@ all_libs = (
     + xgboost
     + lightgbm
     + fastapi
+    + grpc
     + sagemaker
 )
 
