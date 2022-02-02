@@ -295,7 +295,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
         module_name = (
             root_module_name
             + "."
-            + os.path.relpath(pyfile, path)[: -len(".py")].replace("/", ".")
+            + os.path.relpath(pyfile, path)[: -len(".py")].replace(os.sep, ".")
         )
         if module_name.endswith(".__init__"):
             module_name = module_name[: -len(".__init__")]
