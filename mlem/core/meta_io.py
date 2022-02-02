@@ -11,6 +11,7 @@ from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
 from pydantic import BaseModel
 
+from mlem.core.errors import MlemObjectNotFound
 from mlem.utils.github import get_github_envs, get_github_kwargs
 from mlem.utils.root import MLEM_DIR, find_repo_root
 
@@ -325,7 +326,7 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
         # .../<MLEM_DIR>/.../file
         return uri
     if fs.exists(uri):
-        raise Exception(
+        raise MlemObjectNotFound(
             f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or dataset"
         )
     raise FileNotFoundError(uri)

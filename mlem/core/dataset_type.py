@@ -115,6 +115,8 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
 
     @property
     def to_type(self):
+        if self.ptype == "NoneType":
+            return type(None)
         return getattr(builtins, self.ptype)
 
     def deserialize(self, obj):

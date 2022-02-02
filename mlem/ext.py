@@ -105,6 +105,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.xgboost", ["xgboost"], False),
         # Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
+        Extension("mlem.contrib.callable", [], True),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}

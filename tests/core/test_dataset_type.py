@@ -26,7 +26,9 @@ def test_primitives(ptype):
     payload = {"ptype": ptype.__name__, "type": "primitive"}
     assert dt.dict() == payload
     dt2 = parse_obj_as(DatasetType, payload)
+    assert isinstance(dt2, PrimitiveType)
     assert dt2 == dt
+    assert dt2.to_type == ptype
 
 
 def test_numpy_number():

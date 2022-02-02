@@ -199,8 +199,6 @@ def mlem_curdir_repo(tmpdir_factory):
 
 @pytest.fixture
 def filled_mlem_repo(mlem_repo):
-    # TODO: bug: when reqs are empty, they serialize to "{}", not "[]"
-    # https://github.com/iterative/mlem/issues/95
     model = ModelMeta(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
