@@ -73,8 +73,11 @@ def test_is_installed_module(external_local_module):
     import builtins
     import pickle
 
+    import catboost
+    import lightgbm
     import opcode
     import requests
+    import xgboost
 
     from tests.utils import module_tools_mock_req
 
@@ -88,6 +91,10 @@ def test_is_installed_module(external_local_module):
 
     assert not is_installable_module(external_local_module)
     assert not is_installable_module(module_tools_mock_req)
+
+    assert is_installable_module(xgboost)
+    assert is_installable_module(lightgbm)
+    assert is_installable_module(catboost)
 
 
 def test_is_builtin_module(external_local_module):
