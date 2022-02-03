@@ -52,6 +52,25 @@ def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
     )
 
 
+def delete_app(app_name: str, api_key: str = None):
+    return heroku_api_request(
+        "delete",
+        f"/apps/{app_name}",
+        api_key=api_key,
+    )
+
+
+def list_dynos(app_name: str, filter_type: str = None, api_key: str = None):
+    dynos = heroku_api_request(
+        "get",
+        f"/apps/{app_name}/dynos",
+        api_key=api_key,
+    )
+    if filter_type is not None:
+        dynos = [d for d in dynos if d["type"] == filter_type]
+    return dynos
+
+
 def release_docker_app(
     app_name, image_id, image_type: str = "web", api_key: str = None
 ):

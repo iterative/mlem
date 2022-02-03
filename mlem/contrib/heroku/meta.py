@@ -13,7 +13,7 @@ from mlem.pack.docker.base import DockerImage
 from mlem.runtime.client.base import HTTPClient
 
 from ...core.errors import DeploymentError
-from .build import build_model_docker
+from .build import build_heroku_docker
 
 HEROKU_STATE_MAPPING = {
     "crashed": DeployStatus.CRASHED,
@@ -21,6 +21,7 @@ HEROKU_STATE_MAPPING = {
     "idle": DeployStatus.RUNNING,
     "starting": DeployStatus.STARTING,
     "up": DeployStatus.RUNNING,
+    "restarting": DeployStatus.STARTING,
 }
 
 
@@ -56,7 +57,7 @@ class HerokuDeploy(DeployMeta):
     stack: str = "container"
 
 
-class HerokuTargetEnvMeta(TargetEnvMeta[HerokuDeploy]):
+class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeploy
     api_key: Optional[str] = None
@@ -74,7 +75,7 @@ class HerokuTargetEnvMeta(TargetEnvMeta[HerokuDeploy]):
             meta.state.app = create_app(meta, api_key=self.api_key)
             meta.update()
         if meta.state.image is None:
-            meta.state.image = build_model_docker(
+            meta.state.image = build_heroku_docker(
                 meta.get_model(), meta.state.app.name, api_key=self.api_key
             )
             meta.update()
@@ -87,35 +88,30 @@ class HerokuTargetEnvMeta(TargetEnvMeta[HerokuDeploy]):
             meta.update()
 
     def destroy(self, meta: HerokuDeploy):
-        from .utils import heroku_api_request
+        from .utils import delete_app
 
         self.check_type(meta)
         if meta.state is None or meta.state.release_state is None:
             return
 
-        heroku_api_request(
-            "delete",
-            f"/apps/{meta.state.ensured_app.name}",
-            api_key=self.api_key,
-        )
+        delete_app(meta.state.ensured_app.name, self.api_key)
         meta.state = None
         meta.update()
 
-    def get_status(self, meta: "HerokuDeploy") -> DeployStatus:
-        from .utils import heroku_api_request
+    def get_status(
+        self, meta: "HerokuDeploy", raise_on_error=True
+    ) -> DeployStatus:
+        from .utils import list_dynos
 
         self.check_type(meta)
         if meta.state is None or meta.state.app is None:
             return DeployStatus.NOT_DEPLOYED
-        dynos = heroku_api_request(
-            "get",
-            f"/apps/{meta.state.ensured_app.name}/dynos",
-            api_key=self.api_key,
-        )
-        dynos = [d for d in dynos if d["type"] == "web"]
+        dynos = list_dynos(meta.state.ensured_app.name, "web", self.api_key)
         if not dynos:
-            raise DeploymentError(
-                f"No heroku web dynos found, check your dashboard "
-                f"at https://dashboard.heroku.com/apps/{meta.state.ensured_app.name}"
-            )
+            if raise_on_error:
+                raise DeploymentError(
+                    f"No heroku web dynos found, check your dashboard "
+                    f"at https://dashboard.heroku.com/apps/{meta.state.ensured_app.name}"
+                )
+            return DeployStatus.NOT_DEPLOYED
         return HEROKU_STATE_MAPPING[dynos[0]["state"]]

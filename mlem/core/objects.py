@@ -4,6 +4,7 @@ MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
 import os
 import posixpath
+import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import partial
@@ -13,6 +14,7 @@ from typing import (
     ClassVar,
     Dict,
     Generic,
+    Iterable,
     List,
     Optional,
     Tuple,
@@ -39,6 +41,7 @@ from mlem.core.artifacts import (
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
 from mlem.core.errors import (
+    DeploymentError,
     MlemObjectNotSavedError,
     MlemRootNotFound,
     WrongMetaType,
@@ -212,6 +215,7 @@ class MlemMeta(MlemObject):
         """
         location, link = self._parse_dump_args(path, repo, fs, link, external)
         self._write_meta(location, link)
+        return self
 
     def _write_meta(
         self,
@@ -440,6 +444,7 @@ class _WithArtifacts(ABC, MlemMeta):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
         self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
+        return self
 
     @abstractmethod
     def write_value(self) -> Artifacts:
@@ -667,7 +672,7 @@ class TargetEnvMeta(MlemMeta, Generic[DT]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_status(self, meta: DT) -> "DeployStatus":
+    def get_status(self, meta: DT, raise_on_error=True) -> "DeployStatus":
         raise NotImplementedError
 
     def check_type(self, deploy: "DeployMeta"):
@@ -695,7 +700,7 @@ class DeployMeta(MlemMeta):
         exclude = {"model", "env"}
         use_enum_values = True
 
-    abs_name = "deploy"
+    abs_name: ClassVar = "deploy"
     type: ClassVar[str]
 
     env_link: MlemLink
@@ -724,8 +729,46 @@ class DeployMeta(MlemMeta):
     def destroy(self):
         self.get_env().destroy(self)
 
-    def get_status(self) -> DeployStatus:
-        return self.get_env().get_status(self)
+    def get_status(self, raise_on_error: bool = True) -> DeployStatus:
+        return self.get_env().get_status(self, raise_on_error=raise_on_error)
+
+    def wait_for_status(
+        self,
+        status: Union[DeployStatus, Iterable[DeployStatus]],
+        timeout: float = 1.0,
+        times: int = 5,
+        allowed_intermediate: Union[
+            DeployStatus, Iterable[DeployStatus]
+        ] = None,
+        raise_on_timeout: bool = True,
+    ):
+        if isinstance(status, DeployStatus):
+            statuses = {status}
+        else:
+            statuses = set(status)
+        allowed_intermediate = allowed_intermediate or set()
+        if isinstance(allowed_intermediate, DeployStatus):
+            allowed = {allowed_intermediate}
+        else:
+            allowed = set(allowed_intermediate)
+
+        current = DeployStatus.UNKNOWN
+        for _ in range(times):
+            current = self.get_status(raise_on_error=False)
+            if current in statuses:
+                return True
+            if allowed and current not in allowed:
+                if raise_on_timeout:
+                    raise DeploymentError(
+                        f"Deployment status {current} is not allowed"
+                    )
+                return False
+            time.sleep(timeout)
+        if raise_on_timeout:
+            raise DeploymentError(
+                f"Deployment status is still {current} after {times * timeout} seconds"
+            )
+        return False
 
 
 def mlem_dir_path(

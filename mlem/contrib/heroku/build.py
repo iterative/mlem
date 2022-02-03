@@ -4,11 +4,13 @@ from typing import ClassVar, Optional
 
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import ModelMeta
-from mlem.pack.docker.base import DockerEnv, RemoteRegistry
+from mlem.pack.docker.base import DockerEnv, DockerImage, RemoteRegistry
 from mlem.pack.docker.helpers import build_model_image
 from mlem.runtime import Interface
 
 from .config import HEROKU_CONFIG
+
+DEFAULT_HEROKU_REGISTRY = "registry.heroku.com"
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,7 @@ logger = logging.getLogger(__name__)
 class HerokuRemoteRegistry(RemoteRegistry):
     type: ClassVar = "heroku"
     api_key: Optional[str] = None
+    host = DEFAULT_HEROKU_REGISTRY
 
     def uri(self, image: str):
         return super().uri(image).split(":")[0]
@@ -38,12 +41,12 @@ class HerokuServer(FastAPIServer):
         return super().serve(interface)
 
 
-def build_model_docker(
+def build_heroku_docker(
     meta: ModelMeta,
     app_name: str,
     process_type: str = "web",
     api_key: str = None,
-):
+) -> DockerImage:
     docker_env = DockerEnv(
         registry=HerokuRemoteRegistry(
             host="registry.heroku.com", api_key=api_key

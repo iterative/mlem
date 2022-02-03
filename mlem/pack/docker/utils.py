@@ -9,7 +9,6 @@ from typing import Any, Iterator, Tuple, Union
 
 import docker
 import requests
-import six
 from docker.errors import BuildError, DockerException
 from docker.models.images import Image
 from docker.utils.json_stream import json_stream
@@ -32,7 +31,7 @@ def build_image_with_logs(
     **kwargs,
 ) -> Tuple[Image, Union[str, Iterator[Any]]]:
     resp = client.api.build(path=path, **kwargs)
-    if isinstance(resp, six.string_types):
+    if isinstance(resp, str):
         return client.images.get(resp)
     last_event = None
     image_id = None

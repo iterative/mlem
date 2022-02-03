@@ -1,3 +1,3 @@
-from .meta import HerokuState, HerokuTargetEnvMeta
+from .meta import HerokuEnvMeta, HerokuState
 
-__all__ = ["HerokuTargetEnvMeta", "HerokuState"]
+__all__ = ["HerokuEnvMeta", "HerokuState"]
