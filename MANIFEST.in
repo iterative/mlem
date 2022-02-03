@@ -1,2 +1,2 @@
-recursive-include mlem
+graft mlem
 recursive-exclude tests
