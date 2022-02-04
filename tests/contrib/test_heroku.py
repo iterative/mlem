@@ -84,7 +84,7 @@ def heroku_app(heroku_deploy):
 
 @heroku_long
 def test_heroku_api_request():
-    res = heroku_api_request("GET", "/schema")
+    res = heroku_api_request("GET", "/schema", api_key="_")
     assert "$schema" in res
 
 
