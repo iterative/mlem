@@ -30,7 +30,6 @@ from tests.conftest import long
 heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
-heroku_long = long(heroku)
 
 HEROKU_TEST_APP_NAME = "mlem-test-app"
 HEROKU_TEST_REAL_APP_NAME = "mlem-test-app-real"
@@ -82,18 +81,21 @@ def heroku_app(heroku_deploy):
         yield HEROKU_TEST_APP_NAME
 
 
-@heroku_long
+@heroku
+@long
 def test_heroku_api_request():
     res = heroku_api_request("GET", "/schema", api_key="_")
     assert "$schema" in res
 
 
-@heroku_long
+@heroku
+@long
 def test_create_app(heroku_app):
     assert heroku_api_request("GET", f"/apps/{heroku_app}")
 
 
-@heroku_long
+@heroku
+@long
 def test_release_docker_app():
     ...
 
@@ -128,7 +130,8 @@ def real_app():
         yield HEROKU_TEST_REAL_APP_NAME
 
 
-@heroku_long
+@heroku
+@long
 def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
     meta_path = tmp_path_factory.mktemp("deploy-meta")
     meta = deploy(str(meta_path), model, heroku_env, app_name=real_app)
@@ -160,11 +163,13 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
     assert docs_page.json() == [0]
 
 
-@heroku_long
+@heroku
+@long
 def test_env_destroy():
     ...
 
 
-@heroku_long
+@heroku
+@long
 def test_env_get_status():
     ...
