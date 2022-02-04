@@ -1,4 +1,5 @@
 import contextlib
+import getpass
 
 import pytest
 import requests
@@ -31,8 +32,20 @@ heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
 
-HEROKU_TEST_APP_NAME = "mlem-test-app"
-HEROKU_TEST_REAL_APP_NAME = "mlem-test-app-real"
+HEROKU_TEST_APP_NAME = "mlem-test"
+HEROKU_TEST_REAL_APP_NAME = "mlem-test2"
+
+
+@contextlib.contextmanager
+def heroku_app_name(name):
+    name = f"{name}-{getpass.getuser()}"
+    try:
+        delete_app(name)
+    except DeploymentError:
+        pass
+
+    yield name
+    delete_app(name)
 
 
 @pytest.fixture()
@@ -56,29 +69,12 @@ def model(tmpdir_factory):
 
 @pytest.fixture()
 def heroku_deploy(heroku_env: HerokuEnvMeta, model):
-    return HerokuDeploy(
-        app_name=HEROKU_TEST_APP_NAME,
-        env_link=heroku_env.make_link(),
-        model_link=model.make_link(),
-    )
-
-
-@contextlib.contextmanager
-def heroku_app_name(name):
-    try:
-        delete_app(name)
-    except DeploymentError:
-        pass
-
-    yield
-    delete_app(name)
-
-
-@pytest.fixture()
-def heroku_app(heroku_deploy):
-    with heroku_app_name(HEROKU_TEST_APP_NAME):
-        create_app(heroku_deploy)
-        yield HEROKU_TEST_APP_NAME
+    with heroku_app_name(HEROKU_TEST_APP_NAME) as name:
+        yield HerokuDeploy(
+            app_name=name,
+            env_link=heroku_env.make_link(),
+            model_link=model.make_link(),
+        )
 
 
 @heroku
@@ -90,8 +86,9 @@ def test_heroku_api_request():
 
 @heroku
 @long
-def test_create_app(heroku_app):
-    assert heroku_api_request("GET", f"/apps/{heroku_app}")
+def test_create_app(heroku_deploy):
+    create_app(heroku_deploy)
+    assert heroku_api_request("GET", f"/apps/{heroku_deploy.app_name}")
 
 
 @heroku
@@ -126,8 +123,8 @@ def test_state_ensured_app():
 
 @pytest.fixture()
 def real_app():
-    with heroku_app_name(HEROKU_TEST_REAL_APP_NAME):
-        yield HEROKU_TEST_REAL_APP_NAME
+    with heroku_app_name(HEROKU_TEST_REAL_APP_NAME) as name:
+        yield name
 
 
 @heroku
