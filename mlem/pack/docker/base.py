@@ -296,6 +296,7 @@ class DockerImagePackager(DockerDirPackager):
     image: DockerImage
     env: DockerEnv = DockerEnv()
     force_overwrite: bool = False
+    push: bool = True
 
     def package(self, obj: ModelMeta, out: str):
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
@@ -314,7 +315,8 @@ class DockerImagePackager(DockerDirPackager):
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         with self.env.daemon.client() as client:
-            self.image.registry.login(client)
+            if self.push:
+                self.image.registry.login(client)
 
             if self.force_overwrite:
                 self.image.delete(client)  # to avoid spawning dangling images
@@ -335,7 +337,8 @@ class DockerImagePackager(DockerDirPackager):
                 self.image.image_id = image.id
                 logger.info("Built docker image %s", tag)
 
-                self.image.registry.push(client, tag)
+                if self.push:
+                    self.image.registry.push(client, tag)
 
                 return image
             except errors.BuildError as e:

@@ -102,7 +102,7 @@ def test_release_docker_app():
 
 @long
 def test_build_heroku_docker(model: ModelMeta):
-    image_meta = build_heroku_docker(model, HEROKU_TEST_APP_NAME)
+    image_meta = build_heroku_docker(model, HEROKU_TEST_APP_NAME, push=False)
     client = DockerClient.from_env()
     image = client.images.get(image_meta.image_id)
     assert image is not None

@@ -12,6 +12,7 @@ def build_model_image(
     tag: str = "latest",
     repository: str = None,
     force_overwrite: bool = False,
+    push: bool = True,
     **build_args
 ) -> DockerImage:
     env = env or DockerEnv()
@@ -24,6 +25,7 @@ def build_model_image(
         image=image,
         env=env,
         force_overwrite=force_overwrite,
+        push=push,
     )
     packager.package(model, image.uri)
     return packager.image
