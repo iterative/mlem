@@ -72,7 +72,7 @@ def heroku_app_name(name):
         pass
 
     yield
-    # delete_app(name)
+    delete_app(name)
 
 
 @pytest.fixture(scope="session")
@@ -98,7 +98,7 @@ def test_release_docker_app():
     ...
 
 
-@heroku_long
+@long
 def test_build_heroku_docker(model: ModelMeta):
     image_meta = build_heroku_docker(model, HEROKU_TEST_APP_NAME)
     client = DockerClient.from_env()
@@ -110,6 +110,7 @@ def test_build_heroku_docker(model: ModelMeta):
     )
 
 
+@heroku_long
 def test_state_ensured_app():
     state = HerokuState()
     with pytest.raises(ValueError):
@@ -160,9 +161,11 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
     assert docs_page.json() == [0]
 
 
+@heroku_long
 def test_env_destroy():
     ...
 
 
+@heroku_long
 def test_env_get_status():
     ...
