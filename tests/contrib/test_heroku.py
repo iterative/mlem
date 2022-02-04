@@ -36,14 +36,14 @@ HEROKU_TEST_APP_NAME = "mlem-test-app"
 HEROKU_TEST_REAL_APP_NAME = "mlem-test-app-real"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def heroku_env(tmpdir_factory):
     return HerokuEnvMeta().dump(
         str(tmpdir_factory.mktemp("heroku_test") / "env")
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def model(tmpdir_factory):
     # TODO: change after https://github.com/iterative/mlem/issues/158
     # model = ModelMeta.from_obj(lambda x: x, sample_data=[1, 2])
@@ -55,7 +55,7 @@ def model(tmpdir_factory):
     return model.dump(str(tmpdir_factory.mktemp("heroku_test") / "model"))
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def heroku_deploy(heroku_env: HerokuEnvMeta, model):
     return HerokuDeploy(
         app_name=HEROKU_TEST_APP_NAME,
@@ -75,7 +75,7 @@ def heroku_app_name(name):
     delete_app(name)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def heroku_app(heroku_deploy):
     with heroku_app_name(HEROKU_TEST_APP_NAME):
         create_app(heroku_deploy)
@@ -110,7 +110,6 @@ def test_build_heroku_docker(model: ModelMeta):
     )
 
 
-@heroku_long
 def test_state_ensured_app():
     state = HerokuState()
     with pytest.raises(ValueError):
