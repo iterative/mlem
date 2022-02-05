@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConstrainedList
 from mlem.core.model import Signature
 from mlem.runtime import Interface
-
+import inspect
 
 class GRPCField(BaseModel):
     rule: Optional[str] = None
@@ -28,6 +28,30 @@ class GRPCMessage(BaseModel):
         }}"""
 
 
+def create_message_from_constraint_list(type_, list_models=None, suffix=None, message_name=None, type_name=None):
+    if list_models is None:
+        list_models = []
+    if suffix is None:
+        suffix = "_list"
+    if message_name is None:
+        message_name = type_.__name__
+    if type_name is None:
+        type_name = type_.__name__
+
+    inner_type = type_.item_type
+    if issubclass(inner_type, ConstrainedList):
+        type_name+=suffix
+        message_name+=suffix
+        field = GRPCField(rule="repeated", type_=type_name, key="_", id_=1)
+        list_models.extend(create_message_from_constraint_list(inner_type, list_models, suffix, message_name, type_name))
+        message_name = message_name[:-len(suffix)]
+    else:
+        field = GRPCField(rule="repeated", type_=inner_type.__name__, key="_", id_=1)
+
+    message = GRPCMessage(name=message_name, fields=[field])
+    return [message] + list_models
+
+
 def get_models_recursively(model: BaseModel, field_models=None):
     if field_models is None:
         field_models = []
@@ -38,7 +62,10 @@ def get_models_recursively(model: BaseModel, field_models=None):
         field_rule = None
         outer_type_ = each_field_val.outer_type_
         type_ = each_field_val.type_
-        if issubclass(type_, BaseModel):
+        if issubclass(type_, ConstrainedList):
+            list_models = create_message_from_constraint_list(type_)
+            field_models.extend(list_models)
+        if inspect.isclass(type_) and issubclass(type_, BaseModel):
             field_models.extend(get_models_recursively(type_, field_models))
         if outer_type_ != type_:
             collection_type = outer_type_._name
