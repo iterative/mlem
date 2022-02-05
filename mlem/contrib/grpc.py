@@ -1,4 +1,3 @@
-import inspect
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 from mlem.core.model import Signature
@@ -29,43 +28,43 @@ class GRPCMessage(BaseModel):
         }}"""
 
 
-def get_models_recursively(model: BaseModel, field_models=[]):
+def get_models_recursively(model: BaseModel, field_models=None):
+    if field_models is None:
+        field_models = []
     message_name = model.__name__
     all_fields = []
     num_fields = 0
-    for each_field_key in model.__fields__:
+    for each_field_key, each_field_val in model.__fields__.items():
         field_rule = None
-        each_field_val = model.__fields__[each_field_key]
         outer_type_ = each_field_val.outer_type_
         type_ = each_field_val.type_
-        if BaseModel in inspect.getmro(type_):
+        if issubclass(type_, BaseModel):
             field_models.extend(get_models_recursively(type_, field_models))
         if outer_type_ != type_:
             collection_type = outer_type_._name
             if collection_type == "List":
                 field_rule = "repeated"
         field_type = type_.__name__
-        field_key = each_field_key
         num_fields+=1
-        field = GRPCField(rule=field_rule, type_=field_type, key=field_key, id_=num_fields)
+        field = GRPCField(rule=field_rule, type_=field_type, key=each_field_key, id_=num_fields)
         all_fields.append(field)
     message = GRPCMessage(name=message_name, fields=all_fields)
     return [message] + field_models
 
 
-def create_message(signature: Signature):
+def create_messages(signature: Signature):
     models: Dict[BaseModel] = {}
     returns_model = signature.returns.get_serializer().get_model()
-    returns_field_models = get_models_recursively(returns_model, [])
+    returns_field_models = get_models_recursively(returns_model)
     args_field_models = []
-    for each_arg in signature.args:
-        args_field_models.extend(get_models_recursively(each_arg.type_.get_serializer().get_model(), []))
+    for arg in signature.args:
+        args_field_models.extend(get_models_recursively(arg.type_.get_serializer().get_model()))
     models = returns_field_models + args_field_models
     return [each_model.to_proto() for each_model in models]
 
 
 def create_method_definition(method_name, signature: Signature):
-    args = [each_arg.type_.get_serializer().get_model().__name__ for each_arg in signature.args]
+    args = [arg.type_.get_serializer().get_model().__name__ for arg in signature.args]
     returns = signature.returns.get_serializer().get_model().__name__
     return f"""rpc {method_name} ({", ".join(args)}) returns ({returns}) {{}}"""
 
@@ -76,7 +75,7 @@ def create_grpc_protobuf(interface: Interface):
     rpc_messages = []
     for method_name, signature in interface.iter_methods():
         rpc_definitions.append(create_method_definition(method_name, signature))
-        rpc_messages.extend(create_message(signature))
+        rpc_messages.extend(create_messages(signature))
 
     rpc = "\n".join(each_rpc for each_rpc in rpc_definitions)
     service_proto = f"""service {service_name} {{
