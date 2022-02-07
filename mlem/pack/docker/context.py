@@ -208,7 +208,7 @@ class DockerModelDirectory(BaseModel):
 
         repo_path = os.path.dirname(os.path.dirname(mlem.__file__))
         with tempfile.TemporaryDirectory() as whl_dir:
-            subprocess.check_call(
+            subprocess.check_output(
                 f"cd {repo_path} && python setup.py bdist_wheel -d {whl_dir}",
                 shell=True,
             )

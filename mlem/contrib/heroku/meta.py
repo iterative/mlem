@@ -55,6 +55,7 @@ class HerokuDeploy(DeployMeta):
     app_name: str
     region: str = "us"
     stack: str = "container"
+    team: Optional[str] = None
 
 
 class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):

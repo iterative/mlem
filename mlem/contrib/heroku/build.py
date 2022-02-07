@@ -29,7 +29,7 @@ class HerokuRemoteRegistry(RemoteRegistry):
             raise ValueError(
                 "Cannot login to heroku docker registry: no api key provided"
             )
-        client.login(registry=self.host, username="_", password=password)
+        self._login(self.host, client, "_", password)
 
 
 class HerokuServer(FastAPIServer):

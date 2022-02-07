@@ -1,4 +1,5 @@
 import contextlib
+import json
 import logging
 import os
 import tempfile
@@ -11,6 +12,7 @@ from docker.models.images import Image
 from pydantic import BaseModel
 
 from mlem.core.base import MlemObject
+from mlem.core.errors import DeploymentError
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
 from mlem.pack.docker.context import DockerBuildArgs, DockerModelDirectory
@@ -129,9 +131,7 @@ class RemoteRegistry(DockerRegistry):
         password = os.getenv(password_var)
 
         if username and password:
-            client.login(
-                registry=self.host, username=username, password=password
-            )
+            self._login(self.host, client, username, password)
             logger.info("Logged in to remote registry at host %s", self.host)
         else:
             logger.warning(
@@ -142,11 +142,22 @@ class RemoteRegistry(DockerRegistry):
                 password_var,
             )
 
+    @staticmethod
+    def _login(host, client, username, password):
+        res = client.login(registry=host, username=username, password=password)
+        if res["Status"] != "Login Succeeded":
+            raise DeploymentError(f"Cannot login to registry: {res}")
+
     def get_host(self) -> Optional[str]:
         return self.host
 
     def push(self, client, tag):
-        client.images.push(tag)
+        res = client.images.push(tag)
+        for line in res.splitlines():
+            status = json.loads(line)
+            if "error" in status:
+                error_msg = status["error"]
+                raise DeploymentError(f"Cannot push docker image: {error_msg}")
         logger.info(
             "Pushed image %s to remote registry at host %s", tag, self.host
         )

@@ -36,15 +36,21 @@ def heroku_api_request(
 
 
 def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
+    data = {
+        "name": params.app_name,
+        "region": params.region,
+        "stack": params.stack,
+    }
+    if params.team is None:
+        endpoint = "/apps"
+    else:
+        data["team"] = params.team
+        endpoint = "/team/apps"
 
     res = heroku_api_request(
         "post",
-        "/apps",
-        {
-            "name": params.app_name,
-            "region": params.region,
-            "stack": params.stack,
-        },
+        endpoint,
+        data,
         api_key=api_key,
     )
     return HerokuAppMeta(

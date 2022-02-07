@@ -1,5 +1,6 @@
 import contextlib
 import getpass
+import os
 
 import pytest
 import requests
@@ -34,6 +35,7 @@ heroku = pytest.mark.skipif(
 
 HEROKU_TEST_APP_NAME = "mlem-test"
 HEROKU_TEST_REAL_APP_NAME = "mlem-test2"
+HEROKU_TEAM = os.environ.get("HEROKU_TEAM")
 
 
 @contextlib.contextmanager
@@ -74,6 +76,7 @@ def heroku_deploy(heroku_env: HerokuEnvMeta, model):
             app_name=name,
             env_link=heroku_env.make_link(),
             model_link=model.make_link(),
+            team=HEROKU_TEAM,
         )
 
 
