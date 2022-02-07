@@ -31,6 +31,8 @@ from mlem.utils import importing
 logger = logging.getLogger(__name__)
 
 PYTHON_BASE = os.path.dirname(threading.__file__)
+#  pylint: disable=no-member,protected-access
+IGNORE_TYPES_REQ = (type(Requirements._abc_impl),)  # type: ignore
 
 
 def analyze_module_imports(module_path):
@@ -502,7 +504,7 @@ class RequirementAnalyzer(dill.Pickler):
                         self.add_requirement(parent_package)
 
     def save(self, obj, save_persistent_id=True):
-        if id(obj) in self.seen:
+        if id(obj) in self.seen or isinstance(obj, IGNORE_TYPES_REQ):
             return None
         self.seen.add(id(obj))
         self.add_requirement(obj)

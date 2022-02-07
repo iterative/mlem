@@ -1,6 +1,7 @@
 import contextlib
 import getpass
 import os
+import time
 
 import pytest
 import requests
@@ -47,7 +48,10 @@ def heroku_app_name(name):
         pass
 
     yield name
-    delete_app(name)
+    try:
+        delete_app(name)
+    except DeploymentError:
+        pass
 
 
 @pytest.fixture()
@@ -94,12 +98,6 @@ def test_create_app(heroku_deploy):
     assert heroku_api_request("GET", f"/apps/{heroku_deploy.app_name}")
 
 
-@heroku
-@long
-def test_release_docker_app():
-    ...
-
-
 @long
 def test_build_heroku_docker(model: ModelMeta):
     image_meta = build_heroku_docker(model, HEROKU_TEST_APP_NAME, push=False)
@@ -144,6 +142,7 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
         times=15,
     )
     assert meta.get_status() == DeployStatus.RUNNING
+    time.sleep(1)
     docs_page = requests.post(
         meta.state.ensured_app.web_url + "predict",
         json={
@@ -160,16 +159,17 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
         },
     )
     docs_page.raise_for_status()
-    assert docs_page.json() == [0]
+    res = docs_page.json()
+    assert isinstance(res, list)
+    assert len(res) == 1
 
+    meta.destroy()
 
-@heroku
-@long
-def test_env_destroy():
-    ...
-
-
-@heroku
-@long
-def test_env_get_status():
-    ...
+    assert meta.state is None
+    meta.wait_for_status(
+        DeployStatus.NOT_DEPLOYED,
+        allowed_intermediate=DeployStatus.RUNNING,
+        times=15,
+    )
+    with pytest.raises(DeploymentError):
+        delete_app(real_app)
