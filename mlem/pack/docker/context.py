@@ -1,6 +1,8 @@
+import glob
 import logging
 import os
 import posixpath
+import tempfile
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
@@ -199,22 +201,20 @@ class DockerModelDirectory(BaseModel):
             sh.write(f"mlem serve . {self.server.type}")
 
     def write_mlem_whl(self):
-        import re
         import shutil
         import subprocess
 
         import mlem
 
         repo_path = os.path.dirname(os.path.dirname(mlem.__file__))
-        res = subprocess.check_output(
-            f"cd {repo_path} && python setup.py bdist_wheel", shell=True
-        )
-        whl_name = re.search(
-            r"creating '(dist/.*\.whl)", res.decode("utf8")  # noqa: W605
-        ).group(1)
-        whl_path = os.path.join(repo_path, whl_name)
-        whl_name = os.path.basename(whl_name)
-        shutil.copy(whl_path, os.path.join(self.path, whl_name))
+        with tempfile.TemporaryDirectory() as whl_dir:
+            subprocess.check_call(
+                f"cd {repo_path} && python setup.py bdist_wheel -d {whl_dir}",
+                shell=True,
+            )
+            whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
+            whl_name = os.path.basename(whl_path)
+            shutil.copy(whl_path, os.path.join(self.path, whl_name))
         self.docker_args.mlem_whl = whl_name
 
 
