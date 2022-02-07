@@ -84,7 +84,7 @@ lightgbm = ["lightgbm"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]
-grpc = ["grpcio", "grpcio-tools"]
+grpc = ["grpcio", "grpcio-tools", "git+https://github.com/ilevkivskyi/typing_inspect.git"]
 sagemaker = ["boto3==1.19.12", "sagemaker"]
 
 all_libs = (
