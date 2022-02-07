@@ -143,8 +143,10 @@ class RemoteRegistry(DockerRegistry):
             )
 
     @staticmethod
-    def _login(host, client, username, password):
-        res = client.login(registry=host, username=username, password=password)
+    def _login(host, client: docker.DockerClient, username, password):
+        res = client.login(
+            registry=host, username=username, password=password, reauth=True
+        )
         if res["Status"] != "Login Succeeded":
             raise DeploymentError(f"Cannot login to registry: {res}")
 
