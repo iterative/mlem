@@ -348,11 +348,12 @@ _SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
 def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
-        closure = inspect.getclosurevars(obj)
-        base_module_name = getattr(
-            get_object_base_module(obj), "__name__", None
-        )
+        base_module = get_object_base_module(obj)
+        if base_module is not None and is_builtin_module(base_module):
+            return f(pickler, obj)
+        base_module_name = getattr(base_module, "__name__", None)
 
+        closure = inspect.getclosurevars(obj)
         for field in ["nonlocals", "globals"]:
             for k, o in getattr(closure, field).items():
                 if k in _SKIP_CLOSURE_OBJECTS[field].get(
