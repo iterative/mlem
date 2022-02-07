@@ -6,6 +6,7 @@ from numpy import ndarray
 
 from mlem.api.commands import load
 from mlem.cli import apply
+from mlem.core.errors import MlemRootNotFound
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
 
 
@@ -50,8 +51,7 @@ def test_apply_fails_without_mlem_dir(model_path, data_path):
             [model_path, data_path, "-m", "predict", "-o", dir, "--link"],
         )
         assert result.exit_code == 1, (result.output, result.exception)
-        # TODO: https://github.com/iterative/mlem/issues/44
-        #  add specific check for Exception/text in Exception
+        assert isinstance(result.exception, MlemRootNotFound)
 
 
 @long

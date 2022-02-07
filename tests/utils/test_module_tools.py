@@ -4,7 +4,7 @@ import numpy
 import pytest
 from pydantic import BaseModel
 
-from mlem.utils.importing import import_module
+from mlem.utils.importing import import_from_path, import_module
 from mlem.utils.module import (
     check_pypi_module,
     get_module_repr,
@@ -29,6 +29,13 @@ class Obj:
 # def test_analyze_module_imports(): #TODO: https://github.com/iterative/mlem/issues/44
 #     reqs = analyze_module_imports('tests.utils.test_module_tools')
 #     assert reqs == {get_module_repr(pytest)}
+
+
+@pytest.fixture()
+def external_local_module(tmp_path_factory):
+    path = tmp_path_factory.mktemp("external") / "external.py"
+    path.touch()
+    return import_from_path("external", str(path))
 
 
 @long
@@ -62,12 +69,17 @@ def test_module_representation():
             continue
 
 
-def test_is_installed_module():
+def test_is_installed_module(external_local_module):
     import builtins
     import pickle
 
+    import catboost
+    import lightgbm
     import opcode
     import requests
+    import xgboost
+
+    from tests.utils import module_tools_mock_req
 
     assert not is_installable_module(pickle)
     assert not is_installable_module(builtins)
@@ -77,13 +89,22 @@ def test_is_installed_module():
     mlem_module = get_object_module(get_object_module)
     assert not is_installable_module(mlem_module)
 
+    assert not is_installable_module(external_local_module)
+    assert not is_installable_module(module_tools_mock_req)
 
-def test_is_builtin_module():
+    assert is_installable_module(xgboost)
+    assert is_installable_module(lightgbm)
+    assert is_installable_module(catboost)
+
+
+def test_is_builtin_module(external_local_module):
     import builtins
     import pickle
 
     import opcode
     import requests
+
+    from tests.utils import module_tools_mock_req
 
     assert is_builtin_module(pickle)
     assert is_builtin_module(builtins)
@@ -92,6 +113,9 @@ def test_is_builtin_module():
 
     mlem_module = get_object_module(get_object_module)
     assert not is_builtin_module(mlem_module)
+
+    assert not is_builtin_module(external_local_module)
+    assert not is_builtin_module(module_tools_mock_req)
 
 
 def test_is_private_module():
@@ -123,18 +147,20 @@ def test_is_extension_module():
     assert is_extension_module(_ctypes)
 
 
-def test_is_local_module():
+def test_is_local_module(external_local_module):
     import pickle
     import sys
 
     import requests
 
+    from tests.utils import module_tools_mock_req
+
     assert not is_local_module(sys)
     assert not is_local_module(pickle)
     assert not is_local_module(requests)
-    # assert is_local_module(sys.modules[__name__])
-    # TODO: https://github.com/iterative/mlem/issues/44
-    #  explore why it fails
+    assert is_local_module(external_local_module)
+    assert is_local_module(module_tools_mock_req)
+    assert is_local_module(sys.modules[__name__])
     assert not is_local_module(sys.modules["__future__"])
     assert not is_local_module(sys.modules[is_local_module.__module__])
 
@@ -158,9 +184,8 @@ def test_module_version():
     # we do not check for concrete version as they could differ
     assert get_module_version(import_module("numpy")) is not None
     assert get_module_version(import_module("dill")) is not None
-    # responses doesn't have __version__ attr, thus heuristics should be applied here
-    # assert get_module_version(import_module('responses')) is not None
-    # TODO: https://github.com/iterative/mlem/issues/44
+    # typing_extensions doesn't have __version__ attr, thus heuristics should be applied here
+    assert get_module_version(import_module("typing_extensions")) is not None
 
 
 class Clazz:
