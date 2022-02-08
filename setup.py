@@ -51,7 +51,7 @@ class build_py(_build_py):
 install_requires = [
     "dill",
     "requests",
-    "isort==4.3.21",  # TODO: https://github.com/iterative/mlem/issues/45 version
+    "isort>4",
     "docker",
     "pydantic>=1.9.0,<2",
     "click<9",
@@ -159,7 +159,7 @@ setup_args = dict(  # noqa: C408
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
     ],
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(exclude=["tests*"]),
     include_package_data=True,
     url="https://mlem.ai",
     entry_points={

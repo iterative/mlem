@@ -7,7 +7,6 @@ import re
 import sys
 import threading
 import warnings
-from collections import namedtuple
 from functools import wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
@@ -16,8 +15,8 @@ from typing import Dict, List, Optional, Set, Union
 import dill
 import requests
 from dill._dill import TypeType, save_type
-from isort.finders import FindersManager
-from isort.settings import default
+from isort.deprecated.finders import FindersManager
+from isort.settings import Config
 from pydantic.main import ModelMetaclass
 
 from mlem.core.requirements import (
@@ -131,69 +130,10 @@ def get_object_module(obj: object) -> Optional[ModuleType]:
     return inspect.getmodule(obj)
 
 
-def _create_section(section):
-    def is_section(cls: "ISortModuleFinder", module: str):
-        cls.init()
-        if module in cls.instance.module2section:
-            mod_section = cls.instance.module2section[module]
-        else:
-            mod_section = cls.instance.finder.find(module)
-            cls.instance.module2section[module] = mod_section
-        return mod_section == section
-
-    return is_section
-
-
-class ISortModuleFinder:
-    """
-    Determines type of module: standard library (:meth:`ISortModuleFinder.is_stdlib`) or
-    third party (:meth:`ISortModuleFinder.is_thirdparty`).
-    This class uses `isort` library heuristics with some modifications.
-    """
-
-    instance: "ISortModuleFinder"
-
-    def __init__(self):
-        config = default.copy()
-        config["known_first_party"].append("mlem")
-        # TODO: https://github.com/iterative/mlem/issues/45
-        config["known_third_party"].extend(["xgboost", "lightgbm", "catboost"])
-        config["known_standard_library"].extend(
-            [
-                "opcode",
-                "nturl2path",  # pytest requirements missed by isort
-                "pkg_resources",  # workaround for imports from setup.py (see build/builder/docker.py)
-                "sre_compile",
-                "posixpath",
-                "setuptools",
-                "pydevconsole",
-                "pydevd_tracing",
-                "pydev_ipython.matplotlibtools",
-                "pydev_console.protocol",
-                "pydevd_file_utils",
-                "pydevd_plugins.extensions.types.pydevd_plugins_django_form_str",
-                "pydev_console",
-                "pydev_ipython",
-                "pydevd_plugins.extensions.types.pydevd_plugin_numpy_types",
-                "pydevd_plugins.extensions.types.pydevd_helpers",
-                "pydevd_plugins",
-                "pydevd_plugins.extensions.types",
-                "pydevd_plugins.extensions",
-                "pydev_ipython.inputhook",
-            ]
-        )  # "built-in" pydev (and pycharm) modules
-        section_names = config["sections"]
-        sections = namedtuple("Sections", section_names)(*list(section_names))
-        self.finder = FindersManager(config, sections)
-        self.module2section = {}
-
-    @classmethod
-    def init(cls):
-        if not hasattr(cls, "instance"):
-            cls.instance = cls()
-
-    is_stdlib = classmethod(_create_section("STDLIB"))
-    is_thirdparty = classmethod(_create_section("THIRDPARTY"))
+mlem_isort_config = Config(
+    settings_file=os.path.join(os.path.dirname(__file__), "mlem.isort.cfg")
+)
+isort_finder = FindersManager(config=mlem_isort_config)
 
 
 def is_private_module(mod: ModuleType):
@@ -237,8 +177,7 @@ def is_installable_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
-    return ISortModuleFinder.is_thirdparty(mod.__name__)
-    # return hasattr(mod, '__file__') and mod.__file__.startswith(PYTHON_BASE) and 'site-packages' in mod.__file__
+    return isort_finder.find(mod.__name__) == "THIRDPARTY"
 
 
 def is_builtin_module(mod: ModuleType):
@@ -248,7 +187,7 @@ def is_builtin_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
-    return ISortModuleFinder.is_stdlib(mod.__name__)
+    return isort_finder.find(mod.__name__) == "STDLIB"
 
 
 def is_mlem_module(mod: ModuleType):
