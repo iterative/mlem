@@ -84,6 +84,7 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        HEROKU_TEAM: iterative-sandbox
     - run: pre-commit run pylint -a --show-diff-on-failure
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v1

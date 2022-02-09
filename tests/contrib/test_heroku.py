@@ -129,7 +129,10 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, heroku_app_name):
     assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")
     meta.wait_for_status(
         DeployStatus.RUNNING,
-        allowed_intermediate=DeployStatus.STARTING,
+        allowed_intermediate=[
+            DeployStatus.NOT_DEPLOYED,
+            DeployStatus.STARTING,
+        ],
         times=25,
     )
     assert meta.get_status() == DeployStatus.RUNNING
@@ -154,13 +157,14 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, heroku_app_name):
     assert isinstance(res, list)
     assert len(res) == 1
 
-    meta.destroy()
+    if CLEAR_APPS:
+        meta.destroy()
 
-    assert meta.state is None
-    meta.wait_for_status(
-        DeployStatus.NOT_DEPLOYED,
-        allowed_intermediate=DeployStatus.RUNNING,
-        times=15,
-    )
-    with pytest.raises(DeploymentError):
-        delete_app(name)
+        assert meta.state is None
+        meta.wait_for_status(
+            DeployStatus.NOT_DEPLOYED,
+            allowed_intermediate=DeployStatus.RUNNING,
+            times=15,
+        )
+        with pytest.raises(DeploymentError):
+            delete_app(name)
