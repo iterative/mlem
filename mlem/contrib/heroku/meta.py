@@ -75,6 +75,7 @@ class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
         if meta.state.app is None:
             meta.state.app = create_app(meta, api_key=self.api_key)
             meta.update()
+
         if meta.state.image is None:
             meta.state.image = build_heroku_docker(
                 meta.get_model(), meta.state.app.name, api_key=self.api_key

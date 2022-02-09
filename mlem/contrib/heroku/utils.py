@@ -47,15 +47,32 @@ def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
         data["team"] = params.team
         endpoint = "/team/apps"
 
-    res = heroku_api_request(
+    create_data = heroku_api_request(
         "post",
         endpoint,
         data,
         api_key=api_key,
     )
+    res = get_app(params.app_name, params.team, api_key)
+    if res is None:
+        raise DeploymentError(f"Failed to create {params}: {create_data}")
     return HerokuAppMeta(
         name=res["name"], web_url=res["web_url"], meta_info=res
     )
+
+
+def get_app(app_name: str, team: str = None, api_key: str = None):
+    endpoint = "/apps"
+    if team is not None:
+        endpoint = "/team/apps"
+    try:
+        return heroku_api_request(
+            "get", f"{endpoint}/{app_name}", api_key=api_key
+        )
+    except DeploymentError as e:
+        if e.msg == "Couldn't find that app.":
+            return None
+        raise
 
 
 def delete_app(app_name: str, api_key: str = None):

@@ -130,7 +130,7 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, heroku_app_name):
     meta.wait_for_status(
         DeployStatus.RUNNING,
         allowed_intermediate=DeployStatus.STARTING,
-        times=15,
+        times=25,
     )
     assert meta.get_status() == DeployStatus.RUNNING
     time.sleep(1)
