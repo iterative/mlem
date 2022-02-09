@@ -23,6 +23,7 @@ from mlem.contrib.heroku.meta import (
 from mlem.contrib.heroku.utils import (
     create_app,
     delete_app,
+    get_app,
     heroku_api_request,
 )
 from mlem.core.errors import DeploymentError
@@ -33,7 +34,7 @@ heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
 HEROKU_TEST_APP_NAME_PREFIX = "mlem-test"
-CLEAR_APPS = False
+CLEAR_APPS = True
 HEROKU_TEAM = os.environ.get("HEROKU_TEAM")
 
 
@@ -43,20 +44,18 @@ def heroku_app_name():
 
     def inner(prefix):
         name = f"{HEROKU_TEST_APP_NAME_PREFIX}-{prefix}-{getpass.getuser()}"
-        try:
+
+        if get_app(name, HEROKU_TEAM) is not None:
             delete_app(name)
-        except DeploymentError:
-            pass
+
         container.append(name)
         return name
 
     yield inner
     if CLEAR_APPS:
         for item in container:
-            try:
+            if get_app(item, HEROKU_TEAM) is not None:
                 delete_app(item)
-            except DeploymentError:
-                pass
 
 
 @pytest.fixture()
@@ -123,7 +122,9 @@ def test_state_ensured_app():
 def test_env_deploy_new(tmp_path_factory, model, heroku_env, heroku_app_name):
     name = heroku_app_name("full-cycle")
     meta_path = tmp_path_factory.mktemp("deploy-meta")
-    meta = deploy(str(meta_path), model, heroku_env, app_name=name)
+    meta = deploy(
+        str(meta_path), model, heroku_env, app_name=name, team=HEROKU_TEAM
+    )
 
     assert isinstance(meta, HerokuDeploy)
     assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")

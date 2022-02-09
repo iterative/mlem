@@ -45,7 +45,7 @@ def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
         endpoint = "/apps"
     else:
         data["team"] = params.team
-        endpoint = "/team/apps"
+        endpoint = "/teams/apps"
 
     create_data = heroku_api_request(
         "post",
@@ -64,7 +64,7 @@ def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
 def get_app(app_name: str, team: str = None, api_key: str = None):
     endpoint = "/apps"
     if team is not None:
-        endpoint = "/team/apps"
+        endpoint = "/teams/apps"
     try:
         return heroku_api_request(
             "get", f"{endpoint}/{app_name}", api_key=api_key
