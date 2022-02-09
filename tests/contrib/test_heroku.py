@@ -34,7 +34,7 @@ heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
 HEROKU_TEST_APP_NAME_PREFIX = "mlem-test"
-CLEAR_APPS = True
+CLEAR_APPS = False
 HEROKU_TEAM = os.environ.get("HEROKU_TEAM")
 
 
