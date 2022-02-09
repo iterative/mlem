@@ -1,4 +1,3 @@
-import contextlib
 import getpass
 import os
 import time
@@ -33,25 +32,31 @@ from tests.conftest import long
 heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
-
-HEROKU_TEST_APP_NAME = "mlem-test"
-HEROKU_TEST_REAL_APP_NAME = "mlem-test2"
+HEROKU_TEST_APP_NAME_PREFIX = "mlem-test"
+CLEAR_APPS = False
 HEROKU_TEAM = os.environ.get("HEROKU_TEAM")
 
 
-@contextlib.contextmanager
-def heroku_app_name(name):
-    name = f"{name}-{getpass.getuser()}"
-    try:
-        delete_app(name)
-    except DeploymentError:
-        pass
+@pytest.fixture()
+def heroku_app_name():
+    container = []
 
-    yield name
-    try:
-        delete_app(name)
-    except DeploymentError:
-        pass
+    def inner(prefix):
+        name = f"{HEROKU_TEST_APP_NAME_PREFIX}-{prefix}-{getpass.getuser()}"
+        try:
+            delete_app(name)
+        except DeploymentError:
+            pass
+        container.append(name)
+        return name
+
+    yield inner
+    if CLEAR_APPS:
+        for item in container:
+            try:
+                delete_app(item)
+            except DeploymentError:
+                pass
 
 
 @pytest.fixture()
@@ -73,17 +78,6 @@ def model(tmpdir_factory):
     return model.dump(str(tmpdir_factory.mktemp("heroku_test") / "model"))
 
 
-@pytest.fixture()
-def heroku_deploy(heroku_env: HerokuEnvMeta, model):
-    with heroku_app_name(HEROKU_TEST_APP_NAME) as name:
-        yield HerokuDeploy(
-            app_name=name,
-            env_link=heroku_env.make_link(),
-            model_link=model.make_link(),
-            team=HEROKU_TEAM,
-        )
-
-
 @heroku
 @long
 def test_heroku_api_request():
@@ -93,21 +87,25 @@ def test_heroku_api_request():
 
 @heroku
 @long
-def test_create_app(heroku_deploy):
+def test_create_app(heroku_app_name, heroku_env, model):
+    name = heroku_app_name("create-app")
+    heroku_deploy = HerokuDeploy(
+        app_name=name,
+        env_link=heroku_env.make_link(),
+        model_link=model.make_link(),
+        team=HEROKU_TEAM,
+    )
     create_app(heroku_deploy)
     assert heroku_api_request("GET", f"/apps/{heroku_deploy.app_name}")
 
 
 @long
 def test_build_heroku_docker(model: ModelMeta):
-    image_meta = build_heroku_docker(model, HEROKU_TEST_APP_NAME, push=False)
+    image_meta = build_heroku_docker(model, "test_build", push=False)
     client = DockerClient.from_env()
     image = client.images.get(image_meta.image_id)
     assert image is not None
-    assert (
-        f"{DEFAULT_HEROKU_REGISTRY}/{HEROKU_TEST_APP_NAME}/web:latest"
-        in image.tags
-    )
+    assert f"{DEFAULT_HEROKU_REGISTRY}/test_build/web:latest" in image.tags
 
 
 def test_state_ensured_app():
@@ -115,24 +113,17 @@ def test_state_ensured_app():
     with pytest.raises(ValueError):
         assert state.ensured_app is not None
 
-    state.app = HerokuAppMeta(
-        name=HEROKU_TEST_APP_NAME, web_url="", meta_info={}
-    )
+    state.app = HerokuAppMeta(name="name", web_url="", meta_info={})
 
-    assert state.ensured_app.name == HEROKU_TEST_APP_NAME
-
-
-@pytest.fixture()
-def real_app():
-    with heroku_app_name(HEROKU_TEST_REAL_APP_NAME) as name:
-        yield name
+    assert state.ensured_app.name == "name"
 
 
 @heroku
 @long
-def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
+def test_env_deploy_new(tmp_path_factory, model, heroku_env, heroku_app_name):
+    name = heroku_app_name("full-cycle")
     meta_path = tmp_path_factory.mktemp("deploy-meta")
-    meta = deploy(str(meta_path), model, heroku_env, app_name=real_app)
+    meta = deploy(str(meta_path), model, heroku_env, app_name=name)
 
     assert isinstance(meta, HerokuDeploy)
     assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")
@@ -172,4 +163,4 @@ def test_env_deploy_new(tmp_path_factory, model, heroku_env, real_app):
         times=15,
     )
     with pytest.raises(DeploymentError):
-        delete_app(real_app)
+        delete_app(name)
