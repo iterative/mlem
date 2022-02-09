@@ -159,7 +159,12 @@ class RemoteRegistry(DockerRegistry):
             status = json.loads(line)
             if "error" in status:
                 error_msg = status["error"]
-                raise DeploymentError(f"Cannot push docker image: {error_msg}")
+                auth = (
+                    client.api._auth_configs  # pylint: disable=protected-access
+                )
+                raise DeploymentError(
+                    f"Cannot push docker image: {error_msg} {auth}"
+                )
         logger.info(
             "Pushed image %s to remote registry at host %s", tag, self.host
         )
