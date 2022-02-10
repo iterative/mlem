@@ -1,11 +1,34 @@
 import inspect
-from typing import List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 import typing_inspect
 from pydantic import BaseModel, ConstrainedList
 
 from mlem.core.model import Signature
 from mlem.runtime.interface.base import ModelInterface
+
+
+class GRPCMethod(BaseModel):
+    class Config:
+        frozen = True
+
+    name: str
+    args: List[str]
+    returns: str
+
+    def to_proto(self):
+        return f"""rpc {self.name} ({", ".join(self.args)}) returns ({self.returns}) {{}}"""
+
+
+class GRPCService(BaseModel):
+    name: str
+    methods: List[GRPCMethod]
+
+    def to_proto(self):
+        rpc = "\n".join(each_rpc.to_proto() for each_rpc in self.methods)
+        return f"""service {self.name} {{
+            {rpc}
+        }}"""
 
 
 class GRPCField(BaseModel):
@@ -39,146 +62,147 @@ class GRPCMessage(BaseModel):
         }}"""
 
 
-def create_message_from_constraint_list(
-    type_, list_models=None, suffix=None, message_name=None, type_name=None
-) -> List[GRPCMessage]:
-    if list_models is None:
-        list_models = []
-    if suffix is None:
-        suffix = "_list"
-    if message_name is None:
-        message_name = type_.__name__
-    if type_name is None:
-        type_name = type_.__name__
+MessageMapping = Dict[Type, GRPCMessage]
 
+
+def create_message_from_constrained_list(
+    type_: Type[ConstrainedList],
+    existing_messages: MessageMapping,
+    prefix: str = "",
+) -> str:
     inner_type = type_.item_type
-    if issubclass(inner_type, ConstrainedList):
-        type_name += suffix
-        message_name += suffix
-        field = GRPCField(rule="repeated", type_=type_name, key="_", id_=1)
-        list_models.extend(
-            create_message_from_constraint_list(
-                inner_type, list_models, suffix, message_name, type_name
-            )
-        )
-        message_name = message_name[: -len(suffix)]
-    else:
-        field = GRPCField(
-            rule="repeated", type_=inner_type.__name__, key="_", id_=1
-        )
-
-    message = GRPCMessage(name=message_name, fields=(field,))
-    return [message] + list_models
+    field = GRPCField(
+        rule="repeated",
+        type_=create_message_from_type(
+            inner_type, existing_messages, prefix + "___root__"
+        ),
+        key="__root__",
+        id_=1,
+    )
+    message = GRPCMessage(name=prefix, fields=(field,))
+    existing_messages[type_] = message
+    return message.name
 
 
 def create_message_from_generic(
-    type_, message_name, generic_models=None
-) -> List[GRPCMessage]:
-    if generic_models is None:
-        generic_models = []
+    type_, existing_messages: MessageMapping, prefix: str = ""
+) -> str:
     generic_type = type_.__origin__
     inner_type = type_.__args__[0]
 
     if generic_type is list:
         field_rule = "repeated"
-        suffix = "_list"
     else:
         raise NotImplementedError
 
-    if typing_inspect.is_generic_type(inner_type):
-        message_name += suffix
-        field = GRPCField(rule=field_rule, type_=message_name, key="_", id_=1)
-        generic_models.extend(
-            create_message_from_generic(
-                inner_type, message_name, generic_models
+    msg = GRPCMessage(
+        name=prefix,
+        fields=(
+            (
+                GRPCField(
+                    rule=field_rule,
+                    type_=create_message_from_type(
+                        inner_type, existing_messages, prefix + "___root__"
+                    ),
+                    key="__root__",
+                    id_=1,
+                )
+            ),
+        ),
+    )
+    existing_messages[type_] = msg
+    return msg.name
+
+
+def _get_rule_from_outer_type(outer_type: Type) -> str:
+    if getattr(outer_type, "__origin__", None) is list:
+        return "repeated"
+    if not typing_inspect.is_generic_type(outer_type):
+        return ""
+    raise NotImplementedError
+
+
+def create_message_from_base_model(
+    model: Type[BaseModel], existing_messages: MessageMapping, prefix: str = ""
+) -> str:
+    name = model.__name__
+    fields = []
+    for id_, (field_name, field_info) in enumerate(
+        model.__fields__.items(), start=1
+    ):
+        outer_type_ = field_info.outer_type_
+        rule = _get_rule_from_outer_type(outer_type_)
+        type_ = field_info.type_
+
+        fields.append(
+            GRPCField(
+                rule=rule,
+                type_=create_message_from_type(
+                    type_,
+                    existing_messages,
+                    prefix=f"{prefix}{name}_{field_name}",
+                ),
+                key=field_name,
+                id_=id_,
             )
         )
-        message_name = message_name[: -len(suffix)]
-    else:
-        field = GRPCField(
-            rule=field_rule, type_=inner_type.__name__, key="_", id_=1
+    message = GRPCMessage(name=name, fields=tuple(fields))
+    existing_messages[model] = message
+    return message.name
+
+
+def create_message_from_type(
+    type_: Type, existing_messages: MessageMapping, prefix: str = ""
+) -> str:
+    if type_ in existing_messages:
+        return existing_messages[type_].name
+
+    if type_ in (str, int, float, bool):
+        return type_.__name__  # TODO: mapping
+    if typing_inspect.is_generic_type(type_):
+        return create_message_from_generic(type_, existing_messages, prefix)
+    if issubclass(type_, BaseModel):
+        return create_message_from_base_model(type_, existing_messages, prefix)
+    if inspect.isclass(type_) and issubclass(type_, ConstrainedList):
+        return create_message_from_constrained_list(
+            type_, existing_messages, prefix
         )
-
-    message = GRPCMessage(name=message_name, fields=(field,))
-    return [message] + generic_models
+    raise NotImplementedError
 
 
-def get_models_recursively(
-    model: Type[BaseModel], field_models=None
-) -> List[GRPCMessage]:
-    if field_models is None:
-        field_models = []
-    message_name = model.__name__
-    all_fields = []
-    num_fields = 0
-    for each_field_key, each_field_val in model.__fields__.items():
-        outer_type_ = each_field_val.outer_type_
-        type_ = each_field_val.type_
-        # if typing_inspect.is_generic_type(outer_type_):
-        #     generic_models = create_message_from_generic(outer_type_, message_name=each_field_val.name)
-        #     field_models.extend(generic_models)
-        if inspect.isclass(type_) and issubclass(type_, ConstrainedList):
-            list_models = create_message_from_constraint_list(type_)
-            field_models.extend(list_models)
-        if inspect.isclass(type_) and issubclass(type_, BaseModel):
-            field_models.extend(get_models_recursively(type_, field_models))
-        field_rule = (
-            "repeated"
-            if outer_type_ != type_
-            and outer_type_._name == "List"  # pylint: disable=protected-access
-            else None
-        )
-        field_type = type_.__name__
-        num_fields += 1
-        field = GRPCField(
-            rule=field_rule,
-            type_=field_type,
-            key=each_field_key,
-            id_=num_fields,
-        )
-        all_fields.append(field)
-    if all_fields:
-        message = GRPCMessage(name=message_name, fields=tuple(all_fields))
-        return [message] + field_models
-    return field_models
-
-
-def create_messages(signature: Signature) -> List[GRPCMessage]:
+def create_messages(
+    signature: Signature, messages: MessageMapping
+) -> MessageMapping:
     returns_model = signature.returns.get_serializer().get_model()
-    returns_field_models = get_models_recursively(returns_model)
-    args_field_models = []
+    create_message_from_type(returns_model, messages)
     for arg in signature.args:
-        args_field_models.extend(
-            get_models_recursively(arg.type_.get_serializer().get_model())
+        create_message_from_type(
+            arg.type_.get_serializer().get_model(), messages
         )
-    return returns_field_models + args_field_models
+    return messages
 
 
-def create_method_definition(method_name, signature: Signature):
+def create_method_definition(method_name, signature: Signature) -> GRPCMethod:
     args = [
         arg.type_.get_serializer().get_model().__name__
         for arg in signature.args
     ]
     returns = signature.returns.get_serializer().get_model().__name__
-    return (
-        f"""rpc {method_name} ({", ".join(args)}) returns ({returns}) {{}}"""
-    )
+    return GRPCMethod(name=method_name, args=args, returns=returns)
 
 
 def create_grpc_protobuf(
     interface: ModelInterface,
-):  # TODO: change to regular Interface and get name some other way
+) -> Tuple[
+    GRPCService, List[GRPCMessage]
+]:  # TODO: change to regular Interface and get name some other way
     service_name = interface.model_type.model.__class__.__name__
-    rpc_definitions = []
-    rpc_messages = []
+    methods = []
+    messages: MessageMapping = {}
     for method_name, signature in interface.iter_methods():
-        rpc_definitions.append(
-            create_method_definition(method_name, signature)
-        )
-        rpc_messages.extend(create_messages(signature))
+        methods.append(create_method_definition(method_name, signature))
+        create_messages(signature, messages)
 
-    rpc = "\n".join(each_rpc for each_rpc in rpc_definitions)
-    service_proto = f"""service {service_name} {{
-        {rpc}
-    }}"""
-    return service_proto, rpc_messages
+    return GRPCService(name=service_name, methods=methods), list(
+        messages.values()
+    )

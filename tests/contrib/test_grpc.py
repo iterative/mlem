@@ -1,9 +1,14 @@
-from typing import Any, ClassVar, List, Type
+from typing import Any, ClassVar, Dict, List, Type
 
 import pytest
-from pydantic import BaseModel, parse_obj_as
+from pydantic import BaseModel, conlist, parse_obj_as
 
-from mlem.contrib.grpc import GRPCField, GRPCMessage, create_messages
+from mlem.contrib.grpc import (
+    GRPCField,
+    GRPCMessage,
+    create_message_from_type,
+    create_messages,
+)
 from mlem.core.dataset_type import (
     DatasetSerializer,
     DatasetType,
@@ -11,6 +16,136 @@ from mlem.core.dataset_type import (
 )
 from mlem.core.model import Signature
 from mlem.core.requirements import Requirements
+
+
+class SimpleModel(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="SimpleModel",
+            fields=(GRPCField(rule="", type_="int", key="field", id_=1),),
+        )
+    ]
+    field: int
+
+
+class SimpleList(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="SimpleList",
+            fields=(
+                GRPCField(rule="repeated", type_="int", key="field", id_=1),
+            ),
+        )
+    ]
+    field: List[int]
+
+
+class NestedModel(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="NestedModel",
+            fields=(
+                GRPCField(rule="", type_="SimpleModel", key="field", id_=1),
+            ),
+        )
+    ] + SimpleModel.messages
+    field: SimpleModel
+
+
+class NestedList(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="NestedList",
+            fields=(
+                GRPCField(
+                    rule="repeated", type_="SimpleModel", key="field", id_=1
+                ),
+            ),
+        )
+    ] + SimpleModel.messages
+    field: List[SimpleModel]
+
+
+class DoubleList(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="DoubleList",
+            fields=(
+                GRPCField(
+                    rule="repeated",
+                    type_="DoubleList_field",
+                    key="field",
+                    id_=1,
+                ),
+            ),
+        ),
+        GRPCMessage(
+            name="DoubleList_field",
+            fields=(
+                GRPCField(rule="repeated", type_="int", key="__root__", id_=1),
+            ),
+        ),
+    ]
+    field: List[List[int]]
+
+
+class ConSimpleList(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="ConSimpleList",
+            fields=(
+                GRPCField(rule="repeated", type_="int", key="field", id_=1),
+            ),
+        )
+    ]
+    field: conlist(int)  # type: ignore
+
+
+class ConDoubleList(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="ConDoubleList",
+            fields=(
+                GRPCField(
+                    rule="repeated",
+                    type_="ConDoubleList_field",
+                    key="field",
+                    id_=1,
+                ),
+            ),
+        ),
+        GRPCMessage(
+            name="ConDoubleList_field",
+            fields=(
+                GRPCField(rule="repeated", type_="int", key="__root__", id_=1),
+            ),
+        ),
+    ]
+    field: conlist(conlist(int))  # type: ignore
+
+
+class SimpleDict(BaseModel):
+    messages: ClassVar = ...
+    field: Dict[str, int]
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        SimpleModel,
+        SimpleList,
+        NestedModel,
+        NestedList,
+        DoubleList,
+        ConSimpleList,
+        ConDoubleList,
+        SimpleDict,
+    ],
+)
+def test_cases(case):
+    messages = {}
+    create_message_from_type(case, messages)
+    assert set(messages.values()) == set(case.messages)
 
 
 @pytest.fixture
@@ -31,10 +166,10 @@ def interface():
 
 
 def _check_dt_messages(dt, expected):
-    messages = create_messages(Signature(name="aaa", args=[], returns=dt))
-    repr = "\n".join(m.to_proto() for m in messages)
+    messages = create_messages(Signature(name="aaa", args=[], returns=dt), {})
+    repr = "\n".join(m.to_proto() for m in messages.values())
     print(repr)
-    assert messages == expected
+    assert set(messages.values()) == set(expected)
 
 
 def test_predict_proba(interface):
@@ -48,16 +183,18 @@ def test_predict_proba(interface):
                 fields=(
                     GRPCField(
                         rule="repeated",
-                        type_="ConstrainedListValue",
+                        type_="NumpyNdarray___root__",
                         key="__root__",
                         id_=1,
                     ),
                 ),
             ),
             GRPCMessage(
-                name="ConstrainedListValue",
+                name="NumpyNdarray___root__",
                 fields=(
-                    GRPCField(rule="repeated", type_="float", key="_", id_=1),
+                    GRPCField(
+                        rule="repeated", type_="float", key="__root__", id_=1
+                    ),
                 ),
             ),
         ],
@@ -76,27 +213,29 @@ def test_numpy():
                 fields=(
                     GRPCField(
                         rule="repeated",
-                        type_="ConstrainedListValue",
+                        type_="NumpyNdarray___root__",
                         key="__root__",
                         id_=1,
                     ),
                 ),
             ),
             GRPCMessage(
-                name="ConstrainedListValue",
+                name="NumpyNdarray___root__",
                 fields=(
                     GRPCField(
                         rule="repeated",
-                        type_="ConstrainedListValue_list",
-                        key="_",
+                        type_="NumpyNdarray___root_____root__",
+                        key="__root__",
                         id_=1,
                     ),
                 ),
             ),
             GRPCMessage(
-                name="ConstrainedListValue_list",
+                name="NumpyNdarray___root_____root__",
                 fields=(
-                    GRPCField(rule="repeated", type_="float", key="_", id_=1),
+                    GRPCField(
+                        rule="repeated", type_="float", key="__root__", id_=1
+                    ),
                 ),
             ),
         ],
@@ -123,22 +262,22 @@ def test_predict(interface):
                 name="DataFrameRow",
                 fields=(
                     GRPCField(
-                        rule=None,
+                        rule="",
                         type_="float",
                         key="sepal length (cm)",
                         id_=1,
                     ),
                     GRPCField(
-                        rule=None, type_="float", key="sepal width (cm)", id_=2
+                        rule="", type_="float", key="sepal width (cm)", id_=2
                     ),
                     GRPCField(
-                        rule=None,
+                        rule="",
                         type_="float",
                         key="petal length (cm)",
                         id_=3,
                     ),
                     GRPCField(
-                        rule=None, type_="float", key="petal width (cm)", id_=4
+                        rule="", type_="float", key="petal width (cm)", id_=4
                     ),
                 ),
             ),
@@ -169,4 +308,38 @@ def test_container():
             return ContainerModel
 
     dt = ContainerType()
-    _check_dt_messages(dt, [])
+    _check_dt_messages(
+        dt,
+        [
+            GRPCMessage(
+                name="ContainerModel",
+                fields=(
+                    GRPCField(
+                        rule="repeated",
+                        type_="ContainerModel_field",
+                        key="field",
+                        id_=1,
+                    ),
+                ),
+            ),
+            GRPCMessage(
+                name="ContainerModel_field",
+                fields=(
+                    GRPCField(
+                        rule="repeated",
+                        type_="ContainerModel_field___root__",
+                        key="__root__",
+                        id_=1,
+                    ),
+                ),
+            ),
+            GRPCMessage(
+                name="ContainerModel_field___root__",
+                fields=(
+                    GRPCField(
+                        rule="repeated", type_="int", key="__root__", id_=1
+                    ),
+                ),
+            ),
+        ],
+    )
