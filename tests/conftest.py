@@ -305,3 +305,15 @@ def set_mlem_repo_root(mocker):
         )
 
     return set
+
+
+def skip_matrix(os_: str, python: str):
+    current_os = os.environ.get("GITHUB_MATRIX_OS")
+    current_python = os.environ.get("GITHUB_MATRIX_PYTHON")
+    if current_python is None or current_os is None:
+        return lambda f: f
+    if os_ == current_os and python == current_python:
+        return lambda f: f
+    return pytest.mark.skip(
+        reason=f"This test is only for {os_} and python:{python}"
+    )

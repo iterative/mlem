@@ -28,11 +28,12 @@ from mlem.contrib.heroku.utils import (
 )
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import DeployStatus, ModelMeta
-from tests.conftest import long
+from tests.conftest import long, skip_matrix
 
 heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
+heroku_matrix = skip_matrix("ubuntu-latest", "3.7")
 HEROKU_TEST_APP_NAME_PREFIX = "mlem-test"
 CLEAR_APPS = False
 HEROKU_TEAM = os.environ.get("HEROKU_TEAM")
@@ -86,6 +87,7 @@ def test_heroku_api_request():
 
 @heroku
 @long
+@heroku_matrix
 def test_create_app(heroku_app_name, heroku_env, model):
     name = heroku_app_name("create-app")
     heroku_deploy = HerokuDeploy(
@@ -119,7 +121,8 @@ def test_state_ensured_app():
 
 @heroku
 @long
-def test_env_deploy_new(tmp_path_factory, model, heroku_env, heroku_app_name):
+@heroku_matrix
+def test_env_deploy_full(tmp_path_factory, model, heroku_env, heroku_app_name):
     name = heroku_app_name("full-cycle")
     meta_path = tmp_path_factory.mktemp("deploy-meta")
     meta = deploy(
