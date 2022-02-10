@@ -101,6 +101,7 @@ def test_create_app(heroku_app_name, heroku_env, model):
 
 
 @long
+@heroku_matrix
 def test_build_heroku_docker(model: ModelMeta):
     image_meta = build_heroku_docker(model, "test_build", push=False)
     client = DockerClient.from_env()
