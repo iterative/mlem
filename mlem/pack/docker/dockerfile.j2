@@ -7,6 +7,7 @@ RUN pip install -r requirements.txt
 {{ mlem_install }}
 {% include "post_install.j2" ignore missing %}
 COPY . ./
-{% for name, value in env.items() %}ENV {{ name }}={{ value }}{% endfor %}
+{% for name, value in env.items() %}ENV {{ name }}={{ value }}
+{% endfor %}
 {% include "post_copy.j2" ignore missing %}
 {% if run_cmd is not false %}CMD {{ run_cmd }}{% endif %}

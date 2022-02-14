@@ -5,11 +5,12 @@ import re
 import time
 from contextlib import contextmanager
 from threading import Lock
+from typing import Any, Iterator, Tuple, Union
 
 import docker
 import requests
-import six
 from docker.errors import BuildError, DockerException
+from docker.models.images import Image
 from docker.utils.json_stream import json_stream
 
 logger = logging.getLogger(__name__)
@@ -28,9 +29,9 @@ def build_image_with_logs(
     path: str,
     level=logging.DEBUG,
     **kwargs,
-):
+) -> Tuple[Image, Union[str, Iterator[Any]]]:
     resp = client.api.build(path=path, **kwargs)
-    if isinstance(resp, six.string_types):
+    if isinstance(resp, str):
         return client.images.get(resp)
     last_event = None
     image_id = None
@@ -49,7 +50,7 @@ def build_image_with_logs(
                 image_id = match.group(2)
         last_event = chunk
     if image_id:
-        return (client.images.get(image_id), result_stream)
+        return client.images.get(image_id), result_stream
     raise BuildError(last_event or "Unknown", result_stream)
 
 

@@ -59,7 +59,6 @@ install_requires = [
     "aiohttp_swagger<2",
     "Jinja2<3",
     "fsspec>=2021.7.0",
-    "fusepy",  # TMP
     "pyparsing<3",  # legacy resolver problem
     "cached-property",
     "entrypoints",
@@ -76,7 +75,6 @@ dvc = ["dvc~=2.0"]
 # data
 pandas = ["pandas", "lxml", "openpyxl", "xlrd", "tables", "pyarrow"]
 numpy = ["numpy"]
-sql = ["sqlalchemy", "psycopg2-binary"]
 
 # models
 sklearn = ["scipy", "scikit-learn"]
@@ -92,7 +90,6 @@ all_libs = (
     dvc
     + pandas
     + numpy
-    + sql
     + sklearn
     + catboost
     + xgboost
@@ -138,7 +135,7 @@ setup_args = dict(  # noqa: C408
         "dvc": dvc,
         "pandas": pandas,
         "numpy": numpy,
-        "sql": sql,
+        # "sql": sql,
         "sklearn": sklearn,
         "catboost": catboost,
         "xgboost": xgboost,
@@ -177,6 +174,9 @@ setup_args = dict(  # noqa: C408
             "dataset_type.xgboost_dmatrix = mlem.contrib.xgboost:DMatrixDatasetType",
             "dataset_writer.numpy = mlem.contrib.numpy:NumpyArrayWriter",
             "dataset_writer.pandas = mlem.contrib.pandas:PandasWriter",
+            "deploy.heroku = mlem.contrib.heroku.meta:HerokuDeploy",
+            "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
+            "env.heroku = mlem.contrib.heroku.meta:HerokuEnvMeta",
             "model_io.catboost_io = mlem.contrib.catboost:CatBoostModelIO",
             "model_io.lightgbm_io = mlem.contrib.lightgbm:LightGBMModelIO",
             "model_io.pickle = mlem.contrib.callable:PickleModelIO",
@@ -187,6 +187,7 @@ setup_args = dict(  # noqa: C408
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
+            "server.heroku = mlem.contrib.heroku.build:HerokuServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
     },

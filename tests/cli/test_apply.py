@@ -4,7 +4,7 @@ import tempfile
 from click.testing import CliRunner
 from numpy import ndarray
 
-from mlem.api.commands import load
+from mlem.api import load
 from mlem.cli import apply
 from mlem.core.errors import MlemRootNotFound
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth

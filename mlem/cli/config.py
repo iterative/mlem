@@ -5,9 +5,9 @@ from click import option
 from yaml import safe_dump
 
 from mlem.cli.main import cli, verbose_option
-from mlem.cli.utils import build_model
 from mlem.config import CONFIG, CONFIG_FILE, MlemConfig
 from mlem.constants import MLEM_DIR
+from mlem.core.base import build_model
 from mlem.utils.root import find_repo_root
 
 # TODO: improve cli for config https://github.com/iterative/mlem/issues/116

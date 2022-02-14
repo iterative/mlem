@@ -1,4 +1,5 @@
 import contextlib
+import json
 import logging
 import os
 import tempfile
@@ -11,6 +12,7 @@ from docker.models.images import Image
 from pydantic import BaseModel
 
 from mlem.core.base import MlemObject
+from mlem.core.errors import DeploymentError
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
 from mlem.pack.docker.context import DockerBuildArgs, DockerModelDirectory
@@ -129,9 +131,7 @@ class RemoteRegistry(DockerRegistry):
         password = os.getenv(password_var)
 
         if username and password:
-            client.login(
-                registry=self.host, username=username, password=password
-            )
+            self._login(self.host, client, username, password)
             logger.info("Logged in to remote registry at host %s", self.host)
         else:
             logger.warning(
@@ -142,11 +142,29 @@ class RemoteRegistry(DockerRegistry):
                 password_var,
             )
 
+    @staticmethod
+    def _login(host, client: docker.DockerClient, username, password):
+        res = client.login(
+            registry=host, username=username, password=password, reauth=True
+        )
+        if res["Status"] != "Login Succeeded":
+            raise DeploymentError(f"Cannot login to registry: {res}")
+
     def get_host(self) -> Optional[str]:
         return self.host
 
     def push(self, client, tag):
-        client.images.push(tag)
+        res = client.images.push(tag)
+        for line in res.splitlines():
+            status = json.loads(line)
+            if "error" in status:
+                error_msg = status["error"]
+                auth = (
+                    client.api._auth_configs  # pylint: disable=protected-access
+                )
+                raise DeploymentError(
+                    f"Cannot push docker image: {error_msg} {auth}"
+                )
         logger.info(
             "Pushed image %s to remote registry at host %s", tag, self.host
         )
@@ -296,6 +314,7 @@ class DockerImagePackager(DockerDirPackager):
     image: DockerImage
     env: DockerEnv = DockerEnv()
     force_overwrite: bool = False
+    push: bool = True
 
     def package(self, obj: ModelMeta, out: str):
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
@@ -304,13 +323,18 @@ class DockerImagePackager(DockerDirPackager):
                     self.args.python_version
                 )
             super().package(obj, tempdir)
-            return self.build(tempdir, out)
+            if not self.image.name:
+                # TODO: https://github.com/iterative/mlem/issues/65
+                self.image.name = out
 
-    def build(self, context_dir: str, image_name: str) -> Image:
-        tag = image_name
+            return self.build(tempdir)
+
+    def build(self, context_dir: str) -> Image:
+        tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         with self.env.daemon.client() as client:
-            self.image.registry.login(client)
+            if self.push:
+                self.image.registry.login(client)
 
             if self.force_overwrite:
                 self.image.delete(client)  # to avoid spawning dangling images
@@ -322,11 +346,17 @@ class DockerImagePackager(DockerDirPackager):
 
             try:
                 image, _ = build_image_with_logs(
-                    client, path=context_dir, tag=tag, rm=True
+                    client,
+                    path=context_dir,
+                    tag=tag,
+                    rm=True,
+                    platform=self.args.platform,
                 )
+                self.image.image_id = image.id
                 logger.info("Built docker image %s", tag)
 
-                self.image.registry.push(client, tag)
+                if self.push:
+                    self.image.registry.push(client, tag)
 
                 return image
             except errors.BuildError as e:

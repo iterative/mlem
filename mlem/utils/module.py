@@ -31,6 +31,8 @@ from mlem.utils import importing
 logger = logging.getLogger(__name__)
 
 PYTHON_BASE = os.path.dirname(threading.__file__)
+#  pylint: disable=no-member,protected-access
+IGNORE_TYPES_REQ = (type(Requirements._abc_impl),)  # type: ignore
 
 
 def analyze_module_imports(module_path):
@@ -348,11 +350,12 @@ _SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
 def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
-        closure = inspect.getclosurevars(obj)
-        base_module_name = getattr(
-            get_object_base_module(obj), "__name__", None
-        )
+        base_module = get_object_base_module(obj)
+        if base_module is not None and is_builtin_module(base_module):
+            return f(pickler, obj)
+        base_module_name = getattr(base_module, "__name__", None)
 
+        closure = inspect.getclosurevars(obj)
         for field in ["nonlocals", "globals"]:
             for k, o in getattr(closure, field).items():
                 if k in _SKIP_CLOSURE_OBJECTS[field].get(
@@ -501,7 +504,7 @@ class RequirementAnalyzer(dill.Pickler):
                         self.add_requirement(parent_package)
 
     def save(self, obj, save_persistent_id=True):
-        if id(obj) in self.seen:
+        if id(obj) in self.seen or isinstance(obj, IGNORE_TYPES_REQ):
             return None
         self.seen.add(id(obj))
         self.add_requirement(obj)

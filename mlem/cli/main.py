@@ -1,11 +1,16 @@
 import logging
 from functools import wraps
+from typing import List, Optional, Type
 
 import click
+from pydantic import parse_obj_as
+from yaml import safe_load
 
 from mlem import version
 from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
+from mlem.core.base import MlemObject, build_mlem_object
+from mlem.core.metadata import load_meta
 
 
 @click.group()
@@ -13,7 +18,7 @@ from mlem.constants import MLEM_DIR
 def cli():
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
-    * Serialise any model trained in Python into ready-to-deploy format
+    * Serialize any model trained in Python into ready-to-deploy format
     * Model lifecycle management using Git and GitOps principles
     * Provider-agnostic deployment
     """
@@ -92,3 +97,42 @@ option_target_repo = click.option(
     default=None,
     help="Save object to mlem dir found in {target_repo} path.",
 )
+
+
+def config_arg(name: str, model: Type[MlemObject], **kwargs):
+    """add argument + multi option -c and -f to configure and deserialize to model"""
+
+    def decorator(f):
+        @click.option("-l", "--load", default=None)
+        @click.argument("subtype", default="", **kwargs)
+        @click.option("-c", "--conf", multiple=True)
+        @click.option("-f", "--file_conf", multiple=True)
+        @wraps(f)
+        def inner(
+            load: Optional[str],
+            subtype: str,
+            conf: List[str],
+            file_conf: List[str],
+            **inner_kwargs,
+        ):
+            if load is not None:
+                with open(load, "r", encoding="utf8") as of:
+                    obj = parse_obj_as(model, safe_load(of))
+            else:
+                obj = build_mlem_object(model, subtype, conf, file_conf)
+            inner_kwargs[name] = obj
+            return f(**inner_kwargs)
+
+        return inner
+
+    return decorator
+
+
+def with_model_meta(f):
+    @click.argument("model")
+    @wraps(f)
+    def inner(model, **kwargs):
+        meta = load_meta(model)
+        return f(model=meta, **kwargs)
+
+    return inner

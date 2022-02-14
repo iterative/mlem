@@ -4,8 +4,8 @@ MLEM's command-line interface
 from mlem.cli.apply import apply
 from mlem.cli.clone import clone
 from mlem.cli.config import config
+from mlem.cli.create import create
 from mlem.cli.deploy import deploy
-from mlem.cli.env import environment
 from mlem.cli.info import ls, pretty_print
 from mlem.cli.init import init
 from mlem.cli.link import link
@@ -17,7 +17,6 @@ __all__ = [
     "apply",
     "deploy",
     "cli",
-    "environment",
     "init",
     "pack",
     "pretty_print",
@@ -26,6 +25,7 @@ __all__ = [
     "clone",
     "serve",
     "config",
+    "create",
 ]
 
 

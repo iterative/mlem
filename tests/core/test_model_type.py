@@ -30,7 +30,6 @@ def test_sklearn_model(mtype):
     cls, methods = mtype
     data = np.array([[1], [2]])
     res = data[:, 0]
-    print(data, res)
     model = cls().fit(data, res)
     assert SklearnModel.is_object_valid(model)
     mt = ModelAnalyzer.analyze(model, sample_data=data)

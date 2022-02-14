@@ -105,6 +105,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.xgboost", ["xgboost"], False),
         # Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
+        Extension("mlem.contrib.callable", [], True),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
@@ -294,7 +295,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
         module_name = (
             root_module_name
             + "."
-            + os.path.relpath(pyfile, path)[: -len(".py")].replace("/", ".")
+            + os.path.relpath(pyfile, path)[: -len(".py")].replace(os.sep, ".")
         )
         if module_name.endswith(".__init__"):
             module_name = module_name[: -len(".__init__")]
@@ -308,12 +309,14 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
 
         for obj in module.__dict__.values():
 
+            # pylint: disable=too-many-boolean-expressions
             if (
                 isinstance(obj, type)
                 and obj.__module__ == module.__name__
                 and issubclass(obj, MlemObject)
                 and not obj.__is_root__
                 and not isabstract(obj)
+                and hasattr(obj, "abs_name")
             ):
                 impls[obj] = f"{obj.__module__}:{obj.__name__}"
 

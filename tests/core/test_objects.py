@@ -13,8 +13,8 @@ from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import (
-    Deployment,
     DeployMeta,
+    DeployState,
     MlemLink,
     MlemMeta,
     ModelMeta,
@@ -34,7 +34,7 @@ DEPLOY_NAME = "d/mydeploy"
 MODEL_NAME = "m/decision_tree"
 
 
-class MyDeployment(Deployment):
+class MyDeployState(DeployState):
     def get_status(self):
         pass
 
@@ -44,7 +44,11 @@ class MyDeployment(Deployment):
 
 @pytest.fixture()
 def meta():
-    return DeployMeta(env_path="", model_path="", deployment=MyDeployment())
+    return DeployMeta(
+        env_link=MlemLink(path="", link_type="env"),
+        model_link=MlemLink(path="", link_type="model"),
+        state=MyDeployState(),
+    )
 
 
 @pytest.fixture(params=["fullpath", "with_root"])

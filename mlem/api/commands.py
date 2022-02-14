@@ -2,17 +2,22 @@
 MLEM's Python API
 """
 import posixpath
-import re
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import click
 from fsspec import AbstractFileSystem
-from pydantic import parse_obj_as
 
+from mlem.api.utils import (
+    ensure_meta,
+    ensure_mlem_object,
+    get_dataset_value,
+    get_model_meta,
+    parse_import_type_modifier,
+)
 from mlem.config import CONFIG_FILE
 from mlem.core.errors import (
-    InvalidArgumentError,
+    MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
 )
@@ -24,45 +29,18 @@ from mlem.core.meta_io import (
     UriResolver,
     get_fs,
 )
-from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import DatasetMeta, MlemLink, MlemMeta, ModelMeta
+from mlem.core.metadata import load_meta, save
+from mlem.core.objects import (
+    DatasetMeta,
+    DeployMeta,
+    MlemLink,
+    MlemMeta,
+    ModelMeta,
+    TargetEnvMeta,
+)
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
 from mlem.utils.root import mlem_repo_exists
-
-
-def _get_dataset(dataset: Any) -> Any:
-    if isinstance(dataset, str):
-        return load(dataset)
-    if isinstance(dataset, DatasetMeta):
-        # TODO: https://github.com/iterative/mlem/issues/29
-        #  fix discrepancies between model and data meta objects
-        if not hasattr(dataset.dataset, "data"):
-            dataset.load_value()
-        return dataset.data
-
-    # TODO: https://github.com/iterative/mlem/issues/29
-    #  should we check whether this dataset is parseable by MLEM?
-    #  I guess not cause one may have a model with data input of unknown format/type
-    return dataset
-
-
-def _get_model_meta(model: Any) -> ModelMeta:
-    if isinstance(model, ModelMeta):
-        if model.get_value() is None:
-            model.load_value()
-        return model
-    if isinstance(model, str):
-        model = load_meta(model)
-        if not isinstance(model, ModelMeta):
-            raise InvalidArgumentError(
-                "MLEM object is loaded, but it's not a model as expected"
-            )
-        model.load_value()
-        return model
-    raise InvalidArgumentError(
-        f"The object {model} is neither ModelMeta nor path to it"
-    )
 
 
 def apply(
@@ -92,10 +70,10 @@ def apply(
     # one may want to pass several objects instead of one as `data`
     We may do this by using `*data` or work with `data` being an iterable.
     """
-    model = _get_model_meta(model)
+    model = get_model_meta(model)
     w = model.model_type
     res = [
-        w.call_method(w.resolve_method(method), _get_dataset(part))
+        w.call_method(w.resolve_method(method), get_dataset_value(part))
         for part in data
     ]
     if output is None:
@@ -237,16 +215,10 @@ def pack(
         model (Union[str, ModelMeta]): The model to pack.
         out (str): Path for "docker_dir", image name for "docker".
     """
-    if isinstance(model, str):
-        meta = load_meta(model)
-        if not isinstance(meta, ModelMeta):
-            raise ValueError(f"{model} is not a model")
-        model = meta
-    if isinstance(packager, str):
-        packager = parse_obj_as(
-            Packager, {"type": packager, **packager_kwargs}
-        )
-    packager.package(model, out)
+    model = get_model_meta(model)
+    ensure_mlem_object(Packager, packager, **packager_kwargs).package(
+        model, out
+    )
 
 
 def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
@@ -261,12 +233,7 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     model.load_value()
     interface = ModelInterface(model_type=model.model_type)
 
-    if not isinstance(server, Server):
-        server_obj = parse_obj_as(
-            Server, {Server.__config__.type_field: server, **server_kwargs}
-        )
-    else:
-        server_obj = server
+    server_obj = ensure_mlem_object(Server, server, **server_kwargs)
     server_obj.serve(interface)
 
 
@@ -325,17 +292,6 @@ def ls(
     return res
 
 
-def _get_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
-    """If the same object can be imported from different types of files,
-    modifier helps to specify which format do you want to use
-    like this: pandas[csv] or pandas[json]
-    """
-    match = re.match(r"(\w*)\[(\w*)]", type_)
-    if not match:
-        return type_, None
-    return match.group(1), match.group(2)
-
-
 def import_object(
     path: str,
     repo: Optional[str] = None,
@@ -354,7 +310,7 @@ def import_object(
     """
     loc = UriResolver.resolve(path, repo, rev, fs)
     if type_ is not None:
-        type_, modifier = _get_type_modifier(type_)
+        type_, modifier = parse_import_type_modifier(type_)
         if type_ not in ImportAnalyzer.types:
             raise ValueError(f"Unknown import type {type_}")
         meta = ImportAnalyzer.types[type_].process(
@@ -371,3 +327,43 @@ def import_object(
             external=external,
         )
     return meta
+
+
+def deploy(
+    deploy_meta_or_path: Union[DeployMeta, str],
+    model: Union[ModelMeta, str] = None,
+    env: Union[TargetEnvMeta, str] = None,
+    repo: Optional[str] = None,
+    fs: Optional[AbstractFileSystem] = None,
+    external: bool = None,
+    link: bool = None,
+    **deploy_kwargs,
+) -> DeployMeta:
+    if isinstance(deploy_meta_or_path, str):
+        try:
+            deploy_meta = load_meta(
+                path=deploy_meta_or_path,
+                repo=repo,
+                fs=fs,
+                force_type=DeployMeta,
+            )
+        except MlemObjectNotFound as e:
+            if model is None or env is None:
+                raise ValueError(
+                    "Please provide model and env args for new deployment"
+                ) from e
+            model_meta = get_model_meta(model)
+            env_meta = ensure_meta(TargetEnvMeta, env)
+            deploy_meta = env_meta.deploy_type(
+                model=model_meta,
+                env=env_meta,
+                env_link=env_meta.make_link(),
+                model_link=model_meta.make_link(),
+                **deploy_kwargs,
+            )
+            deploy_meta.dump(deploy_meta_or_path, fs, repo, link, external)
+    else:
+        deploy_meta = deploy_meta_or_path
+
+    deploy_meta.deploy()
+    return deploy_meta

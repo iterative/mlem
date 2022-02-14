@@ -127,7 +127,11 @@ class NumpyNdarrayType(
     def _subtype(self, subshape: Tuple[Optional[int], ...]):
         if len(subshape) == 0:
             return python_type_from_np_string_repr(self.dtype)
-        return conlist(self._subtype(subshape[1:]))
+        return conlist(
+            self._subtype(subshape[1:]),
+            min_items=subshape[0],
+            max_items=subshape[0],
+        )
 
     def get_model(self) -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33

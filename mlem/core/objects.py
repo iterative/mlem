@@ -4,24 +4,30 @@ MlemMeta and it's subclasses, e.g. ModelMeta, DatasetMeta, etc
 """
 import os
 import posixpath
+import time
 from abc import ABC, abstractmethod
+from enum import Enum
 from functools import partial
 from inspect import isabstract
 from typing import (
     Any,
     ClassVar,
     Dict,
+    Generic,
+    Iterable,
     List,
     Optional,
     Tuple,
     Type,
     TypeVar,
     Union,
+    overload,
 )
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as, validator
+from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
@@ -34,7 +40,12 @@ from mlem.core.artifacts import (
 )
 from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
-from mlem.core.errors import MlemObjectNotSavedError, MlemRootNotFound
+from mlem.core.errors import (
+    DeploymentError,
+    MlemObjectNotSavedError,
+    MlemRootNotFound,
+    WrongMetaType,
+)
 from mlem.core.meta_io import (
     ART_DIR,
     META_FILE_NAME,
@@ -42,32 +53,13 @@ from mlem.core.meta_io import (
     MLEM_EXT,
     Location,
     UriResolver,
+    get_path_by_fs_path,
 )
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
-
-
-class Deployment(MlemObject):
-    class Config:
-        type_root = True
-
-    abs_name: ClassVar[str] = "deployment"
-
-    # @abstractmethod
-    # def get_client(self) -> BaseClient:
-    #     pass
-
-    @abstractmethod
-    def get_status(self):
-        pass
-
-    @abstractmethod
-    def destroy(self):
-        pass
-
 
 T = TypeVar("T", bound="MlemMeta")
 
@@ -180,7 +172,7 @@ class MlemMeta(MlemObject):
         """
         with location.open() as f:
             payload = safe_load(f)
-        res = parse_obj_as(cls, payload).bind(location)
+        res = parse_obj_as(MlemMeta, payload).bind(location)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
             if not isinstance(link, cls):
@@ -223,6 +215,7 @@ class MlemMeta(MlemObject):
         """
         location, link = self._parse_dump_args(path, repo, fs, link, external)
         self._write_meta(location, link)
+        return self
 
     def _write_meta(
         self,
@@ -331,10 +324,10 @@ class MlemMeta(MlemObject):
             MlemMeta, self.dict()
         )  # easier than deep copy bc of possible attached objects
 
-    # def update(self):
-    #     if not self.is_saved:
-    #         raise MlemObjectNotSavedError("Cannot update not saved object")
-    #     self._write_meta(self._path, self._root, self._fs, False)
+    def update(self):
+        if not self.is_saved:
+            raise MlemObjectNotSavedError("Cannot update not saved object")
+        self._write_meta(self.location, False)
 
 
 class MlemLink(MlemMeta):
@@ -359,7 +352,23 @@ class MlemLink(MlemMeta):
     ):
         return make_posix(value)
 
-    def load_link(self, follow_links: bool = True) -> MlemMeta:
+    @overload
+    def load_link(
+        self, follow_links: bool = True, *, force_type: Type[T]
+    ) -> T:
+        ...
+
+    @overload
+    def load_link(
+        self, follow_links: bool = True, *, force_type: Literal[None] = None
+    ) -> MlemMeta:
+        ...
+
+    def load_link(
+        self, follow_links: bool = True, *, force_type: Type[MlemMeta] = None
+    ) -> MlemMeta:
+        if force_type is not None and self.link_cls != force_type:
+            raise WrongMetaType(self.link_type, force_type)
         return self.link_cls.read(self.parse_link(), follow_links=follow_links)
 
     def parse_link(self) -> Location:
@@ -388,6 +397,19 @@ class MlemLink(MlemMeta):
             UriResolver.resolve(
                 path=self.path, repo=self.repo, rev=self.rev, fs=None
             )
+        )
+
+    @classmethod
+    def from_location(
+        cls, loc: Location, link_type: Union[str, Type[MlemMeta]]
+    ) -> "MlemLink":
+        return MlemLink(
+            path=get_path_by_fs_path(loc.fs, loc.path_in_repo),
+            repo=loc.repo,
+            rev=loc.rev,
+            link_type=link_type.object_type
+            if not isinstance(link_type, str)
+            else link_type,
         )
 
 
@@ -422,6 +444,7 @@ class _WithArtifacts(ABC, MlemMeta):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
         self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
+        return self
 
     @abstractmethod
     def write_value(self) -> Artifacts:
@@ -551,7 +574,7 @@ class ModelMeta(_WithArtifacts):
     def __getattr__(self, item):
         if item not in self.model_type.methods:
             raise AttributeError(
-                f"{self.model_type.__class__} does not have {item} method"
+                f"{self.model_type.__class__} does not have {item} attribute"
             )
         return partial(self.model_type.call_method, item)
 
@@ -614,55 +637,138 @@ class DatasetMeta(_WithArtifacts):
         return self.data
 
 
-class TargetEnvMeta(MlemMeta):
+class DeployState(MlemObject):
     class Config:
         type_root = True
 
+    abs_name: ClassVar[str] = "deploy_state"
+
+    # @abstractmethod
+    # def get_client(self) -> BaseClient:
+    #     pass
+
+
+DT = TypeVar("DT", bound="DeployMeta")
+
+
+class TargetEnvMeta(MlemMeta, Generic[DT]):
+    class Config:
+        type_root = True
+        type_field = "type"
+
+    abs_name = "env"
     object_type: ClassVar = "env"
-    alias: ClassVar = ...
-    deployment_type: ClassVar = ...
-
-    additional_args = ()
+    type: ClassVar = ...
+    deploy_type: ClassVar[Type[DT]]
 
     @abstractmethod
-    def deploy(self, meta: "ModelMeta", **kwargs) -> "Deployment":
+    def deploy(self, meta: DT):
         """"""
         raise NotImplementedError
 
     @abstractmethod
-    def update(
-        self, meta: "ModelMeta", previous: "Deployment", **kwargs
-    ) -> "Deployment":
+    def destroy(self, meta: DT):
         """"""
         raise NotImplementedError
+
+    @abstractmethod
+    def get_status(self, meta: DT, raise_on_error=True) -> "DeployStatus":
+        raise NotImplementedError
+
+    def check_type(self, deploy: "DeployMeta"):
+        if not isinstance(deploy, self.deploy_type):
+            raise ValueError(
+                f"Meta of the {self.type} deployment should be {self.deploy_type}, not {deploy.__class__}"
+            )
+
+
+class DeployStatus(Enum):
+    UNKNOWN = "unknown"
+    NOT_DEPLOYED = "not_deployed"
+    STARTING = "starting"
+    CRASHED = "crashed"
+    STOPPED = "stopped"
+    RUNNING = "running"
 
 
 class DeployMeta(MlemMeta):
     object_type: ClassVar = "deployment"
 
-    env_path: str
-    model_path: str
-    deployment: Deployment
+    class Config:
+        type_root = True
+        type_field = "type"
+        exclude = {"model", "env"}
+        use_enum_values = True
 
-    @property  # TODO cached
-    def env(self):
-        return TargetEnvMeta.read(Location.abs(self.env_path, self.loc.fs))
+    abs_name: ClassVar = "deploy"
+    type: ClassVar[str]
 
-    @property  # TODO cached
-    def model(self):
-        return ModelMeta.read(Location.abs(self.model_path, self.loc.fs))
+    env_link: MlemLink
+    env: Optional[TargetEnvMeta]
+    model_link: MlemLink
+    model: Optional[ModelMeta]
+    state: Optional[DeployState]
 
-    @classmethod
-    def find(
-        cls, env_path: str, model_path: str, raise_on_missing=True
-    ) -> Optional["DeployMeta"]:
-        try:
-            path = posixpath.join(env_path, model_path)
-            return cls.read(Location.abs(path, LocalFileSystem()))  # TODO fs
-        except FileNotFoundError:
-            if raise_on_missing:
-                raise
-            return None
+    def get_env(self):
+        if self.env is None:
+            self.env = self.env_link.bind(self.loc).load_link(
+                force_type=TargetEnvMeta
+            )
+        return self.env
+
+    def get_model(self):
+        if self.model is None:
+            self.model = self.model_link.bind(self.loc).load_link(
+                force_type=ModelMeta
+            )
+        return self.model
+
+    def deploy(self):
+        return self.get_env().deploy(self)
+
+    def destroy(self):
+        self.get_env().destroy(self)
+
+    def get_status(self, raise_on_error: bool = True) -> DeployStatus:
+        return self.get_env().get_status(self, raise_on_error=raise_on_error)
+
+    def wait_for_status(
+        self,
+        status: Union[DeployStatus, Iterable[DeployStatus]],
+        timeout: float = 1.0,
+        times: int = 5,
+        allowed_intermediate: Union[
+            DeployStatus, Iterable[DeployStatus]
+        ] = None,
+        raise_on_timeout: bool = True,
+    ):
+        if isinstance(status, DeployStatus):
+            statuses = {status}
+        else:
+            statuses = set(status)
+        allowed_intermediate = allowed_intermediate or set()
+        if isinstance(allowed_intermediate, DeployStatus):
+            allowed = {allowed_intermediate}
+        else:
+            allowed = set(allowed_intermediate)
+
+        current = DeployStatus.UNKNOWN
+        for _ in range(times):
+            current = self.get_status(raise_on_error=False)
+            if current in statuses:
+                return True
+            if allowed and current not in allowed:
+                if raise_on_timeout:
+                    raise DeploymentError(
+                        f"Deployment status {current} is not allowed"
+                    )
+                return False
+            time.sleep(timeout)
+        if raise_on_timeout:
+            raise DeploymentError(
+                f"Deployment status is still {current} after {times * timeout} seconds"
+            )
+        return False
 
 
 def mlem_dir_path(

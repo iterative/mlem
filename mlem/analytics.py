@@ -99,7 +99,7 @@ def _send(payload):
 def is_enabled():
     enabled = not CONFIG.TESTS and not CONFIG.NO_ANALYTICS
 
-    msg = f"Analytics is {'en' if enabled else 'dis'}abled."
+    msg = f"Analytics are {'en' if enabled else 'dis'}abled."
     logger.debug(msg)
 
     return enabled

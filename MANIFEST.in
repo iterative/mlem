@@ -1,2 +1,2 @@
 graft mlem
-recursive-exclude tests
+recursive-exclude * tests
