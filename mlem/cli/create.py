@@ -24,6 +24,9 @@ def create(
     external: bool,
     link: bool,
 ):
+    """Creates new mlem object metafile from conf args and config files
+
+    Example: mlem create env heroku -c api_key=<...>"""
     cls = MlemMeta.__type_map__[object_type]
     meta = build_mlem_object(cls, subtype, conf, [])
     meta.dump(path, repo=repo, link=link, external=external)
