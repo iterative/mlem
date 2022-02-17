@@ -124,6 +124,9 @@ setup_args = dict(  # noqa: C408
     long_description=(Path(__file__).parent / "README.md").read_text(
         encoding="utf8"
     ),
+    long_description_content_type="text/markdown",
+    maintainer="Iterative",
+    maintainer_email="support@mlem.ai",
     author="Mikhail Sveshnikov",
     author_email="mike0sv@iterative.ai",
     download_url="https://github.com/iterative/mlem",
