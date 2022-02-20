@@ -1,15 +1,17 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, Type
 
 import lightgbm as lgb
+from pydantic import BaseModel, create_model
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetHook,
+    DatasetSerializer,
     DatasetType,
     DatasetWriter,
 )
@@ -27,7 +29,9 @@ from mlem.core.requirements import (
 LGB_REQUIREMENT = UnixPackageRequirement(package_name="libgomp1")
 
 
-class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
+class LightGBMDatasetType(
+    DatasetType, DatasetSerializer, DatasetHook, IsInstanceHookMixin
+):
     """
     :class:`.DatasetType` implementation for `lightgbm.Dataset` type
 
@@ -60,6 +64,11 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
 
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
+
+    def get_model(self) -> Type[BaseModel]:
+        return create_model(
+            "LightGBMDataset", inner=(self.inner.get_model(), ...)  # type: ignore
+        )
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:

@@ -5,6 +5,7 @@ from pydantic import BaseModel, conlist, parse_obj_as
 
 from mlem.contrib.grpc import (
     GRPCField,
+    GRPCMap,
     GRPCMessage,
     create_message_from_type,
     create_messages,
@@ -13,6 +14,7 @@ from mlem.core.dataset_type import (
     DatasetSerializer,
     DatasetType,
     DatasetWriter,
+    PrimitiveType,
 )
 from mlem.core.model import Signature
 from mlem.core.requirements import Requirements
@@ -125,8 +127,87 @@ class ConDoubleList(BaseModel):
 
 
 class SimpleDict(BaseModel):
-    messages: ClassVar = ...
+    messages: ClassVar = [
+        GRPCMessage(
+            name="SimpleDict",
+            fields=(
+                GRPCMap(
+                    key_type="str",
+                    value_type="int",
+                    field_name="field",
+                    id_=1,
+                ),
+            ),
+        ),
+    ]
     field: Dict[str, int]
+
+
+class ListOfDicts(BaseModel):
+    messages: ClassVar = [
+        GRPCMessage(
+            name="ListOfDicts",
+            fields=(
+                GRPCField(
+                    rule="repeated",
+                    type_="ListOfDicts_field",
+                    key="field",
+                    id_=1,
+                ),
+            ),
+        ),
+        GRPCMessage(
+            name="ListOfDicts_field",
+            fields=(
+                GRPCMap(
+                    key_type="str",
+                    value_type="int",
+                    field_name="__root__",
+                    id_=1,
+                ),
+            ),
+        ),
+    ]
+    field: List[Dict[str, int]]
+
+
+class DictWithComplexValueType(BaseModel):
+    class ComplexValue(BaseModel):
+        x: int
+        y: List[float]
+
+    messages: ClassVar = [
+        GRPCMessage(
+            name="DictWithComplexValueType",
+            fields=(
+                GRPCMap(
+                    key_type="str",
+                    value_type="ComplexValue",
+                    field_name="field",
+                    id_=1,
+                ),
+            ),
+        ),
+        GRPCMessage(
+            name="ComplexValue",
+            fields=(
+                GRPCField(
+                    rule="",
+                    type_="int",
+                    key="x",
+                    id_=1,
+                ),
+                GRPCField(
+                    rule="repeated",
+                    type_="float",
+                    key="y",
+                    id_=2,
+                ),
+            ),
+        ),
+    ]
+
+    field: Dict[str, ComplexValue]
 
 
 @pytest.mark.parametrize(
@@ -140,6 +221,8 @@ class SimpleDict(BaseModel):
         ConSimpleList,
         ConDoubleList,
         SimpleDict,
+        ListOfDicts,
+        DictWithComplexValueType,
     ],
 )
 def test_cases(case):
@@ -201,7 +284,101 @@ def test_predict_proba(interface):
     )
 
 
-def test_numpy():
+def test_lightgbm_numpy():
+    from mlem.contrib.lightgbm import LightGBMDatasetType
+    from mlem.contrib.numpy import NumpyNdarrayType
+
+    dt = LightGBMDatasetType(
+        inner=NumpyNdarrayType(shape=(None, 1), dtype="float64")
+    )
+    _check_dt_messages(
+        dt,
+        [
+            GRPCMessage(
+                name="LightGBMDataset",
+                fields=(
+                    GRPCField(
+                        rule="",
+                        type_="NumpyNdarray",
+                        key="inner",
+                        id_=1,
+                    ),
+                ),
+            ),
+            GRPCMessage(
+                name="NumpyNdarray",
+                fields=(
+                    GRPCField(
+                        rule="repeated",
+                        type_="LightGBMDataset_innerNumpyNdarray___root__",
+                        key="__root__",
+                        id_=1,
+                    ),
+                ),
+            ),
+            GRPCMessage(
+                name="LightGBMDataset_innerNumpyNdarray___root__",
+                fields=(
+                    GRPCField(
+                        rule="repeated",
+                        type_="float",
+                        key="__root__",
+                        id_=1,
+                    ),
+                ),
+            ),
+        ],
+    )
+
+
+def test_lightgbm_pandas():
+    from mlem.contrib.lightgbm import LightGBMDatasetType
+    from mlem.contrib.pandas import DataFrameType
+
+    dt = LightGBMDatasetType(
+        inner=DataFrameType(columns=["a"], dtypes=["int64"], index_cols=[])
+    )
+    _check_dt_messages(
+        dt,
+        [
+            GRPCMessage(
+                name="LightGBMDataset",
+                fields=(
+                    GRPCField(
+                        rule="",
+                        type_="DataFrame",
+                        key="inner",
+                        id_=1,
+                    ),
+                ),
+            ),
+            GRPCMessage(
+                name="DataFrame",
+                fields=(
+                    GRPCField(
+                        rule="repeated",
+                        type_="DataFrameRow",
+                        key="values",
+                        id_=1,
+                    ),
+                ),
+            ),
+            GRPCMessage(
+                name="DataFrameRow",
+                fields=(
+                    GRPCField(
+                        rule="",
+                        type_="int",
+                        key="a",
+                        id_=1,
+                    ),
+                ),
+            ),
+        ],
+    )
+
+
+def test_numpy_array():
     from mlem.contrib.numpy import NumpyNdarrayType
 
     dt = NumpyNdarrayType(shape=(3, 3, 3), dtype="float64")
@@ -235,6 +412,62 @@ def test_numpy():
                 fields=(
                     GRPCField(
                         rule="repeated", type_="float", key="__root__", id_=1
+                    ),
+                ),
+            ),
+        ],
+    )
+
+
+def test_xgboost_dmatrix():
+    from mlem.contrib.xgboost import DMatrixDatasetType
+
+    dt = DMatrixDatasetType(
+        is_from_list=False, feature_type_names=["int"], feature_names=["a"]
+    )
+    _check_dt_messages(
+        dt,
+        [
+            GRPCMessage(
+                name="DMatrixDataset",
+                fields=(
+                    GRPCField(
+                        rule="", type_="bool", key="is_from_list", id_=1
+                    ),
+                    GRPCField(
+                        rule="repeated",
+                        type_="str",
+                        key="feature_type_names",
+                        id_=2,
+                    ),
+                    GRPCField(
+                        rule="repeated",
+                        type_="str",
+                        key="feature_names",
+                        id_=3,
+                    ),
+                ),
+            ),
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "ptype", PrimitiveType.PRIMITIVES - {type(None), complex}
+)
+def test_primitive(ptype):
+    dt = PrimitiveType(ptype=ptype.__name__)
+    _check_dt_messages(
+        dt,
+        [
+            GRPCMessage(
+                name="Primitive",
+                fields=(
+                    GRPCField(
+                        rule="",
+                        type_=ptype.__name__,
+                        key="__root__",
+                        id_=1,
                     ),
                 ),
             ),

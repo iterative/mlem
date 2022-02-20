@@ -133,7 +133,7 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return Requirements.new()
 
     def get_model(self) -> Type[BaseModel]:
-        return create_model("Primitive", __root__=self.to_type)
+        return create_model("Primitive", __root__=(self.to_type, ...))
 
 
 class ListTypeWithSpec(DatasetType):
