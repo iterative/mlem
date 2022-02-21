@@ -57,7 +57,7 @@ install_requires = [
     "click<9",
     "aiohttp<4",
     "aiohttp_swagger<2",
-    "Jinja2==2.0.1",
+    "Jinja2>=3",
     "fsspec>=2021.7.0",
     "pyparsing<3",  # legacy resolver problem
     "cached-property",
