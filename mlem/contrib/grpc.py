@@ -1,5 +1,5 @@
 import inspect
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Tuple, Type
 
 import typing_inspect
 from pydantic import BaseModel, ConstrainedList
@@ -35,28 +35,32 @@ class GRPCField(BaseModel):
     class Config:
         frozen = True
 
-    rule: Optional[str] = None
     type_: str
-    key: str
-    id_: int
-
-    def to_expr(self):
-        if self.rule:
-            return f"{self.rule} {self.type_} {self.key} = {self.id_}"
-        return f"{self.type_} {self.key} = {self.id_}"
-
-
-class GRPCMap(BaseModel):
-    class Config:
-        frozen = True
-
-    key_type: str
-    value_type: str
     field_name: str
     id_: int
 
     def to_expr(self):
-        return f"map<{self.key_type}, {self.value_type}> {self.field_name} = {self.id_}"
+        return f"{self.type_} {self.field_name} = {self.id_}"
+
+
+class GRPCMap(GRPCField):
+    class Config:
+        frozen = True
+
+    value_type: str
+
+    def to_expr(self):
+        return f"map<{self.type_}, {self.value_type}> {self.field_name} = {self.id_}"
+
+
+class GRPCList(GRPCField):
+    class Config:
+        frozen = True
+
+    rule: str = "repeated"
+
+    def to_expr(self):
+        return f"{self.rule} {self.type_} {self.field_name} = {self.id_}"
 
 
 class GRPCMessage(BaseModel):
@@ -64,7 +68,7 @@ class GRPCMessage(BaseModel):
         frozen = True
 
     name: str
-    fields: Tuple[Union[GRPCField, GRPCMap], ...]
+    fields: Tuple[GRPCField, ...]
 
     def to_proto(self) -> str:
         p_fields = "\n".join(
@@ -84,12 +88,11 @@ def create_message_from_constrained_list(
     prefix: str = "",
 ) -> str:
     inner_type = type_.item_type
-    field = GRPCField(
-        rule="repeated",
+    field = GRPCList(
         type_=create_message_from_type(
             inner_type, existing_messages, prefix + "___root__"
         ),
-        key="__root__",
+        field_name="__root__",
         id_=1,
     )
     message = GRPCMessage(name=prefix, fields=(field,))
@@ -104,46 +107,39 @@ def create_message_from_generic(
     inner_type = type_.__args__[0]
 
     if generic_type is list:
-        field_rule = "repeated"
+        fields = (
+            (
+                GRPCList(
+                    type_=create_message_from_type(
+                        inner_type, existing_messages, prefix + "___root__"
+                    ),
+                    field_name="__root__",
+                    id_=1,
+                )
+            ),
+        )
     elif generic_type is dict:
-        field_rule = "map"
+        key_type, _ = get_keytype_and_valuetype_from_dict(type_)
+        value_type = type_.__args__[1]
+        fields = (
+            (
+                GRPCMap(
+                    type_=key_type,
+                    value_type=create_message_from_type(
+                        value_type, existing_messages, prefix + "___root__"
+                    ),
+                    field_name="__root__",
+                    id_=1,
+                )
+            ),
+        )
     else:
         raise NotImplementedError
 
-    if field_rule == "map":
-        key_type, _ = get_keytype_and_valuetype_from_dict(type_)
-        value_type = type_.__args__[1]
-        msg = GRPCMessage(
-            name=prefix,
-            fields=(
-                (
-                    GRPCMap(
-                        key_type=key_type,
-                        value_type=create_message_from_type(
-                            value_type, existing_messages, prefix + "___root__"
-                        ),
-                        field_name="__root__",
-                        id_=1,
-                    )
-                ),
-            ),
-        )
-    else:
-        msg = GRPCMessage(
-            name=prefix,
-            fields=(
-                (
-                    GRPCField(
-                        rule=field_rule,
-                        type_=create_message_from_type(
-                            inner_type, existing_messages, prefix + "___root__"
-                        ),
-                        key="__root__",
-                        id_=1,
-                    )
-                ),
-            ),
-        )
+    msg = GRPCMessage(
+        name=prefix,
+        fields=fields,
+    )
     existing_messages[type_] = msg
     return msg.name
 
@@ -182,31 +178,35 @@ def create_message_from_base_model(
         outer_type_ = field_info.outer_type_
         type_ = field_info.type_
         rule = _get_rule_from_outer_type(outer_type_)
+        msg_sub_type = create_message_from_type(
+            type_,
+            existing_messages,
+            prefix=f"{prefix}{name}_{field_name}",
+        )
 
         if rule == "map":
             key_type, _ = get_keytype_and_valuetype_from_dict(outer_type_)
             fields.append(
                 GRPCMap(
-                    key_type=key_type,
-                    value_type=create_message_from_type(
-                        type_,
-                        existing_messages,
-                        prefix=f"{prefix}{name}_{field_name}",
-                    ),
+                    type_=key_type,
+                    value_type=msg_sub_type,
                     field_name=field_name,
                     id_=id_,
                 ),
             )
+        elif rule == "repeated":
+            fields.append(
+                GRPCList(
+                    type_=msg_sub_type,
+                    field_name=field_name,
+                    id_=id_,
+                )
+            )
         else:
             fields.append(
                 GRPCField(
-                    rule=rule,
-                    type_=create_message_from_type(
-                        type_,
-                        existing_messages,
-                        prefix=f"{prefix}{name}_{field_name}",
-                    ),
-                    key=field_name,
+                    type_=msg_sub_type,
+                    field_name=field_name,
                     id_=id_,
                 )
             )

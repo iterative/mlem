@@ -4,7 +4,7 @@ import tempfile
 from typing import Any, ClassVar, Optional, Type
 
 import lightgbm as lgb
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage

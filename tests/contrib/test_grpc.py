@@ -5,6 +5,7 @@ from pydantic import BaseModel, conlist, parse_obj_as
 
 from mlem.contrib.grpc import (
     GRPCField,
+    GRPCList,
     GRPCMap,
     GRPCMessage,
     create_message_from_type,
@@ -24,7 +25,7 @@ class SimpleModel(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="SimpleModel",
-            fields=(GRPCField(rule="", type_="int", key="field", id_=1),),
+            fields=(GRPCField(type_="int", field_name="field", id_=1),),
         )
     ]
     field: int
@@ -34,9 +35,7 @@ class SimpleList(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="SimpleList",
-            fields=(
-                GRPCField(rule="repeated", type_="int", key="field", id_=1),
-            ),
+            fields=(GRPCList(type_="int", field_name="field", id_=1),),
         )
     ]
     field: List[int]
@@ -47,7 +46,7 @@ class NestedModel(BaseModel):
         GRPCMessage(
             name="NestedModel",
             fields=(
-                GRPCField(rule="", type_="SimpleModel", key="field", id_=1),
+                GRPCField(type_="SimpleModel", field_name="field", id_=1),
             ),
         )
     ] + SimpleModel.messages
@@ -58,11 +57,7 @@ class NestedList(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="NestedList",
-            fields=(
-                GRPCField(
-                    rule="repeated", type_="SimpleModel", key="field", id_=1
-                ),
-            ),
+            fields=(GRPCList(type_="SimpleModel", field_name="field", id_=1),),
         )
     ] + SimpleModel.messages
     field: List[SimpleModel]
@@ -73,19 +68,16 @@ class DoubleList(BaseModel):
         GRPCMessage(
             name="DoubleList",
             fields=(
-                GRPCField(
-                    rule="repeated",
+                GRPCList(
                     type_="DoubleList_field",
-                    key="field",
+                    field_name="field",
                     id_=1,
                 ),
             ),
         ),
         GRPCMessage(
             name="DoubleList_field",
-            fields=(
-                GRPCField(rule="repeated", type_="int", key="__root__", id_=1),
-            ),
+            fields=(GRPCList(type_="int", field_name="__root__", id_=1),),
         ),
     ]
     field: List[List[int]]
@@ -95,9 +87,7 @@ class ConSimpleList(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="ConSimpleList",
-            fields=(
-                GRPCField(rule="repeated", type_="int", key="field", id_=1),
-            ),
+            fields=(GRPCList(type_="int", field_name="field", id_=1),),
         )
     ]
     field: conlist(int)  # type: ignore
@@ -108,19 +98,16 @@ class ConDoubleList(BaseModel):
         GRPCMessage(
             name="ConDoubleList",
             fields=(
-                GRPCField(
-                    rule="repeated",
+                GRPCList(
                     type_="ConDoubleList_field",
-                    key="field",
+                    field_name="field",
                     id_=1,
                 ),
             ),
         ),
         GRPCMessage(
             name="ConDoubleList_field",
-            fields=(
-                GRPCField(rule="repeated", type_="int", key="__root__", id_=1),
-            ),
+            fields=(GRPCList(type_="int", field_name="__root__", id_=1),),
         ),
     ]
     field: conlist(conlist(int))  # type: ignore
@@ -132,7 +119,7 @@ class SimpleDict(BaseModel):
             name="SimpleDict",
             fields=(
                 GRPCMap(
-                    key_type="str",
+                    type_="str",
                     value_type="int",
                     field_name="field",
                     id_=1,
@@ -148,10 +135,9 @@ class ListOfDicts(BaseModel):
         GRPCMessage(
             name="ListOfDicts",
             fields=(
-                GRPCField(
-                    rule="repeated",
+                GRPCList(
                     type_="ListOfDicts_field",
-                    key="field",
+                    field_name="field",
                     id_=1,
                 ),
             ),
@@ -160,7 +146,7 @@ class ListOfDicts(BaseModel):
             name="ListOfDicts_field",
             fields=(
                 GRPCMap(
-                    key_type="str",
+                    type_="str",
                     value_type="int",
                     field_name="__root__",
                     id_=1,
@@ -181,7 +167,7 @@ class DictWithComplexValueType(BaseModel):
             name="DictWithComplexValueType",
             fields=(
                 GRPCMap(
-                    key_type="str",
+                    type_="str",
                     value_type="ComplexValue",
                     field_name="field",
                     id_=1,
@@ -192,15 +178,13 @@ class DictWithComplexValueType(BaseModel):
             name="ComplexValue",
             fields=(
                 GRPCField(
-                    rule="",
                     type_="int",
-                    key="x",
+                    field_name="x",
                     id_=1,
                 ),
-                GRPCField(
-                    rule="repeated",
+                GRPCList(
                     type_="float",
-                    key="y",
+                    field_name="y",
                     id_=2,
                 ),
             ),
@@ -264,10 +248,9 @@ def test_predict_proba(interface):
             GRPCMessage(
                 name="NumpyNdarray",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="NumpyNdarray___root__",
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
@@ -275,9 +258,7 @@ def test_predict_proba(interface):
             GRPCMessage(
                 name="NumpyNdarray___root__",
                 fields=(
-                    GRPCField(
-                        rule="repeated", type_="float", key="__root__", id_=1
-                    ),
+                    GRPCList(type_="float", field_name="__root__", id_=1),
                 ),
             ),
         ],
@@ -297,10 +278,9 @@ def test_lightgbm_numpy():
             GRPCMessage(
                 name="NumpyNdarray",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="NumpyNdarray___root__",
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
@@ -308,10 +288,9 @@ def test_lightgbm_numpy():
             GRPCMessage(
                 name="NumpyNdarray___root__",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="float",
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
@@ -333,10 +312,9 @@ def test_lightgbm_pandas():
             GRPCMessage(
                 name="DataFrame",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="DataFrameRow",
-                        key="values",
+                        field_name="values",
                         id_=1,
                     ),
                 ),
@@ -345,9 +323,8 @@ def test_lightgbm_pandas():
                 name="DataFrameRow",
                 fields=(
                     GRPCField(
-                        rule="",
                         type_="int",
-                        key="a",
+                        field_name="a",
                         id_=1,
                     ),
                 ),
@@ -366,10 +343,9 @@ def test_numpy_array():
             GRPCMessage(
                 name="NumpyNdarray",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="NumpyNdarray___root__",
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
@@ -377,10 +353,9 @@ def test_numpy_array():
             GRPCMessage(
                 name="NumpyNdarray___root__",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="NumpyNdarray___root_____root__",
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
@@ -388,9 +363,7 @@ def test_numpy_array():
             GRPCMessage(
                 name="NumpyNdarray___root_____root__",
                 fields=(
-                    GRPCField(
-                        rule="repeated", type_="float", key="__root__", id_=1
-                    ),
+                    GRPCList(type_="float", field_name="__root__", id_=1),
                 ),
             ),
         ],
@@ -409,19 +382,15 @@ def test_xgboost_dmatrix():
             GRPCMessage(
                 name="DMatrixDataset",
                 fields=(
-                    GRPCField(
-                        rule="", type_="bool", key="is_from_list", id_=1
-                    ),
-                    GRPCField(
-                        rule="repeated",
+                    GRPCField(type_="bool", field_name="is_from_list", id_=1),
+                    GRPCList(
                         type_="str",
-                        key="feature_type_names",
+                        field_name="feature_type_names",
                         id_=2,
                     ),
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="str",
-                        key="feature_names",
+                        field_name="feature_names",
                         id_=3,
                     ),
                 ),
@@ -442,9 +411,8 @@ def test_primitive(ptype):
                 name="Primitive",
                 fields=(
                     GRPCField(
-                        rule="",
                         type_=ptype.__name__,
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
@@ -461,10 +429,9 @@ def test_predict(interface):
             GRPCMessage(
                 name="DataFrame",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="DataFrameRow",
-                        key="values",
+                        field_name="values",
                         id_=1,
                     ),
                 ),
@@ -473,22 +440,20 @@ def test_predict(interface):
                 name="DataFrameRow",
                 fields=(
                     GRPCField(
-                        rule="",
                         type_="float",
-                        key="sepal length (cm)",
+                        field_name="sepal length (cm)",
                         id_=1,
                     ),
                     GRPCField(
-                        rule="", type_="float", key="sepal width (cm)", id_=2
+                        type_="float", field_name="sepal width (cm)", id_=2
                     ),
                     GRPCField(
-                        rule="",
                         type_="float",
-                        key="petal length (cm)",
+                        field_name="petal length (cm)",
                         id_=3,
                     ),
                     GRPCField(
-                        rule="", type_="float", key="petal width (cm)", id_=4
+                        type_="float", field_name="petal width (cm)", id_=4
                     ),
                 ),
             ),
@@ -525,10 +490,9 @@ def test_container():
             GRPCMessage(
                 name="ContainerModel",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="ContainerModel_field",
-                        key="field",
+                        field_name="field",
                         id_=1,
                     ),
                 ),
@@ -536,21 +500,16 @@ def test_container():
             GRPCMessage(
                 name="ContainerModel_field",
                 fields=(
-                    GRPCField(
-                        rule="repeated",
+                    GRPCList(
                         type_="ContainerModel_field___root__",
-                        key="__root__",
+                        field_name="__root__",
                         id_=1,
                     ),
                 ),
             ),
             GRPCMessage(
                 name="ContainerModel_field___root__",
-                fields=(
-                    GRPCField(
-                        rule="repeated", type_="int", key="__root__", id_=1
-                    ),
-                ),
+                fields=(GRPCList(type_="int", field_name="__root__", id_=1),),
             ),
         ],
     )
