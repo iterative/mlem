@@ -295,29 +295,18 @@ def test_lightgbm_numpy():
         dt,
         [
             GRPCMessage(
-                name="LightGBMDataset",
-                fields=(
-                    GRPCField(
-                        rule="",
-                        type_="NumpyNdarray",
-                        key="inner",
-                        id_=1,
-                    ),
-                ),
-            ),
-            GRPCMessage(
                 name="NumpyNdarray",
                 fields=(
                     GRPCField(
                         rule="repeated",
-                        type_="LightGBMDataset_innerNumpyNdarray___root__",
+                        type_="NumpyNdarray___root__",
                         key="__root__",
                         id_=1,
                     ),
                 ),
             ),
             GRPCMessage(
-                name="LightGBMDataset_innerNumpyNdarray___root__",
+                name="NumpyNdarray___root__",
                 fields=(
                     GRPCField(
                         rule="repeated",
@@ -341,17 +330,6 @@ def test_lightgbm_pandas():
     _check_dt_messages(
         dt,
         [
-            GRPCMessage(
-                name="LightGBMDataset",
-                fields=(
-                    GRPCField(
-                        rule="",
-                        type_="DataFrame",
-                        key="inner",
-                        id_=1,
-                    ),
-                ),
-            ),
             GRPCMessage(
                 name="DataFrame",
                 fields=(

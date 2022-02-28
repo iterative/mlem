@@ -66,9 +66,7 @@ class LightGBMDatasetType(
         raise NotImplementedError()
 
     def get_model(self) -> Type[BaseModel]:
-        return create_model(
-            "LightGBMDataset", inner=(self.inner.get_model(), ...)  # type: ignore
-        )
+        return self.inner.get_model()
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:
