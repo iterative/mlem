@@ -66,7 +66,7 @@ class LightGBMDatasetType(
         raise NotImplementedError()
 
     def get_model(self) -> Type[BaseModel]:
-        return self.inner.get_model()
+        return self.inner.get_serializer().get_model()
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:

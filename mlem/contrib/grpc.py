@@ -57,10 +57,8 @@ class GRPCList(GRPCField):
     class Config:
         frozen = True
 
-    rule: str = "repeated"
-
     def to_expr(self):
-        return f"{self.rule} {self.type_} {self.field_name} = {self.id_}"
+        return f"repeated {self.type_} {self.field_name} = {self.id_}"
 
 
 class GRPCMessage(BaseModel):
@@ -105,6 +103,7 @@ def create_message_from_generic(
 ) -> str:
     generic_type = type_.__origin__
     inner_type = type_.__args__[0]
+    fields: Tuple[GRPCField, ...] = ()
 
     if generic_type is list:
         fields = (
@@ -119,12 +118,11 @@ def create_message_from_generic(
             ),
         )
     elif generic_type is dict:
-        key_type, _ = get_keytype_and_valuetype_from_dict(type_)
-        value_type = type_.__args__[1]
+        key_type, value_type = typing_inspect.get_args(type_)
         fields = (
             (
                 GRPCMap(
-                    type_=key_type,
+                    type_=key_type.__name__,
                     value_type=create_message_from_type(
                         value_type, existing_messages, prefix + "___root__"
                     ),
@@ -154,24 +152,11 @@ def _get_rule_from_outer_type(outer_type: Type) -> str:
     raise NotImplementedError
 
 
-def get_keytype_and_valuetype_from_dict(d):
-    left_brace_position = d.__str__().find("[")
-    comma_position = d.__str__().find(",")
-    right_brace_position = d.__str__().find("]")
-    key_type = d.__str__()[left_brace_position + 1 : comma_position].rsplit(
-        "."
-    )[-1]
-    value_type = d.__str__()[comma_position + 2 : right_brace_position].rsplit(
-        "."
-    )[-1]
-    return key_type, value_type
-
-
 def create_message_from_base_model(
     model: Type[BaseModel], existing_messages: MessageMapping, prefix: str = ""
 ) -> str:
     name = model.__name__
-    fields = []
+    fields: List[GRPCField] = []
     for id_, (field_name, field_info) in enumerate(
         model.__fields__.items(), start=1
     ):
@@ -185,10 +170,10 @@ def create_message_from_base_model(
         )
 
         if rule == "map":
-            key_type, _ = get_keytype_and_valuetype_from_dict(outer_type_)
+            key_type, _ = typing_inspect.get_args(outer_type_)
             fields.append(
                 GRPCMap(
-                    type_=key_type,
+                    type_=key_type.__name__,
                     value_type=msg_sub_type,
                     field_name=field_name,
                     id_=id_,
