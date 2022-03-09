@@ -154,18 +154,18 @@ def model_meta(model):
 
 
 @pytest.fixture
-def model_path(model_train_target, tmpdir_factory):
-    temp_dir = str(tmpdir_factory.mktemp("saved-model"))
+def model_path(model_train_target, tmp_path_factory):
+    path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
     model, train, _ = model_train_target
     # because of link=False we test reading by path here
     # reading by link name is not tested
-    save(model, temp_dir, tmp_sample_data=train, link=False)
-    yield temp_dir
+    save(model, path, tmp_sample_data=train, link=False)
+    yield path
 
 
 @pytest.fixture
 def data_path(train, tmpdir_factory):
-    temp_dir = str(tmpdir_factory.mktemp("saved-data"))
+    temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
     save(train, temp_dir, link=False)
     yield temp_dir
 
@@ -230,7 +230,9 @@ def dataset_write_read_check(
         writer = writer or dataset.dataset_type.get_writer()
 
         storage = LOCAL_STORAGE
-        reader, artifacts = writer.write(dataset, storage, tmpdir)
+        reader, artifacts = writer.write(
+            dataset, storage, posixpath.join(tmpdir, "data")
+        )
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 

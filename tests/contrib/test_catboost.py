@@ -7,7 +7,7 @@ from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import ModelAnalyzer
-from tests.conftest import check_model_type_common_interface
+from tests.conftest import check_model_type_common_interface, long
 
 
 @pytest.fixture
@@ -25,6 +25,7 @@ def catboost_regressor(pandas_data, catboost_params):
     return CatBoostRegressor(**catboost_params).fit(pandas_data, [1, 0])
 
 
+@long
 @pytest.mark.parametrize(
     "catboost_model_fixture", ["catboost_classifier", "catboost_regressor"]
 )

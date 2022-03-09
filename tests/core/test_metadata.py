@@ -1,7 +1,6 @@
 import os
 import posixpath
 import tempfile
-from pathlib import Path
 from urllib.parse import quote_plus
 
 import pytest
@@ -13,7 +12,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
 from mlem.constants import MLEM_DIR
-from mlem.core.meta_io import ART_DIR, META_FILE_NAME
+from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import MlemLink, ModelMeta
 from tests.conftest import (
@@ -61,7 +60,9 @@ def test_saving_with_repo(model, tmpdir):
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
-    path = str(tmpdir_factory.mktemp("saving-models-without-sample-data"))
+    path = str(
+        tmpdir_factory.mktemp("saving-models-without-sample-data") / "model"
+    )
     # link=True would require having .mlem folder somewhere
     save(model, path, link=False)
 
@@ -75,10 +76,8 @@ def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
 
 
 def test_model_saving(model_path):
-    model_path = Path(model_path)
-    assert os.path.isfile(model_path / META_FILE_NAME)
-    assert os.path.isdir(model_path / ART_DIR)
-    assert os.path.isfile(model_path / ART_DIR / "data.pkl")
+    assert os.path.isfile(model_path + MLEM_EXT)
+    assert os.path.isfile(model_path)
 
 
 def test_model_loading(model_path):
@@ -176,11 +175,8 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     assert s3_storage_fs.isfile(
         posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
     )
-    assert s3_storage_fs.isfile(posixpath.join(model_path, META_FILE_NAME))
-    assert s3_storage_fs.isdir(posixpath.join(model_path, ART_DIR))
-    assert s3_storage_fs.isfile(
-        posixpath.join(model_path, ART_DIR, "data.pkl")
-    )
+    assert s3_storage_fs.isfile(model_path + MLEM_EXT)
+    assert s3_storage_fs.isfile(model_path)
 
 
 @long

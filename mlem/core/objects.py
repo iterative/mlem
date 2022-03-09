@@ -47,8 +47,6 @@ from mlem.core.errors import (
     WrongMetaType,
 )
 from mlem.core.meta_io import (
-    ART_DIR,
-    META_FILE_NAME,
     MLEM_DIR,
     MLEM_EXT,
     Location,
@@ -421,16 +419,18 @@ class _WithArtifacts(ABC, MlemMeta):
     @classmethod
     def get_metafile_path(cls, fullpath: str):
         """Augment fullpath to point to metafile, if it is not"""
-        if not fullpath.endswith(META_FILE_NAME):
-            fullpath = posixpath.join(fullpath, META_FILE_NAME)
+        if not fullpath.endswith(MLEM_EXT):
+            fullpath += MLEM_EXT
         return fullpath
 
     @property
     def name(self):
-        repo_path = posixpath.dirname(self.location.path_in_repo)
+        repo_path = self.location.path_in_repo
         prefix = posixpath.join(MLEM_DIR, self.object_type)
         if repo_path.startswith(prefix):
             repo_path = repo_path[len(prefix) + 1 :]
+        if repo_path.endswith(MLEM_EXT):
+            repo_path = repo_path[: -len(MLEM_EXT)]
         return repo_path
 
     def dump(
@@ -449,10 +449,6 @@ class _WithArtifacts(ABC, MlemMeta):
     @abstractmethod
     def write_value(self) -> Artifacts:
         raise NotImplementedError
-
-    @property
-    def art_dir(self):
-        return posixpath.join(os.path.dirname(self.location.fullpath), ART_DIR)
 
     # def ensure_saved(self):
     #     if self.fs is None:
@@ -477,14 +473,15 @@ class _WithArtifacts(ABC, MlemMeta):
         ) = new._parse_dump_args(  # pylint: disable=protected-access
             path, repo, fs, link, external
         )
-        location.fs.makedirs(new.art_dir, exist_ok=True)
         for art in self.relative_artifacts:
             download = art.materialize(
-                new.art_dir, new.loc.fs  # pylint: disable=protected-access
+                new.name, new.loc.fs  # pylint: disable=protected-access
             )
             if isinstance(download, FSSpecArtifact):
                 download = LocalArtifact(
-                    uri=posixpath.relpath(download.uri, make_posix(path)),
+                    uri=posixpath.relpath(
+                        download.uri, make_posix(posixpath.dirname(path))
+                    ),
                     size=download.size,
                     hash=download.hash,
                 )
@@ -559,7 +556,7 @@ class ModelMeta(_WithArtifacts):
         if self.model_type.model is not None:
             return self.model_type.io.dump(
                 self.storage,
-                ART_DIR,
+                posixpath.basename(self.name),
                 self.model_type.model,
             )
         raise ValueError("Meta is not binded to actual model")
@@ -624,7 +621,7 @@ class DatasetMeta(_WithArtifacts):
             reader, artifacts = self.dataset.dataset_type.get_writer().write(
                 self.dataset,
                 self.storage,
-                ART_DIR,
+                os.path.basename(self.name),
             )
             self.reader = reader
             return artifacts
@@ -789,6 +786,7 @@ def mlem_dir_path(
     Returns:
         str: Path to the given object in MLEM root dir
     """
+    META_FILE_NAME = "asdasdasdadassdas"
     if repo is None:
         repo = find_repo_root(path=name, fs=fs)
     if not isinstance(obj_type, str):

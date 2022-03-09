@@ -17,9 +17,6 @@ from mlem.utils.root import MLEM_DIR, find_repo_root
 
 MLEM_EXT = ".mlem.yaml"
 
-META_FILE_NAME = "mlem.yaml"
-ART_DIR = "artifacts"
-
 
 class Location(BaseModel):
     path: str
@@ -313,12 +310,12 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     """Augments given path so it will point to a MLEM metafile
     if it points to a folder with dumped object
     """
-    if posixpath.basename(uri) == META_FILE_NAME and fs.isfile(uri):
-        # .../<META_FILE_NAME>
+    if uri.endswith(MLEM_EXT) and fs.isfile(uri):
+        # .../<META_FILE_NAME>.<MLEM_EXT>
         return uri
-    if fs.isdir(uri) and fs.isfile(posixpath.join(uri, META_FILE_NAME)):
-        # .../path and .../path/<META_FILE_NAME> exists
-        return posixpath.join(uri, META_FILE_NAME)
+    # if fs.isdir(uri) and fs.isfile(posixpath.join(uri, META_FILE_NAME)):
+    #     # .../path and .../path/<META_FILE_NAME> exists
+    #     return posixpath.join(uri, META_FILE_NAME)
     if fs.isfile(uri + MLEM_EXT):
         # .../name without <MLEM_EXT>
         return uri + MLEM_EXT

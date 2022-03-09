@@ -10,7 +10,7 @@ from sklearn.datasets import load_iris
 
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
-from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import (
     DeployMeta,
@@ -128,10 +128,8 @@ def test_model_dump_curdir(model_meta, mlem_curdir_repo, external):
         prefix = Path(os.path.join(MLEM_DIR, model_meta.object_type))
     else:
         prefix = Path("")
-    assert os.path.isdir(prefix / MODEL_NAME)
-    assert os.path.isfile(prefix / MODEL_NAME / META_FILE_NAME)
-    assert os.path.isdir(prefix / MODEL_NAME / ART_DIR)
-    assert os.path.isfile(prefix / MODEL_NAME / ART_DIR / "data.pkl")
+    assert os.path.isfile(prefix / MODEL_NAME)
+    assert os.path.isfile(prefix / (MODEL_NAME + MLEM_EXT))
     assert isinstance(load_meta(MODEL_NAME), ModelMeta)
 
 
@@ -142,9 +140,8 @@ def test_model_dump_internal(mlem_repo, model_meta, path_and_root):
     model_path = os.path.join(
         mlem_repo, MLEM_DIR, ModelMeta.object_type, MODEL_NAME
     )
-    assert os.path.isdir(model_path)
-    assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
-    assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
+    assert os.path.isfile(model_path + MLEM_EXT)
+    assert os.path.isfile(model_path)
 
 
 def test_model_dump_external(mlem_repo, model_meta, path_and_root):
@@ -152,9 +149,8 @@ def test_model_dump_external(mlem_repo, model_meta, path_and_root):
     model_meta.dump(path, repo=root, external=True)
     assert model_meta.name == MODEL_NAME
     model_path = os.path.join(mlem_repo, MODEL_NAME)
-    assert os.path.isdir(model_path)
-    assert os.path.isfile(os.path.join(model_path, META_FILE_NAME))
-    assert os.path.exists(os.path.join(model_path, ART_DIR, "data.pkl"))
+    assert os.path.isfile(model_path + MLEM_EXT)
+    assert os.path.isfile(model_path)
     link_path = os.path.join(
         mlem_repo, MLEM_DIR, MlemLink.object_type, MODEL_NAME + MLEM_EXT
     )
@@ -175,9 +171,9 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
     assert isinstance(art, LocalArtifact)
     assert art.hash != ""
     assert art.size > 0
-    assert art.uri == posixpath.join(ART_DIR, "data.pkl")
+    assert art.uri == os.path.basename(cloned_model_meta.name)
     assert not os.path.isabs(art.uri)
-    assert fs.isfile(posixpath.join(path, art.uri))
+    assert fs.isfile(path)
     cloned_model_meta.load_value()
     cloned_model = cloned_model_meta.get_value()
     assert cloned_model is not None
@@ -188,6 +184,7 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
 def test_model_cloning(model_path):
     model = load_meta(model_path)
     with tempfile.TemporaryDirectory() as path:
+        path = posixpath.join(path, "cloned")
         model.clone(path, link=False)
         cloned_model_meta = load_meta(path, load_value=False)
         _check_cloned_model(cloned_model_meta, path)
@@ -200,9 +197,8 @@ def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("model_cloning_to_remote")
     model.clone(path, link=False)
     s3path = path[len("s3:/") :]
-    assert s3_storage_fs.isfile(posixpath.join(s3path, META_FILE_NAME))
-    assert s3_storage_fs.isdir(posixpath.join(s3path, ART_DIR))
-    assert s3_storage_fs.isfile(posixpath.join(s3path, ART_DIR, "data.pkl"))
+    assert s3_storage_fs.isfile(s3path + MLEM_EXT)
+    assert s3_storage_fs.isfile(s3path)
     cloned_model_meta = load_meta(path, load_value=False)
     _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
 
@@ -244,9 +240,8 @@ def test_remote_model_cloning_to_remote(
     path = s3_tmp_path("remote_model_cloning_to_remote")
     remote_model_meta(repo).clone(path, link=False)
     s3path = path[len("s3:/") :]
-    assert s3_storage_fs.isfile(posixpath.join(s3path, META_FILE_NAME))
-    assert s3_storage_fs.isdir(posixpath.join(s3path, ART_DIR))
-    assert s3_storage_fs.isfile(posixpath.join(s3path, ART_DIR, "data.pkl"))
+    assert s3_storage_fs.isfile(s3path + MLEM_EXT)
+    assert s3_storage_fs.isfile(s3path)
     cloned_model_meta = load_meta(path, load_value=False)
     _check_cloned_model(cloned_model_meta, path, s3_storage_fs)
 
@@ -289,11 +284,11 @@ def test_mlem_dir_path(filled_mlem_repo):
 
 def test_link_dump(model_path):
     link = MlemLink(
-        path=os.path.join(model_path, META_FILE_NAME),
+        path=model_path + MLEM_EXT,
         link_type="model",
     )
-    with tempfile.TemporaryDirectory() as dir:
-        path_to_link = os.path.join(dir, "latest" + MLEM_EXT)
+    with tempfile.TemporaryDirectory() as path:
+        path_to_link = os.path.join(path, "latest" + MLEM_EXT)
         link.dump(path_to_link)
         model = load_meta(path_to_link, follow_links=True)
     assert isinstance(model, ModelMeta)
@@ -329,7 +324,7 @@ def test_load_link_from_rev():
 def test_link_dump_in_mlem(model_path_mlem_repo):
     model_path, mlem_repo = model_path_mlem_repo
     link = MlemLink(
-        path=os.path.join(model_path, META_FILE_NAME),
+        path=model_path + MLEM_EXT,
         link_type="model",
     )
     link_name = "latest"
@@ -359,6 +354,5 @@ def test_mlem_repo_root(filled_mlem_repo):
     assert os.path.isfile(mlem_dir / "link" / ("model1" + MLEM_EXT))
     assert os.path.isfile(mlem_dir / "link" / ("latest" + MLEM_EXT))
     model_dir = path / "model1"
-    assert os.path.isdir(model_dir)
-    assert os.path.isfile(model_dir / META_FILE_NAME)
-    assert os.path.isfile(model_dir / ART_DIR / "data.pkl")
+    assert os.path.isfile(str(model_dir) + MLEM_EXT)
+    assert os.path.isfile(str(model_dir))

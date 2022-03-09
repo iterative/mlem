@@ -1,3 +1,5 @@
+import posixpath
+
 import lightgbm as lgb
 import numpy as np
 import pytest
@@ -9,7 +11,7 @@ from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import ModelAnalyzer
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface
+from tests.conftest import check_model_type_common_interface, long
 
 
 @pytest.fixture
@@ -108,7 +110,7 @@ def test_model_type__dump_load(tmpdir, model, inp_data, request):
 
     expected_requirements = {"sklearn", "numpy"}
     assert set(model_type.get_requirements().modules) == expected_requirements
-    artifacts = model_type.dump(LOCAL_STORAGE, tmpdir)
+    artifacts = model_type.dump(LOCAL_STORAGE, posixpath.join(tmpdir, "model"))
     model_type.model = None
 
     with pytest.raises(ValueError):
@@ -121,6 +123,7 @@ def test_model_type__dump_load(tmpdir, model, inp_data, request):
     assert set(model_type.get_requirements().modules) == expected_requirements
 
 
+@long
 def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
 
