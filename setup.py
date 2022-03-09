@@ -87,7 +87,7 @@ fastapi = ["uvicorn", "fastapi"]
 grpc = [
     "grpcio",
     "grpcio-tools",
-    "git+https://github.com/ilevkivskyi/typing_inspect.git",
+    "typing_inspect",
 ]
 sagemaker = ["boto3==1.19.12", "sagemaker"]
 
