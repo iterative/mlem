@@ -210,7 +210,7 @@ def pack(
         out (str): Path for "docker_dir", image name for "docker".
     """
     model = get_model_meta(model)
-    ensure_mlem_object(Packager, packager, **packager_kwargs).package(
+    return ensure_mlem_object(Packager, packager, **packager_kwargs).package(
         model, out
     )
 
