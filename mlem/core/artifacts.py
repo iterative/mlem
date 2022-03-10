@@ -68,9 +68,6 @@ class Artifact(MlemObject, ABC):
             return self._download(target_path)
         with tempfile.TemporaryDirectory() as buf:
             tmp = self._download(buf)
-            target_path = posixpath.join(
-                target_path, posixpath.basename(tmp.uri)
-            )
             target_fs.upload(tmp.uri, target_path)
         return FSSpecArtifact(
             uri=get_path_by_fs_path(target_fs, target_path),

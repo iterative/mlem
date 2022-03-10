@@ -222,6 +222,7 @@ def remote_model_meta(current_test_branch):
 )
 def test_remote_model_cloning(remote_model_meta, repo):
     with tempfile.TemporaryDirectory() as path:
+        path = os.path.join(path, "model")
         remote_model_meta(repo).clone(path, link=False)
         cloned_model_meta = load_meta(path, load_value=False)
         _check_cloned_model(cloned_model_meta, path)

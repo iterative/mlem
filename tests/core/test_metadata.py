@@ -112,7 +112,7 @@ def test_meta_loading(model_path):
     "url",
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model/mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model.mlem.yaml",
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem.yaml",
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem.yaml",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
@@ -131,7 +131,7 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     "path",
     [
         "data/model",
-        "data/model/mlem.yaml",
+        "data/model.mlem.yaml",
         ".mlem/link/data/model.mlem.yaml",
         ".mlem/link/latest.mlem.yaml",
     ],
@@ -152,7 +152,7 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
+        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model.mlem.yaml",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dirname:
