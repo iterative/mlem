@@ -133,7 +133,7 @@ def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     assert reqs.of_type(UnixPackageRequirement) == [
         UnixPackageRequirement(package_name="libgomp1")
     ]
-    artifacts = model_type.dump(LOCAL_STORAGE, tmpdir)
+    artifacts = model_type.dump(LOCAL_STORAGE, str(tmpdir / "model"))
     model_type.model = None
 
     with pytest.raises(ValueError):

@@ -112,9 +112,9 @@ def test_meta_loading(model_path):
     "url",
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model.mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model.mlem",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
@@ -131,9 +131,9 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     "path",
     [
         "data/model",
-        "data/model.mlem.yaml",
-        ".mlem/link/data/model.mlem.yaml",
-        ".mlem/link/latest.mlem.yaml",
+        "data/model.mlem",
+        ".mlem/link/data/model.mlem",
+        ".mlem/link/latest.mlem",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
@@ -152,11 +152,11 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model.mlem.yaml",
+        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model.mlem",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dirname:
-        path = os.path.join(dirname, "link.mlem.yaml")
+        path = os.path.join(dirname, "link.mlem")
         with open(path, "w", encoding="utf-8") as f:
             f.write(yaml.safe_dump(link_contents))
         model = load(path)
@@ -173,7 +173,7 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     save(model, model_path, fs=s3_storage_fs, external=True)
     model_path = model_path[len("s3:/") :]
     assert s3_storage_fs.isfile(
-        posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
+        posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem")
     )
     assert s3_storage_fs.isfile(model_path + MLEM_EXT)
     assert s3_storage_fs.isfile(model_path)

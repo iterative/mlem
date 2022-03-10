@@ -46,7 +46,7 @@ def test_apply(m, d):
 
 def test_link_as_separate_file(model_path_mlem_repo):
     model_path, mlem_repo = model_path_mlem_repo
-    link_path = os.path.join(mlem_repo, "latest.mlem.yaml")
+    link_path = os.path.join(mlem_repo, "latest.mlem")
     link(model_path, target=link_path, external=True)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)

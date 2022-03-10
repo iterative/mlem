@@ -15,7 +15,7 @@ from mlem.core.errors import MlemObjectNotFound
 from mlem.utils.github import get_github_envs, get_github_kwargs
 from mlem.utils.root import MLEM_DIR, find_repo_root
 
-MLEM_EXT = ".mlem.yaml"
+MLEM_EXT = ".mlem"
 
 
 class Location(BaseModel):

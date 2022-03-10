@@ -11,7 +11,7 @@ from mlem.core.objects import MlemLink, ModelMeta
 
 def test_link(model_path):
     with tempfile.TemporaryDirectory() as dir:
-        link_path = os.path.join(dir, "latest.mlem.yaml")
+        link_path = os.path.join(dir, "latest.mlem")
         runner = CliRunner()
         result = runner.invoke(
             link,
@@ -25,7 +25,7 @@ def test_link(model_path):
 
 def test_link_mlem_repo(model_path_mlem_repo):
     model_path, repo = model_path_mlem_repo
-    link_name = "latest.mlem.yaml"
+    link_name = "latest.mlem"
     runner = CliRunner()
     result = runner.invoke(
         link,

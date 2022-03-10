@@ -141,7 +141,7 @@ def init(path: str = ".") -> None:
             click.echo(
                 "MLEM has been initialized.\n"
                 "MLEM has anonymous aggregate usage analytics enabled.\n"
-                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
+                "To opt out set MLEM_NO_ANALYTICS env to 'true' or add 'no_analytics: true' to .mlem/config.yaml\n"
             )
         fs.makedirs(path)
         # some fs dont support creating empty dirs
