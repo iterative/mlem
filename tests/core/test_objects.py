@@ -171,7 +171,7 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
     assert isinstance(art, LocalArtifact)
     assert art.hash != ""
     assert art.size > 0
-    assert art.uri == os.path.basename(cloned_model_meta.name)
+    assert art.uri == posixpath.basename(cloned_model_meta.name)
     assert not os.path.isabs(art.uri)
     assert fs.isfile(path)
     cloned_model_meta.load_value()
