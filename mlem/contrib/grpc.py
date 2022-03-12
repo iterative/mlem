@@ -145,7 +145,7 @@ def create_message_from_generic(
 def _get_rule_from_outer_type(outer_type: Type) -> str:
     if getattr(outer_type, "__origin__", None) is list:
         return "repeated"
-    elif getattr(outer_type, "__origin__", None) is dict:
+    if getattr(outer_type, "__origin__", None) is dict:
         return "map"
     if not typing_inspect.is_generic_type(outer_type):
         return ""
