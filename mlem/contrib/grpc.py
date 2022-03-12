@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConstrainedList
 from mlem.core.model import Signature
 from mlem.runtime.interface.base import ModelInterface
 
+protobuf_type_map = {str: "string", int: "int32", float: "float", bool: "bool"}
+
 
 class GRPCMethod(BaseModel):
     class Config:
@@ -122,7 +124,7 @@ def create_message_from_generic(
         fields = (
             (
                 GRPCMap(
-                    type_=key_type.__name__,
+                    type_=protobuf_type_map[key_type],
                     value_type=create_message_from_type(
                         value_type, existing_messages, prefix + "___root__"
                     ),
@@ -173,7 +175,7 @@ def create_message_from_base_model(
             key_type, _ = typing_inspect.get_args(outer_type_)
             fields.append(
                 GRPCMap(
-                    type_=key_type.__name__,
+                    type_=protobuf_type_map[key_type],
                     value_type=msg_sub_type,
                     field_name=field_name,
                     id_=id_,
@@ -207,7 +209,7 @@ def create_message_from_type(
         return existing_messages[type_].name
 
     if type_ in (str, int, float, bool):
-        return type_.__name__  # TODO: mapping
+        return protobuf_type_map[type_]
     if typing_inspect.is_generic_type(type_):
         return create_message_from_generic(type_, existing_messages, prefix)
     if issubclass(type_, BaseModel):

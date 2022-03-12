@@ -10,6 +10,7 @@ from mlem.contrib.grpc import (
     GRPCMessage,
     create_message_from_type,
     create_messages,
+    protobuf_type_map,
 )
 from mlem.core.dataset_type import (
     DatasetSerializer,
@@ -25,7 +26,7 @@ class SimpleModel(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="SimpleModel",
-            fields=(GRPCField(type_="int", field_name="field", id_=1),),
+            fields=(GRPCField(type_="int32", field_name="field", id_=1),),
         )
     ]
     field: int
@@ -35,7 +36,7 @@ class SimpleList(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="SimpleList",
-            fields=(GRPCList(type_="int", field_name="field", id_=1),),
+            fields=(GRPCList(type_="int32", field_name="field", id_=1),),
         )
     ]
     field: List[int]
@@ -77,7 +78,7 @@ class DoubleList(BaseModel):
         ),
         GRPCMessage(
             name="DoubleList_field",
-            fields=(GRPCList(type_="int", field_name="__root__", id_=1),),
+            fields=(GRPCList(type_="int32", field_name="__root__", id_=1),),
         ),
     ]
     field: List[List[int]]
@@ -87,7 +88,7 @@ class ConSimpleList(BaseModel):
     messages: ClassVar = [
         GRPCMessage(
             name="ConSimpleList",
-            fields=(GRPCList(type_="int", field_name="field", id_=1),),
+            fields=(GRPCList(type_="int32", field_name="field", id_=1),),
         )
     ]
     field: conlist(int)  # type: ignore
@@ -107,7 +108,7 @@ class ConDoubleList(BaseModel):
         ),
         GRPCMessage(
             name="ConDoubleList_field",
-            fields=(GRPCList(type_="int", field_name="__root__", id_=1),),
+            fields=(GRPCList(type_="int32", field_name="__root__", id_=1),),
         ),
     ]
     field: conlist(conlist(int))  # type: ignore
@@ -119,8 +120,8 @@ class SimpleDict(BaseModel):
             name="SimpleDict",
             fields=(
                 GRPCMap(
-                    type_="str",
-                    value_type="int",
+                    type_="string",
+                    value_type="int32",
                     field_name="field",
                     id_=1,
                 ),
@@ -146,8 +147,8 @@ class ListOfDicts(BaseModel):
             name="ListOfDicts_field",
             fields=(
                 GRPCMap(
-                    type_="str",
-                    value_type="int",
+                    type_="string",
+                    value_type="int32",
                     field_name="__root__",
                     id_=1,
                 ),
@@ -167,7 +168,7 @@ class DictWithComplexValueType(BaseModel):
             name="DictWithComplexValueType",
             fields=(
                 GRPCMap(
-                    type_="str",
+                    type_="string",
                     value_type="ComplexValue",
                     field_name="field",
                     id_=1,
@@ -178,7 +179,7 @@ class DictWithComplexValueType(BaseModel):
             name="ComplexValue",
             fields=(
                 GRPCField(
-                    type_="int",
+                    type_="int32",
                     field_name="x",
                     id_=1,
                 ),
@@ -323,7 +324,7 @@ def test_lightgbm_pandas():
                 name="DataFrameRow",
                 fields=(
                     GRPCField(
-                        type_="int",
+                        type_="int32",
                         field_name="a",
                         id_=1,
                     ),
@@ -384,12 +385,12 @@ def test_xgboost_dmatrix():
                 fields=(
                     GRPCField(type_="bool", field_name="is_from_list", id_=1),
                     GRPCList(
-                        type_="str",
+                        type_="string",
                         field_name="feature_type_names",
                         id_=2,
                     ),
                     GRPCList(
-                        type_="str",
+                        type_="string",
                         field_name="feature_names",
                         id_=3,
                     ),
@@ -411,7 +412,7 @@ def test_primitive(ptype):
                 name="Primitive",
                 fields=(
                     GRPCField(
-                        type_=ptype.__name__,
+                        type_=protobuf_type_map[ptype],
                         field_name="__root__",
                         id_=1,
                     ),
@@ -509,7 +510,9 @@ def test_container():
             ),
             GRPCMessage(
                 name="ContainerModel_field___root__",
-                fields=(GRPCList(type_="int", field_name="__root__", id_=1),),
+                fields=(
+                    GRPCList(type_="int32", field_name="__root__", id_=1),
+                ),
             ),
         ],
     )
