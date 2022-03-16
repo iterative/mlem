@@ -480,7 +480,7 @@ class _WithArtifacts(ABC, MlemMeta):
             if isinstance(download, FSSpecArtifact):
                 download = LocalArtifact(
                     uri=posixpath.relpath(
-                        download.uri, make_posix(posixpath.dirname(path))
+                        download.uri, posixpath.dirname(make_posix(path))
                     ),
                     size=download.size,
                     hash=download.hash,
