@@ -370,14 +370,6 @@ def add_closure_inspection(f):
         if is_from_installable_module(obj):
             return f(pickler, obj)
 
-        # to add from local imports inside user (non PIP package) code
-        try:
-            tree = ast.parse(lstrip_lines(inspect.getsource(obj)))
-        except Exception as e:
-            raise Exception(
-                f"Cannot parse code for {obj} from {inspect.getfile(obj)}"
-            ) from e
-
         class ImportFromVisitor(ast.NodeVisitor):
             def visit_ImportFrom(self, node: ast.ImportFrom):  # noqa
                 warnings.warn(
@@ -392,7 +384,21 @@ def add_closure_inspection(f):
                     )
                 pickler.add_requirement(mod)
 
-        ImportFromVisitor().visit(tree)
+        # to add from local imports inside user (non PIP package) code
+        try:
+            tree = ast.parse(lstrip_lines(inspect.getsource(obj)))
+            ImportFromVisitor().visit(tree)
+        except OSError:
+            logger.debug(
+                "Cannot parse code for %s from %s",
+                obj,
+                inspect.getfile(obj),
+                exc_info=True,
+            )
+        except Exception as e:
+            raise Exception(
+                f"Cannot parse code for {obj} from {inspect.getfile(obj)}"
+            ) from e
 
         return f(pickler, obj)
 
