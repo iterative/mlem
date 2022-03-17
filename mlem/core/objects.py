@@ -42,6 +42,7 @@ from mlem.core.base import MlemObject
 from mlem.core.dataset_type import Dataset, DatasetReader
 from mlem.core.errors import (
     DeploymentError,
+    MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
     WrongMetaType,
@@ -442,6 +443,13 @@ class _WithArtifacts(ABC, MlemMeta):
         external: Optional[bool] = None,
     ):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
+        try:
+            existing = MlemMeta.read(location, follow_links=False)
+            if isinstance(existing, _WithArtifacts):
+                for art in existing.relative_artifacts:
+                    art.remove()
+        except (MlemObjectNotFound, FileNotFoundError):
+            pass
         self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
         return self
