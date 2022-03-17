@@ -1,4 +1,3 @@
-import os
 from pprint import pprint
 from typing import List, Optional, Type
 
@@ -19,7 +18,7 @@ def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
             isinstance(meta, MlemLink)
             and meta.name != meta.path[: -len(MLEM_EXT)]
         ):
-            link = f"-> {os.path.dirname(meta.path)}"
+            link = f"-> {meta.path[:-len(MLEM_EXT)]}"
         else:
             link = ""
         print("", "-", meta.name, *[link] if link else [])

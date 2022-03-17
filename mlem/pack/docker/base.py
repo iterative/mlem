@@ -307,6 +307,7 @@ class DockerDirPackager(Packager):
             debug=True,
         )  # TODO: https://github.com/iterative/mlem/issues/38 fs
         dir.write_distribution()
+        return dir
 
 
 class DockerImagePackager(DockerDirPackager):
