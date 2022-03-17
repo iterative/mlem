@@ -79,6 +79,7 @@ class DockerModelDirectory(BaseModel):
     docker_args: "DockerBuildArgs"
     debug: bool
     path: str
+    model_name: str = "model"
 
     fs: ClassVar[
         AbstractFileSystem
@@ -151,7 +152,11 @@ class DockerModelDirectory(BaseModel):
             req.write("\n".join(requirements.to_pip()))
 
     def write_model(self):
-        self.model.clone(self.path)
+        path = os.path.join(self.path, self.model_name)
+        if self.model.is_saved:
+            self.model.clone(path)
+        else:
+            self.model.copy().dump(path)
 
     def write_dockerfile(self, requirements: Requirements):
         env = self.get_env_vars()
@@ -198,7 +203,7 @@ class DockerModelDirectory(BaseModel):
 
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
-            sh.write(f"mlem serve . {self.server.type}")
+            sh.write(f"mlem serve {self.model_name} {self.server.type}")
 
     def write_mlem_whl(self):
         import shutil

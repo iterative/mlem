@@ -1,7 +1,6 @@
 import os
 import posixpath
 import tempfile
-from pathlib import Path
 from urllib.parse import quote_plus
 
 import pytest
@@ -13,7 +12,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
 from mlem.constants import MLEM_DIR
-from mlem.core.meta_io import ART_DIR, META_FILE_NAME
+from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import MlemLink, ModelMeta
 from tests.conftest import (
@@ -61,7 +60,9 @@ def test_saving_with_repo(model, tmpdir):
 
 
 def test_model_saving_without_sample_data(model, tmpdir_factory):
-    path = str(tmpdir_factory.mktemp("saving-models-without-sample-data"))
+    path = str(
+        tmpdir_factory.mktemp("saving-models-without-sample-data") / "model"
+    )
     # link=True would require having .mlem folder somewhere
     save(model, path, link=False)
 
@@ -75,10 +76,8 @@ def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
 
 
 def test_model_saving(model_path):
-    model_path = Path(model_path)
-    assert os.path.isfile(model_path / META_FILE_NAME)
-    assert os.path.isdir(model_path / ART_DIR)
-    assert os.path.isfile(model_path / ART_DIR / "data.pkl")
+    assert os.path.isfile(model_path + MLEM_EXT)
+    assert os.path.isfile(model_path)
 
 
 def test_model_loading(model_path):
@@ -113,9 +112,9 @@ def test_meta_loading(model_path):
     "url",
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model/mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem.yaml",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem.yaml",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model.mlem",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
@@ -132,9 +131,9 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     "path",
     [
         "data/model",
-        "data/model/mlem.yaml",
-        ".mlem/link/data/model.mlem.yaml",
-        ".mlem/link/latest.mlem.yaml",
+        "data/model.mlem",
+        ".mlem/link/data/model.mlem",
+        ".mlem/link/latest.mlem",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
@@ -153,11 +152,11 @@ def test_model_loading_from_github(path, current_test_branch):
 def test_load_link_with_fsspec_path(current_test_branch):
     link_contents = {
         "link_type": "model",
-        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model/mlem.yaml",
+        "path": f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{quote_plus(current_test_branch)}/simple/data/model.mlem",
         "object_type": "link",
     }
     with tempfile.TemporaryDirectory() as dirname:
-        path = os.path.join(dirname, "link.mlem.yaml")
+        path = os.path.join(dirname, "link.mlem")
         with open(path, "w", encoding="utf-8") as f:
             f.write(yaml.safe_dump(link_contents))
         model = load(path)
@@ -174,13 +173,10 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     save(model, model_path, fs=s3_storage_fs, external=True)
     model_path = model_path[len("s3:/") :]
     assert s3_storage_fs.isfile(
-        posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem.yaml")
+        posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem")
     )
-    assert s3_storage_fs.isfile(posixpath.join(model_path, META_FILE_NAME))
-    assert s3_storage_fs.isdir(posixpath.join(model_path, ART_DIR))
-    assert s3_storage_fs.isfile(
-        posixpath.join(model_path, ART_DIR, "data.pkl")
-    )
+    assert s3_storage_fs.isfile(model_path + MLEM_EXT)
+    assert s3_storage_fs.isfile(model_path)
 
 
 @long

@@ -12,9 +12,8 @@ from mlem.api.commands import import_object, init, ls
 from mlem.config import CONFIG_FILE
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
-from mlem.core.meta_io import ART_DIR, META_FILE_NAME, MLEM_DIR, MLEM_EXT
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
-from mlem.core.model import SimplePickleIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
@@ -47,7 +46,7 @@ def test_apply(m, d):
 
 def test_link_as_separate_file(model_path_mlem_repo):
     model_path, mlem_repo = model_path_mlem_repo
-    link_path = os.path.join(mlem_repo, "latest.mlem.yaml")
+    link_path = os.path.join(mlem_repo, "latest.mlem")
     link(model_path, target=link_path, external=True)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
@@ -138,8 +137,7 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
 def _check_meta(meta, out_path, fs=None):
     assert isinstance(meta, ModelMeta)
     fs = fs or LocalFileSystem()
-    assert fs.isdir(out_path)
-    assert fs.isfile(posixpath.join(out_path, META_FILE_NAME))
+    assert fs.isfile(out_path + MLEM_EXT)
 
 
 @pytest.fixture
@@ -162,10 +160,7 @@ def test_import_model_pickle_copy(
     out_path = str(tmpdir / "mlem_model")
     meta = import_object(path, target=out_path, type_=type_, copy_data=True)
     _check_meta(meta, out_path)
-    assert os.path.isdir(os.path.join(out_path, ART_DIR))
-    assert os.path.isfile(
-        os.path.join(out_path, ART_DIR, SimplePickleIO.file_name)
-    )
+    assert os.path.isfile(out_path)
     loaded = load(out_path)
     loaded.predict(train)
 
@@ -177,7 +172,6 @@ def _check_load_artifact(
     train,
     filename=IMPORT_MODEL_FILENAME,
 ):
-    assert not meta.loc.fs.exists(posixpath.join(out_path, ART_DIR))
     assert isinstance(meta, ModelMeta)
     assert len(meta.artifacts) == 1
     art = meta.artifacts[0]
@@ -185,7 +179,7 @@ def _check_load_artifact(
         assert meta.loc.fs.exists(art.uri)
     else:
         assert isinstance(art, LocalArtifact)
-        assert art.uri == f"../{filename}"
+        assert art.uri == filename
     loaded_meta = load_meta(out_path, load_value=True)
     loaded = loaded_meta.get_value()
     loaded.predict(train)

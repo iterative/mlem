@@ -22,13 +22,7 @@ from mlem.core.errors import (
     MlemRootNotFound,
 )
 from mlem.core.import_objects import ImportAnalyzer
-from mlem.core.meta_io import (
-    META_FILE_NAME,
-    MLEM_DIR,
-    MLEM_EXT,
-    UriResolver,
-    get_fs,
-)
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     DatasetMeta,
@@ -147,7 +141,7 @@ def init(path: str = ".") -> None:
             click.echo(
                 "MLEM has been initialized.\n"
                 "MLEM has anonymous aggregate usage analytics enabled.\n"
-                "To opt out set MLEM_NO_ANALYTICS env to true or and no_analytics: true to .mlem/config.yaml:\n"
+                "To opt out set MLEM_NO_ANALYTICS env to 'true' or add 'no_analytics: true' to .mlem/config.yaml\n"
             )
         fs.makedirs(path)
         # some fs dont support creating empty dirs
@@ -216,7 +210,7 @@ def pack(
         out (str): Path for "docker_dir", image name for "docker".
     """
     model = get_model_meta(model)
-    ensure_mlem_object(Packager, packager, **packager_kwargs).package(
+    return ensure_mlem_object(Packager, packager, **packager_kwargs).package(
         model, out
     )
 
@@ -278,9 +272,8 @@ def ls(
                 link_name = posixpath.relpath(file, root_path)[
                     : -len(MLEM_EXT)
                 ]
-                is_auto_link = meta.path == posixpath.join(
-                    link_name, META_FILE_NAME
-                )
+                is_auto_link = meta.path == link_name + MLEM_EXT
+
                 obj_type = MlemMeta.__type_map__[meta.link_type]
                 if obj_type not in type_filter:
                     continue

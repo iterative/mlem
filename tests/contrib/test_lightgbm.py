@@ -11,7 +11,7 @@ from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface
+from tests.conftest import check_model_type_common_interface, long
 
 
 @pytest.fixture
@@ -146,6 +146,7 @@ def test_model__predict_not_dataset(model):
     assert len(predict) == len(data)
 
 
+@long
 def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
     # pandas is not required, but if it is installed, it is imported by lightgbm
     expected_requirements = {"lightgbm", "numpy", "scipy", "pandas"}
@@ -163,6 +164,7 @@ def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
     assert set(model.get_requirements().modules) == expected_requirements
 
 
+@long
 def test_libgomp(model):
     req = model.get_requirements()
     assert req.of_type(UnixPackageRequirement) == [

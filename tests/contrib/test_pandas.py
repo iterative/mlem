@@ -1,6 +1,5 @@
 import io
 import json
-import os
 import posixpath
 from datetime import datetime, timezone
 from typing import Callable, List, Union
@@ -26,7 +25,7 @@ from mlem.contrib.pandas import (
 )
 from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.meta_io import META_FILE_NAME
+from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
 from tests.conftest import dataset_write_read_check, issue_110, long
@@ -320,8 +319,8 @@ def _check_data(meta, out_path, fs=None):
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a", "b"]
     assert dt.dtypes == ["int64", "int64"]
-    assert fs.isdir(out_path)
-    assert fs.isfile(os.path.join(out_path, META_FILE_NAME))
+    assert fs.isfile(out_path)
+    assert fs.isfile(out_path + MLEM_EXT)
     loaded = load(out_path)
     assert isinstance(loaded, pd.DataFrame)
 

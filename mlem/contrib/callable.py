@@ -36,6 +36,11 @@ class PickleModelIO(ModelIO):
     def dump(self, storage: Storage, path, model) -> Artifacts:
         model_blob, refs = self._serialize_model(model)
         arts = []
+        if len(refs) == 0:
+            with storage.open(path) as (f, art):
+                f.write(model_blob)
+                return [art]
+
         with storage.open(posixpath.join(path, self.file_name)) as (f, art):
             f.write(model_blob)
             arts.append(art)

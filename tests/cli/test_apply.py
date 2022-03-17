@@ -1,4 +1,5 @@
 import os.path
+import posixpath
 import tempfile
 
 from click.testing import CliRunner
@@ -13,12 +14,13 @@ from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
 def test_apply(model_path, data_path):
     with tempfile.TemporaryDirectory() as dir:
         runner = CliRunner()
+        path = posixpath.join(dir, "data")
         result = runner.invoke(
             apply,
-            [model_path, data_path, "-m", "predict", "-o", dir, "--no-link"],
+            [model_path, data_path, "-m", "predict", "-o", path, "--no-link"],
         )
         assert result.exit_code == 0, (result.output, result.exception)
-        predictions = load(dir)
+        predictions = load(path)
         assert isinstance(predictions, ndarray)
 
 

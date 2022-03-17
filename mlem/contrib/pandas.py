@@ -382,7 +382,7 @@ class PandasFormat:
         if has_index(df):
             df = reset_index(df)
 
-        with storage.open(posixpath.join(path, self.file_name)) as (f, art):
+        with storage.open(path) as (f, art):
             if self.string_buffer:
                 f = ToBytesIO(f)  # type: ignore[abstract]
             self.write_func(df, f, **write_kwargs)
