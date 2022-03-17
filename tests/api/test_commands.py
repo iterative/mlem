@@ -153,7 +153,7 @@ def write_model_pickle(model):
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle_move(
+def test_import_model_pickle_copy(
     write_model_pickle, train, tmpdir, file_ext, type_
 ):
     path = str(tmpdir / "mymodel" + file_ext)
@@ -192,7 +192,7 @@ def _check_load_artifact(
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__no_move(
+def test_import_model_pickle__no_copy(
     write_model_pickle, train, tmpdir, file_ext, type_
 ):
     path = str(tmpdir / IMPORT_MODEL_FILENAME + file_ext)
@@ -205,7 +205,7 @@ def test_import_model_pickle__no_move(
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__no_move_in_mlem_repo(
+def test_import_model_pickle__no_copy_in_mlem_repo(
     write_model_pickle, train, mlem_repo, file_ext, type_
 ):
     filename = IMPORT_MODEL_FILENAME + file_ext
