@@ -4,10 +4,10 @@ from typing import ClassVar, Optional
 
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import ModelMeta
-from mlem.pack.docker.base import DockerEnv, DockerImage, RemoteRegistry
-from mlem.pack.docker.helpers import build_model_image
 from mlem.runtime import Interface
 
+from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
+from ..docker.helpers import build_model_image
 from .config import HEROKU_CONFIG
 
 DEFAULT_HEROKU_REGISTRY = "registry.heroku.com"

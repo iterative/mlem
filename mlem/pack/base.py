@@ -31,4 +31,4 @@ class Packager(MlemObject):
     def package(
         self, obj: ModelMeta, out: str
     ):  # TODO maybe we can also pack datasets?
-        raise NotImplementedError()
+        raise NotImplementedError

@@ -1,11 +1,11 @@
-import os.path
+import os
 
 import pytest
 
 from mlem.api import pack
+from mlem.contrib.docker import DockerDirPackager
+from mlem.contrib.docker.context import DockerModelDirectory
 from mlem.contrib.fastapi import FastAPIServer
-from mlem.pack.docker import DockerDirPackager
-from mlem.pack.docker.context import DockerModelDirectory
 
 
 @pytest.mark.xfail(reason="fails on windows machines")

@@ -114,6 +114,7 @@ tests = [
     "botocore==1.22.12",
     "adlfs",
     "gcsfs",
+    "testcontainers",
 ] + all_libs
 
 

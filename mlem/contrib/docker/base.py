@@ -11,17 +11,17 @@ from docker import errors
 from docker.models.images import Image
 from pydantic import BaseModel
 
-from mlem.core.base import MlemObject
-from mlem.core.errors import DeploymentError
-from mlem.core.objects import ModelMeta
-from mlem.pack import Packager
-from mlem.pack.docker.context import DockerBuildArgs, DockerModelDirectory
-from mlem.pack.docker.utils import (
+from mlem.contrib.docker.context import DockerBuildArgs, DockerModelDirectory
+from mlem.contrib.docker.utils import (
     build_image_with_logs,
     create_docker_client,
     image_exists_at_dockerhub,
     print_docker_logs,
 )
+from mlem.core.base import MlemObject
+from mlem.core.errors import DeploymentError
+from mlem.core.objects import ModelMeta
+from mlem.pack import Packager
 from mlem.runtime.server.base import Server
 
 logger = logging.getLogger(__name__)
@@ -282,15 +282,13 @@ class DockerEnv(BaseModel):
     registry: DockerRegistry = DockerRegistry()
     daemon: DockerDaemon = DockerDaemon(host="")
 
+    def delete_image(self, image: DockerImage, force: bool = False, **kwargs):
+        with self.daemon.client() as client:
+            return image.delete(client, force=force, **kwargs)
 
-# class DockerModelEnvDescriptor(EnvDescriptor):
-#     # renamed type to _type so mypy and flake8 won't complain
-#     _type: ClassVar[Any] = "docker_model"
-#
-#     model: ModelMeta
-#
-#     def write_files(self, path: str, fs: AbstractFileSystem):
-#         pass
+    def image_exists(self, image: DockerImage):
+        with self.daemon.client() as client:
+            return image.exists(client)
 
 
 class DockerDirPackager(Packager):
@@ -299,15 +297,15 @@ class DockerDirPackager(Packager):
     args: DockerBuildArgs = DockerBuildArgs()
 
     def package(self, obj: ModelMeta, out: str):
-        dir = DockerModelDirectory(
+        docker_dir = DockerModelDirectory(
             model=obj,
             server=self.server,
             path=out,
             docker_args=self.args,
             debug=True,
-        )  # TODO: https://github.com/iterative/mlem/issues/38 fs
-        dir.write_distribution()
-        return dir
+        )
+        docker_dir.write_distribution()
+        return docker_dir
 
 
 class DockerImagePackager(DockerDirPackager):
