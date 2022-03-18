@@ -293,7 +293,10 @@ class MlemMeta(MlemObject):
         return {
             k: v
             for k, v in cls.__type_map__.items()
-            if not isabstract(v) and not v.__dict__.get("__abstract__", False)
+            if not isabstract(v)
+            and not v.__dict__.get("__abstract__", False)
+            or v.__is_root__
+            and v is not MlemMeta
         }
 
     def clone(
