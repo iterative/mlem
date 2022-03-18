@@ -2,7 +2,17 @@
 MLEM's Python API
 """
 from ..core.metadata import load, load_meta, save
-from .commands import apply, clone, init, link, ls, pack
+from .commands import (
+    apply,
+    clone,
+    deploy,
+    import_object,
+    init,
+    link,
+    ls,
+    pack,
+    serve,
+)
 
 __all__ = [
     "save",
@@ -14,4 +24,7 @@ __all__ = [
     "link",
     "pack",
     "apply",
+    "import_object",
+    "deploy",
+    "serve",
 ]
