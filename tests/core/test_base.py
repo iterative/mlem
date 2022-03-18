@@ -1,10 +1,10 @@
 from typing import Optional
 
+from mlem.contrib.docker import DockerImagePackager
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.base import build_mlem_object, parse_links, smart_split
 from mlem.core.objects import MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
-from mlem.pack.docker import DockerImagePackager
 from tests.conftest import resource_path
 
 
