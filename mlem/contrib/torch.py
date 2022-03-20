@@ -1,18 +1,17 @@
 import os
 import posixpath
 import tempfile
-from typing import ClassVar, Any, Optional, Tuple
-
-from numpy import dtype
-from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
-from mlem.core.hooks import IsInstanceHookMixin
-from mlem.constants import PREDICT_METHOD_NAME
-from mlem.core.requirements import InstallableRequirement, Requirements
-from mlem.core.dataset_type import DatasetType, DatasetHook, DatasetWriter
-from mlem.core.errors import DeserializationError, SerializationError
+from typing import Any, ClassVar, Optional, Tuple
 
 import torch
+
+from mlem.constants import PREDICT_METHOD_NAME
+from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.dataset_type import DatasetHook, DatasetType, DatasetWriter
+from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.hooks import IsInstanceHookMixin
+from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.requirements import InstallableRequirement, Requirements
 
 
 class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
@@ -31,13 +30,17 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
-            raise exc_type(f'given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}')
+            raise exc_type(
+                f"given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}"
+            )
 
     def serialize(self, instance: torch.Tensor):
-        self._check_type(instance, torch.Tensor, SerializationError)
+        self.check_type(instance, torch.Tensor, SerializationError)
         if instance.dtype is not getattr(torch, self.dtype):
-            raise SerializationError(f'given tensor is of dtype: {instance.dtype}, '
-                                     f'expected: {getattr(torch, self.dtype)}')
+            raise SerializationError(
+                f"given tensor is of dtype: {instance.dtype}, "
+                f"expected: {getattr(torch, self.dtype)}"
+            )
         self._check_shape(instance, SerializationError)
         return instance.tolist()
 
@@ -45,20 +48,25 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
         try:
             ret = torch.tensor(obj, dtype=getattr(torch, self.dtype))
         except (ValueError, TypeError):
-            raise DeserializationError(f'given object: {obj} could not be converted to tensor '
-                                       f'of type: {getattr(torch, self.dtype)}')
+            raise DeserializationError(
+                f"given object: {obj} could not be converted to tensor "
+                f"of type: {getattr(torch, self.dtype)}"
+            )
         self._check_shape(ret, DeserializationError)
         return ret
-    
+
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(torch)])
-    
+
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DatasetType:
-        return TorchTensorDatasetType(shape=(None, ) + obj.size()[1:], dtype=str(obj.dtype)[len(obj.dtype.__module__):])
+        return TorchTensorDatasetType(
+            shape=(None,) + obj.size()[1:],
+            dtype=str(obj.dtype)[len(obj.dtype.__module__) :],
+        )
 
 
 class TorchModelIO(ModelIO):
@@ -68,12 +76,14 @@ class TorchModelIO(ModelIO):
 
     type: ClassVar[str] = "torch_io"
     model_file_name = "model.pth"
-    model_jit_file_name = 'model.jit.pth'
+    model_jit_file_name = "model.jit.pth"
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         is_jit = isinstance(model, torch.jit.ScriptModule)
         save = torch.jit.save if is_jit else torch.save
-        model_name = self.model_jit_file_name if is_jit else self.model_file_name
+        model_name = (
+            self.model_jit_file_name if is_jit else self.model_file_name
+        )
         with tempfile.TemporaryDirectory(prefix="mlem_torch_dump") as f:
             model_path = os.path.join(f, model_name)
             save(model, model_path)
@@ -86,9 +96,7 @@ class TorchModelIO(ModelIO):
                 f"Invalid artifacts: should be one of {self.model_file_name} OR {self.model_jit_file_name} file"
             )
 
-        with tempfile.TemporaryDirectory(
-            prefix="mlem_torch_load"
-        ) as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="mlem_torch_load") as tmpdir:
             local_path = os.path.join(tmpdir, self.model_jit_file_name)
             load = torch.jit.load
             if not os.path.exists(local_path):
@@ -132,7 +140,6 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
         return self.model(*data)
 
     def get_requirements(self) -> Requirements:
-        return (
-            super().get_requirements()
-            + InstallableRequirement.from_module(mod=torch)
+        return super().get_requirements() + InstallableRequirement.from_module(
+            mod=torch
         )
