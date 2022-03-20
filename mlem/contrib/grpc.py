@@ -1,11 +1,16 @@
-import inspect
-from typing import Dict, List, Tuple, Type
+import tempfile, uuid, subprocess, re
+from pathlib import Path
+import inspect, grpc
+from typing import Dict, List, Tuple, Type, ClassVar, Optional
+from types import ModuleType
 
 import typing_inspect
 from pydantic import BaseModel, ConstrainedList
 
 from mlem.core.model import Signature
-from mlem.runtime.interface.base import ModelInterface
+from mlem.runtime.interface.base import ModelInterface, Interface
+from mlem.runtime.server.base import Server
+from mlem.core.requirements import LibRequirementsMixin
 
 protobuf_type_map = {str: "string", int: "int32", float: "float", bool: "bool"}
 
@@ -42,7 +47,8 @@ class GRPCField(BaseModel):
     id_: int
 
     def to_expr(self):
-        return f"{self.type_} {self.field_name} = {self.id_}"
+        field_name_without_spaces = re.sub('\s+', '_', self.field_name).replace("(","").replace(")","")
+        return f"{self.type_} {field_name_without_spaces} = {self.id_};"
 
 
 class GRPCMap(GRPCField):
@@ -52,7 +58,7 @@ class GRPCMap(GRPCField):
     value_type: str
 
     def to_expr(self):
-        return f"map<{self.type_}, {self.value_type}> {self.field_name} = {self.id_}"
+        return f"map<{self.type_}, {self.value_type}> {self.field_name} = {self.id_};"
 
 
 class GRPCList(GRPCField):
@@ -60,7 +66,7 @@ class GRPCList(GRPCField):
         frozen = True
 
     def to_expr(self):
-        return f"repeated {self.type_} {self.field_name} = {self.id_}"
+        return f"repeated {self.type_} {self.field_name} = {self.id_};"
 
 
 class GRPCMessage(BaseModel):
@@ -233,13 +239,16 @@ def create_messages(
     return messages
 
 
-def create_method_definition(method_name, signature: Signature) -> GRPCMethod:
+def create_method_definition(method_name, signature: Signature) -> Optional[GRPCMethod]:
     args = [
         arg.type_.get_serializer().get_model().__name__
         for arg in signature.args
     ]
     returns = signature.returns.get_serializer().get_model().__name__
-    return GRPCMethod(name=method_name, args=args, returns=returns)
+    if len(args) == 1:
+        return GRPCMethod(name=method_name, args=args, returns=returns)
+    else:
+        print("more than 1 args are not supported")
 
 
 def create_grpc_protobuf(
@@ -251,9 +260,36 @@ def create_grpc_protobuf(
     methods = []
     messages: MessageMapping = {}
     for method_name, signature in interface.iter_methods():
-        methods.append(create_method_definition(method_name, signature))
-        create_messages(signature, messages)
+        m_def = create_method_definition(method_name, signature)
+        if m_def is not None:
+            methods.append(m_def)
+            create_messages(signature, messages)
 
     return GRPCService(name=service_name, methods=methods), list(
-        messages.values()
+        set(messages.values())
     )
+
+
+class GRPCServer(Server, LibRequirementsMixin):
+    libraries: ClassVar[List[ModuleType]] = [grpc]
+    type: ClassVar[str] = "grpc"
+
+    def generate_proto_file(self, interface: ModelInterface):
+        service, messages = create_grpc_protobuf(interface)
+        with tempfile.TemporaryDirectory() as tempdir:
+            tempdir_path = Path(tempdir)
+            random_id = str(uuid.uuid4())
+            with open(tempdir_path / f"mlem_grpc_{random_id}.proto", "w") as ftemp:
+                ftemp.write('syntax = "proto3";')
+                ftemp.write(service.to_proto())
+                for m in messages:
+                    ftemp.write(m.to_proto())
+
+            with open(tempdir_path / f"mlem_grpc_{random_id}.proto", "r") as ftemp:
+                print(ftemp.read())
+
+            proto_file_path = str(tempdir_path / f"mlem_grpc_{random_id}.proto")
+            subprocess.run(["python", "-m", "grpc_tools.protoc", f"-I{str(tempdir_path)}", "--python_out=.", "--grpc_python_out=.", proto_file_path])
+
+    def serve(self, interface: Interface):
+        pass
