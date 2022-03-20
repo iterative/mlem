@@ -94,7 +94,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.sklearn", ["sklearn"], False),
         # Extension('mlem.contrib.tensorflow', ['tensorflow'], False, is_tf_v1),
         # Extension('mlem.contrib.tensorflow_v2', ['tensorflow'], False, is_tf_v2),
-        Extension('mlem.contrib.torch', ['torch'], False),
+        Extension("mlem.contrib.torch", ["torch"], False),
         Extension("mlem.contrib.catboost", ["catboost"], False),
         # Extension('mlem.contrib.aiohttp', ['aiohttp', 'aiohttp_swagger']),
         # Extension('mlem.contrib.flask', ['flask', 'flasgger'], False),
