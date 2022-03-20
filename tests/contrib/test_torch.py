@@ -75,3 +75,32 @@ def test_torch_serialize_failure(tdt_list, first_tensor, second_tensor):
 def test_torch__deserialize_failure(tdt_list, obj):
     with pytest.raises(DeserializationError):
         tdt_list.deserialize(obj)
+
+
+class MyNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layers = [torch.nn.Linear(5, 1), torch.nn.Linear(10, 1)]
+
+    def forward(self, *inputs):
+        results = torch.cat(
+            [layer(input) for layer, input in zip(self.layers, inputs)], dim=1
+        )
+        return results.sum(dim=1)
+
+
+@pytest.mark.parametrize(
+    "net", [torch.nn.Linear(5, 1), torch.jit.script(torch.nn.Linear(5, 1))]
+)
+def test_torch_builtin_net(net, first_tensor):
+    check_model(net, first_tensor.float())
+
+
+def test_torch_custom_net(first_tensor, second_tensor):
+    check_model(MyNet(), [first_tensor.float(), second_tensor])
+
+
+def check_model(net, input_data):
+    tmw = ModelAnalyzer.analyze(net, input_data=input_data)
+    assert tmw.model is net
+    assert set(tmw.requirements.modules) == {"torch"}
