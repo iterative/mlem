@@ -25,7 +25,7 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
 
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.Tensor,)
-    shape: Tuple[int, ...]
+    shape: Tuple
     dtype: str
 
     def _check_shape(self, tensor, exc_type):
@@ -64,8 +64,8 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DatasetType:
         return TorchTensorDatasetType(
-            shape=(None,) + obj.size()[1:],
-            dtype=str(obj.dtype)[len(obj.dtype.__module__) :],
+            shape=(None,) + obj.shape[1:],
+            dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
         )
 
 

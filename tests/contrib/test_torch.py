@@ -1,0 +1,77 @@
+import pytest
+import torch
+
+from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.model import ModelAnalyzer
+
+
+@pytest.fixture
+def first_tensor():
+    return torch.ones(5, 5, dtype=torch.int32)
+
+
+@pytest.fixture
+def second_tensor():
+    return torch.rand(5, 10, dtype=torch.float32)
+
+
+@pytest.fixture
+def tdt_list(first_tensor, second_tensor):
+    tensor_list = [first_tensor, second_tensor]
+    return DatasetAnalyzer.analyze(tensor_list)
+
+
+def test_torch_single_tensor(first_tensor):
+    tdt = DatasetAnalyzer.analyze(first_tensor)
+
+    assert tdt.get_requirements().modules == ["torch"]
+    assert tdt.shape == (None, 5)
+    assert tdt.dtype == "int32"
+
+    tensor_deser = tdt.deserialize(tdt.serialize(first_tensor))
+    assert torch.equal(first_tensor, tensor_deser)
+    assert first_tensor.dtype == tensor_deser.dtype
+
+
+def test_torch_tensors_list(tdt_list, first_tensor, second_tensor):
+    assert tdt_list.get_requirements().modules == ["torch"]
+    assert len(tdt_list.items) == 2
+    assert tdt_list.items[0].shape == (None, 5)
+    assert tdt_list.items[0].dtype == "int32"
+    assert tdt_list.items[1].shape == (None, 10)
+    assert tdt_list.items[1].dtype == "float32"
+
+    tensor_list = [first_tensor, second_tensor]
+    tensor_list_deser = tdt_list.deserialize(tdt_list.serialize(tensor_list))
+    assert len(tensor_list) == len(tensor_list_deser)
+    assert all(
+        torch.equal(tensor, tensor_deser)
+        and tensor.dtype == tensor_deser.dtype
+        for tensor, tensor_deser in zip(tensor_list, tensor_list_deser)
+    )
+
+
+def test_torch_serialize_failure(tdt_list, first_tensor, second_tensor):
+    objs = [
+        first_tensor,  # not a list
+        [first_tensor, second_tensor] * 2,  # not a list of 2
+        [first_tensor] * 2,  # wrong dtype for second
+        [first_tensor, first_tensor.float()],  # wrong shape for second
+    ]
+
+    for obj in objs:
+        with pytest.raises(SerializationError):
+            tdt_list.serialize(obj)
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        [[[1, 2], [3]], [[1], [2]]],  # illegal tensor for first
+        [[[1, 2]], []],  # wrong shapes for both
+    ],
+)
+def test_torch__deserialize_failure(tdt_list, obj):
+    with pytest.raises(DeserializationError):
+        tdt_list.deserialize(obj)
