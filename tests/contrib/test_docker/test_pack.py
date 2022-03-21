@@ -10,6 +10,7 @@ from mlem.contrib.docker import DockerDirPackager, DockerImagePackager
 from mlem.contrib.docker.base import DockerImage
 from mlem.contrib.docker.context import DockerModelDirectory
 from mlem.contrib.fastapi import FastAPIServer
+from tests.contrib.test_docker.conftest import docker_test
 
 SERVER_PORT = 8080
 
@@ -29,6 +30,7 @@ def test_pack_dir(tmpdir, model_meta_saved):
     assert os.path.isfile(tmpdir / "model.mlem")
 
 
+@docker_test
 def test_pack_image(
     model_meta_saved_single, dockerenv_local, uses_docker_build
 ):
