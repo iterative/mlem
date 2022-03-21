@@ -80,6 +80,10 @@ class Artifact(MlemObject, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def remove(self):
+        raise NotImplementedError
+
+    @abstractmethod
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
         raise NotImplementedError
@@ -109,6 +113,10 @@ class FSSpecArtifact(Artifact):
         fs.download(path, target_path)
         return LocalArtifact(uri=target_path, **self.info)
 
+    def remove(self):
+        fs, path = get_fs(self.uri)
+        fs.delete(path)
+
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
 
@@ -134,6 +142,9 @@ class PlaceholderArtifact(Artifact):
         raise NotImplementedError
 
     def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    def remove(self):
         raise NotImplementedError
 
     @contextlib.contextmanager

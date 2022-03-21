@@ -1,4 +1,5 @@
 import os
+import pickle
 import posixpath
 import tempfile
 from pathlib import Path
@@ -8,10 +9,11 @@ from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError, parse_obj_as
 from sklearn.datasets import load_iris
 
-from mlem.core.artifacts import LocalArtifact
+from mlem.core.artifacts import Artifacts, LocalArtifact, Storage
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
+from mlem.core.model import ModelIO
 from mlem.core.objects import (
     DeployMeta,
     DeployState,
@@ -357,3 +359,36 @@ def test_mlem_repo_root(filled_mlem_repo):
     model_dir = path / "model1"
     assert os.path.isfile(str(model_dir) + MLEM_EXT)
     assert os.path.isfile(str(model_dir))
+
+
+class MockModelIO(ModelIO):
+    filename: str
+
+    def dump(self, storage: Storage, path, model) -> Artifacts:
+        path = posixpath.join(path, self.filename)
+        with storage.open(path) as (f, art):
+            pickle.dump(model, f)
+            return [art]
+
+    def load(self, artifacts: Artifacts):
+        with artifacts[0].open() as f:
+            return pickle.load(f)
+
+
+def test_remove_old_artifacts(model, tmpdir, train):
+    model1 = ModelMeta.from_obj(model)
+    model1.model_type.io = MockModelIO(filename="first.pkl")
+    path = str(tmpdir / "model")
+    model1.dump(path)
+    assert os.path.isfile(tmpdir / "model.mlem")
+    assert os.path.isdir(tmpdir / "model")
+    assert os.path.isfile(tmpdir / "model" / "first.pkl")
+    load(path).predict(train)
+    model2 = ModelMeta.from_obj(model)
+    model2.model_type.io = MockModelIO(filename="second.pkl")
+    model2.dump(path)
+    assert os.path.isfile(tmpdir / "model.mlem")
+    assert os.path.isdir(tmpdir / "model")
+    assert os.path.isfile(tmpdir / "model" / "second.pkl")
+    assert not os.path.exists(tmpdir / "model" / "first.pkl")
+    load(path).predict(train)

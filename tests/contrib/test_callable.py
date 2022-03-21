@@ -37,7 +37,7 @@ def test_callable_analyze(model, tmpdir):
     assert mt.predict(1) == 1
     assert mt.model(1) == 1
 
-    artifacts = mt.dump(LOCAL_STORAGE, tmpdir)
+    artifacts = mt.dump(LOCAL_STORAGE, str(tmpdir / "model"))
 
     mt.unbind()
     with pytest.raises(ValueError):
@@ -61,7 +61,7 @@ def test_complex_pickle_loading_simple(tmpdir):
     mt = ModelAnalyzer.analyze(model.run_predict, [[1]])
     assert isinstance(mt, CallableModelType)
     mt.predict([[1]])
-    artifacts = mt.dump(LOCAL_STORAGE, tmpdir)
+    artifacts = mt.dump(LOCAL_STORAGE, str(tmpdir / "model"))
     assert len(artifacts) == 1
     mt.unbind()
     with pytest.raises(ValueError):
