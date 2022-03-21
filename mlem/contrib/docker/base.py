@@ -8,7 +8,6 @@ from typing import ClassVar, Dict, Iterator, Optional
 import docker
 import requests
 from docker import errors
-from docker.models.images import Image
 from pydantic import BaseModel
 
 from mlem.contrib.docker.context import DockerBuildArgs, DockerModelDirectory
@@ -315,7 +314,7 @@ class DockerImagePackager(DockerDirPackager):
     force_overwrite: bool = False
     push: bool = True
 
-    def package(self, obj: ModelMeta, out: str):
+    def package(self, obj: ModelMeta, out: str) -> DockerImage:
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
                 self.args.prebuild_hook(  # pylint: disable=not-callable # but it is
@@ -328,7 +327,7 @@ class DockerImagePackager(DockerDirPackager):
 
             return self.build(tempdir)
 
-    def build(self, context_dir: str) -> Image:
+    def build(self, context_dir: str) -> DockerImage:
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         with self.env.daemon.client() as client:
@@ -357,7 +356,7 @@ class DockerImagePackager(DockerDirPackager):
                 if self.push:
                     self.image.registry.push(client, tag)
 
-                return image
+                return self.image
             except errors.BuildError as e:
                 print_docker_logs(e.build_log, logging.ERROR)
                 raise

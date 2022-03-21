@@ -17,7 +17,7 @@ IMAGE_NAME = "mlem_test_docker_builder_image"
 
 
 @pytest.fixture()
-def dockerenv_local(uses_docker_build):
+def dockerenv_local():
     return DockerEnv()
 
 
@@ -68,7 +68,7 @@ def docker_registry(dind, docker_daemon):
 
 
 @pytest.fixture(scope="session")
-def dockerenv_remote(docker_registry, docker_daemon, uses_docker_build):
+def dockerenv_remote(docker_registry, docker_daemon):
     return DockerEnv(registry=docker_registry, daemon=docker_daemon)
 
 
