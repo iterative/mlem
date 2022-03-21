@@ -11,6 +11,7 @@ from mlem.contrib.docker.context import (
     use_mlem_source,
 )
 from mlem.core.requirements import UnixPackageRequirement
+from tests.contrib.test_docker.conftest import docker_test
 
 REGISTRY_PORT = 5000
 
@@ -110,6 +111,7 @@ def _generate_dockerfile(unix_packages=None, **kwargs):
         )
 
 
+@docker_test
 def test_docker_registry_io():
     registry = DockerIORegistry()
     client = docker.DockerClient()
