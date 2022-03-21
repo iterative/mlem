@@ -6,7 +6,6 @@ import pytest
 from testcontainers.core.container import DockerContainer as TestContainer
 
 from mlem.contrib.docker.base import DockerDaemon, DockerEnv, RemoteRegistry
-from mlem.contrib.docker.context import use_mlem_source
 from mlem.contrib.docker.utils import is_docker_running
 from tests.conftest import long
 
@@ -17,10 +16,9 @@ CLEAN = True
 IMAGE_NAME = "mlem_test_docker_builder_image"
 
 
-@pytest.fixture(scope="session")
-def dockerenv_local():
-    with use_mlem_source():
-        yield DockerEnv()
+@pytest.fixture()
+def dockerenv_local(uses_docker_build):
+    return DockerEnv()
 
 
 @pytest.fixture(scope="session")
@@ -70,9 +68,8 @@ def docker_registry(dind, docker_daemon):
 
 
 @pytest.fixture(scope="session")
-def dockerenv_remote(docker_registry, docker_daemon):
-    with use_mlem_source():
-        yield DockerEnv(registry=docker_registry, daemon=docker_daemon)
+def dockerenv_remote(docker_registry, docker_daemon, uses_docker_build):
+    return DockerEnv(registry=docker_registry, daemon=docker_daemon)
 
 
 def has_docker():

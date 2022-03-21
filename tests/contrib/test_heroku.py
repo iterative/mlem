@@ -102,7 +102,7 @@ def test_create_app(heroku_app_name, heroku_env, model):
 
 @long
 @heroku_matrix
-def test_build_heroku_docker(model: ModelMeta):
+def test_build_heroku_docker(model: ModelMeta, uses_docker_build):
     image_meta = build_heroku_docker(model, "test_build", push=False)
     client = DockerClient.from_env()
     image = client.images.get(image_meta.image_id)
@@ -123,7 +123,9 @@ def test_state_ensured_app():
 @heroku
 @long
 @heroku_matrix
-def test_env_deploy_full(tmp_path_factory, model, heroku_env, heroku_app_name):
+def test_env_deploy_full(
+    tmp_path_factory, model, heroku_env, heroku_app_name, uses_docker_build
+):
     name = heroku_app_name("full-cycle")
     meta_path = tmp_path_factory.mktemp("deploy-meta")
     meta = deploy(
