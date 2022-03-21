@@ -50,7 +50,7 @@ def test_pack_image(
         .with_env("DOCKER_TLS_CERTDIR", "")
         .with_exposed_ports(SERVER_PORT)
     ) as service:
-        time.sleep(1)
+        time.sleep(10)
         r = requests.post(
             f"http://localhost:{service.get_exposed_port(SERVER_PORT)}/predict",
             json={"data": [[0, 0, 0, 0]]},
