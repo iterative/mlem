@@ -78,6 +78,10 @@ def dockerenv_remote(docker_registry, docker_daemon):
 def has_docker():
     if os.environ.get("SKIP_DOCKER_TESTS", None) == "true":
         return False
+    current_os = os.environ.get("GITHUB_MATRIX_OS")
+    current_python = os.environ.get("GITHUB_MATRIX_PYTHON")
+    if current_os != "ubuntu-latest" and current_python != "3.8":
+        return False
     return is_docker_running()
 
 
