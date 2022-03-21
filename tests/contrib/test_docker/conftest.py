@@ -80,7 +80,7 @@ def has_docker():
         return False
     current_os = os.environ.get("GITHUB_MATRIX_OS")
     current_python = os.environ.get("GITHUB_MATRIX_PYTHON")
-    if current_os != "ubuntu-latest" and current_python != "3.8":
+    if current_os != "ubuntu-latest" or current_python != "3.8":
         return False
     return is_docker_running()
 
