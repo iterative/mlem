@@ -9,7 +9,7 @@ from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import DatasetHook, DatasetType, DatasetWriter
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.hooks import IsInstanceHookMixin
+from mlem.core.hooks import IsInstanceHookMixin, TOP_PRIORITY_VALUE
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
@@ -116,6 +116,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.nn.Module,)
     io: ModelIO = TorchModelIO()
+    priority: ClassVar = TOP_PRIORITY_VALUE
 
     @classmethod
     def process(
@@ -129,7 +130,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
                 data=sample_data,
             ),
             "torch_predict": Signature.from_method(
-                obj.predict, auto_infer=sample_data is None, data=sample_data
+                obj.__call__, auto_infer=sample_data is None, data=sample_data
             ),
         }
         return model
