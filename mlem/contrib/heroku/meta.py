@@ -9,10 +9,10 @@ from mlem.core.objects import (
     DeployStatus,
     TargetEnvMeta,
 )
-from mlem.pack.docker.base import DockerImage
 from mlem.runtime.client.base import HTTPClient
 
 from ...core.errors import DeploymentError
+from ..docker.base import DockerImage
 from .build import build_heroku_docker
 
 HEROKU_STATE_MAPPING = {

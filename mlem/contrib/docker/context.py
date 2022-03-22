@@ -2,7 +2,9 @@ import glob
 import logging
 import os
 import posixpath
+import shutil
 import tempfile
+from contextlib import contextmanager
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
@@ -19,6 +21,37 @@ REQUIREMENTS = "requirements.txt"
 TEMPLATE_FILE = "dockerfile.j2"
 
 logger = logging.getLogger(__name__)
+
+_MLEM_SOURCE = "pip"
+MLEM_INSTALL_COMMAND = "pip install mlem=={version}"
+
+
+def mlem_from_pip():
+    """
+    :return boolen flag if mlem inside image must be installed from pip (or copied local dist instread)"""
+    return _MLEM_SOURCE == "pip"
+
+
+def mlem_from_local():
+    return _MLEM_SOURCE == "local"
+
+
+def mlem_from_whl():
+    return not mlem_from_pip() and not mlem_from_local()
+
+
+@contextmanager
+def use_mlem_source(source="local"):
+    """Context manager that changes docker builder behaviour to copy
+    this installation of mlem instead of installing it from pip.
+    This is needed for testing and examples"""
+    global _MLEM_SOURCE  # pylint: disable=global-statement  # TODO is there a better way?
+    tmp = _MLEM_SOURCE
+    _MLEM_SOURCE = source
+    try:
+        yield
+    finally:
+        _MLEM_SOURCE = tmp
 
 
 class DockerBuildArgs(BaseModel):
@@ -140,15 +173,23 @@ class DockerModelDirectory(BaseModel):
                 "Auto-determined requirements for model: %s.",
                 requirements.to_pip(),
             )
-            # if mlem_from_pip() is False: # TODO: https://github.com/iterative/mlem/issues/39
-            #     cwd = os.getcwd()
-            #     try:
-            #         from setup import setup_args  # only for development
-            #         requirements += list(setup_args['install_requires'])
-            #         logger.debug('Adding MLEM requirements as local installation is employed...')
-            #         logger.debug('Overall requirements for model: %s.', requirements.to_pip())
-            #     finally:
-            #         os.chdir(cwd)
+            if (
+                mlem_from_pip() is False
+            ):  # TODO: https://github.com/iterative/mlem/issues/39
+                cwd = os.getcwd()
+                try:
+                    from setup import setup_args  # only for development
+
+                    requirements += list(setup_args["install_requires"])
+                    logger.debug(
+                        "Adding MLEM requirements as local installation is employed..."
+                    )
+                    logger.debug(
+                        "Overall requirements for model: %s.",
+                        requirements.to_pip(),
+                    )
+                finally:
+                    os.chdir(cwd)
             req.write("\n".join(requirements.to_pip()))
 
     def write_model(self):
@@ -192,26 +233,33 @@ class DockerModelDirectory(BaseModel):
             with self.fs.open(full_path, "wb") as f:
                 f.write(src)
 
-        # pip_mlem = mlem_from_pip()
-        # if pip_mlem is False:
-        #     logger.debug('Putting MLEM sources to distribution as local installation is employed...')
-        #     main_module_path = get_lib_path('.')
-        #     shutil.copytree(main_module_path, os.path.join(target_dir, 'mlem'))
-        # elif isinstance(pip_mlem, str):
-        #     logger.debug('Putting MLEM wheel to distribution as wheel installation is employed...')
-        #     shutil.copy(pip_mlem, target_dir)
-
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
             sh.write(f"mlem serve {self.model_name} {self.server.type}")
 
     def write_mlem_whl(self):
-        import shutil
+
+        if mlem_from_pip():
+            # nothing to do
+            return
+        if mlem_from_whl():
+            # set whl option
+            logger.debug(
+                "Putting MLEM wheel to distribution as wheel installation is employed..."
+            )
+            shutil.copy(
+                _MLEM_SOURCE,
+                os.path.join(self.path, os.path.basename(_MLEM_SOURCE)),
+            )
+            self.docker_args.mlem_whl = _MLEM_SOURCE
+            return
+        # build whl and set option
         import subprocess
 
         import mlem
 
         repo_path = os.path.dirname(os.path.dirname(mlem.__file__))
+        logger.debug("Build mlem whl from %s...", repo_path)
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
                 f"cd {repo_path} && python setup.py bdist_wheel -d {whl_dir}",
@@ -220,6 +268,7 @@ class DockerModelDirectory(BaseModel):
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
             whl_name = os.path.basename(whl_path)
             shutil.copy(whl_path, os.path.join(self.path, whl_name))
+        logger.debug("Built mlem whl %s", whl_path)
         self.docker_args.mlem_whl = whl_name
 
 
@@ -265,23 +314,35 @@ class _DockerfileGenerator:
         logger.debug('Docker image is based on "%s".', self.base_image)
 
         is_whl = self.mlem_whl is not None
+        import mlem
+
         docker_args = {
             "python_version": self.python_version,
             "base_image": self.base_image,
             "run_cmd": self.run_cmd,
             "mlem_install": f"COPY {self.mlem_whl} .\nRUN pip install {self.mlem_whl}"
             if is_whl
-            else "",
+            else "RUN "
+            + MLEM_INSTALL_COMMAND.format(version=mlem.__version__),
             "env": env,
             "package_install_cmd": self.package_install_cmd,
             "packages": [p.package_name for p in packages or []],
         }
-        # pip_mlem = mlem_from_pip()
-        # if pip_mlem is True:
-        #     import mlem
-        #     docker_args['mlem_install'] = 'RUN ' + MLEM_INSTALL_COMMAND.format(version=mlem.__version__)
-        # elif isinstance(pip_mlem, str):
-        #     docker_args['mlem_install'] = f"COPY {os.path.basename(pip_mlem)} . " \
-        #                                      f"\n RUN pip install {os.path.basename(pip_mlem)}"
 
         return docker_tmpl.render(**docker_args)
+
+
+# Copyright 2019 Zyfra
+# Copyright 2021 Iterative
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.

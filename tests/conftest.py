@@ -181,6 +181,14 @@ def model_meta_saved(model_path):
 
 
 @pytest.fixture
+def model_meta_saved_single(tmp_path_factory):
+    path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model-single")
+    train, target = load_iris(return_X_y=True)
+    model = DecisionTreeClassifier().fit(train, target)
+    return save(model, path, tmp_sample_data=train)
+
+
+@pytest.fixture
 def mlem_repo(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
