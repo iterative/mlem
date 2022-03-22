@@ -9,7 +9,7 @@ from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import DatasetHook, DatasetType, DatasetWriter
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.hooks import IsInstanceHookMixin, TOP_PRIORITY_VALUE
+from mlem.core.hooks import TOP_PRIORITY_VALUE, IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
