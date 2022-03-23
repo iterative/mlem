@@ -11,8 +11,12 @@ from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
 from pydantic import BaseModel
 
-from mlem.core.errors import MlemObjectNotFound
-from mlem.utils.github import get_github_envs, get_github_kwargs
+from mlem.core.errors import MlemObjectNotFound, RevisionNotFound
+from mlem.utils.github import (
+    get_github_envs,
+    get_github_kwargs,
+    github_check_rev,
+)
 from mlem.utils.root import MLEM_DIR, find_repo_root
 
 MLEM_EXT = ".mlem"
@@ -203,12 +207,19 @@ class GithubResolver(UriResolver):
         options = get_github_envs()
         if not uri.startswith(cls.PROTOCOL):
             options.update(get_github_kwargs(uri))
-            uri = options.pop("path")
+            path = options.pop("path")
             options["sha"] = rev or options.get("sha", None)
 
-        fs, _, (path,) = get_fs_token_paths(
-            uri, protocol="github", storage_options=options
-        )
+        try:
+            fs, _, (path,) = get_fs_token_paths(
+                path, protocol="github", storage_options=options
+            )
+        except FileNotFoundError as e:
+            if options["sha"] is not None and not github_check_rev(
+                options["org"], options["repo"], options["sha"]
+            ):
+                raise RevisionNotFound(options["sha"], uri) from e
+            raise
         return fs, path
 
     @classmethod
