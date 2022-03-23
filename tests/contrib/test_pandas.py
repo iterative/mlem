@@ -18,6 +18,7 @@ from mlem.contrib.pandas import (
     PandasConfig,
     PandasReader,
     PandasWriter,
+    SeriesType,
     pd_type_from_string,
     python_type_from_pd_string_repr,
     python_type_from_pd_type,
@@ -55,7 +56,7 @@ PD_DATA_FRAME_INDEX = PD_DATA_FRAME.set_index("int")
 PD_DATA_FRAME_MULTIINDEX = PD_DATA_FRAME.set_index(["int", "str"])
 
 
-def df_to_str(df: pd.DataFrame):
+def df_to_str(df: Union[pd.DataFrame, pd.Series]):
     buf = io.StringIO()
     df.to_csv(buf)
     return buf.getvalue()
@@ -356,6 +357,25 @@ def test_default_format(set_mlem_repo_root, df_type):
     set_mlem_repo_root("pandas", __file__)
     config = PandasConfig()
     assert config.DEFAULT_FORMAT == "json"
+
+
+def test_series(series_data: pd.Series, series_df_type, df_type2):
+    assert isinstance(series_df_type, SeriesType)
+    assert series_df_type.dtypes == df_type2.dtypes
+
+    obj = series_df_type.serialize(series_data)
+    payload = json.dumps(obj)
+    loaded = json.loads(payload)
+    data = series_df_type.deserialize(loaded)
+
+    assert isinstance(data, pd.Series)
+    assert data is not series_data
+    assert list(data.index) == list(series_data.index), "different index"
+    assert data.shape == series_data.shape, "different shapes"
+    assert df_to_str(data) == df_to_str(
+        series_data
+    ), "different str representation"
+    assert data.equals(series_data), "contents are not equal"
 
 
 # Copyright 2019 Zyfra
