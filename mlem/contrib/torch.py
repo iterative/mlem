@@ -47,8 +47,8 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     def deserialize(self, obj):
         try:
             ret = torch.tensor(obj, dtype=getattr(torch, self.dtype))
-        except (ValueError, TypeError):
-            raise DeserializationError(
+        except (ValueError, TypeError) as e:
+            raise DeserializationError from e(
                 f"given object: {obj} could not be converted to tensor "
                 f"of type: {getattr(torch, self.dtype)}"
             )
@@ -105,7 +105,7 @@ class TorchModelIO(ModelIO):
             artifacts[0].materialize(
                 local_path,
             )
-            return load(model_file=local_path)
+            return load(f=local_path)
 
 
 class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
