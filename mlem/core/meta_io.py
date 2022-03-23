@@ -209,7 +209,8 @@ class GithubResolver(UriResolver):
             options.update(get_github_kwargs(uri))
             path = options.pop("path")
             options["sha"] = rev or options.get("sha", None)
-
+        else:
+            path = uri
         try:
             fs, _, (path,) = get_fs_token_paths(
                 path, protocol="github", storage_options=options
