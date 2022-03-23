@@ -529,6 +529,12 @@ class RequirementAnalyzer(dill.Pickler):
     def skip_write(self, *args, **kwargs):
         pass
 
+    def dump(self, obj):
+        try:
+            super().dump(obj)
+        except RuntimeError as e:
+            print(e)
+
 
 def get_object_requirements(obj) -> Requirements:
     """
