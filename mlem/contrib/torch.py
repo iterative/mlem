@@ -48,7 +48,7 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
         try:
             ret = torch.tensor(obj, dtype=getattr(torch, self.dtype))
         except (ValueError, TypeError):
-            raise DeserializationError( # pylint: disable=W0707
+            raise DeserializationError(  # pylint: disable=W0707
                 f"given object: {obj} could not be converted to tensor "
                 f"of type: {getattr(torch, self.dtype)}"
             )
