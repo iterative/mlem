@@ -171,6 +171,7 @@ setup_args = dict(  # noqa: C408
             "dataset_reader.numpy = mlem.contrib.numpy:NumpyArrayReader",
             "dataset_reader.pandas = mlem.contrib.pandas:PandasReader",
             "dataset_type.dataframe = mlem.contrib.pandas:DataFrameType",
+            "dataset_type.series = mlem.contrib.pandas:SeriesType",
             "dataset_type.lightgbm = mlem.contrib.lightgbm:LightGBMDatasetType",
             "dataset_type.ndarray = mlem.contrib.numpy:NumpyNdarrayType",
             "dataset_type.number = mlem.contrib.numpy:NumpyNumberType",
