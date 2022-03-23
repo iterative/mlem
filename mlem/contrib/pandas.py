@@ -116,7 +116,9 @@ class PandasConfig(MlemConfigBase):
 PANDAS_CONFIG = PandasConfig()
 
 
-class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
+class _PandasDatasetType(
+    LibRequirementsMixin, DatasetType, DatasetHook, DatasetSerializer, ABC
+):
     """Intermidiate class for pandas DatasetType implementations
 
     :param columns: list of column names (including index)
@@ -129,7 +131,7 @@ class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
     index_cols: List[str]
 
     @classmethod
-    def process(cls, obj: Any, **kwargs) -> DatasetType:
+    def process(cls, obj: Any, **kwargs) -> "_PandasDatasetType":
         if has_index(obj):
             index_cols, obj = _reset_index(obj)
         else:
@@ -145,6 +147,22 @@ class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
     def actual_dtypes(self):
         """List of pandas dtypes for columns"""
         return [pd_type_from_string(s) for s in self.dtypes]
+
+    def align_types(self, df):
+        """Restores column order and casts columns to expected types"""
+        df = df[self.columns]
+        for col, expected, dtype in zip(
+            self.columns, self.actual_dtypes, df.dtypes
+        ):
+            if expected != dtype:
+                df[col] = df[col].astype(expected)
+        return df
+
+    def align_index(self, df):
+        """Transform index columns to actual indexes"""
+        if len(self.index_cols) > 0:
+            df = df.set_index(self.index_cols)
+        return df
 
     def _validate_columns(self, df: pd.DataFrame, exc_type):
         """Validates that df has correct columns"""
@@ -163,8 +181,40 @@ class _PandasDatasetType(LibRequirementsMixin, DatasetType, DatasetHook, ABC):
                     f"given dataframe has incorrect type {pd_type} in column {col}. Expected: {expected}"
                 )
 
+    def deserialize(self, obj):
+        self.check_type(obj, dict, DeserializationError)
+        try:
+            ret = pd.DataFrame.from_records(obj["values"])
+        except (ValueError, KeyError) as e:
+            raise DeserializationError(
+                f"given object: {obj} could not be converted to dataframe"
+            ) from e
 
-class SeriesType(_PandasDatasetType, DatasetHook):
+        self._validate_columns(
+            ret, DeserializationError
+        )  # including index columns
+        ret = self.align_types(ret)  # including index columns
+        self._validate_dtypes(ret, DeserializationError)
+        return self.align_index(ret)
+
+    def serialize(self, instance: pd.DataFrame):
+        self.check_type(instance, pd.DataFrame, SerializationError)
+        is_copied, instance = reset_index(instance, return_copied=True)
+
+        self._validate_columns(instance, SerializationError)
+        self._validate_dtypes(instance, SerializationError)
+
+        for col, dtype in zip(self.columns, self.actual_dtypes):
+            if need_string_value(dtype):
+                if not is_copied:
+                    instance = instance.copy()
+                    is_copied = True
+                instance[col] = instance[col].astype("string")
+
+        return {"values": (instance.to_dict("records"))}
+
+
+class SeriesType(_PandasDatasetType):
     """
     :class:`.DatasetType` implementation for `pandas.Series` objects which stores them as built-in Python dicts
 
@@ -172,15 +222,35 @@ class SeriesType(_PandasDatasetType, DatasetHook):
 
     type: ClassVar[str] = "series"
 
+    def get_model(self):
+        return create_model(
+            "Series",
+            **{
+                c: (python_type_from_pd_string_repr(t), ...)
+                for c, t in zip(self.columns, self.dtypes)
+            },
+        )
+
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
-        return False  # isinstance(obj, pd.Series) TODO https://github.com/iterative/mlem/issues/32
+        return isinstance(obj, pd.Series)
+
+    @classmethod
+    def process(cls, obj: pd.Series, **kwargs) -> "_PandasDatasetType":
+        return super().process(
+            pd.DataFrame([obj], index=None).reset_index(drop=True)
+        )
 
     def deserialize(self, obj):
-        return pd.Series(obj)
+        return super().deserialize({"values": [obj]}).iloc[0]
 
     def serialize(self, instance: pd.Series):
-        return instance.to_dict()
+        return super().serialize(
+            pd.DataFrame([instance]).reset_index(drop=True)
+        )["values"][0]
+
+    def get_writer(self, **kwargs) -> "DatasetWriter":
+        raise NotImplementedError
 
 
 def has_index(df: pd.DataFrame):
@@ -214,7 +284,7 @@ def reset_index(df: pd.DataFrame, return_copied=False):
     return df
 
 
-class DataFrameType(_PandasDatasetType, DatasetSerializer):
+class DataFrameType(_PandasDatasetType):
     """
     :class:`.DatasetType` implementation for `pandas.DataFrame`
     """
@@ -229,56 +299,8 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
         # TODO: https://github.com/iterative/mlem/issues/33
         return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
-    def deserialize(self, obj):
-        self.check_type(obj, dict, DeserializationError)
-        try:
-            ret = pd.DataFrame.from_records(obj["values"])
-        except (ValueError, KeyError) as e:
-            raise DeserializationError(
-                f"given object: {obj} could not be converted to dataframe"
-            ) from e
-
-        self._validate_columns(
-            ret, DeserializationError
-        )  # including index columns
-        ret = self.align_types(ret)  # including index columns
-        self._validate_dtypes(ret, DeserializationError)
-        return self.align_index(ret)
-
-    def align_types(self, df):
-        """Restores column order and casts columns to expected types"""
-        df = df[self.columns]
-        for col, expected, dtype in zip(
-            self.columns, self.actual_dtypes, df.dtypes
-        ):
-            if expected != dtype:
-                df[col] = df[col].astype(expected)
-        return df
-
-    def align_index(self, df):
-        """Transform index columns to actual indexes"""
-        if len(self.index_cols) > 0:
-            df = df.set_index(self.index_cols)
-        return df
-
     def align(self, df):
         return self.align_index(self.align_types(df))
-
-    def serialize(self, instance: pd.DataFrame):
-        self.check_type(instance, pd.DataFrame, SerializationError)
-        is_copied, instance = reset_index(instance, return_copied=True)
-
-        self._validate_columns(instance, SerializationError)
-        self._validate_dtypes(instance, SerializationError)
-
-        for col, dtype in zip(self.columns, self.actual_dtypes):
-            if need_string_value(dtype):
-                if not is_copied:
-                    instance = instance.copy()
-                    is_copied = True
-                instance[col] = instance[col].astype("string")
-
-        return {"values": (instance.to_dict("records"))}
 
     def row_type(self):
         return create_model(
@@ -291,10 +313,9 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 
     def get_writer(self, **kwargs):
         fmt = kwargs.get("format", PANDAS_CONFIG.DEFAULT_FORMAT)
-        return PandasWriter(format=fmt)  # TODO env configuration
+        return PandasWriter(format=fmt)
 
 
-#
 # class PandasFormatHdf(PandasFormat):
 #     type = 'hdf'
 #     read_func = pd.read_hdf
@@ -336,8 +357,6 @@ class DataFrameType(_PandasDatasetType, DatasetSerializer):
 #             df = super().read(file_or_path)
 #
 #         return df.reset_index(drop=True)
-#
-#
 
 
 class ToBytesIO(IO[Any]):
