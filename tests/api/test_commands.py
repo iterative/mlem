@@ -16,7 +16,7 @@ from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
-from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
+from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 IMPORT_MODEL_FILENAME = "mymodel"
 
@@ -126,7 +126,6 @@ def test_init(tmpdir):
 
 
 @long
-@issue_110
 def test_init_remote(s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("init")
     init(path)
@@ -215,7 +214,6 @@ def test_import_model_pickle__no_copy_in_mlem_repo(
 
 
 @long
-@issue_110
 def test_import_model_pickle_remote(
     s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
 ):
@@ -234,9 +232,8 @@ def test_import_model_pickle_remote(
 
 
 @long
-@issue_110
 def test_import_model_pickle_remote_in_repo(
-    s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
+    s3_tmp_path, s3_storage_fs, write_model_pickle, train
 ):
     repo_path = s3_tmp_path("import_model_repo")
     init(repo_path)
