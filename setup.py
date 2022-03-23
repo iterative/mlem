@@ -81,7 +81,7 @@ sklearn = ["scipy", "scikit-learn"]
 catboost = ["catboost"]
 xgboost = ["xgboost"]
 lightgbm = ["lightgbm"]
-torch = ["torch", "torchvision", "torchaudio"]
+torch = ["torch"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]

@@ -1,5 +1,4 @@
 import os
-import posixpath
 import tempfile
 from typing import Any, ClassVar, Optional, Tuple
 
@@ -7,14 +6,21 @@ import torch
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.dataset_type import DatasetHook, DatasetType, DatasetWriter
+from mlem.core.dataset_type import (
+    DatasetHook,
+    DatasetSerializer,
+    DatasetType,
+    DatasetWriter,
+)
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.hooks import TOP_PRIORITY_VALUE, IsInstanceHookMixin
+from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
-class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
+class TorchTensorDatasetType(
+    DatasetType, DatasetSerializer, DatasetHook, IsInstanceHookMixin
+):
     """
     :class:`.DatasetType` implementation for `torch.Tensor` objects
     which converts them to built-in Python lists and vice versa.
@@ -25,7 +31,7 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
 
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.Tensor,)
-    shape: Tuple
+    shape: Tuple[Optional[int], ...]
     dtype: str
 
     def _check_shape(self, tensor, exc_type):
@@ -61,6 +67,9 @@ class TorchTensorDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
+    def get_model(self):
+        raise NotImplementedError()
+
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DatasetType:
         return TorchTensorDatasetType(
@@ -77,18 +86,14 @@ class TorchModelIO(ModelIO):
     type: ClassVar[str] = "torch_io"
     model_file_name = "model.pth"
     model_jit_file_name = "model.jit.pth"
+    is_jit: bool = False
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
-        is_jit = isinstance(model, torch.jit.ScriptModule)
-        save = torch.jit.save if is_jit else torch.save
-        model_name = (
-            self.model_jit_file_name if is_jit else self.model_file_name
-        )
-        with tempfile.TemporaryDirectory(prefix="mlem_torch_dump") as f:
-            model_path = os.path.join(f, model_name)
-            save(model, model_path)
-            fs_path = posixpath.join(path, model_name)
-            return [storage.upload(model_path, fs_path)]
+        self.is_jit = isinstance(model, torch.jit.ScriptModule)
+        save = torch.jit.save if self.is_jit else torch.save
+        with storage.open(path) as (fp, art):
+            save(model, fp)
+            return [art]
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
@@ -116,7 +121,6 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.nn.Module,)
     io: ModelIO = TorchModelIO()
-    priority: ClassVar = TOP_PRIORITY_VALUE
 
     @classmethod
     def process(
@@ -144,3 +148,19 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
         return super().get_requirements() + InstallableRequirement.from_module(
             mod=torch
         )
+
+
+# Copyright 2019 Zyfra
+# Copyright 2021 Iterative
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
