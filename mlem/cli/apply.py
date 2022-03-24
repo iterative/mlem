@@ -3,7 +3,7 @@ from typing import Optional
 import click
 
 from mlem.api import import_object
-from mlem.cli.main import mlem_command, option_link, with_meta, with_model_meta
+from mlem.cli.main import mlem_command, option_link, with_meta
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
 
@@ -60,7 +60,7 @@ def apply(
 
 
 @mlem_command()
-@with_model_meta
+@with_meta("model", force_cls=ModelMeta)
 @click.argument("output")
 @click.option(
     "-m",

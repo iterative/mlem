@@ -159,13 +159,3 @@ def with_meta(
         return inner
 
     return decorator
-
-
-def with_model_meta(f):
-    @click.argument("model")
-    @wraps(f)
-    def inner(model, **kwargs):
-        meta = load_meta(model)
-        return f(model=meta, **kwargs)
-
-    return inner
