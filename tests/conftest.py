@@ -34,11 +34,6 @@ from mlem.utils.github import ls_github_branches
 RESOURCES = "resources"
 
 long = pytest.mark.long
-issue_110 = (
-    pytest.mark.xfail(reason="https://github.com/iterative/mlem/issues/110")
-    if os.environ.get("GITHUB_ACTIONS") is not None
-    else lambda x: x
-)
 MLEM_TEST_REPO_ORG = "iterative"
 MLEM_TEST_REPO_NAME = "mlem-test"
 MLEM_TEST_REPO = (
@@ -271,14 +266,26 @@ def check_model_type_common_interface(
     )
 
 
+@pytest.fixture()
+def github_matrix_os():
+    return os.environ.get("GITHUB_MATRIX_OS", None)
+
+
+@pytest.fixture()
+def github_matrix_python():
+    return os.environ.get("GITHUB_MATRIX_PYTHON", None)
+
+
 @pytest.fixture
-def s3_tmp_path():
+def s3_tmp_path(github_matrix_os, github_matrix_python):
     paths = set()
     base_path = f"s3://{MLEM_S3_TEST_BUCKET}"
     fs, _ = get_fs(base_path)
 
     def gen(path):
-        path = posixpath.join(base_path, path)
+        path = posixpath.join(
+            base_path, path + f"-{github_matrix_os}-{github_matrix_python}"
+        )
         if path in paths:
             raise ValueError(f"Already generated {path}")
         if fs.exists(path):
@@ -287,9 +294,9 @@ def s3_tmp_path():
         return path
 
     yield gen
-    for path in paths:
+    for p in paths:
         try:
-            fs.delete(path, recursive=True)
+            fs.delete(p, recursive=True)
         except FileNotFoundError:
             pass
 

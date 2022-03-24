@@ -29,7 +29,7 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
-from tests.conftest import dataset_write_read_check, issue_110, long
+from tests.conftest import dataset_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -343,7 +343,6 @@ def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
 
 
 @long
-@issue_110
 def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
     repo_path = s3_tmp_path("test_csv_import")
     path = posixpath.join(repo_path, "data.csv")

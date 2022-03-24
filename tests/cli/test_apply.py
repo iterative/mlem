@@ -8,7 +8,7 @@ from numpy import ndarray
 from mlem.api import load
 from mlem.cli import apply
 from mlem.core.errors import MlemRootNotFound
-from tests.conftest import MLEM_TEST_REPO, issue_110, long, need_test_repo_auth
+from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 
 def test_apply(model_path, data_path):
@@ -58,7 +58,6 @@ def test_apply_fails_without_mlem_dir(model_path, data_path):
 
 @long
 @need_test_repo_auth
-@issue_110
 def test_apply_remote(current_test_branch, s3_tmp_path):
     runner = CliRunner()
     model_path = os.path.join(
