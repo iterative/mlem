@@ -91,11 +91,8 @@ class TorchModelIO(ModelIO):
     def dump(self, storage: Storage, path, model) -> Artifacts:
         self.is_jit = isinstance(model, torch.jit.ScriptModule)
         save = torch.jit.save if self.is_jit else torch.save
-        model_name = (
-            self.model_jit_file_name if self.is_jit else self.model_file_name
-        )
-        with storage.open(os.path.join(path, model_name)) as (fp, art):
-            save(model, fp)
+        with storage.open(path) as (f, art):
+            save(model, f)
             return [art]
 
     def load(self, artifacts: Artifacts):
@@ -105,11 +102,13 @@ class TorchModelIO(ModelIO):
             )
 
         with tempfile.TemporaryDirectory(prefix="mlem_torch_load") as tmpdir:
-            local_path = os.path.join(tmpdir, self.model_jit_file_name)
-            load = torch.jit.load
-            if not os.path.exists(local_path):
-                local_path = os.path.join(tmpdir, self.model_file_name)
-                load = torch.load
+            load = torch.jit.load if self.is_jit else torch.load
+            local_path = os.path.join(
+                tmpdir,
+                self.model_jit_file_name
+                if self.is_jit
+                else self.model_file_name,
+            )
             artifacts[0].materialize(
                 local_path,
             )
