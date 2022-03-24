@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from typing import List, Optional, Type
+from typing import Callable, List, Optional, Type
 
 import click
 from pydantic import parse_obj_as
@@ -10,7 +10,9 @@ from mlem import version
 from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
+from mlem.core.errors import WrongMetaType
 from mlem.core.metadata import load_meta
+from mlem.core.objects import MlemMeta
 
 
 @click.group()
@@ -122,6 +124,37 @@ def config_arg(name: str, model: Type[MlemObject], **kwargs):
                 obj = build_mlem_object(model, subtype, conf, file_conf)
             inner_kwargs[name] = obj
             return f(**inner_kwargs)
+
+        return inner
+
+    return decorator
+
+
+def _get_option_name(option: Callable):
+    option_decls = option.__closure__[-1].cell_contents  # type: ignore
+    return option_decls[-1].lstrip("-")
+
+
+def with_meta(
+    argument_name: str,
+    repo_opt: Callable = option_repo,
+    rev_opt: Callable = option_rev,
+    force_cls: Type[MlemMeta] = None,
+):
+    def decorator(f):
+        @click.argument(argument_name)
+        @repo_opt
+        @rev_opt
+        @wraps(f)
+        def inner(**kwargs):
+            path = kwargs.pop(argument_name)
+            repo = kwargs.pop(_get_option_name(repo_opt))
+            rev = kwargs.pop(_get_option_name(rev_opt))
+            meta = load_meta(path, repo=repo, rev=rev)
+            if force_cls is not None and not isinstance(meta, force_cls):
+                raise WrongMetaType(meta, force_cls)
+            kwargs[argument_name] = meta
+            return f(**kwargs)
 
         return inner
 

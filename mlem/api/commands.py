@@ -60,9 +60,6 @@ def apply(
         If `output=None`, returns results for given data.
             Otherwise returns None.
 
-    # TODO https://github.com/iterative/mlem/issues/25
-    # one may want to pass several objects instead of one as `data`
-    We may do this by using `*data` or work with `data` being an iterable.
     """
     model = get_model_meta(model)
     w = model.model_type
