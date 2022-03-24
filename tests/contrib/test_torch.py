@@ -104,7 +104,7 @@ def test_torch_custom_net(first_tensor, second_tensor, tmpdir):
     check_model(MyNet(), [first_tensor.float(), second_tensor], tmpdir)
 
 
-def check_model(net, input_data, tmpdir):
+def check_model(net, input_data):
     tmw = ModelAnalyzer.analyze(net, sample_data=input_data)
     assert tmw.model is net
     assert set(tmw.get_requirements().modules) == {"torch"}
