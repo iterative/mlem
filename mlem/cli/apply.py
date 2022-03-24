@@ -1,13 +1,15 @@
-from typing import Any, Optional, Tuple
+from typing import Optional
 
 import click
 
-from mlem.cli.main import mlem_command, option_link, with_model_meta
-from mlem.core.objects import ModelMeta
+from mlem.api import import_object
+from mlem.cli.main import mlem_command, option_link, with_meta
+from mlem.core.metadata import load_meta
+from mlem.core.objects import DatasetMeta, ModelMeta
 
 
 @mlem_command("apply")
-@with_model_meta
+@with_meta("model", force_cls=ModelMeta)
 @click.option(
     "-o", "--output", default=None, help="Where to store the outputs."
 )
@@ -17,26 +19,48 @@ from mlem.core.objects import ModelMeta
     default=None,
     help="Which model method is to apply (if the model is instance of class).",
 )
-@click.argument("args", nargs=-1)
+@click.argument("data")
+@click.option("--data-repo", "--dr", help="Repo with dataset", default=None)
+@click.option("--data-rev", help="Revision of dataset", default=None)
+@click.option(
+    "-i",
+    "--import",
+    "import_",
+    help="Try to import data on-the-fly",
+    is_flag=True,
+    default=False,
+)
+@click.option("--import-type", "--it", default=None)
 @option_link
 def apply(
     model: ModelMeta,
     output: Optional[str],
     method: str,
-    args: Tuple[Any],
+    data: str,
+    data_repo: Optional[str],
+    data_rev: Optional[str],
+    import_: bool,
+    import_type: str,
     link: bool,
 ):
     """Apply a model to supplied data."""
     from mlem.api import apply
 
-    click.echo("applying")
-    result = apply(model, *args, method=method, output=output, link=link)
+    if import_:
+        dataset = import_object(
+            data, repo=data_repo, rev=data_rev, type_=import_type
+        )
+    else:
+        dataset = load_meta(
+            data, data_repo, data_rev, load_value=True, force_type=DatasetMeta
+        )
+    result = apply(model, dataset, method=method, output=output, link=link)
     if output is None:
         click.echo(result)
 
 
 @mlem_command()
-@with_model_meta
+@with_meta("model", force_cls=ModelMeta)
 @click.argument("output")
 @click.option(
     "-m",

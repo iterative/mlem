@@ -1,11 +1,11 @@
 import click
 
-from mlem.cli.main import mlem_command, with_model_meta
+from mlem.cli.main import mlem_command, with_meta
 from mlem.core.objects import ModelMeta
 
 
 @mlem_command("serve")
-@with_model_meta
+@with_meta("model", force_cls=ModelMeta)
 @click.argument("server", default="fastapi")
 def serve(model: ModelMeta, server: str):
     """Serve selected model."""
