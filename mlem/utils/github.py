@@ -72,6 +72,14 @@ def ls_github_tags(org: str, repo: str):
     return _ls_github_refs(org, repo, "tags")
 
 
+def github_check_rev(org: str, repo: str, rev: str):
+    res = requests.head(
+        f"https://api.github.com/repos/{org}/{repo}/commits/{rev}",
+        auth=(CONFIG.GITHUB_USERNAME, CONFIG.GITHUB_TOKEN),
+    )
+    return res.status_code == 200
+
+
 def _ls_github_refs(org: str, repo: str, endpoint: str):
     result = requests.get(
         f"https://api.github.com/repos/{org}/{repo}/{endpoint}",

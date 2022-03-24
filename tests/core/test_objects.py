@@ -24,7 +24,6 @@ from mlem.core.objects import (
 )
 from tests.conftest import (
     MLEM_TEST_REPO,
-    issue_110,
     long,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
@@ -193,7 +192,6 @@ def test_model_cloning(model_path):
 
 
 @long
-@issue_110
 def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")
@@ -232,7 +230,6 @@ def test_remote_model_cloning(remote_model_meta, repo):
 
 @long
 @need_test_repo_auth
-@issue_110
 @pytest.mark.parametrize(
     "repo",
     ["simple", pytest.param("dvc_pipeline", marks=need_test_repo_ssh_auth)],

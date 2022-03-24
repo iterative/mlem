@@ -4,6 +4,7 @@ import pytest
 
 from mlem.utils.github import (
     get_github_kwargs,
+    github_check_rev,
     ls_branches,
     ls_github_branches,
 )
@@ -70,3 +71,21 @@ def test_get_github_kwargs__empty_path(set_mock_refs):
         "path": "",
         "sha": "ref",
     }
+
+
+@long
+def test_github_check_rev():
+    assert github_check_rev(
+        MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME, "main"
+    )  # branch
+    assert not github_check_rev(
+        MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME, "_____"
+    )  # not exists
+    assert github_check_rev(
+        MLEM_TEST_REPO_ORG,
+        MLEM_TEST_REPO_NAME,
+        "bf022746331ec6888e58b483fbc1fb08313dffc0",
+    )  # commit
+    assert github_check_rev(
+        MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME, "first_rev_link"
+    )  # tag
