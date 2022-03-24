@@ -114,8 +114,8 @@ def check_model(net, input_data, tmpdir):
     model_name = (
         tmw.io.model_jit_file_name if tmw.io.is_jit else tmw.io.model_file_name
     )
-    assert os.path.isfile(model_name)
     artifacts = tmw.dump(LOCAL_STORAGE, model_name)
+    assert os.path.isfile(model_name)
 
     tmw.model = None
     with pytest.raises(ValueError):

@@ -1,5 +1,3 @@
-import os
-import tempfile
 from typing import Any, ClassVar, Optional, Tuple
 
 import torch
@@ -101,18 +99,9 @@ class TorchModelIO(ModelIO):
                 f"Invalid artifacts: should be one of {self.model_file_name} OR {self.model_jit_file_name} file"
             )
 
-        with tempfile.TemporaryDirectory(prefix="mlem_torch_load") as tmpdir:
-            load = torch.jit.load if self.is_jit else torch.load
-            local_path = os.path.join(
-                tmpdir,
-                self.model_jit_file_name
-                if self.is_jit
-                else self.model_file_name,
-            )
-            artifacts[0].materialize(
-                local_path,
-            )
-            return load(f=local_path)
+        load = torch.jit.load if self.is_jit else torch.load
+        with artifacts[0].open() as f:
+            return load(f)
 
 
 class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
