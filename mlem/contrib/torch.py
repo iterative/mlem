@@ -91,7 +91,10 @@ class TorchModelIO(ModelIO):
     def dump(self, storage: Storage, path, model) -> Artifacts:
         self.is_jit = isinstance(model, torch.jit.ScriptModule)
         save = torch.jit.save if self.is_jit else torch.save
-        with storage.open(path) as (fp, art):
+        model_name = (
+            self.model_jit_file_name if self.is_jit else self.model_file_name
+        )
+        with storage.open(os.path.join(path, model_name)) as (fp, art):
             save(model, fp)
             return [art]
 

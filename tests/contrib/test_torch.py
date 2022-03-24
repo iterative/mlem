@@ -1,6 +1,8 @@
 import pytest
 import torch
 
+from mlem.constants import PREDICT_METHOD_NAME
+from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
@@ -92,17 +94,32 @@ class MyNet(torch.nn.Module):
 @pytest.mark.parametrize(
     "net", [torch.nn.Linear(5, 1), torch.jit.script(torch.nn.Linear(5, 1))]
 )
-def test_torch_builtin_net(net, first_tensor):
-    check_model(net, first_tensor.float())
+def test_torch_builtin_net(net, first_tensor, tmpdir):
+    check_model(net, first_tensor.float(), tmpdir)
 
 
-def test_torch_custom_net(first_tensor, second_tensor):
-    check_model(MyNet(), [first_tensor.float(), second_tensor])
+def test_torch_custom_net(first_tensor, second_tensor, tmpdir):
+    check_model(MyNet(), [first_tensor.float(), second_tensor], tmpdir)
 
 
-def check_model(net, input_data):
+def check_model(net, input_data, tmpdir):
     tmw = ModelAnalyzer.analyze(net, sample_data=input_data)
     assert tmw.model is net
+    assert set(tmw.get_requirements().modules) == {"torch"}
+
+    prediction = tmw.call_method("predict", input_data)
+
+    artifacts = tmw.dump(LOCAL_STORAGE, tmpdir)
+
+    tmw.model = None
+    with pytest.raises(ValueError):
+        tmw.call_method(PREDICT_METHOD_NAME, input_data)
+
+    tmw.load(artifacts)
+    assert tmw.model is not net
+
+    prediction2 = tmw.call_method("predict", input_data)
+    assert torch.equal(prediction, prediction2)
     assert set(tmw.get_requirements().modules) == {"torch"}
 
 
