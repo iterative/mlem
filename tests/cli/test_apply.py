@@ -59,9 +59,7 @@ def test_apply_no_output(model_path, data_path):
         [model_path, data_path, "-m", "predict", "--no-link"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
-    applying = "applying\n"
-    assert result.output.startswith(applying)
-    assert len(result.output) > len(applying)
+    assert len(result.output) > 0
 
 
 def test_apply_fails_without_mlem_dir(model_path, data_path):
