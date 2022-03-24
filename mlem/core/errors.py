@@ -20,19 +20,33 @@ class SerializationError(MlemError):
 
 
 class MlemRootNotFound(MlemError):
-    _message = "{MLEM_DIR} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}"
+    _message = "{MLEM_DIR} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
+
+    def __init__(self, path, fs=None, rev=None) -> None:
+
+        self.path = path
+        self.fs = fs
+        self.rev = rev
+        self.message = self._message.format(
+            MLEM_DIR=MLEM_DIR, path=path, fs=fs, rev=rev
+        )
+        super().__init__(self.message)
+
+
+class RevisionNotFound(MlemError):
+    _message = "Revision '{rev}' wasn't found in path={path}, fs={fs}"
 
     def __init__(
         self,
+        rev,
         path,
-        fs,
+        fs=None,
     ) -> None:
 
         self.path = path
         self.fs = fs
-        self.message = self._message.format(
-            MLEM_DIR=MLEM_DIR, path=path, fs=fs
-        )
+        self.rev = rev
+        self.message = self._message.format(path=path, fs=fs, rev=rev)
         super().__init__(self.message)
 
 

@@ -10,7 +10,8 @@ from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
 from mlem import CONFIG
-from mlem.core.meta_io import get_fs, get_path_by_fs_path, read
+from mlem.core.errors import RevisionNotFound
+from mlem.core.meta_io import UriResolver, get_fs, get_path_by_fs_path, read
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -78,6 +79,14 @@ def test_get_fs_github(uri, rev):
     assert fs.repo == MLEM_TEST_REPO_NAME
     assert fs.root == rev
     assert path == "path"
+
+
+@long
+def test_github_wrong_rev():
+    with pytest.raises(RevisionNotFound):
+        UriResolver.resolve(
+            MLEM_TEST_REPO, repo=None, rev="__not_exists__kek", fs=None
+        )
 
 
 @long
