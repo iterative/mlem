@@ -516,7 +516,7 @@ class RequirementAnalyzer(dill.Pickler):
         self.add_requirement(obj)
         try:
             return super().save(obj, save_persistent_id)
-        except (ValueError, TypeError, PickleError) as e:
+        except (ValueError, TypeError, PickleError, RuntimeError) as e:
             # if object cannot be serialized, it's probably a C object and we don't need to go deeper
             logger.debug(
                 "Skipping dependency analysis for %s because of %s: %s",

@@ -81,6 +81,7 @@ sklearn = ["scipy", "scikit-learn"]
 catboost = ["catboost"]
 xgboost = ["xgboost"]
 lightgbm = ["lightgbm"]
+torch = ["torch"]
 
 # serve & deploy
 fastapi = ["uvicorn", "fastapi"]
@@ -96,6 +97,7 @@ all_libs = (
     + lightgbm
     + fastapi
     + sagemaker
+    + torch
 )
 
 tests = [
@@ -179,6 +181,7 @@ setup_args = dict(  # noqa: C408
             "dataset_type.xgboost_dmatrix = mlem.contrib.xgboost:DMatrixDatasetType",
             "dataset_writer.numpy = mlem.contrib.numpy:NumpyArrayWriter",
             "dataset_writer.pandas = mlem.contrib.pandas:PandasWriter",
+            "dataset_type.torch = mlem.contrib.torch:TorchTensorDatasetType",
             "deploy.heroku = mlem.contrib.heroku.meta:HerokuDeploy",
             "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
             "env.heroku = mlem.contrib.heroku.meta:HerokuEnvMeta",
@@ -186,11 +189,13 @@ setup_args = dict(  # noqa: C408
             "model_io.lightgbm_io = mlem.contrib.lightgbm:LightGBMModelIO",
             "model_io.pickle = mlem.contrib.callable:PickleModelIO",
             "model_io.xgboost_io = mlem.contrib.xgboost:XGBoostModelIO",
+            "model_io.torch_io = mlem.contrib.torch:TorchModelIO",
             "model_type.callable = mlem.contrib.callable:CallableModelType",
             "model_type.catboost = mlem.contrib.catboost:CatBoostModel",
             "model_type.lightgbm = mlem.contrib.lightgbm:LightGBMModel",
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
+            "model_type.torch = mlem.contrib.torch:TorchModel",
             "packager.docker = mlem.contrib.docker.base:DockerImagePackager",
             "packager.docker_dir = mlem.contrib.docker.base:DockerDirPackager",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",

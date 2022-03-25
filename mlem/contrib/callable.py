@@ -11,6 +11,7 @@ from uuid import uuid4
 from dill import Pickler
 
 from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.hooks import LOW_PRIORITY_VALUE
 from mlem.core.model import (
     ModelAnalyzer,
     ModelHook,
@@ -246,6 +247,7 @@ class _ExternalRef:
 
 class CallableModelType(ModelType, ModelHook):
     type: ClassVar = "callable"
+    priority: ClassVar = LOW_PRIORITY_VALUE
 
     @classmethod
     def process(
