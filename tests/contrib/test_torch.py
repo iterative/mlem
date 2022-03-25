@@ -96,12 +96,12 @@ class MyNet(torch.nn.Module):
 @pytest.mark.parametrize(
     "net", [torch.nn.Linear(5, 1), torch.jit.script(torch.nn.Linear(5, 1))]
 )
-def test_torch_builtin_net(net, first_tensor, tmpdir):
-    check_model(net, first_tensor.float(), tmpdir)
+def test_torch_builtin_net(net, first_tensor):
+    check_model(net, first_tensor.float())
 
 
-def test_torch_custom_net(first_tensor, second_tensor, tmpdir):
-    check_model(MyNet(), [first_tensor.float(), second_tensor], tmpdir)
+def test_torch_custom_net(first_tensor, second_tensor):
+    check_model(MyNet(), [first_tensor.float(), second_tensor])
 
 
 def check_model(net, input_data):
