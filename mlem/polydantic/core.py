@@ -155,7 +155,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             type_field = cls.__config__.type_field
             cls.__type_map__ = {}
             alias = cls.__get_alias__(type_field)
-            if alias is not None and alias is not ...:
+            if alias is not None and alias is not ...:  # pylint: disable=W2301
                 cls.__type_map__[alias] = cls
             cls.__annotations__[  # pylint: disable=no-member
                 type_field
@@ -173,7 +173,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             parent: Type[PolyModel] = parents[0]
             cls.__parent__ = parent
             alias = cls.__get_alias__()
-            if alias is not None and alias is not ...:
+            if alias is not None and alias is not ...:  # pylint: disable=W2301
                 parent.__type_map__[alias] = cls
                 setattr(cls, parent.__config__.type_field, alias)
 
