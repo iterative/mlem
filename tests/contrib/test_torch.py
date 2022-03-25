@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.torch import TorchModelIO
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
@@ -91,6 +92,12 @@ class MyNet(torch.nn.Module):
             [layer(input) for layer, input in zip(self.layers, inputs)], dim=1
         )
         return results.sum(dim=1)
+
+
+def test_torch_empty_artifact_load_should_fail():
+    with pytest.raises(ValueError):
+        tmio = TorchModelIO()
+        tmio.load([])
 
 
 @pytest.mark.parametrize(

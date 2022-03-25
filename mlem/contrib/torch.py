@@ -82,8 +82,6 @@ class TorchModelIO(ModelIO):
     """
 
     type: ClassVar[str] = "torch_io"
-    model_file_name = "model.pth"
-    model_jit_file_name = "model.jit.pth"
     is_jit: bool = False
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
@@ -95,9 +93,7 @@ class TorchModelIO(ModelIO):
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
-            raise ValueError(
-                f"Invalid artifacts: should be one of {self.model_file_name} OR {self.model_jit_file_name} file"
-            )
+            raise ValueError("Invalid artifacts: should have only one file")
 
         load = torch.jit.load if self.is_jit else torch.load
         with artifacts[0].open() as f:
