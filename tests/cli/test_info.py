@@ -1,9 +1,9 @@
 import os
 
 import pytest
-from click.testing import CliRunner
+from typer.testing import CliRunner
 
-from mlem.cli import ls, pretty_print
+from mlem.cli import app
 from mlem.core.meta_io import MLEM_EXT
 from tests.conftest import MLEM_TEST_REPO, long
 
@@ -18,8 +18,8 @@ def test_ls(filled_mlem_repo, obj_type):
     runner = CliRunner()
     os.chdir(filled_mlem_repo)
     result = runner.invoke(
-        ls,
-        [obj_type] if obj_type else [],
+        app,
+        ["ls", obj_type] if obj_type else ["ls"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0, "Output is empty, but should not be"
@@ -40,8 +40,9 @@ Datasets:
 def test_ls_remote(current_test_branch):
     runner = CliRunner()
     result = runner.invoke(
-        ls,
+        app,
         [
+            "ls",
             "all",
             "-r",
             f"{MLEM_TEST_REPO}/tree/{current_test_branch}/simple",
@@ -56,8 +57,8 @@ def test_pretty_print(model_path_mlem_repo):
     model_path, _ = model_path_mlem_repo
     runner = CliRunner()
     result = runner.invoke(
-        pretty_print,
-        [model_path + MLEM_EXT],
+        app,
+        ["pprint", model_path + MLEM_EXT],
     )
     assert result.exit_code == 0, (result.output, result.exception)
 
@@ -69,7 +70,7 @@ def test_pretty_print_remote(current_test_branch):
     )
     runner = CliRunner()
     result = runner.invoke(
-        pretty_print,
-        [model_path + MLEM_EXT],
+        app,
+        ["pretty_print", model_path + MLEM_EXT],
     )
     assert result.exit_code == 0, (result.output, result.exception)

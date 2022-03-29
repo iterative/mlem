@@ -1,10 +1,10 @@
 import os
 import tempfile
 
-from click.testing import CliRunner
+from typer.testing import CliRunner
 
 from mlem.api import load_meta
-from mlem.cli import link
+from mlem.cli import app
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.objects import MlemLink, ModelMeta
 
@@ -14,8 +14,8 @@ def test_link(model_path):
         link_path = os.path.join(dir, "latest.mlem")
         runner = CliRunner()
         result = runner.invoke(
-            link,
-            [model_path, link_path, "-e", "--abs"],
+            app,
+            ["link", model_path, link_path, "-e", "--abs"],
         )
         assert result.exit_code == 0, (result.output, result.exception)
         assert os.path.exists(link_path)
@@ -28,8 +28,8 @@ def test_link_mlem_repo(model_path_mlem_repo):
     link_name = "latest.mlem"
     runner = CliRunner()
     result = runner.invoke(
-        link,
-        [model_path, link_name, "--target-repo", repo],
+        app,
+        ["link", model_path, link_name, "--target-repo", repo],
     )
     assert result.exit_code == 0, result.output
     link_path = os.path.join(repo, MLEM_DIR, MlemLink.object_type, link_name)

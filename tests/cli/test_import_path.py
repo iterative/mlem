@@ -1,9 +1,9 @@
 import pickle
 
 import pytest
-from click.testing import CliRunner
+from typer.testing import CliRunner
 
-from mlem.cli import import_path
+from mlem.cli import app
 from mlem.core.metadata import load
 
 
@@ -28,8 +28,8 @@ def test_import_model_pickle_copy(
     runner = CliRunner()
 
     result = runner.invoke(
-        import_path,
-        [path, out_path, "--type", type_, "--copy"],
+        app,
+        ["import", path, out_path, "--type", type_, "--copy"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
 

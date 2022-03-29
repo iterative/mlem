@@ -2,6 +2,7 @@ import logging
 from functools import wraps
 from typing import List, Optional, Type
 
+import click
 import typer
 from pydantic import parse_obj_as
 from typer import Context, Option, Typer
@@ -16,11 +17,12 @@ from mlem.core.errors import MlemError
 app = Typer()
 
 
-@app.callback(invoke_without_command=True)
+@app.callback(invoke_without_command=True, no_args_is_help=True)
 def mlem_callback(
     ctx: Context,
     show_version: bool = Option(False, "--version"),
     verbose: bool = Option(False, "--verbose", "-v"),
+    traceback: bool = Option(False, "--traceback", "--tb"),
 ):
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
@@ -34,6 +36,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
+    ctx.obj = {"traceback": traceback}
 
 
 def mlem_command(*args, parent=app, **kwargs):
@@ -45,7 +48,8 @@ def mlem_command(*args, parent=app, **kwargs):
 
         @parent.command(*args, **kwargs)
         @wraps(f)
-        def inner(*iargs, **ikwargs):
+        @click.pass_context
+        def inner(ctx, *iargs, **ikwargs):
             res = {}
             error = None
             try:
@@ -53,10 +57,14 @@ def mlem_command(*args, parent=app, **kwargs):
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
             except MlemError as e:
                 error = str(type(e))
+                if ctx.obj["traceback"]:
+                    raise
                 typer.echo(str(e), err=True, color=typer.colors.RED)
                 raise typer.Exit(1)
             except Exception as e:
                 error = str(type(e))
+                if ctx.obj["traceback"]:
+                    raise
                 raise e
             finally:
                 send_cli_call(cmd_name, error_msg=error, **res)
