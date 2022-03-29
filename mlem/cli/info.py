@@ -1,7 +1,7 @@
 from pprint import pprint
 from typing import List, Optional, Type
 
-import click
+from typer import Argument, Option
 
 from mlem.cli.main import mlem_command, option_repo, option_rev
 from mlem.core.metadata import load_meta
@@ -32,14 +32,16 @@ TYPE_ALIASES = {
 
 
 @mlem_command()
-@click.argument(
-    "type_filter",
-    default="all",
-)
-@option_repo
-@option_rev
-@click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
-def ls(type_filter: str, repo: str, rev: Optional[str], links: bool):
+def ls(
+    type_filter: str = Argument("all"),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    links: bool = Option(
+        True,
+        "+l/-l",
+        "--links/--no-links",
+    ),
+):
     """List MLEM objects of {type} in repo."""
     from mlem.api.commands import ls
 
@@ -57,19 +59,16 @@ def ls(type_filter: str, repo: str, rev: Optional[str], links: bool):
 
 
 @mlem_command("pprint")
-@click.argument("path")
-@click.option(
-    "-f",
-    "--follow-links",
-    default=False,
-    type=click.BOOL,
-    is_flag=True,
-    help="If specified, follow the link to the actual object.",
-)
-@option_repo
-@option_rev
 def pretty_print(
-    path: str, repo: str = None, rev: str = None, follow_links: bool = False
+    path: str,
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    follow_links: bool = Option(
+        False,
+        "-f",
+        "--follow-links",
+        help="If specified, follow the link to the actual object.",
+    ),
 ):
     """Print __str__ for the specified MLEM object."""
     pprint(

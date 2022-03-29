@@ -1,6 +1,6 @@
 from typing import Optional
 
-import click
+from typer import Option
 
 from mlem.cli.main import (
     mlem_command,
@@ -11,38 +11,30 @@ from mlem.cli.main import (
 
 
 @mlem_command("link")
-@click.argument("source")
-@option_rev
-@click.option(
-    "--source-repo",
-    "--sr",
-    default=None,
-    help="Load source from mlem repo found in {source_repo} path.",
-)
-@click.argument("target")
-@option_target_repo
-@option_external
-@click.option(
-    "--follow-links/--no-follow-links",
-    "--f/--nf",
-    default=True,
-    help="If True, first follow links while reading {source} before creating this link.",
-)
-@click.option(
-    "--absolute/--relative",
-    "--abs/--rel",
-    default=False,
-    help="Which path to linked object to specify: absolute or relative.",
-)
 def link(
     source: str,
-    source_repo: Optional[str],
-    rev: Optional[str],
     target: str,
-    target_repo: Optional[str],
-    external: bool,
-    follow_links: bool,
-    absolute: bool,
+    source_repo: Optional[str] = Option(
+        None,
+        "--source-repo",
+        "--sr",
+        help="Load source from mlem repo found in {source_repo} path.",
+    ),
+    rev: Optional[str] = option_rev,
+    target_repo: Optional[str] = option_target_repo,
+    external: bool = option_external,
+    follow_links: bool = Option(
+        True,
+        "--follow-links/--no-follow-links",
+        "--f/--nf",
+        help="If True, first follow links while reading {source} before creating this link.",
+    ),
+    absolute: bool = Option(
+        False,
+        "--absolute/--relative",
+        "--abs/--rel",
+        help="Which path to linked object to specify: absolute or relative.",
+    ),
 ):
     """Create link for {source} MLEM object and place it in {target}."""
     from mlem.api.commands import link

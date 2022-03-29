@@ -1,6 +1,7 @@
 from typing import Optional
 
 import click
+from typer import Option
 
 from mlem.cli.main import (
     mlem_command,
@@ -13,21 +14,16 @@ from mlem.cli.main import (
 
 
 @mlem_command("clone")
-@click.argument("uri")
-@click.option("-t", "--target", help="Path to store the downloaded object.")
-@option_repo
-@option_rev
-@option_target_repo
-@option_link
-@option_external
 def clone(
     uri: str,
-    target: str,
-    repo: Optional[str],
-    rev: Optional[str],
-    target_repo: Optional[str],
-    external: Optional[bool],
-    link: Optional[bool],
+    target: str = Option(
+        None, "-t", "--target", help="Path to store the downloaded object."
+    ),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    target_repo: Optional[str] = option_target_repo,
+    external: Optional[bool] = option_external,
+    link: Optional[bool] = option_link,
 ):
     """Download MLEM object from {uri} and save it to {out}."""
     from mlem.api.commands import clone

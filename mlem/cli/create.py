@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-import click
+from typer import Argument, Option
 
 from ..core.base import build_mlem_object
 from ..core.objects import MlemMeta
@@ -8,21 +8,20 @@ from .main import mlem_command, option_external, option_link, option_repo
 
 
 @mlem_command("create")
-@click.argument("object_type")
-@click.argument("subtype", default="")
-@click.option("-c", "--conf", multiple=True)
-@click.argument("path")
-@option_repo
-@option_external
-@option_link
 def create(
-    object_type: str,
-    subtype: str,
-    conf: List[str],
-    path: str,
-    repo: str,
-    external: bool,
-    link: bool,
+    object_type: str = Argument(
+        ...,
+    ),
+    subtype: str = Argument(""),
+    conf: Optional[List[str]] = Option(
+        None,
+        "-c",
+        "--conf",
+    ),
+    path: str = Argument(...),
+    repo: str = option_repo,
+    external: bool = option_external,
+    link: bool = option_link,
 ):
     """Creates new mlem object metafile from conf args and config files
 

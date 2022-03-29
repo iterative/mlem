@@ -1,15 +1,32 @@
-import click
+from typing import List, Optional
 
-from mlem.cli.main import mlem_command, with_meta
+from typer import Argument, Option, echo
+
+from mlem.cli.main import config_arg, mlem_command, option_repo, option_rev
+from mlem.core.metadata import load_meta
 from mlem.core.objects import ModelMeta
+from mlem.runtime.server.base import Server
 
 
 @mlem_command("serve")
-@with_meta("model", force_cls=ModelMeta)
-@click.argument("server", default="fastapi")
-def serve(model: ModelMeta, server: str):
+def serve(
+    model: str,
+    subtype: str = Argument(""),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    load: Optional[str] = Option(
+        None,
+        "-l",
+        "--load",
+    ),
+    conf: List[str] = Option(None, "-c", "--conf"),
+    file_conf: List[str] = Option(None, "-f", "--file_conf"),
+):
     """Serve selected model."""
     from mlem.api.commands import serve
 
-    click.echo("Serving")
-    serve(model, server)
+    echo("Serving")
+    serve(
+        load_meta(model, repo, rev, force_type=ModelMeta),
+        config_arg(Server, load, subtype, conf, file_conf),
+    )
