@@ -28,7 +28,7 @@ from typing_extensions import Literal, TypedDict
 from mlem.core.base import MlemObject
 from mlem.core.meta_io import Location, get_fs, get_path_by_fs_path
 
-CHUNK_SIZE = 2 ** 20  # 1 mb
+CHUNK_SIZE = 2**20  # 1 mb
 
 
 class ArtifactInfo(TypedDict):

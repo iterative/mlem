@@ -166,7 +166,7 @@ def is_extension_module(mod: ModuleType):
     :return: boolean flag
     """
     try:
-        path = mod.__file__
+        path = mod.__file__ or ""
         return any(path.endswith(ext) for ext in (".so", ".pyd"))
     except AttributeError:
         return True
@@ -242,6 +242,8 @@ def get_module_version(mod: ModuleType):
     for attr in "__version__", "VERSION":
         if hasattr(mod, attr):
             return getattr(mod, attr)
+    if mod.__file__ is None:
+        return None
     for name in os.listdir(os.path.dirname(mod.__file__)):
         m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
         if m:
@@ -353,7 +355,7 @@ def add_closure_inspection(f):
         base_module = get_object_base_module(obj)
         if base_module is not None and is_builtin_module(base_module):
             return f(pickler, obj)
-        base_module_name = getattr(base_module, "__name__", None)
+        base_module_name = getattr(base_module, "__name__", "")
 
         closure = inspect.getclosurevars(obj)
         for field in ["nonlocals", "globals"]:

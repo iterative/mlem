@@ -288,6 +288,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     entrypoints in setup.py
     """
     root_module = import_module(root_module_name)
+    assert root_module.__file__ is not None
     path = os.path.dirname(root_module.__file__)
 
     impls = {}

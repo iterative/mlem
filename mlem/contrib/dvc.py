@@ -16,7 +16,7 @@ from mlem.core.artifacts import (
 )
 from mlem.core.meta_io import get_fs
 
-BATCH_SIZE = 10 ** 5
+BATCH_SIZE = 10**5
 
 
 def find_dvc_repo_root(path: str):

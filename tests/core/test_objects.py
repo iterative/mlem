@@ -261,16 +261,13 @@ def test_mlem_dir_path(filled_mlem_repo):
     model_link = os.path.join(
         filled_mlem_repo, MLEM_DIR, "model", "data", "model" + MLEM_EXT
     )
-    assert (
-        os.path.abspath(
-            mlem_dir_path(
-                os.path.join(filled_mlem_repo, "data", "model"),
-                obj_type="model",
-                fs=None,
-            )
+    assert os.path.abspath(
+        mlem_dir_path(
+            os.path.join(filled_mlem_repo, "data", "model"),
+            obj_type="model",
+            fs=None,
         )
-        == os.path.abspath(model_link)
-    )
+    ) == os.path.abspath(model_link)
     # case when we provide object relative path
     model_link = os.path.join(
         filled_mlem_repo, MLEM_DIR, "model", "latest" + MLEM_EXT

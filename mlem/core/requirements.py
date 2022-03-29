@@ -153,6 +153,8 @@ class CustomRequirement(PythonRequirement):
         :param mod: module object
         :return: :class:`CustomRequirement`
         """
+        if mod.__file__ is None:
+            raise ValueError(f"{mod} does not have __file__ attr")
         is_package = mod.__file__.endswith("__init__.py")
         if is_package:
             pkg_dir = os.path.dirname(mod.__file__)

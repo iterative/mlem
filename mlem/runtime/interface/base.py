@@ -87,7 +87,7 @@ class Interface(ABC, MlemObject):
         :param method_name: name of the method
         :return: docstring
         """
-        return getattr(self.get_method_executor(method_name), "__doc__", None)
+        return getattr(self.get_method_executor(method_name), "__doc__", "")
 
     def get_method_args(self, method_name: str) -> Dict[str, Argument]:
         """

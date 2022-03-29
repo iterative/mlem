@@ -233,7 +233,7 @@ class _ModelUnpickler(_Unpickler):
         self.stack.pop()
         self.stack.append(self.refs[obj.ref])
 
-    dispatch[pickle.BUILD[0]] = load_build
+    dispatch[pickle.BUILD[0]] = load_build  # type: ignore
 
 
 class _ExternalRef:
