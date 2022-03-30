@@ -71,6 +71,6 @@ def test_pretty_print_remote(current_test_branch):
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["pretty_print", model_path + MLEM_EXT],
+        ["pprint", model_path + MLEM_EXT],
     )
     assert result.exit_code == 0, (result.output, result.exception)

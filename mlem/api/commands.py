@@ -5,7 +5,6 @@ import posixpath
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
-import click
 from fsspec import AbstractFileSystem
 
 from mlem.api.utils import (
@@ -34,6 +33,7 @@ from mlem.core.objects import (
 )
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
+from mlem.ui import boxify, color, echo
 from mlem.utils.root import mlem_repo_exists
 
 
@@ -130,20 +130,57 @@ def init(path: str = ".") -> None:
     path = posixpath.join(path, MLEM_DIR)
     fs, path = get_fs(path)
     if fs.exists(path):
-        click.echo(f"{path} already exists, no need to run `mlem init` again")
+        echo(f"{path} already exists, no need to run `mlem init` again")
     else:
         from mlem import analytics
 
+        echo(
+            color("███╗   ███╗", "#13ADC7")
+            + color("██╗     ", "#945DD5")
+            + color("███████╗", "#F46737")
+            + color("███╗   ███╗\n", "#7B61FF")
+            + color("████╗ ████║", "#13ADC7")
+            + color("██║     ", "#945DD5")
+            + color("██╔════╝", "#F46737")
+            + color("████╗ ████║\n", "#7B61FF")
+            + color("██╔████╔██║", "#13ADC7")
+            + color("██║     ", "#945DD5")
+            + color("█████╗  ", "#F46737")
+            + color("██╔████╔██║\n", "#7B61FF")
+            + color("██║╚██╔╝██║", "#13ADC7")
+            + color("██║     ", "#945DD5")
+            + color("██╔══╝  ", "#F46737")
+            + color("██║╚██╔╝██║\n", "#7B61FF")
+            + color("██║ ╚═╝ ██║", "#13ADC7")
+            + color("███████╗", "#945DD5")
+            + color("███████╗", "#F46737")
+            + color("██║ ╚═╝ ██║\n", "#7B61FF")
+            + color("╚═╝     ╚═╝", "#13ADC7")
+            + color("╚══════╝", "#945DD5")
+            + color("╚══════╝", "#F46737")
+            + color("╚═╝     ╚═╝\n", "#7B61FF")
+            + "🐶"
+        )
         if analytics.is_enabled():
-            click.echo(
-                "MLEM has been initialized.\n"
-                "MLEM has anonymous aggregate usage analytics enabled.\n"
-                "To opt out set MLEM_NO_ANALYTICS env to 'true' or add 'no_analytics: true' to .mlem/config.yaml\n"
+            echo(
+                boxify(
+                    "MLEM has enabled anonymous aggregate usage analytics.\n"
+                    "Read the analytics documentation (and how to opt-out) here:\n"
+                    "<https://mlem.ai/docs/user-guide/analytics>"
+                )
             )
         fs.makedirs(path)
         # some fs dont support creating empty dirs
         with fs.open(posixpath.join(path, CONFIG_FILE), "w"):
             pass
+        echo(
+            color("🐶What's next?\n------------", "yellow")
+            + """
+- Check out the documentation: <https://mlem.ai/docs>
+- Star us on GitHub: <https://github.com/iterative/mlem>
+- Get help and share ideas: <https://mlem.ai/chat>
+"""
+        )
 
 
 def link(
