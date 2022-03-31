@@ -1,11 +1,13 @@
 import logging
 from functools import wraps
-from typing import List, Optional, Type
+from typing import List, Optional, Tuple, Type
 
 import click
 import typer
+from click import HelpFormatter
 from pydantic import parse_obj_as
 from typer import Context, Option, Typer
+from typer.core import TyperCommand
 from yaml import safe_load
 
 from mlem import version
@@ -13,7 +15,7 @@ from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import MlemError
-from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, cli_echo, color, echo
+from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
 def mlem_callback(
@@ -38,6 +40,48 @@ def mlem_callback(
     ctx.obj = {"traceback": traceback}
 
 
+def _extract_examples(
+    help_str: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    if help_str is None:
+        return None, None
+    try:
+        examples = help_str.index("Examples:")
+    except ValueError:
+        return None, help_str
+    return help_str[examples + len("Examples:") + 1 :], help_str[:examples]
+
+
+class MlemFormatter(click.HelpFormatter):
+    def write_heading(self, heading: str) -> None:
+        super().write_heading(bold(heading))
+
+
+class MlemCommand(TyperCommand):
+    def __init__(
+        self, name: Optional[str], help: Optional[str] = None, **kwargs
+    ):
+        self.examples, help = _extract_examples(help)
+        super().__init__(name, help=help, **kwargs)
+
+    def get_help(self, ctx: Context) -> str:
+        """Formats the help into a string and returns it.
+
+        Calls :meth:`format_help` internally.
+        """
+        formatter = MlemFormatter(
+            width=ctx.terminal_width, max_width=ctx.max_content_width
+        )
+        self.format_help(ctx, formatter)
+        return formatter.getvalue().rstrip("\n")
+
+    def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None:
+        super().format_epilog(ctx, formatter)
+        if self.examples:
+            with formatter.section("Examples"):
+                formatter.write(self.examples)
+
+
 app = Typer(
     no_args_is_help=True, callback=mlem_callback, invoke_without_command=True
 )
@@ -50,7 +94,7 @@ def mlem_command(*args, parent=app, **kwargs):
         else:
             cmd_name = kwargs.get("name", f.__name__)
 
-        @parent.command(*args, **kwargs)
+        @parent.command(*args, **kwargs, cls=MlemCommand)
         @wraps(f)
         @click.pass_context
         def inner(ctx, *iargs, **ikwargs):

@@ -35,7 +35,15 @@ from mlem.core.objects import (
 )
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.ui import EMOJI_APPLY, EMOJI_LOAD, boxify, color, echo
+from mlem.ui import (
+    EMOJI_APPLY,
+    EMOJI_COPY,
+    EMOJI_LOAD,
+    boxify,
+    color,
+    echo,
+    no_echo,
+)
 from mlem.utils.root import mlem_repo_exists
 
 
@@ -127,6 +135,7 @@ def clone(
         follow_links=follow_links,
         load_value=load_value,
     )
+    echo(EMOJI_COPY + f"Cloning {meta.loc.uri}")
     return meta.clone(
         target, fs=target_fs, repo=target_repo, link=link, external=external
     )
@@ -294,35 +303,36 @@ def ls(
     mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
     repo, fs = loc.repo, loc.fs
     res = defaultdict(list)
-    for cls in type_filter:
-        root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
-        files = fs.glob(
-            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
-        )
-        for file in files:
-            meta = load_meta(
-                posixpath.relpath(file, repo),
-                repo=repo,
-                rev=rev,
-                follow_links=False,
-                fs=fs,
-                load_value=False,
+    with no_echo():
+        for cls in type_filter:
+            root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
+            files = fs.glob(
+                posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
             )
-            obj_type = cls
-            if isinstance(meta, MlemLink):
-                link_name = posixpath.relpath(file, root_path)[
-                    : -len(MLEM_EXT)
-                ]
-                is_auto_link = meta.path == link_name + MLEM_EXT
+            for file in files:
+                meta = load_meta(
+                    posixpath.relpath(file, repo),
+                    repo=repo,
+                    rev=rev,
+                    follow_links=False,
+                    fs=fs,
+                    load_value=False,
+                )
+                obj_type = cls
+                if isinstance(meta, MlemLink):
+                    link_name = posixpath.relpath(file, root_path)[
+                        : -len(MLEM_EXT)
+                    ]
+                    is_auto_link = meta.path == link_name + MLEM_EXT
 
-                obj_type = MlemMeta.__type_map__[meta.link_type]
-                if obj_type not in type_filter:
-                    continue
-                if is_auto_link:
-                    meta = meta.load_link()
-                elif not include_links:
-                    continue
-            res[obj_type].append(meta)
+                    obj_type = MlemMeta.__type_map__[meta.link_type]
+                    if obj_type not in type_filter:
+                        continue
+                    if is_auto_link:
+                        meta = meta.load_link()
+                    elif not include_links:
+                        continue
+                res[obj_type].append(meta)
     return res
 
 

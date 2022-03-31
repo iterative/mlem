@@ -54,7 +54,6 @@ def apply(
     """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
     Examples:
-
         Apply local mlem model to local mlem dataset
         $ mlem apply mymodel mydatset --method predict --output myprediction
 
@@ -62,10 +61,10 @@ def apply(
         $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
 
         Apply a version of remote model to a version of remote dataset
-        $ mlem apply models/logreg --repo https://github.com/iterative/example-mlem --rev main \
-                     data/test_x --data-repo https://github.com/iterative/example-mlem --data-rev main \
+        $ mlem apply models/logreg --repo https://github.com/iterative/example-mlem --rev main
+                     data/test_x --data-repo https://github.com/iterative/example-mlem --data-rev main
                      --method predict --output myprediction
-        """
+    """
     from mlem.api import apply
 
     if import_:

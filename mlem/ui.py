@@ -3,6 +3,7 @@ from typing import Callable, Optional
 
 from rich.align import Align
 from rich.console import Console
+from rich.style import Style
 from rich.table import Column, Table
 from rich.text import Text
 
@@ -64,8 +65,13 @@ def emoji(name):
     return Text(name + "")
 
 
+def bold(text):
+    return Style(bold=True).render(text)
+
+
 EMOJI_LOAD = emoji("⏳️")
 EMOJI_FAIL = emoji("❌")
 EMOJI_MLEM = emoji("🐶")
 EMOJI_SAVE = emoji("💾")
 EMOJI_APPLY = emoji("🍏")
+EMOJI_COPY = emoji("🐏")

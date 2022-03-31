@@ -218,7 +218,6 @@ class MlemMeta(MlemObject):
                 Forced to false if path points inside mlem dir
         """
         location, link = self._parse_dump_args(path, repo, fs, link, external)
-        echo(EMOJI_SAVE + f"Saving to {location.uri}")
         self._write_meta(location, link)
         return self
 
@@ -228,6 +227,7 @@ class MlemMeta(MlemObject):
         link: bool,
     ):
         """Write metadata to path in fs and possibly create link in mlem dir"""
+        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri}")
         location.fs.makedirs(
             posixpath.dirname(location.fullpath), exist_ok=True
         )
@@ -452,7 +452,6 @@ class _WithArtifacts(ABC, MlemMeta):
         external: Optional[bool] = None,
     ):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
-        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri}")
         try:
             if location.exists():
                 with no_echo():

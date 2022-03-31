@@ -1,6 +1,5 @@
 from typing import Optional
 
-import click
 from typer import Option
 
 from mlem.cli.main import (
@@ -25,10 +24,17 @@ def clone(
     external: Optional[bool] = option_external,
     link: Optional[bool] = option_link,
 ):
-    """Download MLEM object from {uri} and save it to {out}."""
+    """Download MLEM object from `uri` and save it to `target`
+
+    Examples:
+        Copy remote model to local directory
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main -t mymodel
+
+        Copy remote model to remote MLEM repo
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main -t mymodel --tr s3://mybucket/mymodel
+    """
     from mlem.api.commands import clone
 
-    click.echo(f"Downloading {uri} to {target}")
     clone(
         uri,
         target,

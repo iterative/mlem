@@ -1,9 +1,7 @@
 import os
 
 import pytest
-from typer.testing import CliRunner
 
-from mlem.cli import app
 from mlem.core.meta_io import MLEM_EXT
 from tests.conftest import MLEM_TEST_REPO, long
 
@@ -14,11 +12,9 @@ LOCAL_LS_EXPECTED_RESULT = """Models:
 
 
 @pytest.mark.parametrize("obj_type", [None, "all", "model"])
-def test_ls(filled_mlem_repo, obj_type):
-    runner = CliRunner()
+def test_ls(runner, filled_mlem_repo, obj_type):
     os.chdir(filled_mlem_repo)
     result = runner.invoke(
-        app,
         ["ls", obj_type] if obj_type else ["ls"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
@@ -37,10 +33,8 @@ Datasets:
 
 
 @pytest.mark.long
-def test_ls_remote(current_test_branch):
-    runner = CliRunner()
+def test_ls_remote(runner, current_test_branch):
     result = runner.invoke(
-        app,
         [
             "ls",
             "all",
@@ -53,24 +47,20 @@ def test_ls_remote(current_test_branch):
     assert result.output == REMOTE_LS_EXPECTED_RESULT
 
 
-def test_pretty_print(model_path_mlem_repo):
+def test_pretty_print(runner, model_path_mlem_repo):
     model_path, _ = model_path_mlem_repo
-    runner = CliRunner()
     result = runner.invoke(
-        app,
         ["pprint", model_path + MLEM_EXT],
     )
     assert result.exit_code == 0, (result.output, result.exception)
 
 
 @long
-def test_pretty_print_remote(current_test_branch):
+def test_pretty_print_remote(runner, current_test_branch):
     model_path = os.path.join(
         MLEM_TEST_REPO, "tree", current_test_branch, "simple/data/model"
     )
-    runner = CliRunner()
     result = runner.invoke(
-        app,
         ["pprint", model_path + MLEM_EXT],
     )
     assert result.exit_code == 0, (result.output, result.exception)
