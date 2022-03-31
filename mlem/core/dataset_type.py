@@ -359,6 +359,8 @@ class Dataset:
 
 
 class DatasetReader(MlemObject, ABC):
+    """"""
+
     class Config:
         type_root = True
 
@@ -371,6 +373,8 @@ class DatasetReader(MlemObject, ABC):
 
 
 class DatasetWriter(MlemObject):
+    """"""
+
     class Config:
         type_root = True
 

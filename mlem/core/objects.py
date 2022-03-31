@@ -65,6 +65,8 @@ T = TypeVar("T", bound="MlemMeta")
 
 
 class MlemMeta(MlemObject):
+    """"""
+
     class Config:
         exclude = {"location"}
         type_root = True
@@ -654,6 +656,8 @@ class DatasetMeta(_WithArtifacts):
 
 
 class DeployState(MlemObject):
+    """"""
+
     class Config:
         type_root = True
 
@@ -668,6 +672,8 @@ DT = TypeVar("DT", bound="DeployMeta")
 
 
 class TargetEnvMeta(MlemMeta, Generic[DT]):
+    """"""
+
     class Config:
         type_root = True
         type_field = "type"
@@ -708,6 +714,8 @@ class DeployStatus(Enum):
 
 
 class DeployMeta(MlemMeta):
+    """"""
+
     object_type: ClassVar = "deployment"
 
     class Config:

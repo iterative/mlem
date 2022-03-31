@@ -8,6 +8,8 @@ from mlem.runtime.interface.base import Interface
 
 
 class Server(MlemObject, ABC, WithRequirements):
+    """"""
+
     class Config:
         type_root = True
 

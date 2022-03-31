@@ -24,6 +24,8 @@ class InterfaceDescriptor(BaseModel):
 
 
 class Interface(ABC, MlemObject):
+    """"""
+
     class Config:
         type_root = True
 

@@ -63,6 +63,7 @@ class MlemObject(PolyModel):
     which should be serialized and deserialized
     """
 
+    abs_types: ClassVar[List[Type["MlemObject"]]] = []
     abs_name: ClassVar[str]
 
     @classmethod
@@ -76,6 +77,11 @@ class MlemObject(PolyModel):
         else:
             child_cls = load_impl_ext(cls.abs_name, type_name)
         return child_cls
+
+    def __init_subclass__(cls: Type["MlemObject"]):
+        super().__init_subclass__()
+        if cls.__is_root__:
+            MlemObject.abs_types.append(cls)
 
 
 def set_recursively(obj: dict, keys: List[str], value: Any):

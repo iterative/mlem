@@ -13,6 +13,7 @@ from mlem.cli.link import link
 from mlem.cli.main import app
 from mlem.cli.package import pack
 from mlem.cli.serve import serve
+from mlem.cli.types import list_types
 
 __all__ = [
     "apply",
@@ -28,6 +29,7 @@ __all__ = [
     "config",
     "create",
     "import_path",
+    "list_types",
 ]
 
 

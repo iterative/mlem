@@ -37,6 +37,8 @@ class ArtifactInfo(TypedDict):
 
 
 class Artifact(MlemObject, ABC):
+    """"""
+
     class Config:
         type_root = True
         default_type = "local"
@@ -166,6 +168,8 @@ class PlaceholderArtifact(Artifact):
 
 
 class Storage(MlemObject, ABC):
+    """"""
+
     class Config:
         type_root = True
 
