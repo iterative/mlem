@@ -14,7 +14,7 @@ from mlem.api.utils import (
     get_model_meta,
     parse_import_type_modifier,
 )
-from mlem.config import CONFIG_FILE
+from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
     MlemObjectNotFound,
@@ -39,6 +39,7 @@ from mlem.ui import (
     EMOJI_APPLY,
     EMOJI_COPY,
     EMOJI_LOAD,
+    EMOJI_MLEM,
     boxify,
     color,
     echo,
@@ -175,7 +176,6 @@ def init(path: str = ".") -> None:
             + color("╚══════╝", "#945DD5")
             + color("╚══════╝", "#F46737")
             + color("╚═╝     ╚═╝\n", "#7B61FF")
-            + "🐶"
         )
         if analytics.is_enabled():
             echo(
@@ -187,10 +187,10 @@ def init(path: str = ".") -> None:
             )
         fs.makedirs(path)
         # some fs dont support creating empty dirs
-        with fs.open(posixpath.join(path, CONFIG_FILE), "w"):
+        with fs.open(posixpath.join(path, CONFIG_FILE_NAME), "w"):
             pass
         echo(
-            color("🐶What's next?\n------------", "yellow")
+            color(EMOJI_MLEM + "What's next?\n------------", "yellow")
             + """
 - Check out the documentation: <https://mlem.ai/docs>
 - Star us on GitHub: <https://github.com/iterative/mlem>

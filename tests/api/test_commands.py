@@ -9,7 +9,7 @@ from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, link, load_meta
 from mlem.api.commands import import_object, init, ls
-from mlem.config import CONFIG_FILE
+from mlem.config import CONFIG_FILE_NAME
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
@@ -122,7 +122,7 @@ def test_ls_remote(current_test_branch):
 def test_init(tmpdir):
     init(str(tmpdir))
     assert os.path.isdir(tmpdir / MLEM_DIR)
-    assert os.path.isfile(tmpdir / MLEM_DIR / CONFIG_FILE)
+    assert os.path.isfile(tmpdir / MLEM_DIR / CONFIG_FILE_NAME)
 
 
 @long
@@ -130,7 +130,7 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("init")
     init(path)
     assert s3_storage_fs.isdir(f"{path}/{MLEM_DIR}")
-    assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE}")
+    assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE_NAME}")
 
 
 def _check_meta(meta, out_path, fs=None):

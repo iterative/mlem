@@ -108,7 +108,8 @@ def mlem_command(*args, parent=app, **kwargs):
                 error = str(type(e))
                 if ctx.obj["traceback"]:
                     raise
-                echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
+                with cli_echo():
+                    echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
             except Exception as e:
                 error = str(type(e))
