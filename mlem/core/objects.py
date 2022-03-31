@@ -57,6 +57,7 @@ from mlem.core.meta_io import (
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
+from mlem.ui import EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
 
@@ -169,6 +170,10 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
+        echo(
+            EMOJI_LOAD
+            + f"Loading {getattr(cls, 'object_type', 'meta')} from {location.uri}"
+        )
         with location.open() as f:
             payload = safe_load(f)
         res = parse_obj_as(MlemMeta, payload).bind(location)
@@ -213,6 +218,7 @@ class MlemMeta(MlemObject):
                 Forced to false if path points inside mlem dir
         """
         location, link = self._parse_dump_args(path, repo, fs, link, external)
+        echo(EMOJI_SAVE + f"Saving to {location.uri}")
         self._write_meta(location, link)
         return self
 
@@ -446,11 +452,14 @@ class _WithArtifacts(ABC, MlemMeta):
         external: Optional[bool] = None,
     ):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
+        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri}")
         try:
-            existing = MlemMeta.read(location, follow_links=False)
-            if isinstance(existing, _WithArtifacts):
-                for art in existing.relative_artifacts:
-                    art.remove()
+            if location.exists():
+                with no_echo():
+                    existing = MlemMeta.read(location, follow_links=False)
+                if isinstance(existing, _WithArtifacts):
+                    for art in existing.relative_artifacts:
+                        art.remove()
         except (MlemObjectNotFound, FileNotFoundError):
             pass
         self.artifacts = self.get_artifacts()

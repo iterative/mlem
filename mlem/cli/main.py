@@ -13,12 +13,9 @@ from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import MlemError
-from mlem.ui import EMOJI_FAIL, color, echo
-
-app = Typer()
+from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, cli_echo, color, echo
 
 
-@app.callback(invoke_without_command=True, no_args_is_help=True)
 def mlem_callback(
     ctx: Context,
     show_version: bool = Option(False, "--version"),
@@ -32,12 +29,18 @@ def mlem_callback(
     * Provider-agnostic deployment
     """
     if ctx.invoked_subcommand is None and show_version:
-        typer.echo(f"MLEM Version: {version.__version__}")
+        with cli_echo():
+            echo(EMOJI_MLEM + f"MLEM Version: {version.__version__}")
     if verbose:
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
     ctx.obj = {"traceback": traceback}
+
+
+app = Typer(
+    no_args_is_help=True, callback=mlem_callback, invoke_without_command=True
+)
 
 
 def mlem_command(*args, parent=app, **kwargs):
@@ -54,7 +57,8 @@ def mlem_command(*args, parent=app, **kwargs):
             res = {}
             error = None
             try:
-                res = f(*iargs, **ikwargs) or {}
+                with cli_echo():
+                    res = f(*iargs, **ikwargs) or {}
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
             except MlemError as e:
                 error = str(type(e))
@@ -75,25 +79,27 @@ def mlem_command(*args, parent=app, **kwargs):
     return decorator
 
 
-option_repo = Option(None, "-r", "--repo", help="Path to MLEM repo")
-option_rev = Option(None, "--rev", help="Repo revision to use.")
+option_repo = Option(
+    None, "-r", "--repo", help="Path to MLEM repo", show_default=True
+)
+option_rev = Option(None, "--rev", help="Repo revision to use")
 option_link = Option(
     False,
     "--link/--no-link",
-    help="Whether to create link for output in .mlem directory.",
+    help="Whether to create link for output in .mlem directory",
 )
 option_external = Option(
     False,
     "--external",
     "-e",
     is_flag=True,
-    help=f"Save object not in {MLEM_DIR}, but directly in repo.",
+    help=f"Save result not in {MLEM_DIR}, but directly in repo",
 )
 option_target_repo = Option(
     None,
     "--target-repo",
     "--tr",
-    help="Save object to mlem dir found in {target_repo} path.",
+    help="Repo to save target to",
 )
 
 

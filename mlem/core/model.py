@@ -25,6 +25,7 @@ from mlem.core.dataset_type import (
     DatasetType,
     UnspecifiedDatasetType,
 )
+from mlem.core.errors import MlemObjectNotLoadedError, WrongMethodError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
@@ -229,9 +230,11 @@ class ModelType(ABC, MlemObject, WithRequirements):
 
     def _check_method(self, name):
         if self.model is None:
-            raise ValueError(f"Model {self} is not loaded")
+            raise MlemObjectNotLoadedError(f"Model {self} is not loaded")
         if name not in self.methods:
-            raise ValueError(f"Model '{self}' doesn't expose method '{name}'")
+            raise WrongMethodError(
+                f"Model '{self}' doesn't expose method '{name}'"
+            )
 
     def _call_method(self, wrapped: str, *input_data):
         # with switch_curdir(self.curdir):
@@ -246,7 +249,7 @@ class ModelType(ABC, MlemObject, WithRequirements):
         If not provided, this model must have only one method and it will be used"""
         if method_name is None:
             if len(self.methods) > 1:
-                raise ValueError(
+                raise WrongMethodError(
                     f"Please provide one of {list(self.methods.keys())} as method name"
                 )
             method_name = next(iter(self.methods))

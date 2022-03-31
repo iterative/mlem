@@ -1,4 +1,3 @@
-import posixpath
 from typing import Optional
 
 import click
@@ -6,9 +5,9 @@ from typer import Argument, Option
 
 from mlem.api import import_object
 from mlem.cli.main import mlem_command, option_link, option_repo, option_rev
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
-from mlem.ui import EMOJI_IMPORT, echo
 
 
 @mlem_command("apply")
@@ -21,10 +20,10 @@ def apply(
         None, "-o", "--output", help="Where to store the outputs."
     ),
     method: str = Option(
-        None,
+        PREDICT_METHOD_NAME,
         "-m",
         "--method",
-        help="Which model method is to apply (if the model is instance of class).",
+        help="Which model method is to apply",
     ),
     data_repo: Optional[str] = Option(
         None,
@@ -70,25 +69,13 @@ def apply(
     from mlem.api import apply
 
     if import_:
-        echo(
-            EMOJI_IMPORT
-            + f"Importing data from {posixpath.join(data_repo or '', data)}"
-        )
         dataset = import_object(
             data, repo=data_repo, rev=data_rev, type_=import_type
         )
     else:
-        echo(
-            EMOJI_IMPORT
-            + f"Loading data from {posixpath.join(data_repo or '', data)}"
-        )
         dataset = load_meta(
             data, data_repo, data_rev, load_value=True, force_type=DatasetMeta
         )
-    echo(
-        EMOJI_IMPORT
-        + f"Loading model from {posixpath.join(repo or '', model)}"
-    )
     meta = load_meta(model, repo, rev, force_type=ModelMeta)
 
     result = apply(

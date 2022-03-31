@@ -1,3 +1,6 @@
+import contextlib
+from typing import Callable, Optional
+
 from rich.align import Align
 from rich.console import Console
 from rich.table import Column, Table
@@ -7,9 +10,35 @@ from mlem.config import CONFIG
 
 console = Console()
 
+_echo_func: Optional[Callable] = None
+
+
+@contextlib.contextmanager
+def set_echo(echo_func):
+    global _echo_func  # pylint: disable=global-statement
+    tmp = _echo_func
+    try:
+        _echo_func = echo_func
+        yield
+    finally:
+        _echo_func = tmp
+
+
+@contextlib.contextmanager
+def cli_echo():
+    with set_echo(console.print):
+        yield
+
+
+@contextlib.contextmanager
+def no_echo():
+    with set_echo(None):
+        yield
+
 
 def echo(message):
-    console.print(message)
+    if _echo_func is not None:
+        _echo_func(message)
 
 
 def boxify(text, col="red"):
@@ -32,8 +61,11 @@ def color(text, col):
 def emoji(name):
     if not CONFIG.EMOJIS:
         return Text("")
-    return Text(name + " ")
+    return Text(name + "")
 
 
-EMOJI_IMPORT = emoji("⤵️")
+EMOJI_LOAD = emoji("⏳️")
 EMOJI_FAIL = emoji("❌")
+EMOJI_MLEM = emoji("🐶")
+EMOJI_SAVE = emoji("💾")
+EMOJI_APPLY = emoji("🍏")

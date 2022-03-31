@@ -15,10 +15,12 @@ from mlem.api.utils import (
     parse_import_type_modifier,
 )
 from mlem.config import CONFIG_FILE
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
+    WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, UriResolver, get_fs
@@ -33,7 +35,7 @@ from mlem.core.objects import (
 )
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.ui import boxify, color, echo
+from mlem.ui import EMOJI_APPLY, EMOJI_LOAD, boxify, color, echo
 from mlem.utils.root import mlem_repo_exists
 
 
@@ -63,8 +65,13 @@ def apply(
     """
     model = get_model_meta(model)
     w = model.model_type
+    try:
+        resolved_method = w.resolve_method(method)
+    except WrongMethodError:
+        resolved_method = PREDICT_METHOD_NAME
+    echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
     res = [
-        w.call_method(w.resolve_method(method), get_dataset_value(part))
+        w.call_method(resolved_method, get_dataset_value(part))
         for part in data
     ]
     if output is None:
@@ -336,6 +343,7 @@ def import_object(
     optionally saving to the specified target location
     """
     loc = UriResolver.resolve(path, repo, rev, fs)
+    echo(EMOJI_LOAD + f"Importing data from {loc.uri}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
         if type_ not in ImportAnalyzer.types:

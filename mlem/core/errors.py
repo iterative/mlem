@@ -62,6 +62,14 @@ class MlemObjectNotSavedError(ValueError, MlemError):
     """Thrown if we can't do something before we save MLEM object"""
 
 
+class MlemObjectNotLoadedError(ValueError, MlemError):
+    """Thrown if model or dataset value is not loaded"""
+
+
+class WrongMethodError(ValueError, MlemError):
+    """Thrown if wrong method name for model is provided"""
+
+
 class MlemObjectNotFound(FileNotFoundError, MlemError):
     """Thrown if we can't find MLEM object"""
 
