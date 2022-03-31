@@ -50,6 +50,10 @@ class RevisionNotFound(MlemError):
         super().__init__(self.message)
 
 
+class FileNotFoundOnImportError(FileNotFoundError, MlemError):
+    """Thrown if import failed because nothing was found at provided location"""
+
+
 class InvalidArgumentError(ValueError, MlemError):
     """Thrown if arguments are invalid."""
 

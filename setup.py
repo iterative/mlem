@@ -56,6 +56,7 @@ install_requires = [
     "pydantic>=1.9.0,<2",
     "typer",
     "click<8.1",
+    "rich",
     "aiohttp<4",
     "aiohttp_swagger<2",
     "Jinja2>=3",

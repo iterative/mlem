@@ -13,6 +13,7 @@ from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import MlemError
+from mlem.ui import EMOJI_FAIL, color, echo
 
 app = Typer()
 
@@ -59,7 +60,7 @@ def mlem_command(*args, parent=app, **kwargs):
                 error = str(type(e))
                 if ctx.obj["traceback"]:
                     raise
-                typer.echo(str(e), err=True, color=typer.colors.RED)
+                echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
             except Exception as e:
                 error = str(type(e))

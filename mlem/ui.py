@@ -3,6 +3,8 @@ from rich.console import Console
 from rich.table import Column, Table
 from rich.text import Text
 
+from mlem.config import CONFIG
+
 console = Console()
 
 
@@ -25,3 +27,13 @@ def color(text, col):
     t = Text(text)
     t.stylize(col)
     return t
+
+
+def emoji(name):
+    if not CONFIG.EMOJIS:
+        return Text("")
+    return Text(name + " ")
+
+
+EMOJI_IMPORT = emoji("⤵️")
+EMOJI_FAIL = emoji("❌")

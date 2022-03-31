@@ -70,6 +70,7 @@ class MlemConfig(MlemConfigBase):
     TESTS: bool = False
     DEFAULT_STORAGE: Dict = {}
     DEFAULT_EXTERNAL: bool = False
+    EMOJIS: bool = True
 
     @property
     def default_storage(self):

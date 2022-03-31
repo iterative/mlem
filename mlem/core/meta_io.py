@@ -63,6 +63,9 @@ class Location(BaseModel):
         self.uri = self.uri[: -len(self.path)] + path
         self.path = path
 
+    def exists(self):
+        return self.fs.exists(self.fullpath)
+
 
 class UriResolver(ABC):
     impls: List[Type["UriResolver"]] = []

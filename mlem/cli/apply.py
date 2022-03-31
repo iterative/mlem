@@ -1,18 +1,20 @@
+import posixpath
 from typing import Optional
 
 import click
-from typer import Option
+from typer import Argument, Option
 
 from mlem.api import import_object
 from mlem.cli.main import mlem_command, option_link, option_repo, option_rev
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.ui import EMOJI_IMPORT, echo
 
 
 @mlem_command("apply")
 def apply(
-    model: str,
-    data: str,
+    model: str = Argument(..., help="Path to model object"),
+    data: str = Argument(..., help="Path to dataset object"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
@@ -45,22 +47,52 @@ def apply(
         None,
         "--import-type",
         "--it",
+        # TODO: change ImportHook to MlemObject to support ext machinery
+        help="Specify how to read data file for import",  # f"Available types: {list_implementations(ImportHook)}"
     ),
     link: bool = option_link,
 ):
-    """Apply a model to supplied data."""
+    """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+
+    Examples:
+
+        Apply local mlem model to local mlem dataset
+        $ mlem apply mymodel mydatset --method predict --output myprediction
+
+        Apply local mlem model to local data file
+        $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
+
+        Apply a version of remote model to a version of remote dataset
+        $ mlem apply models/logreg --repo https://github.com/iterative/example-mlem --rev main \
+                     data/test_x --data-repo https://github.com/iterative/example-mlem --data-rev main \
+                     --method predict --output myprediction
+        """
     from mlem.api import apply
 
     if import_:
+        echo(
+            EMOJI_IMPORT
+            + f"Importing data from {posixpath.join(data_repo or '', data)}"
+        )
         dataset = import_object(
             data, repo=data_repo, rev=data_rev, type_=import_type
         )
     else:
+        echo(
+            EMOJI_IMPORT
+            + f"Loading data from {posixpath.join(data_repo or '', data)}"
+        )
         dataset = load_meta(
             data, data_repo, data_rev, load_value=True, force_type=DatasetMeta
         )
+    echo(
+        EMOJI_IMPORT
+        + f"Loading model from {posixpath.join(repo or '', model)}"
+    )
+    meta = load_meta(model, repo, rev, force_type=ModelMeta)
+
     result = apply(
-        load_meta(model, repo, rev, force_type=ModelMeta),
+        meta,
         dataset,
         method=method,
         output=output,
