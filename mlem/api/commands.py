@@ -192,7 +192,8 @@ def init(path: str = ".") -> None:
         with fs.open(posixpath.join(path, CONFIG_FILE_NAME), "w"):
             pass
         echo(
-            color(EMOJI_MLEM + "What's next?\n------------", "yellow")
+            EMOJI_MLEM
+            + color("What's next?\n------------", "yellow")
             + """
 - Check out the documentation: <https://mlem.ai/docs>
 - Star us on GitHub: <https://github.com/iterative/mlem>
