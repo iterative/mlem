@@ -5,7 +5,7 @@ from typing import Optional
 from typer import Argument, Typer
 from yaml import safe_dump, safe_load
 
-from mlem.cli.main import app, mlem_command, option_repo
+from mlem.cli.main import MlemGroupSection, app, mlem_command, option_repo
 from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import MLEM_DIR
 from mlem.core.base import get_recursively, set_recursively, smart_split
@@ -14,7 +14,7 @@ from mlem.core.meta_io import get_fs
 from mlem.ui import EMOJI_OK, echo
 from mlem.utils.root import find_repo_root
 
-config = Typer(name="config")
+config = Typer(name="config", cls=MlemGroupSection("common"))
 app.add_typer(config)
 
 

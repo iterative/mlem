@@ -10,7 +10,7 @@ from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
 
 
-@mlem_command("apply")
+@mlem_command("apply", section="runtime")
 def apply(
     model: str = Argument(..., help="Path to model object"),
     data: str = Argument(..., help="Path to dataset object"),

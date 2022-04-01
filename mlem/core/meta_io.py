@@ -218,7 +218,7 @@ class GithubResolver(UriResolver):
             fs, _, (path,) = get_fs_token_paths(
                 path, protocol="github", storage_options=options
             )
-        except FileNotFoundError as e:
+        except FileNotFoundError as e:  # TODO catch HTTPError for wrong org/repo
             if options["sha"] is not None and not github_check_rev(
                 options["org"], options["repo"], options["sha"]
             ):

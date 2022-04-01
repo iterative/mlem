@@ -15,6 +15,16 @@ def list_types(
         help="Subtype to list implementations. List subtypes if not provided",
     )
 ):
+    """List MLEM types implementations available in current env.
+    If subtype is not provided, list ABCs
+
+    Examples:
+        List ABCs
+        $ mlem types
+
+        List available server implementations
+        $ mlem types server
+    """
     if subtype is None:
         for at in MlemObject.abs_types:
             echo(EMOJI_CASE + at.abs_name + ":")

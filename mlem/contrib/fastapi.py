@@ -11,6 +11,7 @@ from mlem.core.model import Signature
 from mlem.core.requirements import LibRequirementsMixin
 from mlem.runtime.interface.base import Interface
 from mlem.runtime.server.base import Server
+from mlem.ui import EMOJI_NAILS, echo
 
 
 def rename_recursively(model: Type[BaseModel], prefix: str):
@@ -43,7 +44,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         response_serializer = signature.returns.get_serializer()
         response_model = response_serializer.get_model()
         rename_recursively(response_model, method_name)
-        print(f"registring {method_name} with {payload_model} ")
+        echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
         def handler(model: payload_model):  # type: ignore[valid-type]
             kwargs = {}

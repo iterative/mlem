@@ -37,9 +37,9 @@ def no_echo():
         yield
 
 
-def echo(message):
+def echo(*message):
     if _echo_func is not None:
-        _echo_func(message)
+        _echo_func(*message)
 
 
 def boxify(text, col="red"):
@@ -77,3 +77,4 @@ EMOJI_SAVE = emoji("💾")
 EMOJI_APPLY = emoji("🍏")
 EMOJI_COPY = emoji("🐏")
 EMOJI_CASE = emoji("💼️")
+EMOJI_NAILS = emoji("💅")

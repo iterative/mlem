@@ -29,3 +29,13 @@ def test_commands_args_help(app_cli_cmd):
             if arg.help is None:
                 no_help.append(f"{cmd.name}:{arg.name}")
     assert len(no_help) == 0, f"{no_help} cli commnad args do not have help!"
+
+
+def test_commands_examples(app_cli_cmd):
+    no_examples = []
+    for cmd in app_cli_cmd:
+        if cmd.examples is None:
+            no_examples.append(cmd.name)
+    assert (
+        len(no_examples) == 0
+    ), f"{no_examples} cli commnads do not have examples!"

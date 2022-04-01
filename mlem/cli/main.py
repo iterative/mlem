@@ -1,13 +1,16 @@
 import logging
-from functools import wraps
+import typing as t
+from collections import defaultdict
+from functools import partial, wraps
+from gettext import gettext
 from typing import List, Optional, Tuple, Type
 
 import click
 import typer
-from click import HelpFormatter
+from click import Command, HelpFormatter
 from pydantic import parse_obj_as
 from typer import Context, Option, Typer
-from typer.core import TyperCommand
+from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
 from mlem import version
@@ -18,6 +21,65 @@ from mlem.core.errors import MlemError
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
+class MlemGroup(TyperGroup):
+    order = ["common", "object", "runtime", "other"]
+
+    def __init__(
+        self,
+        name: t.Optional[str] = None,
+        commands: t.Optional[
+            t.Union[t.Dict[str, Command], t.Sequence[Command]]
+        ] = None,
+        section: str = "other",
+        **attrs: t.Any,
+    ) -> None:
+        self.section = section
+        super().__init__(name, commands, **attrs)
+
+    def format_commands(self, ctx: Context, formatter: HelpFormatter) -> None:
+        commands = []
+        for subcommand in self.list_commands(ctx):
+            cmd = self.get_command(ctx, subcommand)
+            # What is this, the tool lied about a command.  Ignore it
+            if cmd is None:
+                continue
+            if cmd.hidden:
+                continue
+
+            commands.append((subcommand, cmd))
+
+        # allow for 3 times the default spacing
+        if len(commands) > 0:
+            limit = formatter.width - 6 - max(len(cmd[0]) for cmd in commands)
+
+            sections = defaultdict(list)
+            for subcommand, cmd in commands:
+                help = cmd.get_short_help_str(limit)
+                section = (
+                    cmd.section
+                    if isinstance(cmd, (MlemCommand, MlemGroup))
+                    else "other"
+                )
+                if section == "other1":
+                    print()
+                sections[section].append((subcommand, help))
+
+            for section in self.order:
+                if sections[section]:
+                    with formatter.section(
+                        gettext(f"{section} commands".capitalize())
+                    ):
+                        formatter.write_dl(sections[section])
+
+
+def MlemGroupSection(section):
+    return partial(MlemGroup, section=section)
+
+
+app = Typer(cls=MlemGroup)
+
+
+@app.callback(no_args_is_help=True, invoke_without_command=True)
 def mlem_callback(
     ctx: Context,
     show_version: bool = Option(False, "--version"),
@@ -59,8 +121,13 @@ class MlemFormatter(click.HelpFormatter):
 
 class MlemCommand(TyperCommand):
     def __init__(
-        self, name: Optional[str], help: Optional[str] = None, **kwargs
+        self,
+        name: Optional[str],
+        section: str = "other",
+        help: Optional[str] = None,
+        **kwargs,
     ):
+        self.section = section
         self.examples, help = _extract_examples(help)
         super().__init__(name, help=help, **kwargs)
 
@@ -82,19 +149,16 @@ class MlemCommand(TyperCommand):
                 formatter.write(self.examples)
 
 
-app = Typer(
-    no_args_is_help=True, callback=mlem_callback, invoke_without_command=True
-)
-
-
-def mlem_command(*args, parent=app, **kwargs):
+def mlem_command(*args, section="other", parent=app, **kwargs):
     def decorator(f):
         if len(args) > 0:
             cmd_name = args[0]
         else:
             cmd_name = kwargs.get("name", f.__name__)
 
-        @parent.command(*args, **kwargs, cls=MlemCommand)
+        @parent.command(
+            *args, **kwargs, cls=partial(MlemCommand, section=section)
+        )
         @wraps(f)
         @click.pass_context
         def inner(ctx, *iargs, **ikwargs):
@@ -125,9 +189,9 @@ def mlem_command(*args, parent=app, **kwargs):
 
 
 option_repo = Option(
-    None, "-r", "--repo", help="Path to MLEM repo", show_default=True
+    None, "-r", "--repo", help="Path to MLEM repo", show_default="none"  # type: ignore
 )
-option_rev = Option(None, "--rev", help="Repo revision to use")
+option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
 option_link = Option(
     False,
     "--link/--no-link",
@@ -145,7 +209,35 @@ option_target_repo = Option(
     "--target-repo",
     "--tr",
     help="Repo to save target to",
+    show_default="none",  # type: ignore
 )
+
+
+def option_load(type_: str = None):
+    type_ = type_ + " " if type_ is not None else ""
+    return Option(
+        None, "-l", "--load", help=f"File to load {type_}config from"
+    )
+
+
+def option_conf(type_: str = None):
+    type_ = f"for {type_} " if type_ is not None else ""
+    return Option(
+        None,
+        "-c",
+        "--conf",
+        help=f"Options {type_}in format `field.name=value`",
+    )
+
+
+def option_file_conf(type_: str = None):
+    type_ = f"for {type_} " if type_ is not None else ""
+    return Option(
+        None,
+        "-f",
+        "--file_conf",
+        help=f"File with options {type_}in format `field.name=path_to_config`",
+    )
 
 
 def config_arg(

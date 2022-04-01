@@ -1,6 +1,6 @@
 from typing import Optional
 
-from typer import Option
+from typer import Argument, Option
 
 from mlem.cli.main import (
     mlem_command,
@@ -10,15 +10,15 @@ from mlem.cli.main import (
 )
 
 
-@mlem_command("link")
+@mlem_command("link", section="object")
 def link(
-    source: str,
-    target: str,
+    source: str = Argument(..., help="URI to object you are crating link to"),
+    target: str = Argument(..., help="Path to save link object"),
     source_repo: Optional[str] = Option(
         None,
         "--source-repo",
         "--sr",
-        help="Load source from mlem repo found in {source_repo} path.",
+        help="Repo for source object",
     ),
     rev: Optional[str] = option_rev,
     target_repo: Optional[str] = option_target_repo,
@@ -36,7 +36,15 @@ def link(
         help="Which path to linked object to specify: absolute or relative.",
     ),
 ):
-    """Create link for {source} MLEM object and place it in {target}."""
+    """Create link for MLEM object
+
+    Examples:
+        Add alias to local object
+        $ mlem link my_model latest
+
+        Add remote object to your repo without copy
+        $ mlem link models/logreg --source-repo https://github.com/iteartive/example-mlem remote_model
+    """
     from mlem.api.commands import link
 
     link(

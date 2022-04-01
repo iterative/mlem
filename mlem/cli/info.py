@@ -6,13 +6,14 @@ from typer import Argument, Option
 from mlem.cli.main import mlem_command, option_repo, option_rev
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
+from mlem.ui import echo
 
 
 def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
     if len(objects) == 0:
         return
 
-    print(cls.object_type.capitalize() + "s:")
+    echo(cls.object_type.capitalize() + "s:")
     for meta in objects:
         if (
             isinstance(meta, MlemLink)
@@ -21,7 +22,7 @@ def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
             link = f"-> {meta.path[:-len(MLEM_EXT)]}"
         else:
             link = ""
-        print("", "-", meta.name, *[link] if link else [])
+        echo("", "-", meta.name, *[link] if link else [])
 
 
 TYPE_ALIASES = {
@@ -31,18 +32,20 @@ TYPE_ALIASES = {
 }
 
 
-@mlem_command()
+@mlem_command("list", section="common")
 def ls(
-    type_filter: str = Argument("all"),
+    type_filter: str = Argument("all", help="Type of objects to list"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     links: bool = Option(
-        True,
-        "+l/-l",
-        "--links/--no-links",
+        True, "+l/-l", "--links/--no-links", help="Include links"
     ),
 ):
-    """List MLEM objects of {type} in repo."""
+    """List MLEM objects of in repo
+
+    Examples:
+        $ mlem list --repo https://github.com/iterative/example-mlem
+    """
     from mlem.api.commands import ls
 
     if type_filter == "all":
@@ -58,9 +61,9 @@ def ls(
     return {"type_filter": type_filter}
 
 
-@mlem_command("pprint")
+@mlem_command("pprint", hidden=True)
 def pretty_print(
-    path: str,
+    path: str = Argument(..., help="Path to object"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     follow_links: bool = Option(
@@ -70,7 +73,17 @@ def pretty_print(
         help="If specified, follow the link to the actual object.",
     ),
 ):
-    """Print __str__ for the specified MLEM object."""
+    """Print specified MLEM object
+
+    Examples:
+        Print local object
+        $ mlem pprint mymodel
+
+        Print remote object
+        $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
+    """
     pprint(
-        load_meta(path, repo, rev, follow_links=follow_links, load_value=False)
+        load_meta(
+            path, repo, rev, follow_links=follow_links, load_value=False
+        ).dict()
     )

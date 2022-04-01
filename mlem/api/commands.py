@@ -147,7 +147,9 @@ def init(path: str = ".") -> None:
     path = posixpath.join(path, MLEM_DIR)
     fs, path = get_fs(path)
     if fs.exists(path):
-        echo(f"{path} already exists, no need to run `mlem init` again")
+        echo(
+            f"{posixpath.abspath(path)} already exists, no need to run `mlem init` again"
+        )
     else:
         from mlem import analytics
 
@@ -278,6 +280,7 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
+    echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 
 
@@ -353,7 +356,7 @@ def import_object(
     optionally saving to the specified target location
     """
     loc = UriResolver.resolve(path, repo, rev, fs)
-    echo(EMOJI_LOAD + f"Importing data from {loc.uri}")
+    echo(EMOJI_LOAD + f"Importing object from {loc.uri}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
         if type_ not in ImportAnalyzer.types:

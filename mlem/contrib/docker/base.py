@@ -22,6 +22,7 @@ from mlem.core.errors import DeploymentError
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
+from mlem.ui import echo
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +331,7 @@ class DockerImagePackager(DockerDirPackager):
     def build(self, context_dir: str) -> DockerImage:
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
+        echo(f"Building docker image {tag}...")
         with self.env.daemon.client() as client:
             if self.push:
                 self.image.registry.login(client)

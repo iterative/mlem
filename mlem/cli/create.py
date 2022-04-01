@@ -7,7 +7,7 @@ from ..core.objects import MlemMeta
 from .main import mlem_command, option_external, option_link, option_repo
 
 
-@mlem_command("create")
+@mlem_command("create", section="object")
 def create(
     object_type: str = Argument(..., help="Type of metafile to create"),
     subtype: str = Argument("", help="Subtype of MLEM object"),

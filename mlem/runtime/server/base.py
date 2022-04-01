@@ -13,6 +13,7 @@ class Server(MlemObject, ABC, WithRequirements):
     class Config:
         type_root = True
 
+    type: ClassVar[str]
     abs_name: ClassVar[str] = "server"
     env_vars: ClassVar[Optional[Dict[str, str]]] = None
     additional_source_files: ClassVar[Optional[List[str]]] = None

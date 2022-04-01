@@ -1,6 +1,6 @@
 from typing import Optional
 
-from typer import Option
+from typer import Argument, Option
 
 from mlem.cli.main import (
     mlem_command,
@@ -12,9 +12,9 @@ from mlem.cli.main import (
 )
 
 
-@mlem_command("clone")
+@mlem_command("clone", section="object")
 def clone(
-    uri: str,
+    uri: str = Argument(..., help="URI to object you want to clone"),
     target: str = Option(
         None, "-t", "--target", help="Path to store the downloaded object."
     ),
