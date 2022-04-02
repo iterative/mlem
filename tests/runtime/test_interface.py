@@ -14,7 +14,7 @@ class Container(DatasetType):
     type: ClassVar[str] = "test_container"
     field: int
 
-    def serialize(self, instance: Any) -> dict:
+    def serialize(self, instance: Any) -> dict:  # pylint: disable=W0613
         return {}
 
     def deserialize(self, obj: dict) -> Any:
