@@ -1,15 +1,17 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, Type
 
 import lightgbm as lgb
+from pydantic import BaseModel
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetHook,
+    DatasetSerializer,
     DatasetType,
     DatasetWriter,
 )
@@ -27,7 +29,9 @@ from mlem.core.requirements import (
 LGB_REQUIREMENT = UnixPackageRequirement(package_name="libgomp1")
 
 
-class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
+class LightGBMDatasetType(
+    DatasetType, DatasetSerializer, DatasetHook, IsInstanceHookMixin
+):
     """
     :class:`.DatasetType` implementation for `lightgbm.Dataset` type
 
@@ -40,10 +44,10 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
-        return self.inner.serialize(instance.data)
+        return self.inner.get_serializer().serialize(instance.data)
 
     def deserialize(self, obj: dict) -> Any:
-        v = self.inner.deserialize(obj)
+        v = self.inner.get_serializer().deserialize(obj)
         try:
             return lgb.Dataset(v, free_raw_data=False)
         except ValueError as e:
@@ -64,6 +68,9 @@ class LightGBMDatasetType(DatasetType, DatasetHook, IsInstanceHookMixin):
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:
         return LightGBMDatasetType(inner=DatasetAnalyzer.analyze(obj.data))
+
+    def get_model(self) -> Type[BaseModel]:
+        raise NotImplementedError
 
 
 class LightGBMModelIO(ModelIO):

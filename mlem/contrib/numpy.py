@@ -38,7 +38,9 @@ def np_type_from_string(string_repr) -> np.dtype:
         raise ValueError(f"Unknown numpy type {string_repr}") from e
 
 
-class NumpyNumberType(LibRequirementsMixin, DatasetType, DatasetHook):
+class NumpyNumberType(
+    LibRequirementsMixin, DatasetType, DatasetSerializer, DatasetHook
+):
     """
     :class:`.DatasetType` implementation for `numpy.number` objects which
     converts them to built-in Python numbers and vice versa.
@@ -77,8 +79,8 @@ class NumpyNumberType(LibRequirementsMixin, DatasetType, DatasetHook):
     def get_writer(self, **kwargs):
         raise NotImplementedError()
 
-    def get_model(self):
-        raise NotImplementedError()
+    def get_model(self) -> Type[BaseModel]:
+        raise NotImplementedError
 
 
 class NumpyNdarrayType(
