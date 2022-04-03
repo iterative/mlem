@@ -15,7 +15,7 @@ LOCAL_LS_EXPECTED_RESULT = """Models:
 def test_ls(runner, filled_mlem_repo, obj_type):
     os.chdir(filled_mlem_repo)
     result = runner.invoke(
-        ["ls", obj_type] if obj_type else ["ls"],
+        ["list", obj_type] if obj_type else ["list"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0, "Output is empty, but should not be"
@@ -36,7 +36,7 @@ Datasets:
 def test_ls_remote(runner, current_test_branch):
     result = runner.invoke(
         [
-            "ls",
+            "list",
             "all",
             "-r",
             f"{MLEM_TEST_REPO}/tree/{current_test_branch}/simple",
