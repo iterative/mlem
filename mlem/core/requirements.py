@@ -7,7 +7,6 @@ import glob
 import itertools
 import json
 import os
-import posixpath
 import sys
 import tempfile
 import zlib
@@ -33,6 +32,7 @@ from mlem.core.base import MlemObject
 from mlem.core.errors import HookNotFound
 from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
+from mlem.utils.path import make_posix
 
 MODULE_PACKAGE_MAPPING = {
     "sklearn": "scikit-learn",
@@ -161,11 +161,11 @@ class CustomRequirement(PythonRequirement):
             pkg_dir = os.path.dirname(mod.__file__)
             par = os.path.dirname(pkg_dir)
             sources = {
-                posixpath.relpath(p, par): Path(p).read_bytes()
+                make_posix(os.path.relpath(p, par)): Path(p).read_bytes()
                 for p in glob.glob(
                     os.path.join(pkg_dir, "**", "*"), recursive=True
                 )
-                if os.path.isfile(p)
+                if os.path.isfile(p) and "__pycache__" not in p
             }
             src = CustomRequirement.compress_package(sources)
         else:
