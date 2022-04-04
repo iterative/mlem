@@ -285,7 +285,7 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     server_obj.serve(interface)
 
 
-def ls(
+def ls(  # pylint: disable=too-many-locals
     repo: str = ".",
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
@@ -305,26 +305,28 @@ def ls(
     if loc.repo is None:
         raise MlemRootNotFound(repo, loc.fs)
     mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
-    repo, fs = loc.repo, loc.fs
     res = defaultdict(list)
     with no_echo():
+        root_path = posixpath.join(loc.repo, MLEM_DIR)
+        files = loc.fs.glob(
+            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
+        )
         for cls in type_filter:
-            root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
-            files = fs.glob(
-                posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
-            )
+            type_path = posixpath.join(root_path, cls.object_type)
             for file in files:
+                if not file.startswith(type_path):
+                    continue
                 meta = load_meta(
-                    posixpath.relpath(file, repo),
-                    repo=repo,
+                    posixpath.relpath(file, loc.repo),
+                    repo=loc.repo,
                     rev=rev,
                     follow_links=False,
-                    fs=fs,
+                    fs=loc.fs,
                     load_value=False,
                 )
                 obj_type = cls
                 if isinstance(meta, MlemLink):
-                    link_name = posixpath.relpath(file, root_path)[
+                    link_name = posixpath.relpath(file, type_path)[
                         : -len(MLEM_EXT)
                     ]
                     is_auto_link = meta.path == link_name + MLEM_EXT

@@ -191,6 +191,20 @@ def test_model_cloning(model_path):
         _check_cloned_model(cloned_model_meta, path)
 
 
+@pytest.mark.parametrize("external", [True, False])
+def test_model_cloning_to_repo(model_path, mlem_repo, external):
+    model = load_meta(model_path)
+    model.clone("model", repo=mlem_repo, link=False, external=external)
+    cloned_model_meta = load_meta("model", repo=mlem_repo, load_value=False)
+    if external:
+        path = os.path.join(mlem_repo, "model")
+    else:
+        path = os.path.join(
+            mlem_repo, MLEM_DIR, ModelMeta.object_type, "model"
+        )
+    _check_cloned_model(cloned_model_meta, path)
+
+
 @long
 def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)

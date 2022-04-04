@@ -112,6 +112,7 @@ class FSSpecArtifact(Artifact):
 
         if os.path.isdir(target_path):
             target_path = posixpath.join(target_path, posixpath.basename(path))
+        fs.makedirs(posixpath.dirname(target_path), exist_ok=True)
         fs.download(path, target_path)
         return LocalArtifact(uri=target_path, **self.info)
 
@@ -121,7 +122,6 @@ class FSSpecArtifact(Artifact):
 
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
-
         fs, path = get_fs(self.uri)
         with fs.open(posixpath.normpath(path)) as f:
             yield f

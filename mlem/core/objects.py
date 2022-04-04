@@ -57,7 +57,7 @@ from mlem.core.meta_io import (
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
-from mlem.ui import EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
+from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
 
@@ -379,7 +379,10 @@ class MlemLink(MlemMeta):
     ) -> MlemMeta:
         if force_type is not None and self.link_cls != force_type:
             raise WrongMetaType(self.link_type, force_type)
-        return self.link_cls.read(self.parse_link(), follow_links=follow_links)
+        link = self.parse_link()
+        echo(EMOJI_LINK + f"Loading link to {link.uri}")
+        with no_echo():
+            return self.link_cls.read(link, follow_links=follow_links)
 
     def parse_link(self) -> Location:
         from mlem.core.metadata import find_meta_location
@@ -445,6 +448,13 @@ class _WithArtifacts(ABC, MlemMeta):
             repo_path = repo_path[: -len(MLEM_EXT)]
         return repo_path
 
+    @property
+    def path(self):
+        path = self.location.fullpath
+        if path.endswith(MLEM_EXT):
+            path = path[: -len(MLEM_EXT)]
+        return path
+
     def dump(
         self,
         path: str,
@@ -496,12 +506,12 @@ class _WithArtifacts(ABC, MlemMeta):
         )
         for art in self.relative_artifacts:
             download = art.materialize(
-                new.name, new.loc.fs  # pylint: disable=protected-access
+                new.path, new.loc.fs  # pylint: disable=protected-access
             )
             if isinstance(download, FSSpecArtifact):
                 download = LocalArtifact(
                     uri=posixpath.relpath(
-                        download.uri, posixpath.dirname(make_posix(path))
+                        download.uri, posixpath.dirname(make_posix(new.path))
                     ),
                     size=download.size,
                     hash=download.hash,

@@ -99,7 +99,9 @@ class DVCArtifact(LocalArtifact):
                 root = find_dvc_repo_root(path)
                 # alternative caching impl
                 # Repo(root).pull(os.path.relpath(path, root))
-                with open(os.path.relpath(path, root), mode="rb") as f:
+                with open(
+                    os.path.relpath(path, root), repo=root, mode="rb"
+                ) as f:
                     yield f
                     return
         with fs.open(path) as f:

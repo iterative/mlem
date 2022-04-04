@@ -33,7 +33,7 @@ TYPE_ALIASES = {
 }
 
 
-@mlem_command("list", section="common")
+@mlem_command("list", aliases=["ls"], section="common")
 def ls(
     type_filter: str = Argument("all", help="Type of objects to list"),
     repo: Optional[str] = option_repo,

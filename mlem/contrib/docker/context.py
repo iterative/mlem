@@ -199,9 +199,9 @@ class DockerModelDirectory(BaseModel):
         with no_echo():
             path = os.path.join(self.path, self.model_name)
             if self.model.is_saved:
-                self.model.clone(path)
+                self.model.clone(path, external=True)
             else:
-                self.model.copy().dump(path)
+                self.model.copy().dump(path, external=True)
 
     def write_dockerfile(self, requirements: Requirements):
         echo("Generating dockerfile...")

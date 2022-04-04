@@ -7,8 +7,9 @@ from typing import List, Optional, Tuple, Type
 
 import click
 import typer
-from click import Command, HelpFormatter
-from pydantic import parse_obj_as
+from click import Abort, ClickException, Command, HelpFormatter
+from click.exceptions import Exit
+from pydantic import ValidationError, parse_obj_as
 from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
@@ -31,9 +32,11 @@ class MlemGroup(TyperGroup):
             t.Union[t.Dict[str, Command], t.Sequence[Command]]
         ] = None,
         section: str = "other",
+        aliases: List[str] = None,
         **attrs: t.Any,
     ) -> None:
         self.section = section
+        self.aliases = aliases
         super().__init__(name, commands, **attrs)
 
     def format_commands(self, ctx: Context, formatter: HelpFormatter) -> None:
@@ -55,14 +58,16 @@ class MlemGroup(TyperGroup):
             sections = defaultdict(list)
             for subcommand, cmd in commands:
                 help = cmd.get_short_help_str(limit)
-                section = (
-                    cmd.section
-                    if isinstance(cmd, (MlemCommand, MlemGroup))
-                    else "other"
-                )
-                if section == "other1":
-                    print()
-                sections[section].append((subcommand, help))
+                if isinstance(cmd, (MlemCommand, MlemGroup)):
+                    section = cmd.section
+                    aliases = (
+                        f" ({','.join(cmd.aliases)})" if cmd.aliases else ""
+                    )
+                else:
+                    section = "other"
+                    aliases = ""
+
+                sections[section].append((subcommand + aliases, help))
 
             for section in self.order:
                 if sections[section]:
@@ -71,26 +76,55 @@ class MlemGroup(TyperGroup):
                     ):
                         formatter.write_dl(sections[section])
 
+    def get_command(self, ctx: Context, cmd_name: str) -> t.Optional[Command]:
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+        for name in self.list_commands(ctx):
+            cmd = self.get_command(ctx, name)
+            if (
+                isinstance(cmd, (MlemCommand, MlemGroup))
+                and cmd.aliases
+                and cmd_name in cmd.aliases
+            ):
+                return cmd
+        return None
+
 
 def MlemGroupSection(section):
     return partial(MlemGroup, section=section)
 
 
-app = Typer(cls=MlemGroup)
+app = Typer(
+    cls=MlemGroup, context_settings={"help_option_names": ["-h", "--help"]}
+)
 
 
 @app.callback(no_args_is_help=True, invoke_without_command=True)
 def mlem_callback(
     ctx: Context,
-    show_version: bool = Option(False, "--version"),
-    verbose: bool = Option(False, "--verbose", "-v"),
-    traceback: bool = Option(False, "--traceback", "--tb"),
+    show_version: bool = Option(
+        False, "--version", help="Show version and exit"
+    ),
+    verbose: bool = Option(
+        False, "--verbose", "-v", help="Print debug messages"
+    ),
+    traceback: bool = Option(False, "--traceback", "--tb", hidden=True),
 ):
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
     * Serialize any model trained in Python into ready-to-deploy format
     * Model lifecycle management using Git and GitOps principles
     * Provider-agnostic deployment
+
+    Examples:
+        $ mlem init
+        $ mlem list --repo https://github.com/iterative/example-mlem
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main -t logreg
+        $ mlem link logreg latest
+        $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
+        $ mlem serve latest fastapi -c port=8001
+        $ mlem pack latest build/ docker_dir -c server.type=fastapi
     """
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():
@@ -124,10 +158,12 @@ class MlemCommand(TyperCommand):
         self,
         name: Optional[str],
         section: str = "other",
+        aliases: List[str] = None,
         help: Optional[str] = None,
         **kwargs,
     ):
         self.section = section
+        self.aliases = aliases
         self.examples, help = _extract_examples(help)
         super().__init__(name, help=help, **kwargs)
 
@@ -149,7 +185,7 @@ class MlemCommand(TyperCommand):
                 formatter.write(self.examples)
 
 
-def mlem_command(*args, section="other", parent=app, **kwargs):
+def mlem_command(*args, section="other", aliases=None, parent=app, **kwargs):
     def decorator(f):
         if len(args) > 0:
             cmd_name = args[0]
@@ -157,7 +193,9 @@ def mlem_command(*args, section="other", parent=app, **kwargs):
             cmd_name = kwargs.get("name", f.__name__)
 
         @parent.command(
-            *args, **kwargs, cls=partial(MlemCommand, section=section)
+            *args,
+            **kwargs,
+            cls=partial(MlemCommand, section=section, aliases=aliases),
         )
         @wraps(f)
         @click.pass_context
@@ -168,6 +206,9 @@ def mlem_command(*args, section="other", parent=app, **kwargs):
                 with cli_echo():
                     res = f(*iargs, **ikwargs) or {}
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
+            except (ClickException, Exit, Abort) as e:
+                error = str(type(e))
+                raise
             except MlemError as e:
                 error = str(type(e))
                 if ctx.obj["traceback"]:
@@ -175,11 +216,20 @@ def mlem_command(*args, section="other", parent=app, **kwargs):
                 with cli_echo():
                     echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 error = str(type(e))
                 if ctx.obj["traceback"]:
                     raise
-                raise e
+                with cli_echo():
+                    echo(
+                        EMOJI_FAIL
+                        + color(
+                            "Unexpected error: " + str(e), col=typer.colors.RED
+                        )
+                    )
+                    echo(
+                        "Please report it here: <https://github.com/iterative/mlem/issues>"
+                    )
             finally:
                 send_cli_call(cmd_name, error_msg=error, **res)
 
@@ -252,5 +302,14 @@ def config_arg(
         with open(load, "r", encoding="utf8") as of:
             obj = parse_obj_as(model, safe_load(of))
     else:
-        obj = build_mlem_object(model, subtype, conf, file_conf)
+        if not subtype:
+            raise typer.BadParameter(
+                f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
+            )
+        try:
+            obj = build_mlem_object(model, subtype, conf, file_conf)
+        except ValidationError as e:
+            raise typer.BadParameter(
+                f"Error on constructing {subtype} {model.__name__}: {e}"
+            ) from e
     return obj
