@@ -1,9 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, ClassVar, Optional
+from typing import Callable, ClassVar
 
 import requests
-from pydantic import BaseModel, parse_obj_as, validator
+from pydantic import BaseModel, parse_obj_as
 
 from mlem.core.base import MlemObject
 from mlem.core.model import Signature
@@ -84,13 +84,10 @@ class _MethodCall(BaseModel):
 class HTTPClient(BaseClient):
     host: str = "localhost"
     port: int = 9000
-    base_url: Optional[str] = None
 
-    @validator("base_url", always=True)
-    def construct_base_url(
-        cls, v, values
-    ):  # noqa: B902, pylint: disable=E0213
-        return v or f'http://{values["host"]}:{values["port"]}'
+    @property
+    def base_url(self):
+        return f"http://{self.host}:{self.port}"
 
     def _interface_factory(self) -> InterfaceDescriptor:
         resp = requests.get(f"{self.base_url}/interface.json")
