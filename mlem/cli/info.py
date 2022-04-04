@@ -1,12 +1,13 @@
+from json import dumps
 from pprint import pprint
 from typing import List, Optional, Type
 
 from typer import Argument, Option
 
-from mlem.cli.main import mlem_command, option_repo, option_rev
+from mlem.cli.main import mlem_command, option_json, option_repo, option_rev
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
-from mlem.ui import echo
+from mlem.ui import echo, set_echo
 
 
 def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
@@ -40,6 +41,7 @@ def ls(
     links: bool = Option(
         True, "+l/-l", "--links/--no-links", help="Include links"
     ),
+    json: bool = option_json,
 ):
     """List MLEM objects of in repo
 
@@ -56,8 +58,18 @@ def ls(
         ]
 
     objects = ls(repo or ".", rev=rev, type_filter=types, include_links=links)
-    for cls, objs in objects.items():
-        _print_objects_of_type(cls, objs)
+    if json:
+        print(
+            dumps(
+                {
+                    cls.object_type: [obj.dict() for obj in objs]
+                    for cls, objs in objects.items()
+                }
+            )
+        )
+    else:
+        for cls, objs in objects.items():
+            _print_objects_of_type(cls, objs)
     return {"type_filter": type_filter}
 
 
@@ -72,6 +84,7 @@ def pretty_print(
         "--follow-links",
         help="If specified, follow the link to the actual object.",
     ),
+    json: bool = option_json,
 ):
     """Print specified MLEM object
 
@@ -82,8 +95,11 @@ def pretty_print(
         Print remote object
         $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
     """
-    pprint(
-        load_meta(
+    with set_echo(None if json else ...):
+        meta = load_meta(
             path, repo, rev, follow_links=follow_links, load_value=False
         ).dict()
-    )
+    if json:
+        print(dumps(meta))
+    else:
+        pprint(meta)

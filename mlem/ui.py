@@ -15,8 +15,11 @@ _echo_func: Optional[Callable] = None
 
 
 @contextlib.contextmanager
-def set_echo(echo_func):
+def set_echo(echo_func=...):
     global _echo_func  # pylint: disable=global-statement
+    if echo_func is ...:
+        yield
+        return
     tmp = _echo_func
     try:
         _echo_func = echo_func

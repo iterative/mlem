@@ -211,6 +211,7 @@ option_target_repo = Option(
     help="Repo to save target to",
     show_default="none",  # type: ignore
 )
+option_json = Option(False, "--json", help="Output as json")
 
 
 def option_load(type_: str = None):
