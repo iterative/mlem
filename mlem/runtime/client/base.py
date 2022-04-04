@@ -87,7 +87,7 @@ class HTTPClient(BaseClient):
     base_url: Optional[str] = None
 
     @validator("base_url", always=True)
-    def construct_base_url(cls, v, values):  # noqa: B902
+    def construct_base_url(cls, v, values):  # noqa: B902, pylint: disable=E0213
         return v or f'http://{values["host"]}:{values["port"]}'
 
     def _interface_factory(self) -> InterfaceDescriptor:
