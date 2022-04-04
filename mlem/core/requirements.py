@@ -7,6 +7,7 @@ import glob
 import itertools
 import json
 import os
+import posixpath
 import sys
 import tempfile
 import zlib
@@ -160,7 +161,7 @@ class CustomRequirement(PythonRequirement):
             pkg_dir = os.path.dirname(mod.__file__)
             par = os.path.dirname(pkg_dir)
             sources = {
-                os.path.relpath(p, par): Path(p).read_bytes()
+                posixpath.relpath(p, par): Path(p).read_bytes()
                 for p in glob.glob(
                     os.path.join(pkg_dir, "**", "*"), recursive=True
                 )

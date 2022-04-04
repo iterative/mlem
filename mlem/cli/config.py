@@ -1,5 +1,4 @@
 import posixpath
-from pathlib import Path
 from typing import Optional
 
 from typer import Argument, Typer
@@ -39,7 +38,7 @@ def config_set(
     with fs.open(posixpath.join(repo, MLEM_DIR, CONFIG_FILE_NAME)) as f:
         new_conf = safe_load(f) or {}
     set_recursively(new_conf, smart_split(name, "."), value)
-    config_file = Path(repo) / MLEM_DIR / CONFIG_FILE_NAME
+    config_file = posixpath.join(repo, MLEM_DIR, CONFIG_FILE_NAME)
     with fs.open(config_file, "w", encoding="utf8") as f:
         safe_dump(
             new_conf,

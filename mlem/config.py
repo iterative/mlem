@@ -1,7 +1,7 @@
 """
 Configuration management for MLEM
 """
-from pathlib import Path
+import posixpath
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -39,7 +39,7 @@ def mlem_config_settings_source(section: Optional[str]):
         repo = find_repo_root(config_path, fs=fs, raise_on_missing=False)
         if repo is None:
             return {}
-        config_file = Path(repo) / MLEM_DIR / CONFIG_FILE_NAME
+        config_file = posixpath.join(repo, MLEM_DIR, CONFIG_FILE_NAME)
         if not fs.exists(config_file):
             return {}
         with fs.open(config_file, encoding=encoding) as f:
