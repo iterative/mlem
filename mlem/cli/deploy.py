@@ -13,7 +13,7 @@ from mlem.cli.main import (
 from mlem.core.base import parse_string_conf
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DeployMeta
-from mlem.ui import echo
+from mlem.ui import echo, no_echo
 
 deploy = Typer(
     name="deploy", help="Manage deployments", cls=MlemGroupSection("runtime")
@@ -90,5 +90,7 @@ def deploy_status(
     Examples:
         $ mlem deploy status service_name
     """
-    deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
-    echo(deploy_meta.get_status())
+    with no_echo():
+        deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+        status = deploy_meta.get_status()
+    echo(status)

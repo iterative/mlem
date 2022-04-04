@@ -704,7 +704,7 @@ class TargetEnvMeta(MlemMeta, Generic[DT]):
             )
 
 
-class DeployStatus(Enum):
+class DeployStatus(str, Enum):
     UNKNOWN = "unknown"
     NOT_DEPLOYED = "not_deployed"
     STARTING = "starting"
