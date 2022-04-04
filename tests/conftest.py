@@ -184,6 +184,11 @@ def model_meta_saved_single(tmp_path_factory):
 
 
 @pytest.fixture
+def model_single_path(model_meta_saved_single):
+    return model_meta_saved_single.loc.uri
+
+
+@pytest.fixture
 def mlem_repo(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
