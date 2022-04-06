@@ -22,7 +22,64 @@ from mlem.core.errors import MlemError
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
-class MlemGroup(TyperGroup):
+class MlemFormatter(click.HelpFormatter):
+    def write_heading(self, heading: str) -> None:
+        super().write_heading(bold(heading))
+
+
+class MlemMixin(Command):
+    def __init__(
+        self,
+        name: t.Optional[str],
+        examples: Optional[str],
+        section: str = "other",
+        aliases: List[str] = None,
+        **kwargs,
+    ):
+        super().__init__(name, **kwargs)
+        self.examples = examples
+        self.section = section
+        self.aliases = aliases
+
+    def get_help(self, ctx: Context) -> str:
+        """Formats the help into a string and returns it.
+
+        Calls :meth:`format_help` internally.
+        """
+        formatter = MlemFormatter(
+            width=ctx.terminal_width, max_width=ctx.max_content_width
+        )
+        self.format_help(ctx, formatter)
+        return formatter.getvalue().rstrip("\n")
+
+    def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None:
+        super().format_epilog(ctx, formatter)
+        if self.examples:
+            with formatter.section("Examples"):
+                formatter.write(self.examples)
+
+
+class MlemCommand(TyperCommand, MlemMixin):
+    def __init__(
+        self,
+        name: Optional[str],
+        section: str = "other",
+        aliases: List[str] = None,
+        help: Optional[str] = None,
+        **kwargs,
+    ):
+        examples, help = _extract_examples(help)
+        super().__init__(
+            name,
+            section=section,
+            aliases=aliases,
+            examples=examples,
+            help=help,
+            **kwargs,
+        )
+
+
+class MlemGroup(TyperGroup, MlemMixin):
     order = ["common", "object", "runtime", "other"]
 
     def __init__(
@@ -33,11 +90,19 @@ class MlemGroup(TyperGroup):
         ] = None,
         section: str = "other",
         aliases: List[str] = None,
+        help: str = None,
         **attrs: t.Any,
     ) -> None:
-        self.section = section
-        self.aliases = aliases
-        super().__init__(name, commands, **attrs)
+        examples, help = _extract_examples(help)
+        super().__init__(
+            name,
+            help=help,
+            examples=examples,
+            aliases=aliases,
+            section=section,
+            commands=commands,
+            **attrs,
+        )
 
     def format_commands(self, ctx: Context, formatter: HelpFormatter) -> None:
         commands = []
@@ -146,43 +211,6 @@ def _extract_examples(
     except ValueError:
         return None, help_str
     return help_str[examples + len("Examples:") + 1 :], help_str[:examples]
-
-
-class MlemFormatter(click.HelpFormatter):
-    def write_heading(self, heading: str) -> None:
-        super().write_heading(bold(heading))
-
-
-class MlemCommand(TyperCommand):
-    def __init__(
-        self,
-        name: Optional[str],
-        section: str = "other",
-        aliases: List[str] = None,
-        help: Optional[str] = None,
-        **kwargs,
-    ):
-        self.section = section
-        self.aliases = aliases
-        self.examples, help = _extract_examples(help)
-        super().__init__(name, help=help, **kwargs)
-
-    def get_help(self, ctx: Context) -> str:
-        """Formats the help into a string and returns it.
-
-        Calls :meth:`format_help` internally.
-        """
-        formatter = MlemFormatter(
-            width=ctx.terminal_width, max_width=ctx.max_content_width
-        )
-        self.format_help(ctx, formatter)
-        return formatter.getvalue().rstrip("\n")
-
-    def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None:
-        super().format_epilog(ctx, formatter)
-        if self.examples:
-            with formatter.section("Examples"):
-                formatter.write(self.examples)
 
 
 def mlem_command(*args, section="other", aliases=None, parent=app, **kwargs):
