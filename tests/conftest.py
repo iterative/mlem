@@ -194,8 +194,8 @@ def complex_model_meta_saved_single(tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), name)
     p = Path(path)
     p.mkdir(exist_ok=True)
-    (p / "file1").write_text("data1")
-    (p / "file2").write_text("data2")
+    (p / "file1").write_text("data1", encoding="utf8")
+    (p / "file2").write_text("data2", encoding="utf8")
     model = ModelMeta(
         artifacts={
             "file1": LocalArtifact(
