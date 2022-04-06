@@ -24,7 +24,7 @@ from mlem.core.dataset_type import (
     DatasetType,
     DatasetWriter,
 )
-from mlem.core.meta_io import get_fs
+from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import DatasetMeta, ModelMeta
@@ -329,6 +329,10 @@ def s3_tmp_path(github_matrix_os, github_matrix_python):
     for p in paths:
         try:
             fs.delete(p, recursive=True)
+        except FileNotFoundError:
+            pass
+        try:
+            fs.delete(p + MLEM_EXT)
         except FileNotFoundError:
             pass
 

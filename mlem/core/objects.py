@@ -26,7 +26,7 @@ from typing import (
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import parse_obj_as, validator
+from pydantic import ValidationError, parse_obj_as, validator
 from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
@@ -477,7 +477,7 @@ class _WithArtifacts(ABC, MlemMeta):
                 if isinstance(existing, _WithArtifacts):
                     for art in existing.relative_artifacts.values():
                         art.remove()
-        except (MlemObjectNotFound, FileNotFoundError):
+        except (MlemObjectNotFound, FileNotFoundError, ValidationError):
             pass
         self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
