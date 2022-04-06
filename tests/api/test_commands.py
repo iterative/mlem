@@ -14,6 +14,7 @@ from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
+from mlem.core.model import ModelIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -173,7 +174,7 @@ def _check_load_artifact(
 ):
     assert isinstance(meta, ModelMeta)
     assert len(meta.artifacts) == 1
-    art = meta.artifacts[0]
+    art = meta.artifacts[ModelIO.art_name]
     if is_abs:
         assert meta.loc.fs.exists(art.uri)
     else:

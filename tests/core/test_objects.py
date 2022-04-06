@@ -168,7 +168,7 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
     assert isinstance(cloned_model_meta, ModelMeta)
     assert cloned_model_meta.artifacts is not None
     assert len(cloned_model_meta.artifacts) == 1
-    art = cloned_model_meta.artifacts[0]
+    art = cloned_model_meta.artifacts[cloned_model_meta.model_type.io.art_name]
     assert isinstance(art, LocalArtifact)
     assert art.hash != ""
     assert art.size > 0
@@ -182,8 +182,30 @@ def _check_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
     cloned_model.predict(X)
 
 
-def test_model_cloning(model_path):
-    model = load_meta(model_path)
+def _check_complex_cloned_model(cloned_model_meta: MlemMeta, path, fs=None):
+    if fs is None:
+        fs = LocalFileSystem()
+    assert isinstance(cloned_model_meta, ModelMeta)
+    assert cloned_model_meta.artifacts is not None
+    assert len(cloned_model_meta.artifacts) == 2
+    for name, art in cloned_model_meta.artifacts.items():
+        assert isinstance(art, LocalArtifact)
+        assert art.hash == ""
+        assert art.size == 1
+        assert art.uri == posixpath.join(
+            posixpath.basename(cloned_model_meta.name), name
+        )
+        assert not os.path.isabs(art.uri)
+        filepath = posixpath.join(path, name)
+        assert fs.isfile(filepath)
+        assert (
+            fs.open(filepath).read().decode("utf8") == f"data{int(name[-1])}"
+        )
+    assert fs.isdir(path)
+
+
+def test_model_cloning(model_single_path):
+    model = load_meta(model_single_path)
     with tempfile.TemporaryDirectory() as path:
         path = posixpath.join(path, "cloned")
         model.clone(path, link=False)
@@ -191,9 +213,18 @@ def test_model_cloning(model_path):
         _check_cloned_model(cloned_model_meta, path)
 
 
+def test_complex_model_cloning(complex_model_single_path):
+    model = load_meta(complex_model_single_path)
+    with tempfile.TemporaryDirectory() as path:
+        path = posixpath.join(path, "cloned")
+        model.clone(path, link=False)
+        cloned_model_meta = load_meta(path, load_value=False)
+        _check_complex_cloned_model(cloned_model_meta, path)
+
+
 @pytest.mark.parametrize("external", [True, False])
-def test_model_cloning_to_repo(model_path, mlem_repo, external):
-    model = load_meta(model_path)
+def test_model_cloning_to_repo(model_single_path, mlem_repo, external):
+    model = load_meta(model_single_path)
     model.clone("model", repo=mlem_repo, link=False, external=external)
     cloned_model_meta = load_meta("model", repo=mlem_repo, load_value=False)
     if external:
@@ -376,10 +407,10 @@ class MockModelIO(ModelIO):
         path = posixpath.join(path, self.filename)
         with storage.open(path) as (f, art):
             pickle.dump(model, f)
-            return [art]
+            return {self.filename: art}
 
     def load(self, artifacts: Artifacts):
-        with artifacts[0].open() as f:
+        with artifacts[self.filename].open() as f:
             return pickle.load(f)
 
 

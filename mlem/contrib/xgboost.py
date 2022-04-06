@@ -120,18 +120,18 @@ class XGBoostModelIO(ModelIO):
             local_path = os.path.join(f, self.model_file_name)
             model.save_model(local_path)
             remote_path = posixpath.join(path, self.model_file_name)
-            return [storage.upload(local_path, remote_path)]
+            return {self.art_name: storage.upload(local_path, remote_path)}
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
             raise ValueError(
-                f"Invalid artifacts: should be one {self.model_file_name} file"
+                f"Invalid artifacts: should be one {self.art_name} file"
             )
 
         model = xgboost.Booster()
         with tempfile.TemporaryDirectory(prefix="mlem_xgboost_load") as f:
             lpath = os.path.join(f, self.model_file_name)
-            artifacts[0].materialize(lpath)
+            artifacts[self.art_name].materialize(lpath)
             model.load_model(lpath)
         return model
 

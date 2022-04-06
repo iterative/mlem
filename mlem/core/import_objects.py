@@ -7,6 +7,7 @@ from mlem.core.errors import FileNotFoundOnImportError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
+from mlem.core.model import ModelIO
 from mlem.core.objects import MlemMeta
 
 
@@ -72,11 +73,11 @@ class PickleImportHook(ExtImportHook):
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)
         if not copy_data:
-            meta.artifacts = [
-                PlaceholderArtifact(
+            meta.artifacts = {
+                ModelIO.art_name: PlaceholderArtifact(
                     location=obj,
                     uri=obj.uri,
                     **get_file_info(obj.fullpath, obj.fs),
                 )
-            ]
+            }
         return meta

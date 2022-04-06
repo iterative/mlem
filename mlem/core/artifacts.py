@@ -8,16 +8,7 @@ import os
 import posixpath
 import tempfile
 from abc import ABC, abstractmethod
-from typing import (
-    IO,
-    ClassVar,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    overload,
-)
+from typing import IO, ClassVar, Dict, Iterator, Optional, Tuple, overload
 from urllib.parse import urlparse
 
 import fsspec
@@ -330,4 +321,4 @@ def get_local_file_info(path: str):
 
 LOCAL_STORAGE = LocalStorage(uri="")
 
-Artifacts = List[Artifact]
+Artifacts = Dict[str, Artifact]

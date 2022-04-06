@@ -33,7 +33,6 @@ from yaml import safe_dump, safe_load
 from mlem.config import CONFIG
 from mlem.core.artifacts import (
     Artifacts,
-    FSSpecArtifact,
     FSSpecStorage,
     LocalArtifact,
     PlaceholderArtifact,
@@ -449,6 +448,13 @@ class _WithArtifacts(ABC, MlemMeta):
         return repo_path
 
     @property
+    def basename(self):
+        res = posixpath.basename(self.location.path)
+        if res.endswith(MLEM_EXT):
+            res = res[: -len(MLEM_EXT)]
+        return res
+
+    @property
     def path(self):
         path = self.location.fullpath
         if path.endswith(MLEM_EXT):
@@ -469,7 +475,7 @@ class _WithArtifacts(ABC, MlemMeta):
                 with no_echo():
                     existing = MlemMeta.read(location, follow_links=False)
                 if isinstance(existing, _WithArtifacts):
-                    for art in existing.relative_artifacts:
+                    for art in existing.relative_artifacts.values():
                         art.remove()
         except (MlemObjectNotFound, FileNotFoundError):
             pass
@@ -497,26 +503,25 @@ class _WithArtifacts(ABC, MlemMeta):
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         # clone is just dump with copying artifacts
         new: "_WithArtifacts" = self.deepcopy()
-        new.artifacts = []
+        new.artifacts = {}
         (
             location,
             link,
         ) = new._parse_dump_args(  # pylint: disable=protected-access
             path, repo, fs, link, external
         )
-        for art in self.relative_artifacts:
-            download = art.materialize(
-                new.path, new.loc.fs  # pylint: disable=protected-access
+
+        for art_name, art in (self.artifacts or {}).items():
+            if isinstance(art, LocalArtifact) and not posixpath.isabs(art.uri):
+                art_path = new.path + art.uri[len(self.basename) :]
+            else:
+                art_path = posixpath.join(new.path, art_name)
+            download = art.relative(
+                self.location.fs, self.dirname
+            ).materialize(art_path, new.loc.fs)
+            new.artifacts[art_name] = LocalArtifact(
+                uri=posixpath.relpath(art_path, new.dirname), **download.info
             )
-            if isinstance(download, FSSpecArtifact):
-                download = LocalArtifact(
-                    uri=posixpath.relpath(
-                        download.uri, posixpath.dirname(make_posix(new.path))
-                    ),
-                    size=download.size,
-                    hash=download.hash,
-                )
-            new.artifacts.append(download)
         new._write_meta(location, link)  # pylint: disable=protected-access
         return new
 
@@ -530,10 +535,10 @@ class _WithArtifacts(ABC, MlemMeta):
             raise MlemObjectNotSavedError(
                 "Cannot get relative artifacts for not saved object"
             )
-        return [
-            a.relative(self.location.fs, self.dirname)
-            for a in self.artifacts or []
-        ]
+        return {
+            name: a.relative(self.location.fs, self.dirname)
+            for name, a in (self.artifacts or {}).items()
+        }
 
     @property
     def storage(self):
@@ -548,12 +553,12 @@ class _WithArtifacts(ABC, MlemMeta):
     def get_artifacts(self):
         if self.artifacts is None:
             return self.write_value()
-        return [
-            a.relative_to(self.loc)
+        return {
+            name: a.relative_to(self.loc)
             if isinstance(a, PlaceholderArtifact)
             else a
-            for a in self.artifacts
-        ]
+            for name, a in self.artifacts.items()
+        }
 
 
 class ModelMeta(_WithArtifacts):

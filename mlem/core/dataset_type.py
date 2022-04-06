@@ -379,6 +379,7 @@ class DatasetWriter(MlemObject):
         type_root = True
 
     abs_name: ClassVar[str] = "dataset_writer"
+    art_name: ClassVar[str] = "data"
 
     @abstractmethod
     def write(

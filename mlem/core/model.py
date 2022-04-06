@@ -40,6 +40,7 @@ class ModelIO(MlemObject):
         type_root = True
 
     abs_name: ClassVar[str] = "model_io"
+    art_name: ClassVar = "data"
 
     @abstractmethod
     def dump(self, storage: Storage, path, model) -> Artifacts:
@@ -61,12 +62,12 @@ class SimplePickleIO(ModelIO):
     def dump(self, storage: Storage, path: str, model) -> Artifacts:
         with storage.open(path) as (f, art):
             pickle.dump(model, f)
-        return [art]
+        return {self.art_name: art}
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
             raise ValueError("Invalid artifacts: should be one .pkl file")
-        with artifacts[0].open() as f:
+        with artifacts[self.art_name].open() as f:
             return pickle.load(f)
 
 
