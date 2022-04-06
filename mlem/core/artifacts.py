@@ -103,7 +103,9 @@ class FSSpecArtifact(Artifact):
 
         if os.path.isdir(target_path):
             target_path = posixpath.join(target_path, posixpath.basename(path))
-        fs.makedirs(posixpath.dirname(target_path), exist_ok=True)
+        LocalFileSystem().makedirs(
+            posixpath.dirname(target_path), exist_ok=True
+        )
         fs.download(path, target_path)
         return LocalArtifact(uri=target_path, **self.info)
 
