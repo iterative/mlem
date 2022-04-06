@@ -1,6 +1,6 @@
 from typing import Optional
 
-from typer import Argument, Option
+from typer import Argument
 
 from mlem.cli.main import (
     mlem_command,
@@ -15,9 +15,7 @@ from mlem.cli.main import (
 @mlem_command("clone", section="object")
 def clone(
     uri: str = Argument(..., help="URI to object you want to clone"),
-    target: str = Option(
-        None, "-t", "--target", help="Path to store the downloaded object."
-    ),
+    target: str = Argument(..., help="Path to store the downloaded object."),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     target_repo: Optional[str] = option_target_repo,
@@ -28,10 +26,10 @@ def clone(
 
     Examples:
         Copy remote model to local directory
-        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main -t mymodel
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main mymodel
 
         Copy remote model to remote MLEM repo
-        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main -t mymodel --tr s3://mybucket/mymodel
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main mymodel --tr s3://mybucket/mymodel
     """
     from mlem.api.commands import clone
 

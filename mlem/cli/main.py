@@ -185,7 +185,7 @@ def mlem_callback(
     Examples:
         $ mlem init
         $ mlem list --repo https://github.com/iterative/example-mlem
-        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main -t logreg
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main logreg
         $ mlem link logreg latest
         $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
         $ mlem serve latest fastapi -c port=8001
