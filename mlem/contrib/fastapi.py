@@ -82,4 +82,5 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
     def serve(self, interface: Interface):
         app = self.app_init(interface)
+        echo(f"Checkout openapi docs at <http://{self.host}:{self.port}/docs>")
         uvicorn.run(app, host=self.host, port=self.port)

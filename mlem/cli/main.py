@@ -1,13 +1,13 @@
 import logging
 import typing as t
 from collections import defaultdict
+from enum import Enum, EnumMeta
 from functools import partial, wraps
 from gettext import gettext
 from typing import List, Optional, Tuple, Type
 
-import click
 import typer
-from click import Abort, ClickException, Command, HelpFormatter
+from click import Abort, ClickException, Command, HelpFormatter, pass_context
 from click.exceptions import Exit
 from pydantic import ValidationError, parse_obj_as
 from typer import Context, Option, Typer
@@ -22,7 +22,7 @@ from mlem.core.errors import MlemError
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
-class MlemFormatter(click.HelpFormatter):
+class MlemFormatter(HelpFormatter):
     def write_heading(self, heading: str) -> None:
         super().write_heading(bold(heading))
 
@@ -40,6 +40,9 @@ class MlemMixin(Command):
         self.examples = examples
         self.section = section
         self.aliases = aliases
+
+    def collect_usage_pieces(self, ctx: Context) -> t.List[str]:
+        return [p.lower() for p in super().collect_usage_pieces(ctx)]
 
     def get_help(self, ctx: Context) -> str:
         """Formats the help into a string and returns it.
@@ -156,8 +159,20 @@ class MlemGroup(TyperGroup, MlemMixin):
         return None
 
 
-def MlemGroupSection(section):
-    return partial(MlemGroup, section=section)
+def MlemGroupSection(section, options_metavar="options"):
+    return partial(MlemGroup, section=section, options_metavar=options_metavar)
+
+
+class ChoicesMeta(EnumMeta):
+    def __call__(cls, *names, module=None, qualname=None, type=None, start=1):
+        return super().__call__(
+            "", names, module=module, qualname=qualname, type=type, start=start
+        )
+
+
+class Choices(str, Enum, metaclass=ChoicesMeta):
+    def _generate_next_value_(self, start, count, last_values):
+        return self
 
 
 app = Typer(
@@ -213,7 +228,14 @@ def _extract_examples(
     return help_str[examples + len("Examples:") + 1 :], help_str[:examples]
 
 
-def mlem_command(*args, section="other", aliases=None, parent=app, **kwargs):
+def mlem_command(
+    *args,
+    section="other",
+    aliases=None,
+    options_metavar="[options]",
+    parent=app,
+    **kwargs,
+):
     def decorator(f):
         if len(args) > 0:
             cmd_name = args[0]
@@ -222,11 +244,12 @@ def mlem_command(*args, section="other", aliases=None, parent=app, **kwargs):
 
         @parent.command(
             *args,
+            options_metavar=options_metavar,
             **kwargs,
             cls=partial(MlemCommand, section=section, aliases=aliases),
         )
         @wraps(f)
-        @click.pass_context
+        @pass_context
         def inner(ctx, *iargs, **ikwargs):
             res = {}
             error = None
@@ -271,12 +294,12 @@ option_repo = Option(
 )
 option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
 option_link = Option(
-    False,
+    None,
     "--link/--no-link",
     help="Whether to create link for output in .mlem directory",
 )
 option_external = Option(
-    False,
+    None,
     "--external",
     "-e",
     is_flag=True,

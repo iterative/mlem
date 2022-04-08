@@ -11,7 +11,12 @@ from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
 from pydantic import BaseModel
 
-from mlem.core.errors import MlemObjectNotFound, RevisionNotFound
+from mlem.core.errors import (
+    HookNotFound,
+    InvalidArgumentError,
+    MlemObjectNotFound,
+    RevisionNotFound,
+)
 from mlem.utils.github import (
     get_github_envs,
     get_github_kwargs,
@@ -100,7 +105,7 @@ class UriResolver(ABC):
         for i in cls.impls:
             if i.check(path, repo, rev, fs):
                 return i
-        raise ValueError("No valid UriResolver implementation found")
+        raise HookNotFound("No valid UriResolver implementation found")
 
     @classmethod
     @abstractmethod
@@ -131,8 +136,8 @@ class UriResolver(ABC):
     ) -> Location:
         path, repo, rev, fs = cls.pre_process(path, repo, rev, fs)
         if rev is not None and not cls.versioning_support:
-            raise ValueError(
-                f"Rev {rev} was provided, but {cls} does not support versioning"
+            raise InvalidArgumentError(
+                f"Rev `{rev}` was provided, but {cls.__name__} does not support versioning"
             )
         if fs is None:
             if repo is not None:

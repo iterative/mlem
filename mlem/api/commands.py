@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from fsspec import AbstractFileSystem
+from fsspec.implementations.local import LocalFileSystem
 
 from mlem.api.utils import (
     ensure_meta,
@@ -23,7 +24,7 @@ from mlem.core.errors import (
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, UriResolver, get_fs
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     DatasetMeta,
@@ -45,7 +46,7 @@ from mlem.ui import (
     echo,
     no_echo,
 )
-from mlem.utils.root import mlem_repo_exists
+from mlem.utils.root import find_repo_root, mlem_repo_exists
 
 
 def apply(
@@ -137,6 +138,8 @@ def clone(
         load_value=load_value,
     )
     echo(EMOJI_COPY + f"Cloning {meta.loc.uri}")
+    if target in ("", "."):
+        target = posixpath.basename(meta.loc.uri)
     return meta.clone(
         target, fs=target_fs, repo=target_repo, link=link, external=external
     )
@@ -285,6 +288,15 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     server_obj.serve(interface)
 
 
+def _validate_ls_repo(loc: Location, repo):
+    if loc.repo is None:
+        raise MlemRootNotFound(repo, loc.fs)
+    if isinstance(loc.fs, LocalFileSystem):
+        loc.repo = find_repo_root(loc.repo, loc.fs)
+    else:
+        mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+
+
 def ls(  # pylint: disable=too-many-locals
     repo: str = ".",
     rev: Optional[str] = None,
@@ -302,20 +314,18 @@ def ls(  # pylint: disable=too-many-locals
     if MlemLink not in type_filter:
         type_filter.add(MlemLink)
     loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
-    if loc.repo is None:
-        raise MlemRootNotFound(repo, loc.fs)
-    mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+    _validate_ls_repo(loc, repo)
     res = defaultdict(list)
-    with no_echo():
-        root_path = posixpath.join(loc.repo, MLEM_DIR)
-        files = loc.fs.glob(
-            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
-        )
-        for cls in type_filter:
-            type_path = posixpath.join(root_path, cls.object_type)
-            for file in files:
-                if not file.startswith(type_path):
-                    continue
+    root_path = posixpath.join(loc.repo or "", MLEM_DIR)
+    files = loc.fs.glob(
+        posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
+    )
+    for cls in type_filter:
+        type_path = posixpath.join(root_path, cls.object_type)
+        for file in files:
+            if not file.startswith(type_path):
+                continue
+            with no_echo():
                 meta = load_meta(
                     posixpath.relpath(file, loc.repo),
                     repo=loc.repo,
@@ -324,21 +334,21 @@ def ls(  # pylint: disable=too-many-locals
                     fs=loc.fs,
                     load_value=False,
                 )
-                obj_type = cls
-                if isinstance(meta, MlemLink):
-                    link_name = posixpath.relpath(file, type_path)[
-                        : -len(MLEM_EXT)
-                    ]
-                    is_auto_link = meta.path == link_name + MLEM_EXT
+            obj_type = cls
+            if isinstance(meta, MlemLink):
+                link_name = posixpath.relpath(file, type_path)[
+                    : -len(MLEM_EXT)
+                ]
+                is_auto_link = meta.path == link_name + MLEM_EXT
 
-                    obj_type = MlemMeta.__type_map__[meta.link_type]
-                    if obj_type not in type_filter:
-                        continue
-                    if is_auto_link:
-                        meta = meta.load_link()
-                    elif not include_links:
-                        continue
-                res[obj_type].append(meta)
+                obj_type = MlemMeta.__type_map__[meta.link_type]
+                if obj_type not in type_filter:
+                    continue
+                if is_auto_link:
+                    meta = meta.load_link()
+                elif not include_links:
+                    continue
+            res[obj_type].append(meta)
     return res
 
 

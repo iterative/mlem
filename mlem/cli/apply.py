@@ -1,13 +1,21 @@
+from json import dumps
 from typing import Optional
 
-import click
 from typer import Argument, Option
 
 from mlem.api import import_object
-from mlem.cli.main import mlem_command, option_link, option_repo, option_rev
+from mlem.cli.main import (
+    mlem_command,
+    option_json,
+    option_link,
+    option_repo,
+    option_rev,
+)
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.ui import set_echo
 
 
 @mlem_command("apply", section="runtime")
@@ -50,6 +58,7 @@ def apply(
         help="Specify how to read data file for import",  # f"Available types: {list_implementations(ImportHook)}"
     ),
     link: bool = option_link,
+    json: bool = option_json,
 ):
     """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
@@ -67,22 +76,33 @@ def apply(
     """
     from mlem.api import apply
 
-    if import_:
-        dataset = import_object(
-            data, repo=data_repo, rev=data_rev, type_=import_type
-        )
-    else:
-        dataset = load_meta(
-            data, data_repo, data_rev, load_value=True, force_type=DatasetMeta
-        )
-    meta = load_meta(model, repo, rev, force_type=ModelMeta)
+    with set_echo(None if json else ...):
+        if import_:
+            dataset = import_object(
+                data, repo=data_repo, rev=data_rev, type_=import_type
+            )
+        else:
+            dataset = load_meta(
+                data,
+                data_repo,
+                data_rev,
+                load_value=True,
+                force_type=DatasetMeta,
+            )
+        meta = load_meta(model, repo, rev, force_type=ModelMeta)
 
-    result = apply(
-        meta,
-        dataset,
-        method=method,
-        output=output,
-        link=link,
-    )
-    if output is None:
-        click.echo(result)
+        result = apply(
+            meta,
+            dataset,
+            method=method,
+            output=output,
+            link=link,
+        )
+    if output is None and json:
+        print(
+            dumps(
+                DatasetAnalyzer.analyze(result)
+                .get_serializer()
+                .serialize(result)
+            )
+        )

@@ -88,8 +88,9 @@ class MultipleHooksFound(MlemError):
 
 class WrongMetaType(TypeError, MlemError):
     def __init__(self, meta, force_type):
+        loc = f"from {meta.loc.uri} " if meta.is_saved else ""
         super().__init__(
-            f"Wrong type of meta loaded, {meta} is not {force_type}"
+            f"Wrong type of meta loaded, got {meta.object_type} {loc}instead of {force_type.object_type}"
         )
 
 

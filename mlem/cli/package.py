@@ -36,7 +36,7 @@ def pack(
 
     Examples:
         Build docker image from model
-        $ mlem pack mymodel mymodel-docker-image docker
+        $ mlem pack mymodel mymodel-docker-image docker -c server.type=fastapi -c image.name=myimage
     """
     from mlem.api.commands import pack
 

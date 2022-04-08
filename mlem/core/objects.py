@@ -235,9 +235,10 @@ class MlemMeta(MlemObject):
         with location.open("w") as f:
             safe_dump(self.dict(), f)
         if link and location.repo:
-            self.make_link(
-                self.name, location.fs, repo=location.repo, external=False
-            )
+            with no_echo():
+                self.make_link(
+                    self.name, location.fs, repo=location.repo, external=False
+                )
 
     def _parse_dump_args(
         self,

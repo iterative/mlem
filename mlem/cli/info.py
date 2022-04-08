@@ -4,7 +4,13 @@ from typing import List, Optional, Type
 
 from typer import Argument, Option
 
-from mlem.cli.main import mlem_command, option_json, option_repo, option_rev
+from mlem.cli.main import (
+    Choices,
+    mlem_command,
+    option_json,
+    option_repo,
+    option_rev,
+)
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
 from mlem.ui import echo, set_echo
@@ -35,8 +41,15 @@ TYPE_ALIASES = {
 
 @mlem_command("list", aliases=["ls"], section="common")
 def ls(
-    type_filter: str = Argument("all", help="Type of objects to list"),
-    repo: Optional[str] = option_repo,
+    type_filter: Choices("all", *MlemMeta.non_abstract_subtypes().keys()) = Option(  # type: ignore[valid-type]
+        "all",
+        "-t",
+        "--type",
+        help="Type of objects to list",
+    ),
+    repo: str = Argument(
+        "", help="Repo to list from", show_default="current directory"
+    ),
     rev: Optional[str] = option_rev,
     links: bool = Option(
         True, "+l/-l", "--links/--no-links", help="Include links"
@@ -70,7 +83,7 @@ def ls(
     else:
         for cls, objs in objects.items():
             _print_objects_of_type(cls, objs)
-    return {"type_filter": type_filter}
+    return {"type_filter": type_filter.value}
 
 
 @mlem_command("pprint", hidden=True)

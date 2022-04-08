@@ -65,7 +65,7 @@ def color(text, col):
 def emoji(name):
     if not CONFIG.EMOJIS:
         return Text("")
-    return Text(name + "")
+    return Text(name + " ")
 
 
 def bold(text):
@@ -73,7 +73,7 @@ def bold(text):
 
 
 EMOJI_LOAD = emoji("⏳️")
-EMOJI_FAIL = emoji("❌ ")
+EMOJI_FAIL = emoji("❌")
 EMOJI_OK = emoji("✅ ")
 EMOJI_MLEM = emoji("🐶")
 EMOJI_SAVE = emoji("💾")
