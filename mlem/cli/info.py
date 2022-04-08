@@ -59,7 +59,8 @@ def ls(
     """List MLEM objects of in repo
 
     Examples:
-        $ mlem list --repo https://github.com/iterative/example-mlem
+        $ mlem list https://github.com/iterative/example-mlem
+        $ mlem list -t models
     """
     from mlem.api.commands import ls
 

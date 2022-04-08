@@ -165,8 +165,15 @@ def MlemGroupSection(section, options_metavar="options"):
 
 class ChoicesMeta(EnumMeta):
     def __call__(cls, *names, module=None, qualname=None, type=None, start=1):
+        if len(names) == 1:
+            return super().__call__(names[0])
         return super().__call__(
-            "", names, module=module, qualname=qualname, type=type, start=start
+            "Choice",
+            names,
+            module=module,
+            qualname=qualname,
+            type=type,
+            start=start,
         )
 
 
@@ -199,7 +206,7 @@ def mlem_callback(
 
     Examples:
         $ mlem init
-        $ mlem list --repo https://github.com/iterative/example-mlem
+        $ mlem list https://github.com/iterative/example-mlem
         $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main logreg
         $ mlem link logreg latest
         $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred

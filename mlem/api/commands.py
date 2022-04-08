@@ -345,7 +345,8 @@ def ls(  # pylint: disable=too-many-locals
                 if obj_type not in type_filter:
                     continue
                 if is_auto_link:
-                    meta = meta.load_link()
+                    with no_echo():
+                        meta = meta.load_link()
                 elif not include_links:
                     continue
             res[obj_type].append(meta)
