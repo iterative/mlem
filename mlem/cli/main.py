@@ -178,8 +178,10 @@ class ChoicesMeta(EnumMeta):
 
 
 class Choices(str, Enum, metaclass=ChoicesMeta):
-    def _generate_next_value_(self, start, count, last_values):
-        return self
+    def _generate_next_value_(  # pylint: disable=no-self-argument
+        name, start, count, last_values
+    ):
+        return name
 
 
 app = Typer(
