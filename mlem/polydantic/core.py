@@ -157,9 +157,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             type_field = cls.__config__.type_field
             cls.__type_map__ = {}
             alias = cls.__get_alias__(type_field)
-            if (
-                alias is not None and alias is not ...
-            ):  # pylint: disable=bad-option-value
+            if alias is not None and alias is not ...:
                 cls.__type_map__[alias] = cls
             cls.__annotations__[  # pylint: disable=no-member
                 type_field
