@@ -19,7 +19,6 @@ from mlem.pack import Packager
 @mlem_command("pack", section="runtime")
 def pack(
     model: str = Argument(..., help="Path to model"),
-    out: str = Argument(..., help="Name of the output"),
     subtype: str = Argument(
         "",
         help=f"Type of packing. Choices: {list_implementations(Packager)}",
@@ -36,12 +35,15 @@ def pack(
 
     Examples:
         Build docker image from model
-        $ mlem pack mymodel mymodel-docker-image docker -c server.type=fastapi -c image.name=myimage
+        $ mlem pack mymodel docker -c server.type=fastapi -c image.name=myimage
+
+        Create pack docker_dir declaration and build it
+        $ mlem create packager docker_dir -c server=fastapi pack_dock
+        $ mlem pack mymodel --load pack_dock
     """
     from mlem.api.commands import pack
 
     pack(
         config_arg(Packager, load, subtype, conf, file_conf),
         load_meta(model, repo, rev),
-        out,
     )

@@ -291,16 +291,20 @@ class DockerEnv(BaseModel):
             return image.exists(client)
 
 
-class DockerDirPackager(Packager):
-    type: ClassVar[str] = "docker_dir"
+class _DockerPackMixin(BaseModel):
     server: Server
     args: DockerBuildArgs = DockerBuildArgs()
 
-    def package(self, obj: ModelMeta, out: str):
+
+class DockerDirPackager(Packager, _DockerPackMixin):
+    type: ClassVar[str] = "docker_dir"
+    target: str
+
+    def package(self, obj: ModelMeta):
         docker_dir = DockerModelDirectory(
             model=obj,
             server=self.server,
-            path=out,
+            path=self.target,
             docker_args=self.args,
             debug=True,
         )
@@ -308,23 +312,22 @@ class DockerDirPackager(Packager):
         return docker_dir
 
 
-class DockerImagePackager(DockerDirPackager):
+class DockerImagePackager(Packager, _DockerPackMixin):
     type: ClassVar[str] = "docker"
     image: DockerImage
     env: DockerEnv = DockerEnv()
     force_overwrite: bool = False
     push: bool = True
 
-    def package(self, obj: ModelMeta, out: str) -> DockerImage:
+    def package(self, obj: ModelMeta) -> DockerImage:
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
                 self.args.prebuild_hook(  # pylint: disable=not-callable # but it is
                     self.args.python_version
                 )
-            super().package(obj, tempdir)
-            if not self.image.name:
-                # TODO: https://github.com/iterative/mlem/issues/65
-                self.image.name = out
+            DockerDirPackager(
+                server=self.server, args=self.args, target=tempdir
+            ).package(obj)
 
             return self.build(tempdir)
 

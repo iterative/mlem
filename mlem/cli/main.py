@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import typing as t
 from collections import defaultdict
@@ -9,7 +10,8 @@ from typing import List, Optional, Tuple, Type
 import typer
 from click import Abort, ClickException, Command, HelpFormatter, pass_context
 from click.exceptions import Exit
-from pydantic import ValidationError, parse_obj_as
+from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
+from pydantic.error_wrappers import ErrorWrapper
 from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
@@ -19,6 +21,8 @@ from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import MlemError
+from mlem.core.metadata import load_meta
+from mlem.core.objects import MlemMeta
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
@@ -213,7 +217,7 @@ def mlem_callback(
         $ mlem link logreg latest
         $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
         $ mlem serve latest fastapi -c port=8001
-        $ mlem pack latest build/ docker_dir -c server.type=fastapi
+        $ mlem pack latest docker_dir -c target=build/ -c server.type=fastapi
     """
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():
@@ -351,6 +355,60 @@ def option_file_conf(type_: str = None):
     )
 
 
+def _iter_errors(
+    errors: t.Sequence[t.Any], model: Type, loc: Optional[Tuple] = None
+):
+    for error in errors:
+        if isinstance(error, ErrorWrapper):
+
+            if loc:
+                error_loc = loc + error.loc_tuple()
+            else:
+                error_loc = error.loc_tuple()
+
+            if isinstance(error.exc, ValidationError):
+                yield from _iter_errors(
+                    error.exc.raw_errors, error.exc.model, error_loc
+                )
+            else:
+                yield error_loc, model, error.exc
+
+
+def _format_validation_error(error: ValidationError) -> List[str]:
+    res = []
+    for loc, model, exc in _iter_errors(error.raw_errors, error.model):
+        path = ".".join(loc_part for loc_part in loc if loc_part != "__root__")
+        field_type = model.__fields__[loc[-1]].type_
+        if (
+            isinstance(exc, MissingError)
+            and isinstance(field_type, type)
+            and issubclass(field_type, BaseModel)
+        ):
+            msgs = [
+                str(EMOJI_FAIL + f"field `{path}.{f.name}`: {exc}")
+                for f in field_type.__fields__.values()
+                if f.required
+            ]
+            if msgs:
+                res.extend(msgs)
+            else:
+                res.append(str(EMOJI_FAIL + f"field `{path}`: {exc}"))
+        else:
+            res.append(str(EMOJI_FAIL + f"field `{path}`: {exc}"))
+    return res
+
+
+@contextlib.contextmanager
+def wrap_build_error(subtype, model: Type[MlemObject]):
+    try:
+        yield
+    except ValidationError as e:
+        msgs = "\n".join(_format_validation_error(e))
+        raise typer.BadParameter(
+            f"Error on constructing {subtype} {model.abs_name}:\n{msgs}"
+        ) from e
+
+
 def config_arg(
     model: Type[MlemObject],
     load: Optional[str],
@@ -358,18 +416,19 @@ def config_arg(
     conf: Optional[List[str]],
     file_conf: Optional[List[str]],
 ):
+    obj: MlemObject
     if load is not None:
-        with open(load, "r", encoding="utf8") as of:
-            obj = parse_obj_as(model, safe_load(of))
+        if issubclass(model, MlemMeta):
+            obj = load_meta(load, force_type=model)
+        else:
+            with open(load, "r", encoding="utf8") as of:
+                obj = parse_obj_as(model, safe_load(of))
     else:
         if not subtype:
             raise typer.BadParameter(
                 f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
             )
-        try:
+        with wrap_build_error(subtype, model):
             obj = build_mlem_object(model, subtype, conf, file_conf)
-        except ValidationError as e:
-            raise typer.BadParameter(
-                f"Error on constructing {subtype} {model.__name__}: {e}"
-            ) from e
+
     return obj
