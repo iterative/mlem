@@ -149,7 +149,10 @@ class SizedTypedListType(ListTypeWithSpec):
     Subclass of :class:`ListTypeWithSpec` which specifies size of internal `list`
     """
 
-    dtype: DatasetType
+    class Config:
+        arbitrary_types_allowed = True
+
+    dtype: DatasetSerializer
     size: Optional[int]
 
     def list_size(self):
@@ -168,17 +171,19 @@ class ListDatasetType(SizedTypedListType, DatasetSerializer):
 
     def deserialize(self, obj):
         _check_type_and_size(obj, list, self.size, DeserializationError)
-        return [self.dtype.get_serializer().deserialize(o) for o in obj]
+        return [self.dtype.deserialize(o) for o in obj]
 
     def serialize(self, instance: list):
         _check_type_and_size(instance, list, self.size, SerializationError)
-        return [self.dtype.get_serializer().serialize(o) for o in instance]
+        return [self.dtype.serialize(o) for o in instance]
 
     def get_writer(self, **kwargs):
         raise NotImplementedError
 
     def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError
+        raise create_model(
+            "ListDataset", __root__=List[self.dtype.get_model()]
+        )
 
 
 class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
@@ -186,7 +191,10 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
     DatasetType for tuple-like collections
     """
 
-    items: List[DatasetType]
+    class Config:
+        arbitrary_types_allowed = True
+
+    items: List[DatasetSerializer]
     actual_type: ClassVar[type]
 
     def deserialize(self, obj):
@@ -216,7 +224,10 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
         raise NotImplementedError
 
     def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError
+        raise create_model(
+            "_TupleLikeDataset",
+            __root__=Tuple[tuple(t.get_model() for t in self.items)],
+        )
 
 
 def _check_type_and_size(obj, dtype, size, exc_type):
@@ -285,15 +296,16 @@ class DictDatasetType(DatasetType, DatasetSerializer):
     DatasetType for dict type
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
     type: ClassVar[str] = "dict"
-    item_types: Dict[str, DatasetType]
+    item_types: Dict[str, DatasetSerializer]
 
     def deserialize(self, obj):
         self._check_type_and_keys(obj, DeserializationError)
         return {
-            k: self.item_types[k]
-            .get_serializer()
-            .deserialize(
+            k: self.item_types[k].deserialize(
                 v,
             )
             for k, v in obj.items()
@@ -302,8 +314,7 @@ class DictDatasetType(DatasetType, DatasetSerializer):
     def serialize(self, instance: dict):
         self._check_type_and_keys(instance, SerializationError)
         return {
-            k: self.item_types[k].get_serializer().serialize(v)
-            for k, v in instance.items()
+            k: self.item_types[k].serialize(v) for k, v in instance.items()
         }
 
     def _check_type_and_keys(self, obj, exc_type):
@@ -323,7 +334,12 @@ class DictDatasetType(DatasetType, DatasetSerializer):
         raise NotImplementedError
 
     def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError
+        raise create_model(
+            "DictDataset",
+            __root__=Dict[
+                str, (v.get_model() for v in self.item_types.values())
+            ],
+        )
 
 
 #

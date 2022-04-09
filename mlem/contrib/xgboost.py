@@ -112,7 +112,7 @@ class DMatrixDatasetType(
         raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
 
     def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class XGBoostModelIO(ModelIO):
