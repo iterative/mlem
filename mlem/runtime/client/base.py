@@ -6,6 +6,7 @@ import requests
 from pydantic import BaseModel, parse_obj_as
 
 from mlem.core.base import MlemObject
+from mlem.core.errors import WrongMethodError
 from mlem.core.model import Signature
 from mlem.runtime.interface.base import ExecutionError, InterfaceDescriptor
 
@@ -28,15 +29,15 @@ class BaseClient(MlemObject, ABC):
 
     @abstractmethod
     def _interface_factory(self) -> InterfaceDescriptor:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def _call_method(self, name, args):
-        pass
+        raise NotImplementedError()
 
     def __getattr__(self, name):
         if name not in self.methods:
-            raise KeyError(f"{name} method is not exposed by server")
+            raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
             self.base_url, self.methods[name], self._call_method
         )
@@ -82,8 +83,8 @@ class _MethodCall(BaseModel):
 
 
 class HTTPClient(BaseClient):
-    host: str = "localhost"
-    port: int = 9000
+    host: str = "0.0.0.0"
+    port: int = 8080
 
     @property
     def base_url(self):
