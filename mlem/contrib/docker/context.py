@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from mlem.core.objects import ModelMeta
 from mlem.core.requirements import Requirements, UnixPackageRequirement
 from mlem.runtime.server.base import Server
+from mlem.ui import echo, no_echo
 from mlem.utils.module import get_python_version
 
 REQUIREMENTS = "requirements.txt"
@@ -29,11 +30,11 @@ MLEM_INSTALL_COMMAND = "pip install mlem=={version}"
 def mlem_from_pip():
     """
     :return boolen flag if mlem inside image must be installed from pip (or copied local dist instread)"""
-    return _MLEM_SOURCE == "pip"
+    return _MLEM_SOURCE == "pip" and os.environ.get("MLEM_SOURCE") != "local"
 
 
 def mlem_from_local():
-    return _MLEM_SOURCE == "local"
+    return _MLEM_SOURCE == "local" or os.environ.get("MLEM_SOURCE") == "local"
 
 
 def mlem_from_whl():
@@ -166,6 +167,7 @@ class DockerModelDirectory(BaseModel):
         self.write_run_file()
 
     def write_requirements_file(self, requirements: Requirements):
+        echo("Generating requirements file...")
         with open(
             os.path.join(self.path, REQUIREMENTS), "w", encoding="utf8"
         ) as req:
@@ -193,13 +195,16 @@ class DockerModelDirectory(BaseModel):
             req.write("\n".join(requirements.to_pip()))
 
     def write_model(self):
-        path = os.path.join(self.path, self.model_name)
-        if self.model.is_saved:
-            self.model.clone(path)
-        else:
-            self.model.copy().dump(path)
+        echo("Adding model files...")
+        with no_echo():
+            path = os.path.join(self.path, self.model_name)
+            if self.model.is_saved:
+                self.model.clone(path, external=True)
+            else:
+                self.model.copy().dump(path, external=True)
 
     def write_dockerfile(self, requirements: Requirements):
+        echo("Generating dockerfile...")
         env = self.get_env_vars()
         with open(
             os.path.join(self.path, "Dockerfile"), "w", encoding="utf8"
@@ -214,6 +219,7 @@ class DockerModelDirectory(BaseModel):
         pass
 
     def write_local_sources(self, requirements: Requirements):
+        echo("Adding sources...")
         sources = {}
         for cr in requirements.custom:
             sources.update(cr.to_sources_dict())
@@ -244,6 +250,7 @@ class DockerModelDirectory(BaseModel):
             return
         if mlem_from_whl():
             # set whl option
+            echo("Building MLEM wheel file...")
             logger.debug(
                 "Putting MLEM wheel to distribution as wheel installation is employed..."
             )

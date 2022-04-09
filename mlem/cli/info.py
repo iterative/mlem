@@ -1,18 +1,26 @@
+from json import dumps
 from pprint import pprint
 from typing import List, Optional, Type
 
-import click
+from typer import Argument, Option
 
-from mlem.cli.main import mlem_command, option_repo, option_rev
+from mlem.cli.main import (
+    Choices,
+    mlem_command,
+    option_json,
+    option_repo,
+    option_rev,
+)
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
+from mlem.ui import echo, set_echo
 
 
 def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
     if len(objects) == 0:
         return
 
-    print(cls.object_type.capitalize() + "s:")
+    echo(cls.object_type.capitalize() + "s:")
     for meta in objects:
         if (
             isinstance(meta, MlemLink)
@@ -21,7 +29,7 @@ def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
             link = f"-> {meta.path[:-len(MLEM_EXT)]}"
         else:
             link = ""
-        print("", "-", meta.name, *[link] if link else [])
+        echo("", "-", meta.name, *[link] if link else [])
 
 
 TYPE_ALIASES = {
@@ -31,16 +39,29 @@ TYPE_ALIASES = {
 }
 
 
-@mlem_command()
-@click.argument(
-    "type_filter",
-    default="all",
-)
-@option_repo
-@option_rev
-@click.option("+l/-l", "--links/--no-links", default=True, is_flag=True)
-def ls(type_filter: str, repo: str, rev: Optional[str], links: bool):
-    """List MLEM objects of {type} in repo."""
+@mlem_command("list", aliases=["ls"], section="common")
+def ls(
+    type_filter: Choices("all", *MlemMeta.non_abstract_subtypes().keys()) = Option(  # type: ignore[valid-type]
+        "all",
+        "-t",
+        "--type",
+        help="Type of objects to list",
+    ),
+    repo: str = Argument(
+        "", help="Repo to list from", show_default="current directory"
+    ),
+    rev: Optional[str] = option_rev,
+    links: bool = Option(
+        True, "+l/-l", "--links/--no-links", help="Include links"
+    ),
+    json: bool = option_json,
+):
+    """List MLEM objects of in repo
+
+    Examples:
+        $ mlem list https://github.com/iterative/example-mlem
+        $ mlem list -t models
+    """
     from mlem.api.commands import ls
 
     if type_filter == "all":
@@ -51,27 +72,48 @@ def ls(type_filter: str, repo: str, rev: Optional[str], links: bool):
         ]
 
     objects = ls(repo or ".", rev=rev, type_filter=types, include_links=links)
-    for cls, objs in objects.items():
-        _print_objects_of_type(cls, objs)
-    return {"type_filter": type_filter}
+    if json:
+        print(
+            dumps(
+                {
+                    cls.object_type: [obj.dict() for obj in objs]
+                    for cls, objs in objects.items()
+                }
+            )
+        )
+    else:
+        for cls, objs in objects.items():
+            _print_objects_of_type(cls, objs)
+    return {"type_filter": type_filter.value}
 
 
-@mlem_command("pprint")
-@click.argument("path")
-@click.option(
-    "-f",
-    "--follow-links",
-    default=False,
-    type=click.BOOL,
-    is_flag=True,
-    help="If specified, follow the link to the actual object.",
-)
-@option_repo
-@option_rev
+@mlem_command("pprint", hidden=True)
 def pretty_print(
-    path: str, repo: str = None, rev: str = None, follow_links: bool = False
+    path: str = Argument(..., help="Path to object"),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    follow_links: bool = Option(
+        False,
+        "-f",
+        "--follow-links",
+        help="If specified, follow the link to the actual object.",
+    ),
+    json: bool = option_json,
 ):
-    """Print __str__ for the specified MLEM object."""
-    pprint(
-        load_meta(path, repo, rev, follow_links=follow_links, load_value=False)
-    )
+    """Print specified MLEM object
+
+    Examples:
+        Print local object
+        $ mlem pprint mymodel
+
+        Print remote object
+        $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
+    """
+    with set_echo(None if json else ...):
+        meta = load_meta(
+            path, repo, rev, follow_links=follow_links, load_value=False
+        ).dict()
+    if json:
+        print(dumps(meta))
+    else:
+        pprint(meta)

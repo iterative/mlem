@@ -89,14 +89,14 @@ class TorchModelIO(ModelIO):
         save = torch.jit.save if self.is_jit else torch.save
         with storage.open(path) as (f, art):
             save(model, f)
-            return [art]
+            return {self.art_name: art}
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
             raise ValueError("Invalid artifacts: should have only one file")
 
         load = torch.jit.load if self.is_jit else torch.load
-        with artifacts[0].open() as f:
+        with artifacts[self.art_name].open() as f:
             return load(f)
 
 

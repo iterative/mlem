@@ -3,9 +3,11 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, Type
 
 from mlem.core.artifacts import PlaceholderArtifact, get_file_info
+from mlem.core.errors import FileNotFoundOnImportError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
+from mlem.core.model import ModelIO
 from mlem.core.objects import MlemMeta
 
 
@@ -24,7 +26,7 @@ class ImportHook(Hook[MlemMeta], ABC):
         obj: Location,
         copy_data: bool = True,
         modifier: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> MlemMeta:
         raise NotImplementedError
 
@@ -42,6 +44,8 @@ class ImportAnalyzer(Analyzer[MlemMeta]):
     def analyze(  # pylint: disable=arguments-differ # so what
         cls, obj: Location, copy_data: bool = True, **kwargs
     ) -> MlemMeta:
+        if not obj.exists():
+            raise FileNotFoundOnImportError(f"Nothing found at {obj.uri}")
         return super().analyze(obj, copy_data=copy_data, **kwargs)
 
 
@@ -63,17 +67,17 @@ class PickleImportHook(ExtImportHook):
         obj: Location,
         copy_data: bool = True,
         modifier: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> MlemMeta:
         with obj.open("rb") as f:
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)
         if not copy_data:
-            meta.artifacts = [
-                PlaceholderArtifact(
+            meta.artifacts = {
+                ModelIO.art_name: PlaceholderArtifact(
                     location=obj,
                     uri=obj.uri,
-                    **get_file_info(obj.fullpath, obj.fs)
+                    **get_file_info(obj.fullpath, obj.fs),
                 )
-            ]
+            }
         return meta

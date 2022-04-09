@@ -6,18 +6,19 @@ from mlem.cli.clone import clone
 from mlem.cli.config import config
 from mlem.cli.create import create
 from mlem.cli.deploy import deploy
-from mlem.cli.import_path import import_path
+from mlem.cli.import_object import import_object
 from mlem.cli.info import ls, pretty_print
 from mlem.cli.init import init
 from mlem.cli.link import link
-from mlem.cli.main import cli
+from mlem.cli.main import app
 from mlem.cli.package import pack
 from mlem.cli.serve import serve
+from mlem.cli.types import list_types
 
 __all__ = [
     "apply",
     "deploy",
-    "cli",
+    "app",
     "init",
     "pack",
     "pretty_print",
@@ -27,12 +28,13 @@ __all__ = [
     "serve",
     "config",
     "create",
-    "import_path",
+    "import_object",
+    "list_types",
 ]
 
 
 def main():
-    cli()
+    app()
 
 
 if __name__ == "__main__":

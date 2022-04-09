@@ -8,16 +8,7 @@ import os
 import posixpath
 import tempfile
 from abc import ABC, abstractmethod
-from typing import (
-    IO,
-    ClassVar,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    overload,
-)
+from typing import IO, ClassVar, Dict, Iterator, Optional, Tuple, overload
 from urllib.parse import urlparse
 
 import fsspec
@@ -28,7 +19,7 @@ from typing_extensions import Literal, TypedDict
 from mlem.core.base import MlemObject
 from mlem.core.meta_io import Location, get_fs, get_path_by_fs_path
 
-CHUNK_SIZE = 2 ** 20  # 1 mb
+CHUNK_SIZE = 2**20  # 1 mb
 
 
 class ArtifactInfo(TypedDict):
@@ -37,6 +28,8 @@ class ArtifactInfo(TypedDict):
 
 
 class Artifact(MlemObject, ABC):
+    """"""
+
     class Config:
         type_root = True
         default_type = "local"
@@ -110,6 +103,9 @@ class FSSpecArtifact(Artifact):
 
         if os.path.isdir(target_path):
             target_path = posixpath.join(target_path, posixpath.basename(path))
+        LocalFileSystem().makedirs(
+            posixpath.dirname(target_path), exist_ok=True
+        )
         fs.download(path, target_path)
         return LocalArtifact(uri=target_path, **self.info)
 
@@ -119,7 +115,6 @@ class FSSpecArtifact(Artifact):
 
     @contextlib.contextmanager
     def open(self) -> Iterator[IO]:
-
         fs, path = get_fs(self.uri)
         with fs.open(posixpath.normpath(path)) as f:
             yield f
@@ -166,6 +161,8 @@ class PlaceholderArtifact(Artifact):
 
 
 class Storage(MlemObject, ABC):
+    """"""
+
     class Config:
         type_root = True
 
@@ -326,4 +323,4 @@ def get_local_file_info(path: str):
 
 LOCAL_STORAGE = LocalStorage(uri="")
 
-Artifacts = List[Artifact]
+Artifacts = Dict[str, Artifact]

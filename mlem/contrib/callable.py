@@ -21,6 +21,8 @@ from mlem.core.model import (
     SimplePickleIO,
 )
 
+UUID_PREFIX = "_"
+
 
 class PickleModelIO(ModelIO):
     """
@@ -36,54 +38,53 @@ class PickleModelIO(ModelIO):
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         model_blob, refs = self._serialize_model(model)
-        arts = []
+        arts = {}
         if len(refs) == 0:
             with storage.open(path) as (f, art):
                 f.write(model_blob)
-                return [art]
+                return {self.file_name: art}
 
         with storage.open(posixpath.join(path, self.file_name)) as (f, art):
             f.write(model_blob)
-            arts.append(art)
+            arts[self.file_name] = art
 
         for uuid, (io, obj) in refs.items():
-            arts += io.dump(storage, posixpath.join(path, uuid), obj)
+            arts.update(
+                {
+                    f"{uuid}_{k}": v
+                    for k, v in io.dump(
+                        storage, posixpath.join(path, uuid), obj
+                    ).items()
+                }
+            )
             with storage.open(posixpath.join(path, uuid + self.io_ext)) as (
                 f,
                 art,
             ):
                 f.write(self._serialize_io(io))
-                arts.append(art)
+                arts[uuid + self.io_ext] = art
         return arts
 
     def load(self, artifacts: Artifacts):
         refs = {}
-        root = None
+        root = artifacts[self.file_name]
         if len(artifacts) > 1:
-            dirname = posixpath.commonpath([a.uri for a in artifacts])
-            root_path = posixpath.join(dirname, self.file_name)
-            ref_artifacts = defaultdict(list)
+            ref_artifacts: Dict[str, Artifacts] = defaultdict(dict)
             ref_ios = {}
-            for art in artifacts:
-                if art.uri == root_path:
-                    root = art
+
+            for art_name, art in artifacts.items():
+                if art == root:
                     continue
 
-                if not art.uri.endswith(self.io_ext):
-                    ref_uuid = posixpath.basename(posixpath.dirname(art.uri))
-                    ref_artifacts[ref_uuid].append(art)
-                else:
-                    ref_uuid = posixpath.basename(art.uri)[: -len(self.io_ext)]
+                if art_name.endswith(self.io_ext):
+                    ref_uuid = art_name[: -len(self.io_ext)]
                     with art.open() as f:
                         ref_ios[ref_uuid] = self._deserialize_io(f)
+                else:
+                    ref_uuid, subname = art_name.split("_", maxsplit=1)
+                    ref_artifacts[ref_uuid][subname] = art
             for uuid, io in ref_ios.items():
-                refs[uuid] = io.load(ref_artifacts.get(uuid, []))
-            if root is None:
-                raise ValueError(
-                    f"Cant find root artifact for loading {self} in {artifacts} (root path should be {root_path})"
-                )
-        else:
-            root = artifacts[0]
+                refs[uuid] = io.load(ref_artifacts.get(uuid, {}))
         with root.open() as f:
             return self._deserialize_model(f, refs)
 
@@ -233,7 +234,7 @@ class _ModelUnpickler(_Unpickler):
         self.stack.pop()
         self.stack.append(self.refs[obj.ref])
 
-    dispatch[pickle.BUILD[0]] = load_build
+    dispatch[pickle.BUILD[0]] = load_build  # type: ignore
 
 
 class _ExternalRef:

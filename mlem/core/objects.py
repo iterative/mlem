@@ -26,14 +26,13 @@ from typing import (
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import parse_obj_as, validator
+from pydantic import ValidationError, parse_obj_as, validator
 from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
 from mlem.config import CONFIG
 from mlem.core.artifacts import (
     Artifacts,
-    FSSpecArtifact,
     FSSpecStorage,
     LocalArtifact,
     PlaceholderArtifact,
@@ -57,6 +56,7 @@ from mlem.core.meta_io import (
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
+from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
 
@@ -64,6 +64,8 @@ T = TypeVar("T", bound="MlemMeta")
 
 
 class MlemMeta(MlemObject):
+    """"""
+
     class Config:
         exclude = {"location"}
         type_root = True
@@ -169,6 +171,10 @@ class MlemMeta(MlemObject):
         Returns:
             Deserialised object
         """
+        echo(
+            EMOJI_LOAD
+            + f"Loading {getattr(cls, 'object_type', 'meta')} from {location.uri}"
+        )
         with location.open() as f:
             payload = safe_load(f)
         res = parse_obj_as(MlemMeta, payload).bind(location)
@@ -222,15 +228,17 @@ class MlemMeta(MlemObject):
         link: bool,
     ):
         """Write metadata to path in fs and possibly create link in mlem dir"""
+        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri}")
         location.fs.makedirs(
             posixpath.dirname(location.fullpath), exist_ok=True
         )
         with location.open("w") as f:
             safe_dump(self.dict(), f)
         if link and location.repo:
-            self.make_link(
-                self.name, location.fs, repo=location.repo, external=False
-            )
+            with no_echo():
+                self.make_link(
+                    self.name, location.fs, repo=location.repo, external=False
+                )
 
     def _parse_dump_args(
         self,
@@ -371,7 +379,10 @@ class MlemLink(MlemMeta):
     ) -> MlemMeta:
         if force_type is not None and self.link_cls != force_type:
             raise WrongMetaType(self.link_type, force_type)
-        return self.link_cls.read(self.parse_link(), follow_links=follow_links)
+        link = self.parse_link()
+        echo(EMOJI_LINK + f"Loading link to {link.uri}")
+        with no_echo():
+            return self.link_cls.read(link, follow_links=follow_links)
 
     def parse_link(self) -> Location:
         from mlem.core.metadata import find_meta_location
@@ -437,6 +448,20 @@ class _WithArtifacts(ABC, MlemMeta):
             repo_path = repo_path[: -len(MLEM_EXT)]
         return repo_path
 
+    @property
+    def basename(self):
+        res = posixpath.basename(self.location.path)
+        if res.endswith(MLEM_EXT):
+            res = res[: -len(MLEM_EXT)]
+        return res
+
+    @property
+    def path(self):
+        path = self.location.fullpath
+        if path.endswith(MLEM_EXT):
+            path = path[: -len(MLEM_EXT)]
+        return path
+
     def dump(
         self,
         path: str,
@@ -447,11 +472,13 @@ class _WithArtifacts(ABC, MlemMeta):
     ):
         location, link = self._parse_dump_args(path, repo, fs, link, external)
         try:
-            existing = MlemMeta.read(location, follow_links=False)
-            if isinstance(existing, _WithArtifacts):
-                for art in existing.relative_artifacts:
-                    art.remove()
-        except (MlemObjectNotFound, FileNotFoundError):
+            if location.exists():
+                with no_echo():
+                    existing = MlemMeta.read(location, follow_links=False)
+                if isinstance(existing, _WithArtifacts):
+                    for art in existing.relative_artifacts.values():
+                        art.remove()
+        except (MlemObjectNotFound, FileNotFoundError, ValidationError):
             pass
         self.artifacts = self.get_artifacts()
         self._write_meta(location, link)
@@ -477,26 +504,25 @@ class _WithArtifacts(ABC, MlemMeta):
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         # clone is just dump with copying artifacts
         new: "_WithArtifacts" = self.deepcopy()
-        new.artifacts = []
+        new.artifacts = {}
         (
             location,
             link,
         ) = new._parse_dump_args(  # pylint: disable=protected-access
             path, repo, fs, link, external
         )
-        for art in self.relative_artifacts:
-            download = art.materialize(
-                new.name, new.loc.fs  # pylint: disable=protected-access
+
+        for art_name, art in (self.artifacts or {}).items():
+            if isinstance(art, LocalArtifact) and not posixpath.isabs(art.uri):
+                art_path = new.path + art.uri[len(self.basename) :]
+            else:
+                art_path = posixpath.join(new.path, art_name)
+            download = art.relative(
+                self.location.fs, self.dirname
+            ).materialize(art_path, new.loc.fs)
+            new.artifacts[art_name] = LocalArtifact(
+                uri=posixpath.relpath(art_path, new.dirname), **download.info
             )
-            if isinstance(download, FSSpecArtifact):
-                download = LocalArtifact(
-                    uri=posixpath.relpath(
-                        download.uri, posixpath.dirname(make_posix(path))
-                    ),
-                    size=download.size,
-                    hash=download.hash,
-                )
-            new.artifacts.append(download)
         new._write_meta(location, link)  # pylint: disable=protected-access
         return new
 
@@ -510,10 +536,10 @@ class _WithArtifacts(ABC, MlemMeta):
             raise MlemObjectNotSavedError(
                 "Cannot get relative artifacts for not saved object"
             )
-        return [
-            a.relative(self.location.fs, self.dirname)
-            for a in self.artifacts or []
-        ]
+        return {
+            name: a.relative(self.location.fs, self.dirname)
+            for name, a in (self.artifacts or {}).items()
+        }
 
     @property
     def storage(self):
@@ -528,12 +554,12 @@ class _WithArtifacts(ABC, MlemMeta):
     def get_artifacts(self):
         if self.artifacts is None:
             return self.write_value()
-        return [
-            a.relative_to(self.loc)
+        return {
+            name: a.relative_to(self.loc)
             if isinstance(a, PlaceholderArtifact)
             else a
-            for a in self.artifacts
-        ]
+            for name, a in self.artifacts.items()
+        }
 
 
 class ModelMeta(_WithArtifacts):
@@ -646,6 +672,8 @@ class DatasetMeta(_WithArtifacts):
 
 
 class DeployState(MlemObject):
+    """"""
+
     class Config:
         type_root = True
 
@@ -660,6 +688,8 @@ DT = TypeVar("DT", bound="DeployMeta")
 
 
 class TargetEnvMeta(MlemMeta, Generic[DT]):
+    """"""
+
     class Config:
         type_root = True
         type_field = "type"
@@ -690,7 +720,7 @@ class TargetEnvMeta(MlemMeta, Generic[DT]):
             )
 
 
-class DeployStatus(Enum):
+class DeployStatus(str, Enum):
     UNKNOWN = "unknown"
     NOT_DEPLOYED = "not_deployed"
     STARTING = "starting"
@@ -700,6 +730,8 @@ class DeployStatus(Enum):
 
 
 class DeployMeta(MlemMeta):
+    """"""
+
     object_type: ClassVar = "deployment"
 
     class Config:

@@ -54,7 +54,9 @@ install_requires = [
     "isort>4",
     "docker",
     "pydantic>=1.9.0,<2",
-    "click<9",
+    "typer",
+    "click<8.1",
+    "rich",
     "aiohttp<4",
     "aiohttp_swagger<2",
     "Jinja2>=3",
@@ -164,7 +166,7 @@ setup_args = dict(  # noqa: C408
     include_package_data=True,
     url="https://mlem.ai",
     entry_points={
-        "console_scripts": ["mlem = mlem.cli:cli"],
+        "console_scripts": ["mlem = mlem.cli:app"],
         # Additional mechanism for plugins.
         # This is the way for mlem to find implementations in installed modules.
         # Since mlem has some "optional" implementations,

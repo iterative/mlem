@@ -172,7 +172,9 @@ class NumpyArrayWriter(DatasetWriter):
     ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})
-        return NumpyArrayReader(dataset_type=dataset.dataset_type), [art]
+        return NumpyArrayReader(dataset_type=dataset.dataset_type), {
+            self.art_name: art
+        }
 
 
 class NumpyArrayReader(DatasetReader):
@@ -185,6 +187,6 @@ class NumpyArrayReader(DatasetReader):
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be oe {DATA_FILE} file"
             )
-        with artifacts[0].open() as f:
+        with artifacts[DatasetWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]
         return Dataset(data, self.dataset_type)

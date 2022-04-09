@@ -32,6 +32,7 @@ from mlem.core.base import MlemObject
 from mlem.core.errors import HookNotFound
 from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
+from mlem.utils.path import make_posix
 
 MODULE_PACKAGE_MAPPING = {
     "sklearn": "scikit-learn",
@@ -153,16 +154,18 @@ class CustomRequirement(PythonRequirement):
         :param mod: module object
         :return: :class:`CustomRequirement`
         """
+        if mod.__file__ is None:
+            raise ValueError(f"{mod} does not have __file__ attr")
         is_package = mod.__file__.endswith("__init__.py")
         if is_package:
             pkg_dir = os.path.dirname(mod.__file__)
             par = os.path.dirname(pkg_dir)
             sources = {
-                os.path.relpath(p, par): Path(p).read_bytes()
+                make_posix(os.path.relpath(p, par)): Path(p).read_bytes()
                 for p in glob.glob(
                     os.path.join(pkg_dir, "**", "*"), recursive=True
                 )
-                if os.path.isfile(p)
+                if os.path.isfile(p) and "__pycache__" not in p
             }
             src = CustomRequirement.compress_package(sources)
         else:

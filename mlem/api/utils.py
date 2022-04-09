@@ -2,7 +2,7 @@ import re
 from typing import Any, Optional, Tuple, Type, TypeVar, Union
 
 from mlem.core.base import MlemObject, build_mlem_object
-from mlem.core.errors import InvalidArgumentError
+from mlem.core.errors import InvalidArgumentError, WrongMetaType
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta
 
@@ -31,9 +31,7 @@ def get_model_meta(model: Any) -> ModelMeta:
     if isinstance(model, str):
         model = load_meta(model)
         if not isinstance(model, ModelMeta):
-            raise InvalidArgumentError(
-                "MLEM object is loaded, but it's not a model as expected"
-            )
+            raise WrongMetaType(model, ModelMeta)
         model.load_value()
         return model
     raise InvalidArgumentError(

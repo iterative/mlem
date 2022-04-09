@@ -387,7 +387,7 @@ class PandasFormat:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {self.file_name} file"
             )
-        with artifacts[0].open() as f:
+        with artifacts[DatasetWriter.art_name].open() as f:
             return self.read_func(f, **read_kwargs)
 
     def write(
@@ -512,7 +512,7 @@ class PandasWriter(DatasetWriter, _PandasIO):
             raise ValueError("Cannot write non-pandas Dataset")
         return PandasReader(
             dataset_type=dataset.dataset_type, format=self.format
-        ), [art]
+        ), {self.art_name: art}
 
 
 class PandasImport(ExtImportHook):
@@ -539,11 +539,11 @@ class PandasImport(ExtImportHook):
             data = fmt.read_func(f, **read_args)
         meta = get_object_metadata(data)
         if not copy_data:
-            meta.artifacts = [
-                PlaceholderArtifact(
+            meta.artifacts = {
+                DatasetWriter.art_name: PlaceholderArtifact(
                     location=obj,
                     uri=obj.uri,
                     **get_file_info(obj.fullpath, obj.fs),
                 )
-            ]
+            }
         return meta

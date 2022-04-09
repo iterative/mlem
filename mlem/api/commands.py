@@ -5,8 +5,8 @@ import posixpath
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
-import click
 from fsspec import AbstractFileSystem
+from fsspec.implementations.local import LocalFileSystem
 
 from mlem.api.utils import (
     ensure_meta,
@@ -15,14 +15,16 @@ from mlem.api.utils import (
     get_model_meta,
     parse_import_type_modifier,
 )
-from mlem.config import CONFIG_FILE
+from mlem.config import CONFIG_FILE_NAME
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
+    WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, UriResolver, get_fs
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     DatasetMeta,
@@ -34,7 +36,17 @@ from mlem.core.objects import (
 )
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.utils.root import mlem_repo_exists
+from mlem.ui import (
+    EMOJI_APPLY,
+    EMOJI_COPY,
+    EMOJI_LOAD,
+    EMOJI_MLEM,
+    boxify,
+    color,
+    echo,
+    no_echo,
+)
+from mlem.utils.root import find_repo_root, mlem_repo_exists
 
 
 def apply(
@@ -63,8 +75,13 @@ def apply(
     """
     model = get_model_meta(model)
     w = model.model_type
+    try:
+        resolved_method = w.resolve_method(method)
+    except WrongMethodError:
+        resolved_method = PREDICT_METHOD_NAME
+    echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
     res = [
-        w.call_method(w.resolve_method(method), get_dataset_value(part))
+        w.call_method(resolved_method, get_dataset_value(part))
         for part in data
     ]
     if output is None:
@@ -120,6 +137,9 @@ def clone(
         follow_links=follow_links,
         load_value=load_value,
     )
+    echo(EMOJI_COPY + f"Cloning {meta.loc.uri}")
+    if target in ("", "."):
+        target = posixpath.basename(meta.loc.uri)
     return meta.clone(
         target, fs=target_fs, repo=target_repo, link=link, external=external
     )
@@ -130,20 +150,59 @@ def init(path: str = ".") -> None:
     path = posixpath.join(path, MLEM_DIR)
     fs, path = get_fs(path)
     if fs.exists(path):
-        click.echo(f"{path} already exists, no need to run `mlem init` again")
+        echo(
+            f"{posixpath.abspath(path)} already exists, no need to run `mlem init` again"
+        )
     else:
         from mlem import analytics
 
+        echo(
+            color("███╗   ███╗", "#13ADC7")
+            + color("██╗     ", "#945DD5")
+            + color("███████╗", "#F46737")
+            + color("███╗   ███╗\n", "#7B61FF")
+            + color("████╗ ████║", "#13ADC7")
+            + color("██║     ", "#945DD5")
+            + color("██╔════╝", "#F46737")
+            + color("████╗ ████║\n", "#7B61FF")
+            + color("██╔████╔██║", "#13ADC7")
+            + color("██║     ", "#945DD5")
+            + color("█████╗  ", "#F46737")
+            + color("██╔████╔██║\n", "#7B61FF")
+            + color("██║╚██╔╝██║", "#13ADC7")
+            + color("██║     ", "#945DD5")
+            + color("██╔══╝  ", "#F46737")
+            + color("██║╚██╔╝██║\n", "#7B61FF")
+            + color("██║ ╚═╝ ██║", "#13ADC7")
+            + color("███████╗", "#945DD5")
+            + color("███████╗", "#F46737")
+            + color("██║ ╚═╝ ██║\n", "#7B61FF")
+            + color("╚═╝     ╚═╝", "#13ADC7")
+            + color("╚══════╝", "#945DD5")
+            + color("╚══════╝", "#F46737")
+            + color("╚═╝     ╚═╝\n", "#7B61FF")
+        )
         if analytics.is_enabled():
-            click.echo(
-                "MLEM has been initialized.\n"
-                "MLEM has anonymous aggregate usage analytics enabled.\n"
-                "To opt out set MLEM_NO_ANALYTICS env to 'true' or add 'no_analytics: true' to .mlem/config.yaml\n"
+            echo(
+                boxify(
+                    "MLEM has enabled anonymous aggregate usage analytics.\n"
+                    "Read the analytics documentation (and how to opt-out) here:\n"
+                    "<https://mlem.ai/docs/user-guide/analytics>"
+                )
             )
         fs.makedirs(path)
         # some fs dont support creating empty dirs
-        with fs.open(posixpath.join(path, CONFIG_FILE), "w"):
+        with fs.open(posixpath.join(path, CONFIG_FILE_NAME), "w"):
             pass
+        echo(
+            EMOJI_MLEM
+            + color("What's next?\n------------", "yellow")
+            + """
+- Check out the documentation: <https://mlem.ai/docs>
+- Star us on GitHub: <https://github.com/iterative/mlem>
+- Get help and share ideas: <https://mlem.ai/chat>
+"""
+        )
 
 
 def link(
@@ -225,10 +284,20 @@ def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
     interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
+    echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 
 
-def ls(
+def _validate_ls_repo(loc: Location, repo):
+    if loc.repo is None:
+        raise MlemRootNotFound(repo, loc.fs)
+    if isinstance(loc.fs, LocalFileSystem):
+        loc.repo = find_repo_root(loc.repo, loc.fs)
+    else:
+        mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+
+
+def ls(  # pylint: disable=too-many-locals
     repo: str = ".",
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
@@ -245,28 +314,29 @@ def ls(
     if MlemLink not in type_filter:
         type_filter.add(MlemLink)
     loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
-    if loc.repo is None:
-        raise MlemRootNotFound(repo, loc.fs)
-    mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
-    repo, fs = loc.repo, loc.fs
+    _validate_ls_repo(loc, repo)
     res = defaultdict(list)
+    root_path = posixpath.join(loc.repo or "", MLEM_DIR)
+    files = loc.fs.glob(
+        posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
+    )
     for cls in type_filter:
-        root_path = posixpath.join(repo, MLEM_DIR, cls.object_type)
-        files = fs.glob(
-            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
-        )
+        type_path = posixpath.join(root_path, cls.object_type)
         for file in files:
-            meta = load_meta(
-                posixpath.relpath(file, repo),
-                repo=repo,
-                rev=rev,
-                follow_links=False,
-                fs=fs,
-                load_value=False,
-            )
+            if not file.startswith(type_path):
+                continue
+            with no_echo():
+                meta = load_meta(
+                    posixpath.relpath(file, loc.repo),
+                    repo=loc.repo,
+                    rev=rev,
+                    follow_links=False,
+                    fs=loc.fs,
+                    load_value=False,
+                )
             obj_type = cls
             if isinstance(meta, MlemLink):
-                link_name = posixpath.relpath(file, root_path)[
+                link_name = posixpath.relpath(file, type_path)[
                     : -len(MLEM_EXT)
                 ]
                 is_auto_link = meta.path == link_name + MLEM_EXT
@@ -275,7 +345,8 @@ def ls(
                 if obj_type not in type_filter:
                     continue
                 if is_auto_link:
-                    meta = meta.load_link()
+                    with no_echo():
+                        meta = meta.load_link()
                 elif not include_links:
                     continue
             res[obj_type].append(meta)
@@ -299,6 +370,7 @@ def import_object(
     optionally saving to the specified target location
     """
     loc = UriResolver.resolve(path, repo, rev, fs)
+    echo(EMOJI_LOAD + f"Importing object from {loc.uri}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
         if type_ not in ImportAnalyzer.types:

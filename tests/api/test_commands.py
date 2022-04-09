@@ -9,11 +9,12 @@ from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, link, load_meta
 from mlem.api.commands import import_object, init, ls
-from mlem.config import CONFIG_FILE
+from mlem.config import CONFIG_FILE_NAME
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
+from mlem.core.model import ModelIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -122,7 +123,7 @@ def test_ls_remote(current_test_branch):
 def test_init(tmpdir):
     init(str(tmpdir))
     assert os.path.isdir(tmpdir / MLEM_DIR)
-    assert os.path.isfile(tmpdir / MLEM_DIR / CONFIG_FILE)
+    assert os.path.isfile(tmpdir / MLEM_DIR / CONFIG_FILE_NAME)
 
 
 @long
@@ -130,7 +131,7 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("init")
     init(path)
     assert s3_storage_fs.isdir(f"{path}/{MLEM_DIR}")
-    assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE}")
+    assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE_NAME}")
 
 
 def _check_meta(meta, out_path, fs=None):
@@ -173,7 +174,7 @@ def _check_load_artifact(
 ):
     assert isinstance(meta, ModelMeta)
     assert len(meta.artifacts) == 1
-    art = meta.artifacts[0]
+    art = meta.artifacts[ModelIO.art_name]
     if is_abs:
         assert meta.loc.fs.exists(art.uri)
     else:

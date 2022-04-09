@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from inspect import isabstract
 from types import ModuleType
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List, Type, Union
 
 import entrypoints
 
@@ -282,12 +282,23 @@ def load_entrypoints() -> Dict[str, Entrypoint]:
     return {k: Entrypoint.from_entrypoint(ep) for k, ep in eps.items()}
 
 
+def list_implementations(
+    base_class: Union[str, Type[MlemObject]]
+) -> List[str]:
+    if isinstance(base_class, type) and issubclass(base_class, MlemObject):
+        base_class = base_class.abs_name
+    return [
+        e.name for e in load_entrypoints().values() if e.abs_name == base_class
+    ]
+
+
 def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     """Generates dict with MLEM entrypoints which should appear in setup.py.
     Can be used by plugin developers to check if they populated all existing
     entrypoints in setup.py
     """
     root_module = import_module(root_module_name)
+    assert root_module.__file__ is not None
     path = os.path.dirname(root_module.__file__)
 
     impls = {}

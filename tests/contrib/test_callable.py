@@ -78,10 +78,10 @@ class ComplexModelIO(ModelIO):
     def dump(self, storage: Storage, path, model: "ComplexModel") -> Artifacts:
         with storage.open(posixpath.join(path, self.fname)) as (f, art):
             f.write(model.prefix.encode("utf8"))
-            return [art]
+            return {self.fname: art}
 
     def load(self, artifacts: Artifacts):
-        with artifacts[0].open() as f:
+        with artifacts[self.fname].open() as f:
             return ComplexModel(prefix=f.read().decode("utf8"))
 
 

@@ -193,13 +193,14 @@ def load_meta(
         fs=fs,
         find_repo=True,
     )
-    meta = MlemMeta.read(
+    cls = force_type or MlemMeta
+    meta = cls.read(
         location=find_meta_location(location),
         follow_links=follow_links,
     )
     if load_value:
         meta.load_value()
-    if not isinstance(meta, force_type or MlemMeta):
+    if not isinstance(meta, cls):
         raise WrongMetaType(meta, force_type)
     return meta  # type: ignore[return-value]
 
