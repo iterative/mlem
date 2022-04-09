@@ -33,9 +33,11 @@ class CatBoostModelIO(ModelIO):
             model_name = self._get_model_file_name(model)
             model_path = os.path.join(tmpdir, model_name)
             model.save_model(model_path)
-            return [
-                storage.upload(model_path, posixpath.join(path, model_name))
-            ]
+            return {
+                self.art_name: storage.upload(
+                    model_path, posixpath.join(path, model_name)
+                )
+            }
 
     def load(self, artifacts: Artifacts):
         """
@@ -52,7 +54,7 @@ class CatBoostModelIO(ModelIO):
             model_type = CatBoostRegressor
 
         model = model_type()
-        with artifacts[0].open() as f:
+        with artifacts[self.art_name].open() as f:
             model.load_model(stream=f)
         return model
 

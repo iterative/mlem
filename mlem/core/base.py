@@ -63,6 +63,7 @@ class MlemObject(PolyModel):
     which should be serialized and deserialized
     """
 
+    abs_types: ClassVar[List[Type["MlemObject"]]] = []
     abs_name: ClassVar[str]
 
     @classmethod
@@ -77,15 +78,27 @@ class MlemObject(PolyModel):
             child_cls = load_impl_ext(cls.abs_name, type_name)
         return child_cls
 
+    def __init_subclass__(cls: Type["MlemObject"]):
+        super().__init_subclass__()
+        if cls.__is_root__:
+            MlemObject.abs_types.append(cls)
 
-def _set_recursively(obj: dict, keys: List[str], value: Any):
+
+def set_recursively(obj: dict, keys: List[str], value: Any):
     if len(keys) == 1:
         obj[keys[0]] = value
         return
     key, keys = keys[0], keys[1:]
     if key not in obj:
         obj[key] = {}
-    _set_recursively(obj[key], keys, value)
+    set_recursively(obj[key], keys, value)
+
+
+def get_recursively(obj: dict, keys: List[str]):
+    if len(keys) == 1:
+        return obj[keys[0]]
+    key, keys = keys[0], keys[1:]
+    return get_recursively(obj[key], keys)
 
 
 def smart_split(string: str, char: str):
@@ -152,7 +165,7 @@ def parse_string_conf(conf: List[str]) -> Dict[str, Any]:
     res: Dict[str, Any] = {}
     for c in conf:
         keys, value = smart_split(c, "=")
-        _set_recursively(res, smart_split(keys, "."), value)
+        set_recursively(res, smart_split(keys, "."), value)
     return res
 
 
@@ -167,15 +180,15 @@ def build_model(
     kwargs.update(conf or {})
     model_dict.update()
     for key, c in kwargs.items():
-        _set_recursively(model_dict, smart_split(key, "."), c)
+        set_recursively(model_dict, smart_split(key, "."), c)
 
     for file in file_conf or []:
         keys, path = smart_split(make_posix(file), "=")
         with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
-        _set_recursively(model_dict, smart_split(keys, "."), value)
+        set_recursively(model_dict, smart_split(keys, "."), value)
 
     for c in str_conf or []:
         keys, value = smart_split(c, "=")
-        _set_recursively(model_dict, smart_split(keys, "."), value)
+        set_recursively(model_dict, smart_split(keys, "."), value)
     return parse_obj_as(model, model_dict)

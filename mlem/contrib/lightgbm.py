@@ -79,7 +79,7 @@ class LightGBMModelIO(ModelIO):
             model_path = os.path.join(f, self.model_file_name)
             model.save_model(model_path)
             fs_path = posixpath.join(path, self.model_file_name)
-            return [storage.upload(model_path, fs_path)]
+            return {self.art_name: storage.upload(model_path, fs_path)}
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
@@ -91,7 +91,7 @@ class LightGBMModelIO(ModelIO):
             prefix="mlem_lightgbm_load"
         ) as tmpdir:
             local_path = os.path.join(tmpdir, self.model_file_name)
-            artifacts[0].materialize(
+            artifacts[self.art_name].materialize(
                 local_path,
             )
             return lgb.Booster(model_file=local_path)

@@ -1,60 +1,295 @@
 import logging
-from functools import wraps
-from typing import Callable, List, Optional, Type
+import typing as t
+from collections import defaultdict
+from enum import Enum, EnumMeta
+from functools import partial, wraps
+from gettext import gettext
+from typing import List, Optional, Tuple, Type
 
-import click
-from pydantic import parse_obj_as
+import typer
+from click import Abort, ClickException, Command, HelpFormatter, pass_context
+from click.exceptions import Exit
+from pydantic import ValidationError, parse_obj_as
+from typer import Context, Option, Typer
+from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
 from mlem import version
 from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
-from mlem.core.errors import WrongMetaType
-from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemMeta
+from mlem.core.errors import MlemError
+from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
-@click.group()
-@click.version_option(version.__version__)
-def cli():
+class MlemFormatter(HelpFormatter):
+    def write_heading(self, heading: str) -> None:
+        super().write_heading(bold(heading))
+
+
+class MlemMixin(Command):
+    def __init__(
+        self,
+        name: t.Optional[str],
+        examples: Optional[str],
+        section: str = "other",
+        aliases: List[str] = None,
+        **kwargs,
+    ):
+        super().__init__(name, **kwargs)
+        self.examples = examples
+        self.section = section
+        self.aliases = aliases
+
+    def collect_usage_pieces(self, ctx: Context) -> t.List[str]:
+        return [p.lower() for p in super().collect_usage_pieces(ctx)]
+
+    def get_help(self, ctx: Context) -> str:
+        """Formats the help into a string and returns it.
+
+        Calls :meth:`format_help` internally.
+        """
+        formatter = MlemFormatter(
+            width=ctx.terminal_width, max_width=ctx.max_content_width
+        )
+        self.format_help(ctx, formatter)
+        return formatter.getvalue().rstrip("\n")
+
+    def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None:
+        super().format_epilog(ctx, formatter)
+        if self.examples:
+            with formatter.section("Examples"):
+                formatter.write(self.examples)
+
+
+class MlemCommand(TyperCommand, MlemMixin):
+    def __init__(
+        self,
+        name: Optional[str],
+        section: str = "other",
+        aliases: List[str] = None,
+        help: Optional[str] = None,
+        **kwargs,
+    ):
+        examples, help = _extract_examples(help)
+        super().__init__(
+            name,
+            section=section,
+            aliases=aliases,
+            examples=examples,
+            help=help,
+            **kwargs,
+        )
+
+
+class MlemGroup(TyperGroup, MlemMixin):
+    order = ["common", "object", "runtime", "other"]
+
+    def __init__(
+        self,
+        name: t.Optional[str] = None,
+        commands: t.Optional[
+            t.Union[t.Dict[str, Command], t.Sequence[Command]]
+        ] = None,
+        section: str = "other",
+        aliases: List[str] = None,
+        help: str = None,
+        **attrs: t.Any,
+    ) -> None:
+        examples, help = _extract_examples(help)
+        super().__init__(
+            name,
+            help=help,
+            examples=examples,
+            aliases=aliases,
+            section=section,
+            commands=commands,
+            **attrs,
+        )
+
+    def format_commands(self, ctx: Context, formatter: HelpFormatter) -> None:
+        commands = []
+        for subcommand in self.list_commands(ctx):
+            cmd = self.get_command(ctx, subcommand)
+            # What is this, the tool lied about a command.  Ignore it
+            if cmd is None:
+                continue
+            if cmd.hidden:
+                continue
+
+            commands.append((subcommand, cmd))
+
+        # allow for 3 times the default spacing
+        if len(commands) > 0:
+            limit = formatter.width - 6 - max(len(cmd[0]) for cmd in commands)
+
+            sections = defaultdict(list)
+            for subcommand, cmd in commands:
+                help = cmd.get_short_help_str(limit)
+                if isinstance(cmd, (MlemCommand, MlemGroup)):
+                    section = cmd.section
+                    aliases = (
+                        f" ({','.join(cmd.aliases)})" if cmd.aliases else ""
+                    )
+                else:
+                    section = "other"
+                    aliases = ""
+
+                sections[section].append((subcommand + aliases, help))
+
+            for section in self.order:
+                if sections[section]:
+                    with formatter.section(
+                        gettext(f"{section} commands".capitalize())
+                    ):
+                        formatter.write_dl(sections[section])
+
+    def get_command(self, ctx: Context, cmd_name: str) -> t.Optional[Command]:
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+        for name in self.list_commands(ctx):
+            cmd = self.get_command(ctx, name)
+            if (
+                isinstance(cmd, (MlemCommand, MlemGroup))
+                and cmd.aliases
+                and cmd_name in cmd.aliases
+            ):
+                return cmd
+        return None
+
+
+def MlemGroupSection(section, options_metavar="options"):
+    return partial(MlemGroup, section=section, options_metavar=options_metavar)
+
+
+class ChoicesMeta(EnumMeta):
+    def __call__(cls, *names, module=None, qualname=None, type=None, start=1):
+        if len(names) == 1:
+            return super().__call__(names[0])
+        return super().__call__(
+            "Choice",
+            names,
+            module=module,
+            qualname=qualname,
+            type=type,
+            start=start,
+        )
+
+
+class Choices(str, Enum, metaclass=ChoicesMeta):
+    def _generate_next_value_(  # pylint: disable=no-self-argument
+        name, start, count, last_values
+    ):
+        return name
+
+
+app = Typer(
+    cls=MlemGroup, context_settings={"help_option_names": ["-h", "--help"]}
+)
+
+
+@app.callback(no_args_is_help=True, invoke_without_command=True)
+def mlem_callback(
+    ctx: Context,
+    show_version: bool = Option(
+        False, "--version", help="Show version and exit"
+    ),
+    verbose: bool = Option(
+        False, "--verbose", "-v", help="Print debug messages"
+    ),
+    traceback: bool = Option(False, "--traceback", "--tb", hidden=True),
+):
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
     * Serialize any model trained in Python into ready-to-deploy format
     * Model lifecycle management using Git and GitOps principles
     * Provider-agnostic deployment
+
+    Examples:
+        $ mlem init
+        $ mlem list https://github.com/iterative/example-mlem
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main logreg
+        $ mlem link logreg latest
+        $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
+        $ mlem serve latest fastapi -c port=8001
+        $ mlem pack latest build/ docker_dir -c server.type=fastapi
     """
-
-
-def _set_log_level(ctx, param, value):  # pylint: disable=unused-argument
-    if value:
+    if ctx.invoked_subcommand is None and show_version:
+        with cli_echo():
+            echo(EMOJI_MLEM + f"MLEM Version: {version.__version__}")
+    if verbose:
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
+    ctx.obj = {"traceback": traceback}
 
 
-verbose_option = click.option(
-    "-v",
-    "--verbose",
-    callback=_set_log_level,
-    expose_value=False,
-    is_eager=True,
-    is_flag=True,
-)
+def _extract_examples(
+    help_str: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    if help_str is None:
+        return None, None
+    try:
+        examples = help_str.index("Examples:")
+    except ValueError:
+        return None, help_str
+    return help_str[examples + len("Examples:") + 1 :], help_str[:examples]
 
 
-def _send_analytics(cmd_name):
+def mlem_command(
+    *args,
+    section="other",
+    aliases=None,
+    options_metavar="[options]",
+    parent=app,
+    **kwargs,
+):
     def decorator(f):
+        if len(args) > 0:
+            cmd_name = args[0]
+        else:
+            cmd_name = kwargs.get("name", f.__name__)
+
+        @parent.command(
+            *args,
+            options_metavar=options_metavar,
+            **kwargs,
+            cls=partial(MlemCommand, section=section, aliases=aliases),
+        )
         @wraps(f)
-        def inner(*args, **kwargs):
+        @pass_context
+        def inner(ctx, *iargs, **ikwargs):
             res = {}
             error = None
             try:
-                res = f(*args, **kwargs) or {}
+                with cli_echo():
+                    res = f(*iargs, **ikwargs) or {}
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
-            except Exception as e:
+            except (ClickException, Exit, Abort) as e:
                 error = str(type(e))
-                raise e
+                raise
+            except MlemError as e:
+                error = str(type(e))
+                if ctx.obj["traceback"]:
+                    raise
+                with cli_echo():
+                    echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
+                raise typer.Exit(1)
+            except Exception as e:  # pylint: disable=broad-except
+                error = str(type(e))
+                if ctx.obj["traceback"]:
+                    raise
+                with cli_echo():
+                    echo(
+                        EMOJI_FAIL
+                        + color(
+                            "Unexpected error: " + str(e), col=typer.colors.RED
+                        )
+                    )
+                    echo(
+                        "Please report it here: <https://github.com/iterative/mlem/issues>"
+                    )
             finally:
                 send_cli_call(cmd_name, error_msg=error, **res)
 
@@ -63,99 +298,78 @@ def _send_analytics(cmd_name):
     return decorator
 
 
-@wraps(cli.command)
-def mlem_command(*args, **kwargs):
-    def decorator(f):
-        if len(args) > 0:
-            cmd_name = args[0]
-        else:
-            cmd_name = kwargs.get("name", f.__name__)
-        return cli.command(*args, **kwargs)(
-            _send_analytics(cmd_name)(verbose_option(f))
-        )
-
-    return decorator
-
-
-option_repo = click.option(
-    "-r", "--repo", default=None, help="Path to MLEM repo"
+option_repo = Option(
+    None, "-r", "--repo", help="Path to MLEM repo", show_default="none"  # type: ignore
 )
-option_rev = click.option("--rev", default=None, help="Repo revision to use.")
-option_link = click.option(
+option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
+option_link = Option(
+    None,
     "--link/--no-link",
-    default=False,
-    help="Whether to create link for output in .mlem directory.",
+    help="Whether to create link for output in .mlem directory",
 )
-option_external = click.option(
+option_external = Option(
+    None,
     "--external",
     "-e",
-    default=False,
     is_flag=True,
-    help=f"Save object not in {MLEM_DIR}, but directly in repo.",
+    help=f"Save result not in {MLEM_DIR}, but directly in repo",
 )
-option_target_repo = click.option(
+option_target_repo = Option(
+    None,
     "--target-repo",
     "--tr",
-    default=None,
-    help="Save object to mlem dir found in {target_repo} path.",
+    help="Repo to save target to",
+    show_default="none",  # type: ignore
 )
+option_json = Option(False, "--json", help="Output as json")
 
 
-def config_arg(name: str, model: Type[MlemObject], **kwargs):
-    """add argument + multi option -c and -f to configure and deserialize to model"""
-
-    def decorator(f):
-        @click.option("-l", "--load", default=None)
-        @click.argument("subtype", default="", **kwargs)
-        @click.option("-c", "--conf", multiple=True)
-        @click.option("-f", "--file_conf", multiple=True)
-        @wraps(f)
-        def inner(
-            load: Optional[str],
-            subtype: str,
-            conf: List[str],
-            file_conf: List[str],
-            **inner_kwargs,
-        ):
-            if load is not None:
-                with open(load, "r", encoding="utf8") as of:
-                    obj = parse_obj_as(model, safe_load(of))
-            else:
-                obj = build_mlem_object(model, subtype, conf, file_conf)
-            inner_kwargs[name] = obj
-            return f(**inner_kwargs)
-
-        return inner
-
-    return decorator
+def option_load(type_: str = None):
+    type_ = type_ + " " if type_ is not None else ""
+    return Option(
+        None, "-l", "--load", help=f"File to load {type_}config from"
+    )
 
 
-def _get_option_name(option: Callable):
-    option_decls = option.__closure__[-1].cell_contents  # type: ignore
-    return option_decls[-1].lstrip("-")
+def option_conf(type_: str = None):
+    type_ = f"for {type_} " if type_ is not None else ""
+    return Option(
+        None,
+        "-c",
+        "--conf",
+        help=f"Options {type_}in format `field.name=value`",
+    )
 
 
-def with_meta(
-    argument_name: str,
-    repo_opt: Callable = option_repo,
-    rev_opt: Callable = option_rev,
-    force_cls: Type[MlemMeta] = None,
+def option_file_conf(type_: str = None):
+    type_ = f"for {type_} " if type_ is not None else ""
+    return Option(
+        None,
+        "-f",
+        "--file_conf",
+        help=f"File with options {type_}in format `field.name=path_to_config`",
+    )
+
+
+def config_arg(
+    model: Type[MlemObject],
+    load: Optional[str],
+    subtype: str,
+    conf: Optional[List[str]],
+    file_conf: Optional[List[str]],
 ):
-    def decorator(f):
-        @click.argument(argument_name)
-        @repo_opt
-        @rev_opt
-        @wraps(f)
-        def inner(**kwargs):
-            path = kwargs.pop(argument_name)
-            repo = kwargs.pop(_get_option_name(repo_opt))
-            rev = kwargs.pop(_get_option_name(rev_opt))
-            meta = load_meta(path, repo=repo, rev=rev)
-            if force_cls is not None and not isinstance(meta, force_cls):
-                raise WrongMetaType(meta, force_cls)
-            kwargs[argument_name] = meta
-            return f(**kwargs)
-
-        return inner
-
-    return decorator
+    if load is not None:
+        with open(load, "r", encoding="utf8") as of:
+            obj = parse_obj_as(model, safe_load(of))
+    else:
+        if not subtype:
+            raise typer.BadParameter(
+                f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
+            )
+        try:
+            obj = build_mlem_object(model, subtype, conf, file_conf)
+        except ValidationError as e:
+            raise typer.BadParameter(
+                f"Error on constructing {subtype} {model.__name__}: {e}"
+            ) from e
+    return obj

@@ -17,14 +17,14 @@ from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage
+from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.dataset_type import (
     Dataset,
     DatasetReader,
     DatasetType,
     DatasetWriter,
 )
-from mlem.core.meta_io import get_fs
+from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import DatasetMeta, ModelMeta
@@ -184,6 +184,38 @@ def model_meta_saved_single(tmp_path_factory):
 
 
 @pytest.fixture
+def model_single_path(model_meta_saved_single):
+    return model_meta_saved_single.loc.uri
+
+
+@pytest.fixture
+def complex_model_meta_saved_single(tmp_path_factory):
+    name = "saved-complex-model-single"
+    path = os.path.join(tmp_path_factory.getbasetemp(), name)
+    p = Path(path)
+    p.mkdir(exist_ok=True)
+    (p / "file1").write_text("data1", encoding="utf8")
+    (p / "file2").write_text("data2", encoding="utf8")
+    model = ModelMeta(
+        artifacts={
+            "file1": LocalArtifact(
+                uri=posixpath.join(name, "file1"), size=1, hash=""
+            ),
+            "file2": LocalArtifact(
+                uri=posixpath.join(name, "file2"), size=1, hash=""
+            ),
+        },
+        model_type=SklearnModel(methods={}),
+    )
+    return model.dump(path)
+
+
+@pytest.fixture
+def complex_model_single_path(complex_model_meta_saved_single):
+    return complex_model_meta_saved_single.loc.uri
+
+
+@pytest.fixture
 def mlem_repo(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
@@ -297,6 +329,10 @@ def s3_tmp_path(github_matrix_os, github_matrix_python):
     for p in paths:
         try:
             fs.delete(p, recursive=True)
+        except FileNotFoundError:
+            pass
+        try:
+            fs.delete(p + MLEM_EXT)
         except FileNotFoundError:
             pass
 

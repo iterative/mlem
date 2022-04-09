@@ -143,7 +143,7 @@ def test_env_deploy_full(
         times=25,
     )
     assert meta.get_status() == DeployStatus.RUNNING
-    time.sleep(1)
+    time.sleep(10)
     docs_page = requests.post(
         meta.state.ensured_app.web_url + "predict",
         json={

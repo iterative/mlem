@@ -10,7 +10,7 @@ from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface
+from tests.conftest import check_model_type_common_interface, long
 
 
 @pytest.fixture
@@ -130,6 +130,7 @@ def test_model__predict_not_dmatrix(model):
     assert len(predict) == len(data)
 
 
+@long
 def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
     # pandas is not required, but it is conditionally imported by some Booster methods
     expected_requirements = {"xgboost", "numpy", "scipy", "pandas"}
@@ -146,6 +147,7 @@ def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
     assert set(model.get_requirements().modules) == expected_requirements
 
 
+@long
 def test_libgomp(model):
     req = model.get_requirements()
     assert req.of_type(UnixPackageRequirement) == [

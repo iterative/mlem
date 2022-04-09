@@ -50,12 +50,24 @@ class RevisionNotFound(MlemError):
         super().__init__(self.message)
 
 
+class FileNotFoundOnImportError(FileNotFoundError, MlemError):
+    """Thrown if import failed because nothing was found at provided location"""
+
+
 class InvalidArgumentError(ValueError, MlemError):
     """Thrown if arguments are invalid."""
 
 
 class MlemObjectNotSavedError(ValueError, MlemError):
     """Thrown if we can't do something before we save MLEM object"""
+
+
+class MlemObjectNotLoadedError(ValueError, MlemError):
+    """Thrown if model or dataset value is not loaded"""
+
+
+class WrongMethodError(ValueError, MlemError):
+    """Thrown if wrong method name for model is provided"""
 
 
 class MlemObjectNotFound(FileNotFoundError, MlemError):
@@ -76,8 +88,9 @@ class MultipleHooksFound(MlemError):
 
 class WrongMetaType(TypeError, MlemError):
     def __init__(self, meta, force_type):
+        loc = f"from {meta.loc.uri} " if meta.is_saved else ""
         super().__init__(
-            f"Wrong type of meta loaded, {meta} is not {force_type}"
+            f"Wrong type of meta loaded, got {meta.object_type} {loc}instead of {force_type.object_type}"
         )
 
 

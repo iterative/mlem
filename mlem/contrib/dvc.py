@@ -16,7 +16,7 @@ from mlem.core.artifacts import (
 )
 from mlem.core.meta_io import get_fs
 
-BATCH_SIZE = 10 ** 5
+BATCH_SIZE = 10**5
 
 
 def find_dvc_repo_root(path: str):
@@ -99,7 +99,9 @@ class DVCArtifact(LocalArtifact):
                 root = find_dvc_repo_root(path)
                 # alternative caching impl
                 # Repo(root).pull(os.path.relpath(path, root))
-                with open(os.path.relpath(path, root), mode="rb") as f:
+                with open(
+                    os.path.relpath(path, root), repo=root, mode="rb"
+                ) as f:
                     yield f
                     return
         with fs.open(path) as f:

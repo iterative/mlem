@@ -1,6 +1,6 @@
 from typing import Optional
 
-import click
+from typer import Argument
 
 from mlem.cli.main import (
     mlem_command,
@@ -12,27 +12,27 @@ from mlem.cli.main import (
 )
 
 
-@mlem_command("clone")
-@click.argument("uri")
-@click.option("-t", "--target", help="Path to store the downloaded object.")
-@option_repo
-@option_rev
-@option_target_repo
-@option_link
-@option_external
+@mlem_command("clone", section="object")
 def clone(
-    uri: str,
-    target: str,
-    repo: Optional[str],
-    rev: Optional[str],
-    target_repo: Optional[str],
-    external: Optional[bool],
-    link: Optional[bool],
+    uri: str = Argument(..., help="URI to object you want to clone"),
+    target: str = Argument(..., help="Path to store the downloaded object."),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    target_repo: Optional[str] = option_target_repo,
+    external: Optional[bool] = option_external,
+    link: Optional[bool] = option_link,
 ):
-    """Download MLEM object from {uri} and save it to {out}."""
+    """Download MLEM object from `uri` and save it to `target`
+
+    Examples:
+        Copy remote model to local directory
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main mymodel
+
+        Copy remote model to remote MLEM repo
+        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main mymodel --tr s3://mybucket/mymodel
+    """
     from mlem.api.commands import clone
 
-    click.echo(f"Downloading {uri} to {target}")
     clone(
         uri,
         target,
