@@ -17,6 +17,11 @@ def dev_callback():
 def find_implementations_diff(
     root: str = Argument(MLEM_ENTRY_POINT, help="root entry point")
 ):
+    """Show difference in registered extensions and available in source code
+
+    Examples:
+        $ mlem dev fi
+    """
     exts = {e.entry for e in load_entrypoints().values()}
     impls = set(find_implementations(root)[MLEM_ENTRY_POINT])
     extra = exts.difference(impls)

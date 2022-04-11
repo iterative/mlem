@@ -302,7 +302,7 @@ class DockerfileGenerator(DockerBuildArgs, TemplateModel):
 
         docker_args = {
             "python_version": self.python_version,
-            "base_image": self.base_image,
+            "base_image": self.get_base_image(),
             "run_cmd": self.run_cmd,
             "mlem_install": f"COPY {self.mlem_whl} .\nRUN pip install {self.mlem_whl}"
             if is_whl
