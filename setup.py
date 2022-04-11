@@ -23,7 +23,6 @@ install_requires = [
     "python-daemon",
     "distro",
     "gitpython",
-    "setuptools_scm",
 ]
 
 tests = [
