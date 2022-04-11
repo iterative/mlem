@@ -15,8 +15,8 @@ class Container(DatasetType):
     field: int
 
     def serialize(
-        self, instance: Any
-    ) -> dict:  # pylint: disable=unused-argument
+        self, instance: Any  # pylint: disable=unused-argument
+    ) -> dict:
         return {}
 
     def deserialize(self, obj: dict) -> Any:
