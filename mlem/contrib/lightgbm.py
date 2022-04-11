@@ -38,19 +38,16 @@ class LightGBMDatasetType(
     :param inner: :class:`.DatasetType` instance for underlying data
     """
 
-    class Config:
-        arbitrary_types_allowed = True
-
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
-    inner: DatasetSerializer
+    inner: DatasetType
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
-        return self.inner.serialize(instance.data)
+        return self.inner.get_serializer().serialize(instance.data)
 
     def deserialize(self, obj: dict) -> Any:
-        v = self.inner.deserialize(obj)
+        v = self.inner.get_serializer().deserialize(obj)
         try:
             return lgb.Dataset(v, free_raw_data=False)
         except ValueError as e:
@@ -73,7 +70,7 @@ class LightGBMDatasetType(
         return LightGBMDatasetType(inner=DatasetAnalyzer.analyze(obj.data))
 
     def get_model(self) -> Type[BaseModel]:
-        raise self.inner.get_model()
+        raise self.inner.get_serializer().get_model()
 
 
 class LightGBMModelIO(ModelIO):
