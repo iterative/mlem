@@ -1,7 +1,6 @@
 import os
 import time
 
-import pytest
 import requests
 from testcontainers.general import TestContainer
 
@@ -15,7 +14,6 @@ from tests.contrib.test_docker.conftest import docker_test
 SERVER_PORT = 8080
 
 
-@pytest.mark.xfail(reason="fails on windows machines")
 def test_pack_dir(tmpdir, model_meta_saved):
     packed = pack(
         DockerDirPackager(server=FastAPIServer(), target=str(tmpdir)),

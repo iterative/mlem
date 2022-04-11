@@ -5,11 +5,7 @@ import docker
 
 import mlem
 from mlem.contrib.docker.base import DockerImage, DockerIORegistry
-from mlem.contrib.docker.context import (
-    DockerBuildArgs,
-    _DockerfileGenerator,
-    use_mlem_source,
-)
+from mlem.contrib.docker.context import DockerfileGenerator, use_mlem_source
 from mlem.core.requirements import UnixPackageRequirement
 from tests.contrib.test_docker.conftest import docker_test
 
@@ -92,9 +88,9 @@ def test_use_wheel_installation(tmpdir):
     distr = tmpdir.mkdir("distr").join("somewhatwheel.txt")
     distr.write("wheel goes brrr")
     with use_mlem_source(str(distr)):
-        dockerfile = _DockerfileGenerator(
-            DockerBuildArgs(mlem_whl=str(os.path.basename(distr)))
-        ).generate({}, None)
+        dockerfile = DockerfileGenerator(
+            mlem_whl=str(os.path.basename(distr))
+        ).generate(env={}, packages=[])
         assert "RUN pip install somewhatwheel.txt" in dockerfile
 
 
@@ -105,8 +101,8 @@ def _cut_empty_lines(string):
 def _generate_dockerfile(unix_packages=None, **kwargs):
     with use_mlem_source():
         return _cut_empty_lines(
-            _DockerfileGenerator(DockerBuildArgs(**kwargs)).generate(
-                {}, unix_packages
+            DockerfileGenerator(**kwargs).generate(
+                env={}, packages=[p.package_name for p in unix_packages or []]
             )
         )
 

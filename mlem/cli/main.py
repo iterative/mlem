@@ -294,6 +294,7 @@ def mlem_command(
                     echo(
                         "Please report it here: <https://github.com/iterative/mlem/issues>"
                     )
+                raise typer.Exit(1)
             finally:
                 send_cli_call(cmd_name, error_msg=error, **res)
 
