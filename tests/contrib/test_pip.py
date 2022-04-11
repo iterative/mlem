@@ -42,7 +42,7 @@ def test_whl_package(tmpdir, model_meta_saved_single):
     assert PIP_PACKAGE_NAME in whl_path
     assert "1.0.0" in whl_path
     subprocess.check_output(
-        f"pip install '{os.path.join(path, whl_path)}' --no-deps",
+        f"pip install {whl_path} --no-deps",
         shell=True,
         cwd=path,
     )
