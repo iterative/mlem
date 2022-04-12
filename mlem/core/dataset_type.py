@@ -291,13 +291,25 @@ class OrderedCollectionHookDelegator(DatasetHook):
         )
 
 
-class DictDatasetType(DatasetType, DatasetSerializer):
+class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     """
     DatasetType for dict type
     """
 
     type: ClassVar[str] = "dict"
     item_types: Dict[str, DatasetType]
+
+    @classmethod
+    def is_object_valid(cls, obj: Any) -> bool:
+        return isinstance(obj, dict)
+
+    @classmethod
+    def process(cls, obj: Any, **kwargs) -> "DictDatasetType":
+        return DictDatasetType(
+            item_types={
+                k: DatasetAnalyzer.analyze(v) for (k, v) in obj.items()
+            }
+        )
 
     def deserialize(self, obj):
         self._check_type_and_keys(obj, DeserializationError)

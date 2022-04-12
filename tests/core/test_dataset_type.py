@@ -4,6 +4,7 @@ from pydantic import parse_obj_as
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetType,
+    DictDatasetType,
     ListDatasetType,
     PrimitiveType,
     TupleDatasetType,
@@ -87,3 +88,27 @@ def test_tuple():
     assert t == dt.deserialize(t)
     assert dt.get_model().__name__ == "_TupleLikeDataset"
     # assert dt.get_model().schema() fails due to KeyError: <class 'pydantic.main.Primitive'>, related to https://github.com/iterative/mlem/issues/158
+
+
+def test_dict():
+    d = {"1": 1, "2": "a"}
+    dt = DatasetAnalyzer.analyze(d)
+    assert isinstance(dt, DictDatasetType)
+    payload = {
+        "item_types": {
+            "1": {"ptype": "int", "type": "primitive"},
+            "2": {"ptype": "str", "type": "primitive"},
+        },
+        "type": "dict",
+    }
+    assert dt.dict() == payload
+    dt2 = parse_obj_as(DictDatasetType, payload)
+    assert dt2 == dt
+    assert d == dt.serialize(d)
+    assert d == dt.deserialize(d)
+    assert dt.get_model().__name__ == "DictDataset"
+    assert dt.get_model().schema() == {
+        "title": "DictDataset",
+        "type": "object",
+        "properties": {},
+    }
