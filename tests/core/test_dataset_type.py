@@ -5,7 +5,12 @@ from pydantic import parse_obj_as
 
 from mlem.contrib.numpy import NumpyNdarrayType, NumpyNumberType
 from mlem.contrib.pandas import DataFrameType
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType, PrimitiveType
+from mlem.core.dataset_type import (
+    DatasetAnalyzer,
+    DatasetType,
+    ListDatasetType,
+    PrimitiveType,
+)
 
 
 class NotPrimitive:
@@ -83,3 +88,20 @@ def test_pandas_dataframe():
     assert dt.dict() == payload
     dt2 = parse_obj_as(DatasetType, payload)
     assert dt2 == dt
+
+
+def test_list():
+    l_value = [1, 2, 3, 4, 5]
+    dt = DatasetAnalyzer.analyze(l_value)
+    assert isinstance(dt, ListDatasetType)
+    payload = {
+        "dtype": {"ptype": "int", "type": "primitive"},
+        "size": 5,
+        "type": "list",
+    }
+    assert dt.dict() == payload
+    dt2 = parse_obj_as(ListDatasetType, payload)
+    assert dt2 == dt
+    assert l_value == dt.serialize(l_value)
+    assert l_value == dt.deserialize(l_value)
+    assert dt.get_model().__name__ == "ListDataset"
