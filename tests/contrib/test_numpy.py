@@ -54,7 +54,7 @@ def test_number():
     assert ndt.dtype == "float32"
     assert ndt.get_requirements().modules == ["numpy"]
     payload = {"dtype": "float32", "type": "number"}
-    ndt2 = parse_obj_as(DatasetType, loads(payload))
+    ndt2 = parse_obj_as(DatasetType, payload)
     assert ndt == ndt2
     assert ndt.get_model().__name__ == ndt2.get_model().__name__
     assert ndt.get_model().__root__.__name__ in ndt.dtype
