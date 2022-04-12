@@ -80,7 +80,7 @@ class NumpyNumberType(
         raise NotImplementedError()
 
     def get_model(self) -> Type[BaseModel]:
-        raise create_model(
+        return create_model(
             "NumpyNumber", __root__=python_type_from_np_string_repr(self.dtype)
         )
 

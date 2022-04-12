@@ -53,6 +53,8 @@ def test_number():
     payload = ndt.json()
     ndt2 = parse_obj_as(DatasetType, loads(payload))
     assert ndt == ndt2
+    assert ndt.get_model().__name__ == ndt2.get_model().__name__
+    assert ndt.get_model().__root__.__name__ in ndt.dtype
 
 
 def test_ndarray(nat):

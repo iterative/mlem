@@ -64,12 +64,14 @@ def test_hook_np(dtype_np: DatasetType):
     assert set(dtype_np.get_requirements().modules) == {"lightgbm", "numpy"}
     assert isinstance(dtype_np, LightGBMDatasetType)
     assert isinstance(dtype_np.inner, NumpyNdarrayType)
+    assert dtype_np.get_model().__name__ == dtype_np.inner.get_model().__name__
 
 
 def test_hook_df(dtype_df: DatasetType):
     assert set(dtype_df.get_requirements().modules) == {"lightgbm", "pandas"}
     assert isinstance(dtype_df, LightGBMDatasetType)
     assert isinstance(dtype_df.inner, DataFrameType)
+    assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
 
 
 def test_serialize__np(dtype_np, np_payload):

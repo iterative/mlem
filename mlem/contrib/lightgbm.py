@@ -70,7 +70,7 @@ class LightGBMDatasetType(
         return LightGBMDatasetType(inner=DatasetAnalyzer.analyze(obj.data))
 
     def get_model(self) -> Type[BaseModel]:
-        raise self.inner.get_serializer().get_model()
+        return self.inner.get_serializer().get_model()
 
 
 class LightGBMModelIO(ModelIO):
