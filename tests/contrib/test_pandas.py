@@ -358,6 +358,46 @@ def test_default_format(set_mlem_repo_root, df_type):
     assert config.DEFAULT_FORMAT == "json"
 
 
+def test_dataframe():
+    value = pd.DataFrame([{"a": 1}])
+    assert DataFrameType.is_object_valid(value)
+    dt = DatasetAnalyzer.analyze(value)
+    assert isinstance(dt, DataFrameType)
+    assert dt.columns == ["a"]
+    assert dt.dtypes == ["int64"]
+    assert dt.index_cols == []
+    payload = {
+        "type": "dataframe",
+        "columns": ["a"],
+        "dtypes": ["int64"],
+        "index_cols": [],
+    }
+    assert dt.dict() == payload
+    dt2 = parse_obj_as(DatasetType, payload)
+    assert dt2 == dt
+    assert dt.get_model().__name__ == "DataFrame"
+    assert dt.get_model().schema() == {
+        "title": "DataFrame",
+        "type": "object",
+        "properties": {
+            "values": {
+                "title": "Values",
+                "type": "array",
+                "items": {"$ref": "#/definitions/DataFrameRow"},
+            }
+        },
+        "required": ["values"],
+        "definitions": {
+            "DataFrameRow": {
+                "title": "DataFrameRow",
+                "type": "object",
+                "properties": {"a": {"title": "A", "type": "integer"}},
+                "required": ["a"],
+            }
+        },
+    }
+
+
 def test_series(series_data: pd.Series, series_df_type, df_type2):
     assert isinstance(series_df_type, SeriesType)
     assert series_df_type.dtypes == df_type2.dtypes

@@ -1,15 +1,12 @@
-import numpy as np
-import pandas as pd
 import pytest
 from pydantic import parse_obj_as
 
-from mlem.contrib.numpy import NumpyNdarrayType, NumpyNumberType
-from mlem.contrib.pandas import DataFrameType
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetType,
     ListDatasetType,
     PrimitiveType,
+    TupleDatasetType,
 )
 
 
@@ -34,60 +31,12 @@ def test_primitives(ptype):
     assert isinstance(dt2, PrimitiveType)
     assert dt2 == dt
     assert dt2.to_type == ptype
-
-
-def test_numpy_number():
-    value = np.int8(0)
-    assert NumpyNumberType.is_object_valid(value)
-    dt = DatasetAnalyzer.analyze(value)
-    assert isinstance(dt, NumpyNumberType)
-    assert dt.dtype == "int8"
-    payload = {"dtype": "int8", "type": "number"}
-    assert dt.dict() == payload
-    dt2 = parse_obj_as(DatasetType, payload)
-    assert dt2 == dt
-
-
-def test_numpy_ndarray():
-    value = np.zeros((1, 1), "int8")
-    assert NumpyNdarrayType.is_object_valid(value)
-    dt = DatasetAnalyzer.analyze(value)
-    assert isinstance(dt, NumpyNdarrayType)
-    assert dt.shape == (None, 1)
-    assert dt.dtype == "int8"
-    payload = {"type": "ndarray", "shape": (None, 1), "dtype": "int8"}
-    assert dt.dict() == payload
-    dt2 = parse_obj_as(DatasetType, payload)
-    assert dt2 == dt
-
-
-# def test_pandas_series():
-#     value = pd.Series([1, 2])
-#     assert SeriesType.is_object_valid(value)
-#     dt = DatasetAnalyzer.analyze(value)
-#     assert isinstance(dt, SeriesType)
-#     assert dt.columns == ['a']
-#     assert dt.dtypes == ['int64']
-#     assert dt.index_cols == []
-
-
-def test_pandas_dataframe():
-    value = pd.DataFrame([{"a": 1}])
-    assert DataFrameType.is_object_valid(value)
-    dt = DatasetAnalyzer.analyze(value)
-    assert isinstance(dt, DataFrameType)
-    assert dt.columns == ["a"]
-    assert dt.dtypes == ["int64"]
-    assert dt.index_cols == []
-    payload = {
-        "type": "dataframe",
-        "columns": ["a"],
-        "dtypes": ["int64"],
-        "index_cols": [],
+    assert dt.get_model().__name__ == "Primitive"
+    assert dt.get_model().schema() == {
+        "title": "Primitive",
+        "type": "object",
+        "properties": {},
     }
-    assert dt.dict() == payload
-    dt2 = parse_obj_as(DatasetType, payload)
-    assert dt2 == dt
 
 
 def test_list():
@@ -105,3 +54,36 @@ def test_list():
     assert l_value == dt.serialize(l_value)
     assert l_value == dt.deserialize(l_value)
     assert dt.get_model().__name__ == "ListDataset"
+    assert dt.get_model().schema() == {
+        "title": "ListDataset",
+        "type": "array",
+        "items": {"$ref": "#/definitions/Primitive"},
+        "definitions": {
+            "Primitive": {
+                "title": "Primitive",
+                "type": "object",
+                "properties": {},
+            }
+        },
+    }
+
+
+def test_tuple():
+    t = (1, 2, 3)
+    dt = DatasetAnalyzer.analyze(t)
+    assert isinstance(dt, TupleDatasetType)
+    payload = {
+        "items": [
+            {"ptype": "int", "type": "primitive"},
+            {"ptype": "int", "type": "primitive"},
+            {"ptype": "int", "type": "primitive"},
+        ],
+        "type": "tuple",
+    }
+    assert dt.dict() == payload
+    dt2 = parse_obj_as(TupleDatasetType, payload)
+    assert dt2 == dt
+    assert t == dt.serialize(t)
+    assert t == dt.deserialize(t)
+    assert dt.get_model().__name__ == "_TupleLikeDataset"
+    # assert dt.get_model().schema() fails due to KeyError: <class 'pydantic.main.Primitive'>, related to https://github.com/iterative/mlem/issues/158

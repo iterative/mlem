@@ -221,9 +221,12 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
     def get_model(self) -> Type[BaseModel]:
         return create_model(
             "_TupleLikeDataset",
-            __root__=Tuple[
-                tuple(t.get_serializer().get_model() for t in self.items)
-            ],
+            __root__=(
+                Tuple[
+                    tuple(t.get_serializer().get_model() for t in self.items)
+                ],
+                ...,
+            ),
         )
 
 
