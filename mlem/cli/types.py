@@ -6,7 +6,7 @@ from mlem.cli.main import mlem_command
 from mlem.core.base import MlemObject
 from mlem.core.objects import MlemMeta
 from mlem.ext import list_implementations
-from mlem.ui import EMOJI_CASE, echo
+from mlem.ui import EMOJI_BASE, bold, echo
 
 
 @mlem_command("types", hidden=True)
@@ -29,7 +29,7 @@ def list_types(
     """
     if subtype is None:
         for at in MlemObject.abs_types:
-            echo(EMOJI_CASE + at.abs_name + ":")
+            echo(EMOJI_BASE + bold(at.abs_name) + ":")
             echo(
                 f"\tBase class: {at.__module__}.{at.__name__}\n\t{at.__doc__.strip()}"
             )

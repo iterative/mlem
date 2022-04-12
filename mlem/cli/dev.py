@@ -17,7 +17,8 @@ def dev_callback():
 def find_implementations_diff(
     root: str = Argument(MLEM_ENTRY_POINT, help="root entry point")
 ):
-    """Show difference in registered extensions and available in source code
+    """Loads `root` module or package and finds implementations of MLEM base classes
+    Shows differences between what was found and what is registered in entrypoints
 
     Examples:
         $ mlem dev fi
