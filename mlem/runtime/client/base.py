@@ -76,7 +76,7 @@ class _MethodCall(BaseModel):
         )
         out = self.call_method(self.method.name, data)
         logger.debug("Server call returned %s", out)
-        return parse_obj_as(self.method.returns, out)
+        return self.method.returns.get_serializer().deserialize(out)
 
 
 class HTTPClient(BaseClient):
