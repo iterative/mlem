@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from mlem.core.errors import (
     HookNotFound,
     InvalidArgumentError,
+    LocationNotFound,
     MlemObjectNotFound,
     RevisionNotFound,
 )
@@ -32,6 +33,7 @@ class Location(BaseModel):
     repo: Optional[str]
     rev: Optional[str]
     uri: str
+    repo_uri: Optional[str]
     fs: AbstractFileSystem
 
     class Config:
@@ -45,14 +47,6 @@ class Location(BaseModel):
     def path_in_repo(self):
         return posixpath.relpath(self.fullpath, self.repo)
 
-    @property
-    def repo_uri(self):
-        if self.repo is None:
-            return None
-        # not sure if this is ok
-        # maybe we need to merge Location with UriResolver and implement this separately for each case
-        return self.uri[: -len(self.path)]
-
     @contextlib.contextmanager
     def open(self, mode="r", **kwargs):
         with self.fs.open(self.fullpath, mode, **kwargs) as f:
@@ -60,7 +54,7 @@ class Location(BaseModel):
 
     @classmethod
     def abs(cls, path: str, fs: AbstractFileSystem):
-        return Location(path=path, repo=None, fs=fs, uri=path)
+        return Location(path=path, repo=None, fs=fs, uri=path, repo_uri=None)
 
     def update_path(self, path):
         if not self.uri.endswith(self.path):
@@ -70,6 +64,9 @@ class Location(BaseModel):
 
     def exists(self):
         return self.fs.exists(self.fullpath)
+
+    def is_same_repo(self, other: "Location"):
+        return other.fs == self.fs and other.repo == self.repo
 
 
 class UriResolver(ABC):
@@ -146,12 +143,14 @@ class UriResolver(ABC):
                 fs, path = cls.get_fs(path, rev)
         if repo is None and find_repo:
             path, repo = cls.get_repo(path, fs)
+        uri = cls.get_uri(path, repo, rev, fs)
         return Location(
             path=path,
             repo=repo,
             rev=rev,
-            uri=cls.get_uri(path, repo, rev, fs),
+            uri=uri,
             fs=fs,
+            repo_uri=cls.get_repo_uri(path, repo, rev, fs, uri),
         )
 
     @classmethod
@@ -186,6 +185,19 @@ class UriResolver(ABC):
             path = posixpath.relpath(path, repo)
         return path, repo
 
+    @classmethod
+    def get_repo_uri(  # pylint: disable=unused-argument
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: AbstractFileSystem,
+        uri: str,
+    ):
+        if repo is None:
+            return None
+        return uri[: -len(path)]
+
 
 class GithubResolver(UriResolver):
     PROTOCOL = "github://"
@@ -214,7 +226,11 @@ class GithubResolver(UriResolver):
     ) -> Tuple[GithubFileSystem, str]:
         options = get_github_envs()
         if not uri.startswith(cls.PROTOCOL):
-            options.update(get_github_kwargs(uri))
+            try:
+                github_kwargs = get_github_kwargs(uri)
+            except ValueError as e:
+                raise LocationNotFound(*e.args) from e
+            options.update(github_kwargs)
             path = options.pop("path")
             options["sha"] = rev or options.get("sha", None)
         else:
@@ -228,7 +244,9 @@ class GithubResolver(UriResolver):
                 options["org"], options["repo"], options["sha"]
             ):
                 raise RevisionNotFound(options["sha"], uri) from e
-            raise
+            raise LocationNotFound(
+                f"Could not reolve github location {uri}"
+            ) from e
         return fs, path
 
     @classmethod
@@ -265,6 +283,17 @@ class GithubResolver(UriResolver):
             fs.invalidate_cache()
 
         return path, repo, rev, fs
+
+    @classmethod
+    def get_repo_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: GithubFileSystem,
+        uri: str,
+    ):
+        return f"https://github.com/{fs.org}/{fs.repo}/"
 
 
 class FSSpecResolver(UriResolver):

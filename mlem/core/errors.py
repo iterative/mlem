@@ -33,7 +33,11 @@ class MlemRootNotFound(MlemError):
         super().__init__(self.message)
 
 
-class RevisionNotFound(MlemError):
+class LocationNotFound(MlemError):
+    """Trown if MLEM could not resolve location"""
+
+
+class RevisionNotFound(LocationNotFound):
     _message = "Revision '{rev}' wasn't found in path={path}, fs={fs}"
 
     def __init__(

@@ -72,7 +72,33 @@ def test_link_in_mlem_dir(model_path_mlem_repo):
     assert os.path.exists(link_dumped_to)
     loaded_link_object = load_meta(link_dumped_to, follow_links=False)
     assert isinstance(loaded_link_object, MlemLink)
+    assert loaded_link_object.repo is None
+    assert loaded_link_object.rev is None
+    assert (
+        loaded_link_object.path
+        == posixpath.relpath(model_path, mlem_repo) + MLEM_EXT
+    )
     model = load_meta(link_dumped_to)
+    assert isinstance(model, ModelMeta)
+
+
+@long
+def test_link_from_remote_to_local(current_test_branch, mlem_repo):
+    link(
+        "simple/data/model",
+        source_repo=MLEM_TEST_REPO,
+        rev="main",
+        target="remote",
+        target_repo=mlem_repo,
+    )
+    loaded_link_object = load_meta(
+        "remote", repo=mlem_repo, follow_links=False
+    )
+    assert isinstance(loaded_link_object, MlemLink)
+    assert loaded_link_object.repo == MLEM_TEST_REPO
+    assert loaded_link_object.rev == "main"
+    assert loaded_link_object.path == "simple/data/model" + MLEM_EXT
+    model = loaded_link_object.load_link()
     assert isinstance(model, ModelMeta)
 
 
