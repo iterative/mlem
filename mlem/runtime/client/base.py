@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, ClassVar
+from typing import Callable, ClassVar, Optional
 
 import requests
 from pydantic import BaseModel, parse_obj_as
@@ -22,10 +22,7 @@ class BaseClient(MlemObject, ABC):
 
     @property
     def methods(self):
-        m_dict = {}
-        for method in self.interface.methods:
-            m_dict[method.name] = Signature.from_method(method)
-        return m_dict
+        return self.interface.methods
 
     @abstractmethod
     def _interface_factory(self) -> InterfaceDescriptor:
@@ -39,7 +36,7 @@ class BaseClient(MlemObject, ABC):
         if name not in self.methods:
             raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
-            self.base_url, self.methods[name], self._call_method
+            base_url=self.base_url, method=self.methods[name], call_method=self._call_method
         )
 
 
@@ -84,11 +81,13 @@ class _MethodCall(BaseModel):
 
 class HTTPClient(BaseClient):
     host: str = "0.0.0.0"
-    port: int = 8080
+    port: Optional[int] = 8080
 
     @property
     def base_url(self):
-        return f"http://{self.host}:{self.port}"
+        if self.port:
+            return f"http://{self.host}:{self.port}"
+        return f"http://{self.host}"
 
     def _interface_factory(self) -> InterfaceDescriptor:
         resp = requests.get(f"{self.base_url}/interface.json")
@@ -97,7 +96,7 @@ class HTTPClient(BaseClient):
     def _call_method(self, name, args):  # pylint: disable=R1710
         ret = requests.post(f"{self.base_url}/{name}", json=args)
         if ret.status_code == 200:  # pylint: disable=R1705
-            return ret.json()["data"]
+            return ret.json()
         elif ret.status_code == 400:
             raise ExecutionError(ret.json()["error"])
         else:

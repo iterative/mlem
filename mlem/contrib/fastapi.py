@@ -29,7 +29,7 @@ def _create_schema_route(app: FastAPI, interface: Interface):
     schema = interface.get_descriptor().dict()
     logger.debug("Creating /interface.json route with schema: %s", schema)
     app.add_api_route(
-        "/interface.json", lambda: json.dumps(schema), tags=["schema"]
+        "/interface.json", lambda: schema, tags=["schema"]
     )
 
 
