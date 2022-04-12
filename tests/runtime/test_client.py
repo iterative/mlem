@@ -21,7 +21,7 @@ def client(interface):
 
 
 @pytest.fixture
-def request_mock(mocker):
+def request_mock(mocker, client):
     def patched_get(url, params=None, **kwargs):
         url = url[len("http://") :]
         return client.get(url, params=params, **kwargs)
@@ -33,8 +33,8 @@ def request_mock(mocker):
 
 
 @pytest.fixture
-def mlem_client(client, request_mock):
-    return HTTPClient(host=client.base_url[len("http://") :], port=None)
+def mlem_client(request_mock):
+    return HTTPClient(host="", port=None)
 
 
 def test_interface_endpoint(mlem_client):
