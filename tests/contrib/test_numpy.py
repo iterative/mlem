@@ -68,7 +68,7 @@ def test_number():
 def test_ndarray(nat):
     assert isinstance(nat, NumpyNdarrayType)
     assert nat.shape == (None, 2)
-    assert nat.dtype == "int64"
+    assert python_type_from_np_string_repr(nat.dtype) == int
     assert nat.get_requirements().modules == ["numpy"]
     payload = nat.json()
     nat2 = parse_obj_as(DatasetType, loads(payload))
