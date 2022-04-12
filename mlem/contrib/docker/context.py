@@ -9,7 +9,6 @@ from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
 
 from mlem.core.objects import ModelMeta
@@ -17,6 +16,7 @@ from mlem.core.requirements import Requirements, UnixPackageRequirement
 from mlem.runtime.server.base import Server
 from mlem.ui import echo, no_echo
 from mlem.utils.module import get_python_version
+from mlem.utils.templates import TemplateModel
 
 REQUIREMENTS = "requirements.txt"
 TEMPLATE_FILE = "dockerfile.j2"
@@ -210,8 +210,10 @@ class DockerModelDirectory(BaseModel):
             os.path.join(self.path, "Dockerfile"), "w", encoding="utf8"
         ) as df:
             unix_packages = requirements.of_type(UnixPackageRequirement)
-            dockerfile = _DockerfileGenerator(self.docker_args).generate(
-                env, unix_packages
+            dockerfile = DockerfileGenerator(
+                **self.docker_args.dict()
+            ).generate(
+                env=env, packages=[p.package_name for p in unix_packages or []]
             )
             df.write(dockerfile)
 
@@ -269,7 +271,7 @@ class DockerModelDirectory(BaseModel):
         logger.debug("Build mlem whl from %s...", repo_path)
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
-                f"cd {repo_path} && python setup.py bdist_wheel -d {whl_dir}",
+                f"cd {repo_path} && pip wheel . --no-deps -w {whl_dir}",
                 shell=True,
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
@@ -279,45 +281,20 @@ class DockerModelDirectory(BaseModel):
         self.docker_args.mlem_whl = whl_name
 
 
-class _DockerfileGenerator:
+class DockerfileGenerator(DockerBuildArgs, TemplateModel):
     """
     Class to generate Dockerfile
-
-    :param args: DockerBuildArgs instance
     """
 
-    def __init__(self, args: DockerBuildArgs):
-        self.python_version = args.python_version
-        self.base_image = args.get_base_image()
-        self.templates_dir = args.templates_dir
-        self.run_cmd = args.run_cmd
-        self.package_install_cmd = args.package_install_cmd
-        self.mlem_whl = args.mlem_whl
+    TEMPLATE_FILE: ClassVar = "dockerfile.j2"
+    TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
-    def generate(
-        self,
-        env: Dict[str, str],
-        packages: List[UnixPackageRequirement] = None,
-    ):
-        """Generate Dockerfile using provided base image, python version and run_cmd
-
-        :param env: dict with environmental variables
-        :param packages: list of unix packages to install
-        """
+    def prepare_dict(self):
         logger.debug(
             'Generating Dockerfile via templates from "%s"...',
             self.templates_dir,
         )
-        j2 = Environment(
-            loader=FileSystemLoader(
-                [os.path.dirname(__file__)] + self.templates_dir
-            )
-        )
-        docker_tmpl = j2.get_template(TEMPLATE_FILE)
 
-        logger.debug(
-            "Docker image is using Python version: %s.", self.python_version
-        )
         logger.debug('Docker image is based on "%s".', self.base_image)
 
         is_whl = self.mlem_whl is not None
@@ -325,18 +302,15 @@ class _DockerfileGenerator:
 
         docker_args = {
             "python_version": self.python_version,
-            "base_image": self.base_image,
+            "base_image": self.get_base_image(),
             "run_cmd": self.run_cmd,
             "mlem_install": f"COPY {self.mlem_whl} .\nRUN pip install {self.mlem_whl}"
             if is_whl
             else "RUN "
             + MLEM_INSTALL_COMMAND.format(version=mlem.__version__),
-            "env": env,
             "package_install_cmd": self.package_install_cmd,
-            "packages": [p.package_name for p in packages or []],
         }
-
-        return docker_tmpl.render(**docker_args)
+        return docker_args
 
 
 # Copyright 2019 Zyfra

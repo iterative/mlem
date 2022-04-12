@@ -4,7 +4,13 @@ from typer import Argument, Option
 
 from ..core.base import build_mlem_object
 from ..core.objects import MlemMeta
-from .main import mlem_command, option_external, option_link, option_repo
+from .main import (
+    mlem_command,
+    option_external,
+    option_link,
+    option_repo,
+    wrap_build_error,
+)
 
 
 @mlem_command("create", section="object")
@@ -29,5 +35,6 @@ def create(
         $ mlem create env heroku production -c api_key=<...>
     """
     cls = MlemMeta.__type_map__[object_type]
-    meta = build_mlem_object(cls, subtype, conf, [])
+    with wrap_build_error(subtype, cls):
+        meta = build_mlem_object(cls, subtype, conf, [])
     meta.dump(path, repo=repo, link=link, external=external)
