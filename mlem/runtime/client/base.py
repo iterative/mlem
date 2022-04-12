@@ -36,7 +36,9 @@ class BaseClient(MlemObject, ABC):
         if name not in self.methods:
             raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
-            base_url=self.base_url, method=self.methods[name], call_method=self._call_method
+            base_url=self.base_url,
+            method=self.methods[name],
+            call_method=self._call_method,
         )
 
 

@@ -1,4 +1,3 @@
-import json
 import logging
 from collections.abc import Callable
 from types import ModuleType
@@ -28,9 +27,7 @@ def rename_recursively(model: Type[BaseModel], prefix: str):
 def _create_schema_route(app: FastAPI, interface: Interface):
     schema = interface.get_descriptor().dict()
     logger.debug("Creating /interface.json route with schema: %s", schema)
-    app.add_api_route(
-        "/interface.json", lambda: schema, tags=["schema"]
-    )
+    app.add_api_route("/interface.json", lambda: schema, tags=["schema"])
 
 
 class FastAPIServer(Server, LibRequirementsMixin):
