@@ -1,3 +1,5 @@
+import platform
+
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
@@ -16,7 +18,10 @@ from mlem.runtime.interface.base import ModelInterface
 @pytest.fixture
 def signature(train):
     data_type = DatasetAnalyzer.analyze(train)
-    returns_type = NumpyNdarrayType(shape=(None,), dtype="int64")
+    returns_type = NumpyNdarrayType(
+        shape=(None,),
+        dtype="int32" if platform.system() == "Windows" else "int64",
+    )
     kwargs = {"varkw": None}
     return Signature(
         name=PREDICT_METHOD_NAME,
