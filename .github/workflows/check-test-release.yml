@@ -75,6 +75,7 @@ jobs:
         pip install --upgrade pip setuptools wheel
         pip install pre-commit .[tests] --use-deprecated=legacy-resolver
     - run: pre-commit run pylint -a -v --show-diff-on-failure
+      if: matrix.python != '3.7'
     - name: Run tests
       timeout-minutes: 30
       run: pytest
