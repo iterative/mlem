@@ -80,13 +80,20 @@ def test_mlem_client_base_url(port):
     assert client.base_url == f"http://:{port}" if port else "http://"
 
 
-def test_interface_endpoint(mlem_client, train, signature):
+@pytest.mark.parametrize("use_keyword", [False, True])
+def test_interface_endpoint(mlem_client, train, signature, use_keyword):
     assert PREDICT_METHOD_NAME in mlem_client.methods
     assert mlem_client.methods[PREDICT_METHOD_NAME] == signature
-    assert np.array_equal(
-        getattr(mlem_client, PREDICT_METHOD_NAME)(train),
-        np.array([0] * 50 + [1] * 50 + [2] * 50),
-    )
+    if use_keyword:
+        assert np.array_equal(
+            getattr(mlem_client, PREDICT_METHOD_NAME)(data=train),
+            np.array([0] * 50 + [1] * 50 + [2] * 50),
+        )
+    else:
+        assert np.array_equal(
+            getattr(mlem_client, PREDICT_METHOD_NAME)(train),
+            np.array([0] * 50 + [1] * 50 + [2] * 50),
+        )
 
 
 def test_wrong_endpoint(mlem_client):
