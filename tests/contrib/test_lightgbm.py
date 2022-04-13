@@ -64,12 +64,44 @@ def test_hook_np(dtype_np: DatasetType):
     assert set(dtype_np.get_requirements().modules) == {"lightgbm", "numpy"}
     assert isinstance(dtype_np, LightGBMDatasetType)
     assert isinstance(dtype_np.inner, NumpyNdarrayType)
+    assert dtype_np.get_model().__name__ == dtype_np.inner.get_model().__name__
+    assert dtype_np.get_model().schema() == {
+        "title": "NumpyNdarray",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {"type": "number"},
+            "minItems": 1,
+            "maxItems": 1,
+        },
+    }
 
 
 def test_hook_df(dtype_df: DatasetType):
     assert set(dtype_df.get_requirements().modules) == {"lightgbm", "pandas"}
     assert isinstance(dtype_df, LightGBMDatasetType)
     assert isinstance(dtype_df.inner, DataFrameType)
+    assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
+    assert dtype_df.get_model().schema() == {
+        "title": "DataFrame",
+        "type": "object",
+        "properties": {
+            "values": {
+                "title": "Values",
+                "type": "array",
+                "items": {"$ref": "#/definitions/DataFrameRow"},
+            }
+        },
+        "required": ["values"],
+        "definitions": {
+            "DataFrameRow": {
+                "title": "DataFrameRow",
+                "type": "object",
+                "properties": {"a": {"title": "A", "type": "integer"}},
+                "required": ["a"],
+            }
+        },
+    }
 
 
 def test_serialize__np(dtype_np, np_payload):
@@ -100,26 +132,6 @@ def test_deserialize__df(dtype_df, df_payload):
     ds = dtype_df.deserialize({"values": df_payload})
     assert isinstance(ds, lgb.Dataset)
     assert ds.data.equals(df_payload)
-
-
-# def test_np__schema(dtype_np): TODO: https://github.com/iterative/mlem/issues/44
-#     schema = spec.type_to_schema(dtype_np)
-#
-#     assert schema == {'items': {'items': {'type': 'number'},
-#                                 'maxItems': 1,
-#                                 'minItems': 1,
-#                                 'type': 'array'},
-#                       'type': 'array'}
-
-
-# def test_df__schema(dtype_df):
-#     schema = spec.type_to_schema(dtype_df)
-#     assert schema == {'properties': {'values': {'items': {'properties': {'a': {'type': 'integer'}},
-#                                                           'required': ['a'],
-#                                                           'type': 'object'},
-#                                                 'type': 'array'}},
-#                       'required': ['values'],
-#                       'type': 'object'}
 
 
 def test_hook(model, booster, dataset_np):

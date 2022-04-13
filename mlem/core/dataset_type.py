@@ -35,14 +35,6 @@ class DatasetType(ABC, MlemObject, WithRequirements):
             )
 
     @abstractmethod
-    def serialize(self, instance: Any) -> dict:
-        """"""
-
-    @abstractmethod
-    def deserialize(self, obj: dict) -> Any:
-        """"""
-
-    @abstractmethod
     def get_requirements(self) -> Requirements:
         """"""  # TODO: https://github.com/iterative/mlem/issues/16 docs
         return get_object_requirements(self)
@@ -59,7 +51,21 @@ class DatasetType(ABC, MlemObject, WithRequirements):
         raise NotImplementedError
 
 
-class UnspecifiedDatasetType(DatasetType):
+class DatasetSerializer(ABC):
+    @abstractmethod
+    def serialize(self, instance: Any) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def deserialize(self, obj: dict) -> Any:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_model(self) -> Type[BaseModel]:
+        raise NotImplementedError
+
+
+class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
     def serialize(self, instance: object) -> dict:
         return instance  # type: ignore
 
@@ -72,6 +78,9 @@ class UnspecifiedDatasetType(DatasetType):
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
+    def get_model(self) -> Type[BaseModel]:
+        raise NotImplementedError
+
 
 class DatasetHook(Hook[DatasetType], ABC):
     pass
@@ -79,20 +88,6 @@ class DatasetHook(Hook[DatasetType], ABC):
 
 class DatasetAnalyzer(Analyzer):
     base_hook_class = DatasetHook
-
-
-class DatasetSerializer(ABC):
-    @abstractmethod
-    def serialize(self, obj: Any) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def deserialize(self, payload: dict) -> Any:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError
 
 
 class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
@@ -133,7 +128,7 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return Requirements.new()
 
     def get_model(self) -> Type[BaseModel]:
-        return create_model("Primitive", __root__=self.to_type)
+        return create_model("Primitive", __root__=(self.to_type, ...))
 
 
 class ListTypeWithSpec(DatasetType):
@@ -161,7 +156,7 @@ class SizedTypedListType(ListTypeWithSpec):
         return self.size
 
 
-class ListDatasetType(SizedTypedListType):
+class ListDatasetType(SizedTypedListType, DatasetSerializer):
     """
     DatasetType for list type
     """
@@ -173,17 +168,23 @@ class ListDatasetType(SizedTypedListType):
 
     def deserialize(self, obj):
         _check_type_and_size(obj, list, self.size, DeserializationError)
-        return [self.dtype.deserialize(o) for o in obj]
+        return [self.dtype.get_serializer().deserialize(o) for o in obj]
 
     def serialize(self, instance: list):
         _check_type_and_size(instance, list, self.size, SerializationError)
-        return [self.dtype.serialize(o) for o in instance]
+        return [self.dtype.get_serializer().serialize(o) for o in instance]
 
     def get_writer(self, **kwargs):
         raise NotImplementedError
 
+    def get_model(self) -> Type[BaseModel]:
+        return create_model(
+            "ListDataset",
+            __root__=(List[self.dtype.get_serializer().get_model()], ...),  # type: ignore
+        )
 
-class _TupleLikeDatasetType(DatasetType):
+
+class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
     """
     DatasetType for tuple-like collections
     """
@@ -196,7 +197,7 @@ class _TupleLikeDatasetType(DatasetType):
             obj, self.actual_type, len(self.items), DeserializationError
         )
         return self.actual_type(
-            t.deserialize(o) for t, o in zip(self.items, obj)
+            t.get_serializer().deserialize(o) for t, o in zip(self.items, obj)
         )
 
     def serialize(self, instance: Sized):
@@ -204,7 +205,7 @@ class _TupleLikeDatasetType(DatasetType):
             instance, self.actual_type, len(self.items), SerializationError
         )
         return self.actual_type(
-            t.serialize(o)
+            t.get_serializer().serialize(o)
             for t, o in zip(self.items, instance)  # type: ignore
             # TODO: https://github.com/iterative/mlem/issues/33 inspect non-iterable sized
         )
@@ -216,6 +217,17 @@ class _TupleLikeDatasetType(DatasetType):
 
     def get_writer(self, **kwargs):
         raise NotImplementedError
+
+    def get_model(self) -> Type[BaseModel]:
+        return create_model(
+            "_TupleLikeDataset",
+            __root__=(
+                Tuple[
+                    tuple(t.get_serializer().get_model() for t in self.items)
+                ],
+                ...,
+            ),
+        )
 
 
 def _check_type_and_size(obj, dtype, size, exc_type):
@@ -279,7 +291,7 @@ class OrderedCollectionHookDelegator(DatasetHook):
         )
 
 
-class DictDatasetType(DatasetType):
+class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     """
     DatasetType for dict type
     """
@@ -287,10 +299,24 @@ class DictDatasetType(DatasetType):
     type: ClassVar[str] = "dict"
     item_types: Dict[str, DatasetType]
 
+    @classmethod
+    def is_object_valid(cls, obj: Any) -> bool:
+        return isinstance(obj, dict)
+
+    @classmethod
+    def process(cls, obj: Any, **kwargs) -> "DictDatasetType":
+        return DictDatasetType(
+            item_types={
+                k: DatasetAnalyzer.analyze(v) for (k, v) in obj.items()
+            }
+        )
+
     def deserialize(self, obj):
         self._check_type_and_keys(obj, DeserializationError)
         return {
-            k: self.item_types[k].deserialize(
+            k: self.item_types[k]
+            .get_serializer()
+            .deserialize(
                 v,
             )
             for k, v in obj.items()
@@ -299,7 +325,8 @@ class DictDatasetType(DatasetType):
     def serialize(self, instance: dict):
         self._check_type_and_keys(instance, SerializationError)
         return {
-            k: self.item_types[k].serialize(v) for k, v in instance.items()
+            k: self.item_types[k].get_serializer().serialize(v)
+            for k, v in instance.items()
         }
 
     def _check_type_and_keys(self, obj, exc_type):
@@ -317,6 +344,13 @@ class DictDatasetType(DatasetType):
 
     def get_writer(self, **kwargs):
         raise NotImplementedError
+
+    def get_model(self) -> Type[BaseModel]:
+        kwargs = {
+            k: (v.get_serializer().get_model(), ...)
+            for k, v in self.item_types.items()
+        }
+        return create_model("DictDataset", **kwargs)  # type: ignore
 
 
 #

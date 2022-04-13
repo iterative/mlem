@@ -1,14 +1,20 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Type
 
 import xgboost
+from pydantic import BaseModel
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.dataset_type import DatasetHook, DatasetType, DatasetWriter
+from mlem.core.dataset_type import (
+    DatasetHook,
+    DatasetSerializer,
+    DatasetType,
+    DatasetWriter,
+)
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
@@ -35,6 +41,7 @@ class XGBoostRequirement(WithRequirements):
 class DMatrixDatasetType(
     XGBoostRequirement,
     DatasetType,
+    DatasetSerializer,
     DatasetHook,
     IsInstanceHookMixin,
 ):
@@ -103,6 +110,9 @@ class DMatrixDatasetType(
 
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
+
+    def get_model(self) -> Type[BaseModel]:
+        raise NotImplementedError()
 
 
 class XGBoostModelIO(ModelIO):
