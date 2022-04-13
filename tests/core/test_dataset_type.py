@@ -10,6 +10,13 @@ from mlem.core.dataset_type import (
     TupleDatasetType,
 )
 
+type_schema_map = {
+    int: "integer",
+    str: "string",
+    bool: "boolean",
+    float: "number",
+}
+
 
 class NotPrimitive:
     pass
@@ -19,7 +26,9 @@ def test_primitives_not_ok():
     assert not PrimitiveType.is_object_valid(NotPrimitive())
 
 
-@pytest.mark.parametrize("ptype", PrimitiveType.PRIMITIVES)
+@pytest.mark.parametrize(
+    "ptype", PrimitiveType.PRIMITIVES - {complex, type(None)}
+)
 def test_primitives(ptype):
     value = ptype()
     assert PrimitiveType.is_object_valid(value)
@@ -35,8 +44,7 @@ def test_primitives(ptype):
     assert dt.get_model().__name__ == "Primitive"
     assert dt.get_model().schema() == {
         "title": "Primitive",
-        "type": "object",
-        "properties": {},
+        "type": type_schema_map[ptype],
     }
 
 

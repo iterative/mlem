@@ -81,7 +81,8 @@ class NumpyNumberType(
 
     def get_model(self) -> Type[BaseModel]:
         return create_model(
-            "NumpyNumber", __root__=(python_type_from_np_string_repr(self.dtype), ...)
+            "NumpyNumber",
+            __root__=(python_type_from_np_string_repr(self.dtype), ...),
         )
 
 
