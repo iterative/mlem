@@ -36,16 +36,16 @@ repos:
     rev: 5.10.1
     hooks:
       - id: isort
-  - repo: 'https://github.com/pre-commit/mirrors-mypy'
-    rev: v0.910
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - types-requests
-          - types-six
-          - types-PyYAML
-          - pydantic
-          - types-filelock
+#  - repo: 'https://github.com/pre-commit/mirrors-mypy'
+#    rev: v0.910
+#    hooks:
+#      - id: mypy
+#        additional_dependencies:
+#          - types-requests
+#          - types-six
+#          - types-PyYAML
+#          - pydantic
+#          - types-filelock
   - repo: local
     hooks:
       - id: pylint
