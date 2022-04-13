@@ -47,21 +47,41 @@ def test_np_type_from_string():
 
 
 def test_number():
-    ndt = DatasetAnalyzer.analyze(np.float32(0.5))
+    value = np.float32(0.5)
+    assert NumpyNumberType.is_object_valid(value)
+    ndt = DatasetAnalyzer.analyze(value)
     assert isinstance(ndt, NumpyNumberType)
+    assert ndt.dtype == "float32"
     assert ndt.get_requirements().modules == ["numpy"]
-    payload = ndt.json()
-    ndt2 = parse_obj_as(DatasetType, loads(payload))
+    payload = {"dtype": "float32", "type": "number"}
+    ndt2 = parse_obj_as(DatasetType, payload)
     assert ndt == ndt2
+    assert ndt.get_model().__name__ == ndt2.get_model().__name__
+    assert ndt.get_model().schema() == {
+        "title": "NumpyNumber",
+        "type": "number",
+    }
 
 
 def test_ndarray(nat):
     assert isinstance(nat, NumpyNdarrayType)
+    assert nat.shape == (None, 2)
+    assert python_type_from_np_string_repr(nat.dtype) == int
     assert nat.get_requirements().modules == ["numpy"]
     payload = nat.json()
     nat2 = parse_obj_as(DatasetType, loads(payload))
-
     assert nat == nat2
+    assert nat.get_model().__name__ == nat2.get_model().__name__
+    assert nat.get_model().schema() == {
+        "title": "NumpyNdarray",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "minItems": 2,
+            "maxItems": 2,
+        },
+    }
 
 
 @pytest.mark.parametrize(

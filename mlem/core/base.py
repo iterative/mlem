@@ -84,13 +84,29 @@ class MlemObject(PolyModel):
             MlemObject.abs_types.append(cls)
 
 
+def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):
+    if key in obj:
+        old_value = obj[key]
+        if (
+            isinstance(old_value, str)
+            and isinstance(value, dict)
+            and subkey not in value
+        ):
+            value[subkey] = old_value
+            obj[key] = value
+            return
+        if isinstance(old_value, dict) and isinstance(value, str):
+            old_value[subkey] = value
+            return
+    obj[key] = value
+
+
 def set_recursively(obj: dict, keys: List[str], value: Any):
     if len(keys) == 1:
-        obj[keys[0]] = value
+        set_or_replace(obj, keys[0], value)
         return
     key, keys = keys[0], keys[1:]
-    if key not in obj:
-        obj[key] = {}
+    set_or_replace(obj, key, {})
     set_recursively(obj[key], keys, value)
 
 

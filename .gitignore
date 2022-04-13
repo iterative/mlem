@@ -138,3 +138,5 @@ dmypy.json
 cython_debug/
 
 .idea
+
+mlem/_mlem_version.py

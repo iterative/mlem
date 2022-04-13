@@ -28,5 +28,5 @@ def build_model_image(
         force_overwrite=force_overwrite,
         push=push,
     )
-    packager.package(model, image.uri)
+    packager.package(model)
     return packager.image

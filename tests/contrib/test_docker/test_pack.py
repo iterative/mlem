@@ -1,7 +1,6 @@
 import os
 import time
 
-import pytest
 import requests
 from testcontainers.general import TestContainer
 
@@ -15,12 +14,10 @@ from tests.contrib.test_docker.conftest import docker_test
 SERVER_PORT = 8080
 
 
-@pytest.mark.xfail(reason="fails on windows machines")
 def test_pack_dir(tmpdir, model_meta_saved):
     packed = pack(
-        DockerDirPackager(server=FastAPIServer()),
+        DockerDirPackager(server=FastAPIServer(), target=str(tmpdir)),
         model_meta_saved,
-        str(tmpdir),
     )
     assert isinstance(packed, DockerModelDirectory)
     assert os.path.isfile(tmpdir / "run.sh")
@@ -41,7 +38,6 @@ def test_pack_image(
             force_overwrite=True,
         ),
         model_meta_saved_single,
-        "pack_docker_test",
     )
     assert isinstance(packed, DockerImage)
     assert dockerenv_local.image_exists(packed)

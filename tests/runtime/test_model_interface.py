@@ -51,6 +51,6 @@ def test_with_serde(pd_model: ModelMeta):
     obj = {"values": [{"a": 1, "b": 1}]}
 
     data_type = pd_model.model_type.methods["predict"].args[0].type_
-    data = data_type.deserialize(obj)
+    data = data_type.get_serializer().deserialize(obj)
 
     interface.execute("predict", {"data": data})

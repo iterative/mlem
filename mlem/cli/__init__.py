@@ -6,6 +6,7 @@ from mlem.cli.clone import clone
 from mlem.cli.config import config
 from mlem.cli.create import create
 from mlem.cli.deploy import deploy
+from mlem.cli.dev import dev
 from mlem.cli.import_object import import_object
 from mlem.cli.info import ls, pretty_print
 from mlem.cli.init import init
@@ -30,6 +31,7 @@ __all__ = [
     "create",
     "import_object",
     "list_types",
+    "dev",
 ]
 
 

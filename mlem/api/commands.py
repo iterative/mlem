@@ -254,7 +254,6 @@ def link(
 def pack(
     packager: Union[str, Packager],
     model: Union[str, ModelMeta],
-    out: str,
     **packager_kwargs,
 ):
     """Pack model in docker-build-ready folder or directly build a docker image.
@@ -263,11 +262,10 @@ def pack(
         packager (Union[str, Packager]): Packager to use.
             Out-of-the-box supported string values are "docker_dir" and "docker".
         model (Union[str, ModelMeta]): The model to pack.
-        out (str): Path for "docker_dir", image name for "docker".
     """
     model = get_model_meta(model)
     return ensure_mlem_object(Packager, packager, **packager_kwargs).package(
-        model, out
+        model
     )
 
 
