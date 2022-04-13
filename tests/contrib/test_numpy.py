@@ -57,11 +57,9 @@ def test_number():
     ndt2 = parse_obj_as(DatasetType, payload)
     assert ndt == ndt2
     assert ndt.get_model().__name__ == ndt2.get_model().__name__
-    assert ndt.get_model().__root__.__name__ in ndt.dtype
     assert ndt.get_model().schema() == {
         "title": "NumpyNumber",
-        "type": "object",
-        "properties": {},
+        "type": "number",
     }
 
 

@@ -128,7 +128,7 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return Requirements.new()
 
     def get_model(self) -> Type[BaseModel]:
-        return create_model("Primitive", __root__=self.to_type)
+        return create_model("Primitive", __root__=(self.to_type, ...))
 
 
 class ListTypeWithSpec(DatasetType):
@@ -347,7 +347,7 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
 
     def get_model(self) -> Type[BaseModel]:
         kwargs = {
-            k: v.get_serializer().get_model()
+            k: (v.get_serializer().get_model(), ...)
             for k, v in self.item_types.items()
         }
         return create_model("DictDataset", **kwargs)  # type: ignore
