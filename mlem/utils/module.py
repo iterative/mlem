@@ -243,7 +243,7 @@ def get_module_version(mod: ModuleType):
         if hasattr(mod, attr):
             return getattr(mod, attr)
     if mod.__file__ is None:
-        return None  # type: ignore
+        return None
     for name in os.listdir(os.path.dirname(mod.__file__)):
         m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
         if m:
