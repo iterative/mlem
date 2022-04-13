@@ -50,7 +50,7 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: pylint
+        entry: pylint -v
         language: system
         types: [ python ]
   # - repo: https://github.com/PyCQA/bandit
