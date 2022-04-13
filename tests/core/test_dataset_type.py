@@ -15,6 +15,7 @@ type_schema_map = {
     str: "string",
     bool: "boolean",
     float: "number",
+    type(None): "null",
 }
 
 
@@ -26,9 +27,7 @@ def test_primitives_not_ok():
     assert not PrimitiveType.is_object_valid(NotPrimitive())
 
 
-@pytest.mark.parametrize(
-    "ptype", PrimitiveType.PRIMITIVES - {complex, type(None)}
-)
+@pytest.mark.parametrize("ptype", PrimitiveType.PRIMITIVES - {complex})
 def test_primitives(ptype):
     value = ptype()
     assert PrimitiveType.is_object_valid(value)
