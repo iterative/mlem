@@ -245,7 +245,7 @@ class GithubResolver(UriResolver):
             ):
                 raise RevisionNotFound(options["sha"], uri) from e
             raise LocationNotFound(
-                f"Could not reolve github location {uri}"
+                f"Could not resolve github location {uri}"
             ) from e
         return fs, path
 
