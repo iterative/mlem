@@ -34,7 +34,7 @@ class MlemRootNotFound(MlemError):
 
 
 class LocationNotFound(MlemError):
-    """Trown if MLEM could not resolve location"""
+    """Thrown if MLEM could not resolve location"""
 
 
 class RevisionNotFound(LocationNotFound):
