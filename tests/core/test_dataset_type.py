@@ -67,11 +67,7 @@ def test_list():
         "type": "array",
         "items": {"$ref": "#/definitions/Primitive"},
         "definitions": {
-            "Primitive": {
-                "title": "Primitive",
-                "type": "object",
-                "properties": {},
-            }
+            "Primitive": {"title": "Primitive", "type": "integer"}
         },
     }
 
