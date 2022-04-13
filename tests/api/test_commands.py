@@ -76,7 +76,7 @@ def test_link_in_mlem_dir(model_path_mlem_repo):
     assert loaded_link_object.rev is None
     assert (
         loaded_link_object.path
-        == posixpath.relpath(model_path, mlem_repo) + MLEM_EXT
+        == os.path.relpath(model_path, mlem_repo) + MLEM_EXT
     )
     model = load_meta(link_dumped_to)
     assert isinstance(model, ModelMeta)
