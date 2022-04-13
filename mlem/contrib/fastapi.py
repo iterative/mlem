@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from types import ModuleType
 from typing import ClassVar, List, Type
@@ -13,12 +14,20 @@ from mlem.runtime.interface.base import Interface
 from mlem.runtime.server.base import Server
 from mlem.ui import EMOJI_NAILS, echo
 
+logger = logging.getLogger(__name__)
+
 
 def rename_recursively(model: Type[BaseModel], prefix: str):
     model.__name__ = f"{prefix}{model.__name__}"
     for field in model.__fields__.values():
         if issubclass(field.type_, BaseModel):
             rename_recursively(field.type_, prefix)
+
+
+def _create_schema_route(app: FastAPI, interface: Interface):
+    schema = interface.get_descriptor().dict()
+    logger.debug("Creating /interface.json route with schema: %s", schema)
+    app.add_api_route("/interface.json", lambda: schema, tags=["schema"])
 
 
 class FastAPIServer(Server, LibRequirementsMixin):
@@ -64,6 +73,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
     def app_init(self, interface: Interface):
         app = FastAPI()
+        _create_schema_route(app, interface)
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
