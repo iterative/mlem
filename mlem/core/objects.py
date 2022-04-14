@@ -281,20 +281,30 @@ class MlemMeta(MlemObject):
             raise MlemObjectNotSavedError(
                 "Cannot create link for not saved meta object"
             )
-        if absolute:
-            link = MlemLink(
-                path=self.loc.path,
-                repo=self.loc.repo_uri,
-                rev=self.loc.rev,
-                link_type=self.resolved_type,
-            )
-        else:
-            link = MlemLink(
-                path=self.get_metafile_path(self.name),
-                link_type=self.resolved_type,
-            )
+        link = MlemLink(
+            path=self.loc.path,
+            repo=self.loc.repo_uri,
+            rev=self.loc.rev,
+            link_type=self.resolved_type,
+        )
         if path is not None:
-            link.dump(path, fs, repo, external=external, link=False)
+            (
+                location,
+                _,
+            ) = link._parse_dump_args(  # pylint: disable=protected-access
+                path, repo, fs, False, external=external
+            )
+            if (
+                not absolute
+                and self.loc.is_same_repo(location)
+                and self.loc.rev is None
+            ):
+                link.path = self.get_metafile_path(self.name)
+                link.link_type = self.resolved_type
+                link.repo = None
+            link._write_meta(  # pylint: disable=protected-access
+                location, False
+            )
         return link
 
     @classmethod
