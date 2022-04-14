@@ -49,6 +49,7 @@ class Requirement(MlemObject):
 
     class Config:
         type_root = True
+        default_type = "installable"
 
     abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...

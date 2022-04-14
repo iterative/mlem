@@ -54,7 +54,8 @@ def apply(
     *data: Union[str, DatasetMeta, Any],
     method: str = None,
     output: str = None,
-    link: bool = False,
+    link: bool = None,
+    external: bool = None,
 ) -> Optional[Any]:
     """Apply provided model against provided data
 
@@ -67,6 +68,7 @@ def apply(
         output (str, optional): If value is provided,
             assume it's path and save output there.
         link (bool): Whether to create a link to saved output in MLEM root folder.
+        external (bool): Whether to save result outside mlem dir
 
     Returns:
         If `output=None`, returns results for given data.
@@ -89,7 +91,7 @@ def apply(
             return res[0]
         return res
     if len(res) == 1:
-        return save(res[0], output, link=link)
+        return save(res[0], output, external=external, link=link)
 
     raise NotImplementedError(
         "Saving several input data objects is not implemented yet"
