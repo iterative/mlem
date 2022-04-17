@@ -68,7 +68,7 @@ def apply(
 
     Examples:
         Apply local mlem model to local mlem dataset
-        $ mlem apply mymodel mydatset --method predict --output myprediction
+        $ mlem apply mymodel mydataset --method predict --output myprediction
 
         Apply local mlem model to local data file
         $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
@@ -102,6 +102,63 @@ def apply(
             output=output,
             link=link,
             external=external,
+        )
+    if output is None and json:
+        print(
+            dumps(
+                DatasetAnalyzer.analyze(result)
+                .get_serializer()
+                .serialize(result)
+            )
+        )
+
+
+@mlem_command("apply-remote", section="runtime")
+def apply_remote(
+    host: str = Argument(
+        default="0.0.0.0", help="Host address of where model is being served"
+    ),
+    port: Optional[int] = Argument(
+        default=8080,
+        help="Port for communicating with the server where model is hosted",
+    ),
+    data: str = Argument(..., help="Path to dataset object"),
+    output: Optional[str] = Option(
+        None, "-o", "--output", help="Where to store the outputs."
+    ),
+    method: str = Option(
+        PREDICT_METHOD_NAME,
+        "-m",
+        "--method",
+        help="Which model method is to apply",
+    ),
+    link: bool = option_link,
+    json: bool = option_json,
+):
+    """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+
+    Examples:
+        Apply hosted mlem model to local mlem dataset
+        $ mlem apply-remote "0.0.0.0" 8080 mydataset --method predict --output myprediction
+    """
+    from mlem.api import apply_remote
+
+    with set_echo(None if json else ...):
+        dataset = load_meta(
+            data,
+            None,
+            None,
+            load_value=True,
+            force_type=DatasetMeta,
+        )
+
+        result = apply_remote(
+            host,
+            port,
+            dataset,
+            method=method,
+            output=output,
+            link=link,
         )
     if output is None and json:
         print(
