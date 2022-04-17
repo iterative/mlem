@@ -6,6 +6,7 @@ from pydantic import parse_obj_as
 
 from mlem.contrib.numpy import (
     NumpyNdarrayType,
+    NumpyNumberReader,
     NumpyNumberType,
     np_type_from_string,
     python_type_from_np_string_repr,
@@ -15,6 +16,24 @@ from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.utils.module import get_object_requirements
 from tests.conftest import dataset_write_read_check
+
+
+def test_npnumber_source():
+    data = np.float32(1.5)
+    dataset = Dataset.create(data)
+
+    def custom_assert(x, y):
+        assert x.dtype == y.dtype
+        assert isinstance(x, np.number)
+        assert isinstance(y, np.number)
+        assert x.dtype.name == data.dtype.name == y.dtype.name
+
+    dataset_write_read_check(
+        dataset,
+        custom_eq=np.equal,
+        reader_type=NumpyNumberReader,
+        custom_assert=custom_assert,
+    )
 
 
 def test_ndarray_source():

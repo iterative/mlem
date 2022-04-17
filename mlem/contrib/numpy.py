@@ -65,8 +65,6 @@ class NumpyNumberType(
     def actual_type(self) -> np.dtype:
         return np_type_from_string(self.dtype)
 
-    # def get_writer(self):
-    #     return PickleWriter()
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, np.number)
@@ -76,7 +74,7 @@ class NumpyNumberType(
         return NumpyNumberType(dtype=obj.dtype.name)
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError()
+        return NumpyNumberWriter()
 
     def get_model(self) -> Type[BaseModel]:
         return create_model(
@@ -166,6 +164,33 @@ DATA_FILE = "data.npz"
 DATA_KEY = "data"
 
 
+class NumpyNumberWriter(DatasetWriter):
+    type: ClassVar[str] = "numpy"
+
+    def write(
+        self, dataset: Dataset, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            np.save(f, dataset.data)
+        return NumpyNumberReader(dataset_type=dataset.dataset_type), {
+            self.art_name: art
+        }
+
+
+class NumpyNumberReader(DatasetReader):
+    type: ClassVar[str] = "numpy"
+
+    def read(self, artifacts: Artifacts) -> Dataset:
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+            )
+        with artifacts[DatasetWriter.art_name].open() as f:
+            res = np.load(f)
+            data = getattr(np, res.dtype.name)(res.item())
+            return Dataset(data, self.dataset_type)
+
+
 class NumpyArrayWriter(DatasetWriter):
     """DatasetWriter implementation for numpy ndarray"""
 
@@ -187,7 +212,7 @@ class NumpyArrayReader(DatasetReader):
     def read(self, artifacts: Artifacts) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be oe {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]
