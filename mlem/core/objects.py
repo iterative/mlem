@@ -38,7 +38,7 @@ from mlem.core.artifacts import (
     PlaceholderArtifact,
 )
 from mlem.core.base import MlemObject
-from mlem.core.dataset_type import Dataset, DatasetReader
+from mlem.core.dataset_type import DatasetReader, DatasetType
 from mlem.core.errors import (
     DeploymentError,
     MlemObjectNotFound,
@@ -637,7 +637,7 @@ class DatasetMeta(_WithArtifacts):
         parse_as_type=Optional[DatasetReader],
         default=None,
     )
-    dataset: Optional[Dataset] = None
+    dataset: Optional[DatasetType] = None
 
     @property
     def data(self):
@@ -651,11 +651,11 @@ class DatasetMeta(_WithArtifacts):
         params: Dict[str, str] = None,
         tags: List[str] = None,
     ) -> "DatasetMeta":
-        dataset = Dataset.create(
+        dataset = DatasetType.create(
             data,
         )
         meta = DatasetMeta(
-            requirements=dataset.dataset_type.get_requirements().expanded,
+            requirements=dataset.get_requirements().expanded,
             description=description,
             params=params or {},
             tags=tags or [],
@@ -665,10 +665,13 @@ class DatasetMeta(_WithArtifacts):
 
     def write_value(self) -> Artifacts:
         if self.dataset is not None:
-            reader, artifacts = self.dataset.dataset_type.get_writer().write(
+            filename = os.path.basename(self.name)
+            reader, artifacts = self.dataset.get_writer(
+                filename=filename
+            ).write(
                 self.dataset,
                 self.storage,
-                os.path.basename(self.name),
+                filename,
             )
             self.reader = reader
             return artifacts

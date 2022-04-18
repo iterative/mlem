@@ -1,3 +1,4 @@
+import os.path
 import posixpath
 import re
 from abc import ABC
@@ -37,7 +38,6 @@ from mlem.core.artifacts import (
     get_file_info,
 )
 from mlem.core.dataset_type import (
-    Dataset,
     DatasetHook,
     DatasetReader,
     DatasetSerializer,
@@ -312,7 +312,16 @@ class DataFrameType(_PandasDatasetType):
         )
 
     def get_writer(self, **kwargs):
-        fmt = kwargs.get("format", PANDAS_CONFIG.DEFAULT_FORMAT)
+        fmt = PANDAS_CONFIG.DEFAULT_FORMAT
+        if "format" in kwargs:
+            fmt = kwargs["format"]
+        elif "filename" in kwargs:
+            filename = kwargs["filename"]
+            if filename is not None:
+                _, ext = os.path.splitext(filename)
+                ext = ext.lstrip(".")
+                if ext in PANDAS_FORMATS:
+                    fmt = ext
         return PandasWriter(format=fmt)
 
 
@@ -491,10 +500,9 @@ class PandasReader(_PandasIO, DatasetReader):
     type: ClassVar[str] = "pandas"
     dataset_type: DataFrameType
 
-    def read(self, artifacts: Artifacts) -> Dataset:
-        return Dataset(
-            self.dataset_type.align(self.fmt.read(artifacts)),
-            self.dataset_type,
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        return self.dataset_type.copy().bind(
+            self.dataset_type.align(self.fmt.read(artifacts))
         )
 
 
@@ -504,15 +512,15 @@ class PandasWriter(DatasetWriter, _PandasIO):
     type: ClassVar[str] = "pandas"
 
     def write(
-        self, dataset: Dataset, storage: Storage, path: str
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         fmt = self.fmt
         art = fmt.write(dataset.data, storage, path)
-        if not isinstance(dataset.dataset_type, DataFrameType):
+        if not isinstance(dataset, DataFrameType):
             raise ValueError("Cannot write non-pandas Dataset")
-        return PandasReader(
-            dataset_type=dataset.dataset_type, format=self.format
-        ), {self.art_name: art}
+        return PandasReader(dataset_type=dataset, format=self.format), {
+            self.art_name: art
+        }
 
 
 class PandasImport(ExtImportHook):

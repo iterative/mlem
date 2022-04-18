@@ -6,7 +6,6 @@ from pydantic import BaseModel, conlist, create_model
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
-    Dataset,
     DatasetHook,
     DatasetReader,
     DatasetSerializer,
@@ -173,13 +172,11 @@ class NumpyArrayWriter(DatasetWriter):
     type: ClassVar[str] = "numpy"
 
     def write(
-        self, dataset: Dataset, storage: Storage, path: str
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})
-        return NumpyArrayReader(dataset_type=dataset.dataset_type), {
-            self.art_name: art
-        }
+        return NumpyArrayReader(dataset_type=dataset), {self.art_name: art}
 
 
 class NumpyArrayReader(DatasetReader):
@@ -187,11 +184,11 @@ class NumpyArrayReader(DatasetReader):
 
     type: ClassVar[str] = "numpy"
 
-    def read(self, artifacts: Artifacts) -> Dataset:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be oe {DATA_FILE} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]
-        return Dataset(data, self.dataset_type)
+        return self.dataset_type.copy().bind(data)

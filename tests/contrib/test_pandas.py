@@ -24,7 +24,7 @@ from mlem.contrib.pandas import (
     python_type_from_pd_type,
     string_repr_from_pd_type,
 )
-from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
+from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
@@ -116,7 +116,7 @@ def for_all_formats(exclude: Union[List[str], Callable] = None):
 def test_simple_df(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
-        Dataset.create(data), writer, PandasReader, pd.DataFrame.equals
+        DatasetType.create(data), writer, PandasReader, pd.DataFrame.equals
     )
 
 
@@ -124,7 +124,7 @@ def test_simple_df(data, format):
 def test_with_index(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
-        Dataset.create(data.set_index("a")),
+        DatasetType.create(data.set_index("a")),
         writer,
         PandasReader,
         custom_assert=pandas_assert,
@@ -135,7 +135,7 @@ def test_with_index(data, format):
 def test_with_multiindex(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
-        Dataset.create(data.set_index(["a", "b"])),
+        DatasetType.create(data.set_index(["a", "b"])),
         writer,
         PandasReader,
         custom_assert=pandas_assert,
@@ -155,7 +155,10 @@ def test_with_multiindex(data, format):
 def test_with_index_complex(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
-        Dataset.create(data), writer, PandasReader, custom_assert=pandas_assert
+        DatasetType.create(data),
+        writer,
+        PandasReader,
+        custom_assert=pandas_assert,
     )
 
 
@@ -316,7 +319,7 @@ def write_csv():
 def _check_data(meta, out_path, fs=None):
     fs = fs or LocalFileSystem()
     assert isinstance(meta, DatasetMeta)
-    dt = meta.dataset.dataset_type
+    dt = meta.dataset
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a", "b"]
     assert dt.dtypes == ["int64", "int64"]
@@ -396,6 +399,15 @@ def test_dataframe():
             }
         },
     }
+
+
+def test_infer_format(tmpdir):
+    path = str(tmpdir / "mydata.parquet")
+    value = pd.DataFrame([{"a": 1}])
+    meta = save(value, path)
+    assert isinstance(meta, DatasetMeta)
+    assert isinstance(meta.reader, PandasReader)
+    assert meta.reader.format == "parquet"
 
 
 def test_series(series_data: pd.Series, series_df_type, df_type2):
