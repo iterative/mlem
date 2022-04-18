@@ -6,6 +6,7 @@ from typer import Argument, Option
 from mlem.api import import_object
 from mlem.cli.main import (
     mlem_command,
+    option_external,
     option_json,
     option_link,
     option_repo,
@@ -58,6 +59,7 @@ def apply(
         help="Specify how to read data file for import",  # f"Available types: {list_implementations(ImportHook)}"
     ),
     link: bool = option_link,
+    external: bool = option_external,
     json: bool = option_json,
 ):
     """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
@@ -97,6 +99,7 @@ def apply(
             method=method,
             output=output,
             link=link,
+            external=external,
         )
     if output is None and json:
         print(
