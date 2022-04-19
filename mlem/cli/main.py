@@ -271,17 +271,17 @@ def mlem_command(
                     res = f(*iargs, **ikwargs) or {}
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
             except (ClickException, Exit, Abort) as e:
-                error = str(type(e))
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 raise
             except MlemError as e:
-                error = str(type(e))
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
                     raise
                 with cli_echo():
                     echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
-                error = str(type(e))
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
                     raise
                 with cli_echo():

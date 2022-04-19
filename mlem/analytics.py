@@ -3,7 +3,7 @@ import logging
 import os
 import subprocess
 from threading import Thread
-from typing import Dict
+from typing import Any, Dict
 
 import requests
 from appdirs import user_config_dir
@@ -29,14 +29,14 @@ def send_event(
     **kwargs,
 ):
     send(
-        {"event_type": event_type, "event_name": event_name, **kwargs},
+        {"interface": event_type, "action": event_name, "extra": kwargs},
         use_thread=use_thread,
         use_daemon=use_daemon,
     )
 
 
 def send(
-    payload: Dict[str, str], use_thread: bool = False, use_daemon: bool = True
+    payload: Dict[str, Any], use_thread: bool = False, use_daemon: bool = True
 ):
     if not is_enabled():
         return
@@ -111,10 +111,12 @@ def _runtime_info():
     """
 
     return {
-        "mlem_version": __version__,
+        "tool_name": "mlem",
+        "tool_version": __version__,
         # "scm_class": _scm_in_use(),
-        "system_info": _system_info(),
+        **_system_info(),
         "user_id": _find_or_create_user_id(),
+        "group_id": _find_or_create_user_id(),  # TODO
     }
 
 
@@ -127,25 +129,23 @@ def _system_info():
     system = platform.system()
 
     if system == "Windows":
-        version = sys.getwindowsversion()  # pylint: disable=no-member
-
+        # pylint: disable=no-member
+        version = sys.getwindowsversion()
         return {
-            "os": "windows",
-            "windows_version_build": version.build,
-            "windows_version_major": version.major,
-            "windows_version_minor": version.minor,
-            "windows_version_service_pack": version.service_pack,
+            "os_name": "windows",
+            "os_version": f"{version.build}.{version.major}.{version.minor}-{version.service_pack}",
         }
 
     if system == "Darwin":
-        return {"os": "mac", "mac_version": platform.mac_ver()[0]}
+        return {
+            "os_name": "mac",
+            "os_version": platform.mac_ver()[0],
+        }  # TODO do we include arch here?
 
     if system == "Linux":
         return {
-            "os": "linux",
-            "linux_distro": distro.id(),
-            "linux_distro_like": distro.like(),
-            "linux_distro_version": distro.version(),
+            "os_name": "linux",
+            "os_version": distro.version(),  # TODO distro.id() and distro.like()?
         }
 
     # We don't collect data for any other system.
