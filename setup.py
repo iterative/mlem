@@ -114,6 +114,7 @@ setup_args = dict(  # noqa: C408
             "deploy.heroku = mlem.contrib.heroku.meta:HerokuDeploy",
             "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
             "env.heroku = mlem.contrib.heroku.meta:HerokuEnvMeta",
+            "import.pandas = mlem.contrib.pandas:PandasImport",
             "model_io.catboost_io = mlem.contrib.catboost:CatBoostModelIO",
             "model_io.lightgbm_io = mlem.contrib.lightgbm:LightGBMModelIO",
             "model_io.pickle = mlem.contrib.callable:PickleModelIO",

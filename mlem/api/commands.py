@@ -23,7 +23,7 @@ from mlem.core.errors import (
     MlemRootNotFound,
     WrongMethodError,
 )
-from mlem.core.import_objects import ImportAnalyzer
+from mlem.core.import_objects import ImportAnalyzer, ImportHook
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
@@ -373,9 +373,9 @@ def import_object(
     echo(EMOJI_LOAD + f"Importing object from {loc.uri}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
-        if type_ not in ImportAnalyzer.types:
+        if type_ not in ImportHook.__type_map__:
             raise ValueError(f"Unknown import type {type_}")
-        meta = ImportAnalyzer.types[type_].process(
+        meta = ImportHook.__type_map__[type_].process(
             loc, copy_data=copy_data, modifier=modifier
         )
     else:
