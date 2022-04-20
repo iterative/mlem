@@ -135,6 +135,7 @@ setup_args = dict(  # noqa: C408
             "packager.whl = mlem.contrib.pip.base:WhlPackager",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
             "server.heroku = mlem.contrib.heroku.build:HerokuServer",
+            "client.httpclient = mlem.runtime.client.base:HTTPClient",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
     },

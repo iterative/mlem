@@ -1,3 +1,4 @@
+from json import dumps
 from typing import List, Optional
 
 from typer import Argument, Option, Typer
@@ -7,13 +8,16 @@ from mlem.cli.main import (
     app,
     mlem_command,
     option_external,
+    option_json,
     option_link,
+    option_method,
     option_repo,
 )
 from mlem.core.base import parse_string_conf
+from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DeployMeta
-from mlem.ui import echo, no_echo
+from mlem.core.objects import DatasetMeta, DeployMeta
+from mlem.ui import echo, no_echo, set_echo
 
 deploy = Typer(
     name="deploy", help="Manage deployments", cls=MlemGroupSection("runtime")
@@ -94,3 +98,50 @@ def deploy_status(
         deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
         status = deploy_meta.get_status()
     echo(status)
+
+
+@mlem_command("apply", parent=deploy)
+def deploy_apply(
+    path: str = Argument(..., help="Path to deployment meta"),
+    data: str = Argument(..., help="Path to dataset object"),
+    output: Optional[str] = Option(
+        None, "-o", "--output", help="Where to store the outputs."
+    ),
+    method: str = option_method,
+    link: bool = option_link,
+    json: bool = option_json,
+    repo: Optional[str] = option_repo,
+):
+    """Apply method of deployed service
+
+    Examples:
+        $ mlem deploy apply service_name
+    """
+    from mlem.api import apply_remote
+
+    deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+    with set_echo(None if json else ...):
+        dataset = load_meta(
+            data,
+            None,
+            None,
+            load_value=True,
+            force_type=DatasetMeta,
+        )
+        state = deploy_meta.state
+        if state:
+            result = apply_remote(
+                state.get_client(),
+                dataset,
+                method=method,
+                output=output,
+                link=link,
+            )
+    if output is None and json:
+        print(
+            dumps(
+                DatasetAnalyzer.analyze(result)
+                .get_serializer()
+                .serialize(result)
+            )
+        )

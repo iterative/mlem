@@ -1,23 +1,28 @@
 from json import dumps
-from typing import Optional
+from typing import List, Optional
 
 from typer import Argument, Option
 
 from mlem.api import import_object
 from mlem.cli.main import (
+    config_arg,
     mlem_command,
     option_external,
+    option_conf,
+    option_file_conf,
     option_json,
     option_link,
+    option_load,
+    option_method,
     option_repo,
     option_rev,
 )
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
 from mlem.ext import list_implementations
+from mlem.runtime.client.base import BaseClient
 from mlem.ui import set_echo
 
 
@@ -30,12 +35,7 @@ def apply(
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
-    method: str = Option(
-        PREDICT_METHOD_NAME,
-        "-m",
-        "--method",
-        help="Which model method is to apply",
-    ),
+    method: str = option_method,
     data_repo: Optional[str] = Option(
         None,
         "--data-repo",
@@ -115,31 +115,27 @@ def apply(
 
 @mlem_command("apply-remote", section="runtime")
 def apply_remote(
-    host: str = Argument(
-        default="0.0.0.0", help="Host address of where model is being served"
-    ),
-    port: Optional[int] = Argument(
-        default=8080,
-        help="Port for communicating with the server where model is hosted",
+    subtype: str = Argument(
+        "",
+        help=f"Type of client. Choices: {list_implementations(BaseClient)}",
+        show_default=False,
     ),
     data: str = Argument(..., help="Path to dataset object"),
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
-    method: str = Option(
-        PREDICT_METHOD_NAME,
-        "-m",
-        "--method",
-        help="Which model method is to apply",
-    ),
+    method: str = option_method,
     link: bool = option_link,
     json: bool = option_json,
+    load: Optional[str] = option_load("client"),
+    conf: List[str] = option_conf("client"),
+    file_conf: List[str] = option_file_conf("client"),
 ):
     """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
     Examples:
         Apply hosted mlem model to local mlem dataset
-        $ mlem apply-remote "0.0.0.0" 8080 mydataset --method predict --output myprediction
+        $ mlem apply-remote httpclient mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
     """
     from mlem.api import apply_remote
 
@@ -152,9 +148,10 @@ def apply_remote(
             force_type=DatasetMeta,
         )
 
+        client = config_arg(BaseClient, load, subtype, conf, file_conf)
+
         result = apply_remote(
-            host,
-            port,
+            client,
             dataset,
             method=method,
             output=output,

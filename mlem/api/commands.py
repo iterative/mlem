@@ -18,6 +18,7 @@ from mlem.api.utils import (
 from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
+    InvalidArgumentError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
@@ -35,7 +36,7 @@ from mlem.core.objects import (
     TargetEnvMeta,
 )
 from mlem.pack import Packager
-from mlem.runtime.client.base import HTTPClient
+from mlem.runtime.client.base import BaseClient
 from mlem.runtime.server.base import Server
 from mlem.ui import (
     EMOJI_APPLY,
@@ -100,8 +101,7 @@ def apply(
 
 
 def apply_remote(
-    host: str = "0.0.0.0",
-    port: Optional[int] = 8080,
+    client: BaseClient,
     *data: Union[str, DatasetMeta, Any],
     method: str = None,
     output: str = None,
@@ -110,8 +110,7 @@ def apply_remote(
     """Apply provided model against provided data
 
     Args:
-        host (str): The host address where the model is being served.
-        port (int, optional): The port for communicating with the server hosting the model.
+        client (BaseClient): The client to access methods of deployed model.
         data (Any): Input to the model.
         method (str, optional): Which model method to use.
             If None, use the only method model has.
@@ -125,11 +124,13 @@ def apply_remote(
             Otherwise returns None.
 
     """
-    client = HTTPClient(host=host, port=port)
-    try:
-        resolved_method = getattr(client, method)
-    except WrongMethodError:
-        resolved_method = getattr(client, PREDICT_METHOD_NAME)
+    if method is not None:
+        try:
+            resolved_method = getattr(client, method)
+        except WrongMethodError:
+            resolved_method = getattr(client, PREDICT_METHOD_NAME)
+    else:
+        raise InvalidArgumentError("method cannot be None")
 
     echo(EMOJI_APPLY + f"Applying `{resolved_method.method.name}` method...")
     res = [resolved_method(get_dataset_value(part)) for part in data]

@@ -18,7 +18,7 @@ from yaml import safe_load
 
 from mlem import version
 from mlem.analytics import send_cli_call
-from mlem.constants import MLEM_DIR
+from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
 from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
@@ -305,6 +305,12 @@ def mlem_command(
 
 option_repo = Option(
     None, "-r", "--repo", help="Path to MLEM repo", show_default="none"  # type: ignore
+)
+option_method = Option(
+    PREDICT_METHOD_NAME,
+    "-m",
+    "--method",
+    help="Which model method is to be applied",
 )
 option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
 option_link = Option(
