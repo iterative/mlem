@@ -260,7 +260,7 @@ def link(
     source_repo: Optional[str] = None,
     rev: Optional[str] = None,
     target: Optional[str] = None,
-    target_repo: [str] = None,
+    target_repo: Optional[str] = None,
     external: Optional[bool] = None,
     follow_links: bool = True,
     absolute: bool = False,
