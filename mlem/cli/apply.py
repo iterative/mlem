@@ -14,8 +14,10 @@ from mlem.cli.main import (
 )
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.ext import list_implementations
 from mlem.ui import set_echo
 
 
@@ -56,7 +58,7 @@ def apply(
         "--import-type",
         "--it",
         # TODO: change ImportHook to MlemObject to support ext machinery
-        help="Specify how to read data file for import",  # f"Available types: {list_implementations(ImportHook)}"
+        help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
     ),
     link: bool = option_link,
     external: bool = option_external,

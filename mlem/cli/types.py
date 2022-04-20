@@ -28,7 +28,7 @@ def list_types(
         $ mlem types server
     """
     if subtype is None:
-        for at in MlemObject.abs_types:
+        for at in MlemObject.abs_types.values():
             echo(EMOJI_BASE + bold(at.abs_name) + ":")
             echo(
                 f"\tBase class: {at.__module__}.{at.__name__}\n\t{at.__doc__.strip()}"

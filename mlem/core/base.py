@@ -1,5 +1,6 @@
 import shlex
-from typing import Any, ClassVar, Dict, List, Optional, Type, overload
+from inspect import isabstract
+from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, overload
 
 from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Literal
@@ -57,13 +58,16 @@ def load_impl_ext(
     return None
 
 
+MT = TypeVar("MT", bound="MlemObject")
+
+
 class MlemObject(PolyModel):
     """
     Base class for all MLEM Python objects
     which should be serialized and deserialized
     """
 
-    abs_types: ClassVar[List[Type["MlemObject"]]] = []
+    abs_types: ClassVar[Dict[str, Type["MlemObject"]]] = {}
     abs_name: ClassVar[str]
 
     @classmethod
@@ -81,7 +85,18 @@ class MlemObject(PolyModel):
     def __init_subclass__(cls: Type["MlemObject"]):
         super().__init_subclass__()
         if cls.__is_root__:
-            MlemObject.abs_types.append(cls)
+            MlemObject.abs_types[cls.abs_name] = cls
+
+    @classmethod
+    def non_abstract_subtypes(cls: Type[MT]) -> Dict[str, Type["MT"]]:
+        return {
+            k: v
+            for k, v in cls.__type_map__.items()
+            if not isabstract(v)
+            and not v.__dict__.get("__abstract__", False)
+            or v.__is_root__
+            and v is not cls
+        }
 
 
 def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):

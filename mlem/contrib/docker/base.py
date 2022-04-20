@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 class DockerRegistry(MlemObject):
     """Registry for docker images. This is the default implementation that represents registry of the docker daemon"""
 
+    abs_name: ClassVar = "docker_registry"
+
     class Config:
         type_root = True
 
@@ -87,6 +89,8 @@ class DockerRegistry(MlemObject):
 class DockerIORegistry(DockerRegistry):
     """The class represents docker.io registry."""
 
+    type: ClassVar = "docker_io"
+
     def get_host(self) -> Optional[str]:
         return "https://index.docker.io/v1/"
 
@@ -108,6 +112,7 @@ class RemoteRegistry(DockerRegistry):
 
     :param host: adress of the registry"""
 
+    type: ClassVar = "remote"
     host: Optional[
         str
     ] = None  # TODO: https://github.com/iterative/mlem/issues/38 credentials

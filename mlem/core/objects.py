@@ -8,7 +8,6 @@ import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import partial
-from inspect import isabstract
 from typing import (
     Any,
     ClassVar,
@@ -306,17 +305,6 @@ class MlemMeta(MlemObject):
                 location, False
             )
         return link
-
-    @classmethod
-    def non_abstract_subtypes(cls) -> Dict[str, Type["MlemMeta"]]:
-        return {
-            k: v
-            for k, v in cls.__type_map__.items()
-            if not isabstract(v)
-            and not v.__dict__.get("__abstract__", False)
-            or v.__is_root__
-            and v is not MlemMeta
-        }
 
     def clone(
         self,

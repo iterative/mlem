@@ -36,9 +36,9 @@ tests = [
     # we use this to suppress some messages in tests, eg: foo/bar naming,
     # and, protected method calls in our tests
     "pylint-plugin-utils",
-    "s3fs==2021.10.1",
-    "boto3==1.19.12",
-    "botocore==1.22.12",
+    "s3fs",
+    "boto3",
+    "botocore",
     "adlfs",
     "gcsfs",
     "testcontainers",
@@ -54,7 +54,7 @@ extras = {
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
     "fastapi": ["uvicorn", "fastapi"],
-    "sagemaker": ["boto3==1.19.12", "sagemaker"],
+    # "sagemaker": ["boto3==1.19.12", "sagemaker"],
     "torch": ["torch"],
 }
 
@@ -113,6 +113,9 @@ setup_args = dict(  # noqa: C408
             "dataset_type.torch = mlem.contrib.torch:TorchTensorDatasetType",
             "deploy.heroku = mlem.contrib.heroku.meta:HerokuDeploy",
             "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
+            "docker_registry.docker_io = mlem.contrib.docker.base:DockerIORegistry",
+            "docker_registry.heroku = mlem.contrib.heroku.build:HerokuRemoteRegistry",
+            "docker_registry.remote = mlem.contrib.docker.base:RemoteRegistry",
             "env.heroku = mlem.contrib.heroku.meta:HerokuEnvMeta",
             "import.pandas = mlem.contrib.pandas:PandasImport",
             "model_io.catboost_io = mlem.contrib.catboost:CatBoostModelIO",
