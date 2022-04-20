@@ -131,7 +131,7 @@ def apply_remote(
     conf: List[str] = option_conf("client"),
     file_conf: List[str] = option_file_conf("client"),
 ):
-    """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+    """Apply a model (deployed somewhere remotely) to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
     Examples:
         Apply hosted mlem model to local mlem dataset
