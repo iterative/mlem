@@ -7,8 +7,8 @@ from mlem.api import import_object
 from mlem.cli.main import (
     config_arg,
     mlem_command,
-    option_external,
     option_conf,
+    option_external,
     option_file_conf,
     option_json,
     option_link,

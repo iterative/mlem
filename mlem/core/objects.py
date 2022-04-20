@@ -55,7 +55,6 @@ from mlem.core.meta_io import (
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
-from mlem.runtime.client.base import BaseClient
 from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_repo_root
@@ -682,7 +681,7 @@ class DeployState(MlemObject):
     abs_name: ClassVar[str] = "deploy_state"
 
     @abstractmethod
-    def get_client(self) -> BaseClient:
+    def get_client(self):
         raise NotImplementedError
 
 
