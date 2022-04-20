@@ -5,12 +5,12 @@ import pytest
 from mlem.contrib.numpy import NumpyArrayReader, NumpyArrayWriter
 from mlem.contrib.pandas import PANDAS_FORMATS, PandasReader, PandasWriter
 from mlem.core.artifacts import FSSpecStorage
-from mlem.core.dataset_type import Dataset
+from mlem.core.dataset_type import DatasetType
 
 
 def test_numpy_read_write():
     data = np.array([1, 2, 3])
-    dataset = Dataset.create(data)
+    dataset = DatasetType.create(data)
 
     writer = NumpyArrayWriter()
     storage = FSSpecStorage(uri="memory://")
@@ -21,8 +21,8 @@ def test_numpy_read_write():
     assert storage.get_fs().exists("/data")
 
     dataset2 = reader.read(artifacts)
-    assert isinstance(dataset2, Dataset)
-    assert dataset2.dataset_type == dataset.dataset_type
+    assert isinstance(dataset2, DatasetType)
+    assert dataset2 == dataset
     assert isinstance(dataset2.data, np.ndarray)
     assert np.array_equal(dataset2.data, data)
 
@@ -30,7 +30,7 @@ def test_numpy_read_write():
 @pytest.mark.parametrize("format", list(PANDAS_FORMATS.keys()))
 def test_pandas_read_write(format):
     data = pd.DataFrame([{"a": 1, "b": 2}])
-    dataset = Dataset.create(data)
+    dataset = DatasetType.create(data)
     storage = FSSpecStorage(uri="memory://")
 
     writer = PandasWriter(format=format)
@@ -41,8 +41,8 @@ def test_pandas_read_write(format):
     assert storage.get_fs().exists("/data")
 
     dataset2 = reader.read(artifacts)
-    assert isinstance(dataset2, Dataset)
-    assert dataset2.dataset_type == dataset.dataset_type
+    assert isinstance(dataset2, DatasetType)
+    assert dataset2 == dataset
     assert isinstance(dataset2.data, pd.DataFrame)
 
     assert dataset2.data.equals(data)

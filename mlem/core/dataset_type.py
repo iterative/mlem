@@ -3,7 +3,6 @@ Base classes for working with datasets in MLEM
 """
 import builtins
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
 from pydantic import BaseModel
@@ -24,8 +23,10 @@ class DatasetType(ABC, MlemObject, WithRequirements):
 
     class Config:
         type_root = True
+        exclude = {"data"}
 
     abs_name: ClassVar[str] = "dataset_type"
+    data: Any
 
     @staticmethod
     def check_type(obj, exp_type, exc_type):
@@ -49,6 +50,14 @@ class DatasetType(ABC, MlemObject, WithRequirements):
         if isinstance(self, DatasetSerializer):
             return self
         raise NotImplementedError
+
+    def bind(self, data: Any):
+        self.data = data
+        return self
+
+    @classmethod
+    def create(cls, obj: Any, **kwargs):
+        return DatasetAnalyzer.analyze(obj, **kwargs).bind(obj)
 
 
 class DatasetSerializer(ABC):
@@ -382,16 +391,6 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
 #         return PickleWriter()
 
 
-@dataclass
-class Dataset:
-    data: Any
-    dataset_type: DatasetType
-
-    @classmethod
-    def create(cls, data: Any):
-        return Dataset(data, DatasetAnalyzer.analyze(data))
-
-
 class DatasetReader(MlemObject, ABC):
     """"""
 
@@ -402,7 +401,7 @@ class DatasetReader(MlemObject, ABC):
     abs_name: ClassVar[str] = "dataset_reader"
 
     @abstractmethod
-    def read(self, artifacts: Artifacts) -> Dataset:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         raise NotImplementedError
 
 
@@ -417,6 +416,6 @@ class DatasetWriter(MlemObject):
 
     @abstractmethod
     def write(
-        self, dataset: Dataset, storage: Storage, path: str
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         raise NotImplementedError

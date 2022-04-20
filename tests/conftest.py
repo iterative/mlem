@@ -18,12 +18,7 @@ from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
-from mlem.core.dataset_type import (
-    Dataset,
-    DatasetReader,
-    DatasetType,
-    DatasetWriter,
-)
+from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
@@ -255,14 +250,14 @@ def model_path_mlem_repo(model_train_target, tmpdir_factory):
 
 
 def dataset_write_read_check(
-    dataset: Dataset,
+    dataset: DatasetType,
     writer: DatasetWriter = None,
     reader_type: Type[DatasetReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
     custom_assert: Callable[[Any, Any], Any] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
-        writer = writer or dataset.dataset_type.get_writer()
+        writer = writer or dataset.get_writer()
 
         storage = LOCAL_STORAGE
         reader, artifacts = writer.write(
@@ -273,7 +268,7 @@ def dataset_write_read_check(
 
         new = reader.read(artifacts)
 
-        assert dataset.dataset_type == new.dataset_type
+        assert dataset == new
         if custom_assert is not None:
             custom_assert(new.data, dataset.data)
         else:

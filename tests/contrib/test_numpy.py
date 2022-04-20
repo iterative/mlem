@@ -11,7 +11,7 @@ from mlem.contrib.numpy import (
     python_type_from_np_string_repr,
     python_type_from_np_type,
 )
-from mlem.core.dataset_type import Dataset, DatasetAnalyzer, DatasetType
+from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.utils.module import get_object_requirements
 from tests.conftest import dataset_write_read_check
@@ -19,7 +19,7 @@ from tests.conftest import dataset_write_read_check
 
 def test_ndarray_source():
     data = np.array([1, 2, 3])
-    dataset = Dataset.create(data)
+    dataset = DatasetType.create(data)
     dataset_write_read_check(dataset, custom_eq=np.array_equal)
 
 
