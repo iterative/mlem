@@ -137,9 +137,6 @@ setup_args = dict(  # noqa: C408
             "server.heroku = mlem.contrib.heroku.build:HerokuServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
-        "mlem.runtime": [
-            "client.httpclient = mlem.runtime.client.base:HTTPClient",
-        ],
     },
     zip_safe=False,
 )
