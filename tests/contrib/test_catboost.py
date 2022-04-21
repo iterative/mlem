@@ -49,7 +49,8 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
     )
 
     expected_requirements = {"catboost", "pandas", "numpy", "scipy"}
-    assert set(cbmw.get_requirements().modules) == expected_requirements
+    reqs = set(cbmw.get_requirements().modules)
+    assert all(r in reqs for r in expected_requirements)
     assert cbmw.model is catboost_model
 
     artifacts = cbmw.dump(LOCAL_STORAGE, tmpdir)
@@ -60,7 +61,8 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
 
     cbmw.load(artifacts)
     assert cbmw.model is not catboost_model
-    assert set(cbmw.get_requirements().modules) == expected_requirements
+    reqs = set(cbmw.get_requirements().modules)
+    assert all(r in reqs for r in expected_requirements)
 
     np.testing.assert_array_almost_equal(
         catboost_model.predict(pandas_data),
