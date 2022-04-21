@@ -1,8 +1,9 @@
 import pickle
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Tuple, Type
+from typing import ClassVar, Optional, Tuple
 
 from mlem.core.artifacts import PlaceholderArtifact, get_file_info
+from mlem.core.base import MlemObject
 from mlem.core.errors import FileNotFoundOnImportError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
@@ -11,8 +12,14 @@ from mlem.core.model import ModelIO
 from mlem.core.objects import MlemMeta
 
 
-class ImportHook(Hook[MlemMeta], ABC):
-    type_: str
+class ImportHook(Hook[MlemMeta], MlemObject, ABC):
+    """"""
+
+    type: ClassVar[str]
+    abs_name: ClassVar = "import"
+
+    class Config:
+        type_root = True
 
     @classmethod
     @abstractmethod
@@ -30,15 +37,9 @@ class ImportHook(Hook[MlemMeta], ABC):
     ) -> MlemMeta:
         raise NotImplementedError
 
-    def __init_subclass__(cls, *args, **kwargs):
-        super().__init_subclass__(*args, **kwargs)
-        if "type_" in cls.__dict__:
-            ImportAnalyzer.types[cls.type_] = cls
-
 
 class ImportAnalyzer(Analyzer[MlemMeta]):
-    base_hook_class = ImportHook
-    types: Dict[str, Type[ImportHook]] = {}
+    base_hook_class: ClassVar = ImportHook
 
     @classmethod
     def analyze(  # pylint: disable=arguments-differ # so what
@@ -50,7 +51,7 @@ class ImportAnalyzer(Analyzer[MlemMeta]):
 
 
 class ExtImportHook(ImportHook, ABC):
-    EXTS: Tuple[str, ...]
+    EXTS: ClassVar[Tuple[str, ...]]
 
     @classmethod
     def is_object_valid(cls, obj: Location) -> bool:
@@ -58,8 +59,8 @@ class ExtImportHook(ImportHook, ABC):
 
 
 class PickleImportHook(ExtImportHook):
-    EXTS = (".pkl", ".pickle")
-    type_ = "pickle"
+    EXTS: ClassVar = (".pkl", ".pickle")
+    type: ClassVar = "pickle"
 
     @classmethod
     def process(

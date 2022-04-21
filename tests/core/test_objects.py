@@ -20,7 +20,6 @@ from mlem.core.objects import (
     MlemLink,
     MlemMeta,
     ModelMeta,
-    mlem_dir_path,
 )
 from tests.conftest import (
     MLEM_TEST_REPO,
@@ -299,29 +298,6 @@ def test_model_getattr(model_meta):
 
     with pytest.raises(AttributeError):
         model_meta.not_existing_method(X)
-
-
-def test_mlem_dir_path(filled_mlem_repo):
-    # case when we provide objects' abspath and object is already located in the same MLEM root
-    model_link = os.path.join(
-        filled_mlem_repo, MLEM_DIR, "model", "data", "model" + MLEM_EXT
-    )
-    assert os.path.abspath(
-        mlem_dir_path(
-            os.path.join(filled_mlem_repo, "data", "model"),
-            obj_type="model",
-            fs=None,
-        )
-    ) == os.path.abspath(model_link)
-    # case when we provide object relative path
-    model_link = os.path.join(
-        filled_mlem_repo, MLEM_DIR, "model", "latest" + MLEM_EXT
-    )
-    assert os.path.abspath(
-        mlem_dir_path(
-            "latest", fs=None, obj_type="model", repo=filled_mlem_repo
-        )
-    ) == os.path.abspath(model_link)
 
 
 def test_link_dump(model_path):

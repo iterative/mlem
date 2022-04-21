@@ -10,6 +10,8 @@ from mlem.cli.main import (
     option_rev,
     option_target_repo,
 )
+from mlem.core.import_objects import ImportHook
+from mlem.ext import list_implementations
 
 
 @mlem_command("import", section="object")
@@ -23,7 +25,7 @@ def import_object(
         True,
         help="Whether to create a copy of file in target location or just link existing file",
     ),
-    type_: Optional[str] = Option(None, "--type", help="Specify how to read file", show_default="auto infer"),  # type: ignore
+    type_: Optional[str] = Option(None, "--type", help=f"Specify how to read file Available types: {list_implementations(ImportHook)}", show_default="auto infer"),  # type: ignore
     link: bool = option_link,
     external: bool = option_external,
 ):

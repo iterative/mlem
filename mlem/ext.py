@@ -288,12 +288,18 @@ def list_implementations(
     meta_subtype: Type[MlemMeta] = None,
 ) -> List[str]:
     if isinstance(base_class, type) and issubclass(base_class, MlemObject):
-        base_class = base_class.abs_name
+        abs_name = base_class.abs_name
     if base_class == "meta" and meta_subtype is not None:
         base_class = meta_subtype.object_type
-    return [
-        e.name for e in load_entrypoints().values() if e.abs_name == base_class
-    ]
+        abs_name = "meta"
+    if isinstance(base_class, str):
+        abs_name = base_class
+        base_class = MlemObject.abs_types[abs_name]
+    eps = {
+        e.name for e in load_entrypoints().values() if e.abs_name == abs_name
+    }
+    eps.update(base_class.non_abstract_subtypes())
+    return list(eps)
 
 
 def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):

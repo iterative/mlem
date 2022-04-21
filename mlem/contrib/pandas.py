@@ -524,8 +524,8 @@ class PandasWriter(DatasetWriter, _PandasIO):
 
 
 class PandasImport(ExtImportHook):
-    EXTS = tuple(f".{k}" for k in PANDAS_FORMATS)
-    type_ = "pandas"
+    EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
+    type: ClassVar = "pandas"
 
     @classmethod
     def is_object_valid(cls, obj: Location) -> bool:
