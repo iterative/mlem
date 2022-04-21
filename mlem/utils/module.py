@@ -172,7 +172,7 @@ def is_extension_module(mod: ModuleType):
         return True
 
 
-@lru_cache
+@lru_cache()
 def is_installable_module(mod: ModuleType):
     """
     Determines that given module object represents PyPi-installable (aka third party) module.
@@ -183,7 +183,7 @@ def is_installable_module(mod: ModuleType):
     return isort_finder.find(mod.__name__) == "THIRDPARTY"
 
 
-@lru_cache
+@lru_cache()
 def is_builtin_module(mod: ModuleType):
     """
     Determines that given module object represents standard library (aka builtin) module.
