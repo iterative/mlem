@@ -809,38 +809,6 @@ class DeployMeta(MlemMeta):
         return False
 
 
-def mlem_dir_path(
-    name: str,
-    fs: Optional[AbstractFileSystem],
-    obj_type: Union[Type[MlemMeta], str],
-    repo: Optional[str] = None,
-) -> str:
-    """Construct path to object link in MLEM root dir
-
-    Args:
-        name ([type]): Path to the object.
-        fs (AbstractFileSystem): FS where object is located.
-        obj_type (Union[Type[MlemMeta], str]): Type of object.
-        repo (str, optional): Path to MLEM root dir. If not provided,
-            we'll search mlem_root for given `name`.
-
-    Returns:
-        str: Path to the given object in MLEM root dir
-    """
-    META_FILE_NAME = "asdasdasdadassdas"
-    if repo is None:
-        repo = find_repo_root(path=name, fs=fs)
-    if not isinstance(obj_type, str):
-        obj_type = obj_type.object_type
-    if name.endswith(META_FILE_NAME) and not name.endswith(MLEM_EXT):
-        name = os.path.dirname(name)
-    if not name.endswith(MLEM_EXT):
-        name += MLEM_EXT
-    if os.path.abspath(repo) in os.path.abspath(name):
-        name = os.path.relpath(name, start=repo)
-    return posixpath.join(repo, MLEM_DIR, obj_type, name)
-
-
 def find_object(
     path: str, fs: AbstractFileSystem, repo: str = None
 ) -> Tuple[str, str]:
