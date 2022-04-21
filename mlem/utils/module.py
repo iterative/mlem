@@ -132,16 +132,10 @@ def get_object_module(obj: object) -> Optional[ModuleType]:
     return inspect.getmodule(obj)
 
 
-class CachingFindersManager(FindersManager):
-    @lru_cache  # pylint: disable=cache-max-size-none
-    def find(self, module_name: str) -> Optional[str]:
-        return super().find(module_name)
-
-
 mlem_isort_config = Config(
     settings_file=os.path.join(os.path.dirname(__file__), "mlem.isort.cfg")
 )
-isort_finder = CachingFindersManager(config=mlem_isort_config)
+isort_finder = FindersManager(config=mlem_isort_config)
 
 
 def is_private_module(mod: ModuleType):
@@ -178,6 +172,7 @@ def is_extension_module(mod: ModuleType):
         return True
 
 
+@lru_cache
 def is_installable_module(mod: ModuleType):
     """
     Determines that given module object represents PyPi-installable (aka third party) module.
@@ -188,6 +183,7 @@ def is_installable_module(mod: ModuleType):
     return isort_finder.find(mod.__name__) == "THIRDPARTY"
 
 
+@lru_cache
 def is_builtin_module(mod: ModuleType):
     """
     Determines that given module object represents standard library (aka builtin) module.
