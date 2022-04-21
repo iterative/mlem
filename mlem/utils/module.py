@@ -7,7 +7,7 @@ import re
 import sys
 import threading
 import warnings
-from functools import wraps
+from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
 from typing import Dict, List, Optional, Set, Union
@@ -132,10 +132,16 @@ def get_object_module(obj: object) -> Optional[ModuleType]:
     return inspect.getmodule(obj)
 
 
+class CachingFindersManager(FindersManager):
+    @lru_cache  # pylint: disable=cache-max-size-none
+    def find(self, module_name: str) -> Optional[str]:
+        return super().find(module_name)
+
+
 mlem_isort_config = Config(
     settings_file=os.path.join(os.path.dirname(__file__), "mlem.isort.cfg")
 )
-isort_finder = FindersManager(config=mlem_isort_config)
+isort_finder = CachingFindersManager(config=mlem_isort_config)
 
 
 def is_private_module(mod: ModuleType):
@@ -179,6 +185,7 @@ def is_installable_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
+    print(mod.__name__)
     return isort_finder.find(mod.__name__) == "THIRDPARTY"
 
 
