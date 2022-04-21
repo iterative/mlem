@@ -101,11 +101,12 @@ def apply(
 
 
 def apply_remote(
-    client: BaseClient,
+    client: Union[str, BaseClient],
     *data: Union[str, DatasetMeta, Any],
     method: str = None,
     output: str = None,
     link: bool = False,
+    **client_kwargs,
 ) -> Optional[Any]:
     """Apply provided model against provided data
 
@@ -124,6 +125,7 @@ def apply_remote(
             Otherwise returns None.
 
     """
+    client = ensure_mlem_object(BaseClient, client, **client_kwargs)
     if method is not None:
         try:
             resolved_method = getattr(client, method)

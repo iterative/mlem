@@ -15,6 +15,7 @@ from mlem.cli.main import (
 )
 from mlem.core.base import parse_string_conf
 from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, DeployMeta
 from mlem.ui import echo, no_echo, set_echo
@@ -66,7 +67,7 @@ def deploy_create(
         repo,
         external=external,
         link=link,
-        **parse_string_conf(conf or [])
+        **parse_string_conf(conf or []),
     )
 
 
@@ -120,6 +121,10 @@ def deploy_apply(
     from mlem.api import apply_remote
 
     deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+    if deploy_meta.state is None:
+        raise DeploymentError(f"{deploy_meta.type} deployment has no state")
+    client = deploy_meta.state.get_client()
+
     with set_echo(None if json else ...):
         dataset = load_meta(
             data,
@@ -128,15 +133,13 @@ def deploy_apply(
             load_value=True,
             force_type=DatasetMeta,
         )
-        state = deploy_meta.state
-        if state:
-            result = apply_remote(
-                state.get_client(),
-                dataset,
-                method=method,
-                output=output,
-                link=link,
-            )
+        result = apply_remote(
+            client,
+            dataset,
+            method=method,
+            output=output,
+            link=link,
+        )
     if output is None and json:
         print(
             dumps(

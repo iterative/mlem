@@ -87,7 +87,7 @@ class _MethodCall(BaseModel):
 
 
 class HTTPClient(BaseClient):
-    type: ClassVar[str] = "httpclient"
+    type: ClassVar[str] = "http"
     host: str = "0.0.0.0"
     port: Optional[int] = 8080
 

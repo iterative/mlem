@@ -135,9 +135,11 @@ def apply_remote(
 
     Examples:
         Apply hosted mlem model to local mlem dataset
-        $ mlem apply-remote httpclient mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
+        $ mlem apply-remote http mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
     """
     from mlem.api import apply_remote
+
+    client = config_arg(BaseClient, load, subtype, conf, file_conf)
 
     with set_echo(None if json else ...):
         dataset = load_meta(
@@ -147,8 +149,6 @@ def apply_remote(
             load_value=True,
             force_type=DatasetMeta,
         )
-
-        client = config_arg(BaseClient, load, subtype, conf, file_conf)
 
         result = apply_remote(
             client,
