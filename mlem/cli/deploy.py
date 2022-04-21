@@ -122,7 +122,9 @@ def deploy_apply(
 
     deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
     if deploy_meta.state is None:
-        raise DeploymentError(f"{deploy_meta.type} deployment has no state")
+        raise DeploymentError(
+            f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
+        )
     client = deploy_meta.state.get_client()
 
     with set_echo(None if json else ...):

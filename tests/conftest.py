@@ -151,6 +151,11 @@ def client(interface):
 
 @pytest.fixture
 def request_get_mock(mocker, client):
+    """
+    mocks requests.get method so as to use
+    FastAPI's TestClient's get() method beneath
+    """
+
     def patched_get(url, params=None, **kwargs):
         url = url[len("http://") :]
         return client.get(url, params=params, **kwargs)
@@ -163,6 +168,11 @@ def request_get_mock(mocker, client):
 
 @pytest.fixture
 def request_post_mock(mocker, client):
+    """
+    mocks requests.post method so as to use
+    FastAPI's TestClient's post() method beneath
+    """
+
     def patched_post(url, data=None, json=None, **kwargs):
         url = url[len("http://") :]
         return client.post(url, data=data, json=json, **kwargs)

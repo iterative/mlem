@@ -2,7 +2,9 @@ import os
 from typing import ClassVar
 
 import pytest
+from numpy import ndarray
 
+from mlem.api import load
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
@@ -16,10 +18,17 @@ from mlem.runtime.client.base import BaseClient, HTTPClient
 from tests.cli.conftest import Runner
 
 
-@pytest.mark.usefixtures("request_get_mock", "request_post_mock")
+@pytest.fixture
+def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
+    return mocker.patch(
+        "tests.cli.test_deploy.DeployStateMock.get_client",
+        return_value=HTTPClient(host="", port=None),
+    )
+
+
 class DeployStateMock(DeployState):
     def get_client(self) -> BaseClient:
-        return HTTPClient(host="", port=None)
+        pass
 
 
 class DeployMetaMock(DeployMeta):
@@ -106,8 +115,20 @@ def test_deploy_destroy(runner: Runner, mock_deploy_path):
     assert meta.status == DeployStatus.STOPPED
 
 
-def test_deploy_apply(runner: Runner, mock_deploy_path, data_path):
+def test_deploy_apply(
+    runner: Runner,
+    mock_deploy_path,
+    data_path,
+    mock_deploy_get_client,
+    tmp_path,
+):
+    path = os.path.join(tmp_path, "output")
     result = runner.invoke(
-        f"deploy apply {mock_deploy_path} {data_path}".split()
+        f"deploy apply {mock_deploy_path} {data_path} -o {path}".split()
     )
     assert result.exit_code == 0, result.output
+    meta = load_meta(mock_deploy_path)
+    assert isinstance(meta, DeployMetaMock)
+    assert meta.status == DeployStatus.NOT_DEPLOYED
+    predictions = load(path)
+    assert isinstance(predictions, ndarray)
