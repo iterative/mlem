@@ -185,7 +185,6 @@ def is_installable_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
-    print(mod.__name__)
     return isort_finder.find(mod.__name__) == "THIRDPARTY"
 
 
