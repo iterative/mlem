@@ -7,6 +7,7 @@ from typing import Any, Callable, Type
 import git
 import pandas as pd
 import pytest
+from fastapi.testclient import TestClient
 from fsspec.implementations.local import LocalFileSystem
 from git import GitCommandError, Repo
 from requests import ConnectionError, HTTPError
@@ -16,6 +17,7 @@ from sklearn.tree import DecisionTreeClassifier
 from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
+from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
@@ -24,6 +26,7 @@ from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import DatasetMeta, ModelMeta
 from mlem.core.requirements import Requirements
+from mlem.runtime.interface.base import ModelInterface
 from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
@@ -131,6 +134,43 @@ def train(model_train_target):
 @pytest.fixture
 def model(model_train_target):
     return model_train_target[0]
+
+
+@pytest.fixture
+def interface(model, train):
+    model = ModelMeta.from_obj(model, sample_data=train)
+    interface = ModelInterface.from_model(model)
+    return interface
+
+
+@pytest.fixture
+def client(interface):
+    app = FastAPIServer().app_init(interface)
+    return TestClient(app)
+
+
+@pytest.fixture
+def request_get_mock(mocker, client):
+    def patched_get(url, params=None, **kwargs):
+        url = url[len("http://") :]
+        return client.get(url, params=params, **kwargs)
+
+    return mocker.patch(
+        "mlem.runtime.client.base.requests.get",
+        side_effect=patched_get,
+    )
+
+
+@pytest.fixture
+def request_post_mock(mocker, client):
+    def patched_post(url, data=None, json=None, **kwargs):
+        url = url[len("http://") :]
+        return client.post(url, data=data, json=json, **kwargs)
+
+    return mocker.patch(
+        "mlem.runtime.client.base.requests.post",
+        side_effect=patched_post,
+    )
 
 
 @pytest.fixture

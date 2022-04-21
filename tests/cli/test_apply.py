@@ -3,54 +3,13 @@ import posixpath
 import tempfile
 
 import pytest
-from fastapi.testclient import TestClient
 from numpy import ndarray
 from sklearn.datasets import load_iris
 
 from mlem.api import load
-from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.errors import MlemRootNotFound
-from mlem.core.objects import ModelMeta
 from mlem.runtime.client.base import HTTPClient
-from mlem.runtime.interface.base import ModelInterface
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
-
-
-@pytest.fixture
-def interface(model, train):
-    model = ModelMeta.from_obj(model, sample_data=train)
-    interface = ModelInterface.from_model(model)
-    return interface
-
-
-@pytest.fixture
-def client(interface):
-    app = FastAPIServer().app_init(interface)
-    return TestClient(app)
-
-
-@pytest.fixture
-def request_get_mock(mocker, client):
-    def patched_get(url, params=None, **kwargs):
-        url = url[len("http://") :]
-        return client.get(url, params=params, **kwargs)
-
-    return mocker.patch(
-        "mlem.runtime.client.base.requests.get",
-        side_effect=patched_get,
-    )
-
-
-@pytest.fixture
-def request_post_mock(mocker, client):
-    def patched_post(url, data=None, json=None, **kwargs):
-        url = url[len("http://") :]
-        return client.post(url, data=data, json=json, **kwargs)
-
-    return mocker.patch(
-        "mlem.runtime.client.base.requests.post",
-        side_effect=patched_post,
-    )
 
 
 @pytest.fixture
