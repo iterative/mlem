@@ -3,23 +3,71 @@ import pickle
 import posixpath
 
 import pytest
+from fastapi.testclient import TestClient
 from fsspec.implementations.local import LocalFileSystem
 from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
-from mlem.api import apply, link, load_meta
+from mlem.api import apply, apply_remote, link, load_meta
 from mlem.api.commands import import_object, init, ls
 from mlem.config import CONFIG_FILE_NAME
+from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
+from mlem.runtime.client.base import HTTPClient
+from mlem.runtime.interface.base import ModelInterface
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 IMPORT_MODEL_FILENAME = "mymodel"
+
+
+@pytest.fixture
+def interface(model, train):
+    model = ModelMeta.from_obj(model, sample_data=train)
+    interface = ModelInterface.from_model(model)
+    return interface
+
+
+@pytest.fixture
+def client(interface):
+    app = FastAPIServer().app_init(interface)
+    return TestClient(app)
+
+
+@pytest.fixture
+def request_get_mock(mocker, client):
+    def patched_get(url, params=None, **kwargs):
+        url = url[len("http://") :]
+        return client.get(url, params=params, **kwargs)
+
+    return mocker.patch(
+        "mlem.runtime.client.base.requests.get",
+        side_effect=patched_get,
+    )
+
+
+@pytest.fixture
+def request_post_mock(mocker, client):
+    def patched_post(url, data=None, json=None, **kwargs):
+        url = url[len("http://") :]
+        return client.post(url, data=data, json=json, **kwargs)
+
+    return mocker.patch(
+        "mlem.runtime.client.base.requests.post",
+        side_effect=patched_post,
+    )
+
+
+@pytest.fixture
+def mlem_client(request_get_mock, request_post_mock):
+    client = HTTPClient(host="", port=None)
+    return client
 
 
 @pytest.mark.parametrize(
@@ -42,6 +90,11 @@ IMPORT_MODEL_FILENAME = "mymodel"
 )
 def test_apply(m, d):
     res = apply(m, d, method="predict")
+    assert isinstance(res, ndarray)
+
+
+def test_apply_remote(mlem_client, train):
+    res = apply_remote(mlem_client, train, method=PREDICT_METHOD_NAME)
     assert isinstance(res, ndarray)
 
 

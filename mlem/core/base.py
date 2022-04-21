@@ -221,5 +221,7 @@ def build_model(
 
     for c in str_conf or []:
         keys, value = smart_split(c, "=")
+        if value == "None":
+            value = None
         set_recursively(model_dict, smart_split(keys, "."), value)
     return parse_obj_as(model, model_dict)
