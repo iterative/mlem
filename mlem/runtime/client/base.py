@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class BaseClient(MlemObject, ABC):
+    """"""
+
     class Config:
         type_root = True
         type_field = "type"
@@ -41,14 +43,12 @@ class BaseClient(MlemObject, ABC):
         if name not in self.methods:
             raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
-            base_url=self.base_url,
             method=self.methods[name],
             call_method=self._call_method,
         )
 
 
 class _MethodCall(BaseModel):
-    base_url: str
     method: Signature
     call_method: Callable
 
