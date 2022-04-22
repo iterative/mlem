@@ -172,7 +172,7 @@ class MlemMeta(MlemObject):
         """
         echo(
             EMOJI_LOAD
-            + f"Loading {getattr(cls, 'object_type', 'meta')} from {location.uri}"
+            + f"Loading {getattr(cls, 'object_type', 'meta')} from {location.uri_repr}"
         )
         with location.open() as f:
             payload = safe_load(f)
@@ -227,7 +227,7 @@ class MlemMeta(MlemObject):
         link: bool,
     ):
         """Write metadata to path in fs and possibly create link in mlem dir"""
-        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri}")
+        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri_repr}")
         location.fs.makedirs(
             posixpath.dirname(location.fullpath), exist_ok=True
         )
@@ -354,7 +354,7 @@ class MlemLink(MlemMeta):
     def resolved_type(self):
         return self.link_type
 
-    @validator("path", "repo")
+    @validator("path", "repo", allow_reuse=True)
     def make_posix(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
@@ -378,7 +378,7 @@ class MlemLink(MlemMeta):
         if force_type is not None and self.link_cls != force_type:
             raise WrongMetaType(self.link_type, force_type)
         link = self.parse_link()
-        echo(EMOJI_LINK + f"Loading link to {link.uri}")
+        echo(EMOJI_LINK + f"Loading link to {link.uri_repr}")
         with no_echo():
             return self.link_cls.read(link, follow_links=follow_links)
 

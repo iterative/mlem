@@ -31,6 +31,7 @@ class DockerRegistry(MlemObject):
     """Registry for docker images. This is the default implementation that represents registry of the docker daemon"""
 
     abs_name: ClassVar = "docker_registry"
+    type: ClassVar = "local"
 
     class Config:
         type_root = True

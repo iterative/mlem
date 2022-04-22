@@ -9,10 +9,11 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
 import mlem
-from mlem.core.meta_io import get_fs
+from mlem.core.meta_io import get_fs, get_uri
 from mlem.core.objects import ModelMeta
 from mlem.core.requirements import InstallableRequirement
 from mlem.pack import Packager
+from mlem.ui import EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
 
@@ -54,8 +55,10 @@ class PipMixin(SetupTemplate):
         SourceTemplate(methods=list(obj.model_type.methods)).write(
             posixpath.join(path, "__init__.py"), fs
         )
-
-        obj.clone(posixpath.join(path, "model"), fs)
+        with no_echo():
+            obj.clone(
+                posixpath.join(path, "model"), fs, external=True, link=False
+            )
         with fs.open(posixpath.join(root, "requirements.txt"), "w") as f:
             f.write(
                 "\n".join(
@@ -67,6 +70,10 @@ class PipMixin(SetupTemplate):
             )
         with fs.open(posixpath.join(root, "MANIFEST.in"), "w") as f:
             f.write(f"graft {self.package_name}")
+        echo(
+            EMOJI_PACK
+            + f"Written `{self.package_name}` package data to `{get_uri(fs, root, True)}`"
+        )
 
 
 class PipPackager(Packager, PipMixin):

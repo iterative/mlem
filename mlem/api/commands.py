@@ -189,7 +189,7 @@ def clone(
         follow_links=follow_links,
         load_value=load_value,
     )
-    echo(EMOJI_COPY + f"Cloning {meta.loc.uri}")
+    echo(EMOJI_COPY + f"Cloning {meta.loc.uri_repr}")
     if target in ("", "."):
         target = posixpath.basename(meta.loc.uri)
     return meta.clone(
@@ -420,7 +420,7 @@ def import_object(
     optionally saving to the specified target location
     """
     loc = UriResolver.resolve(path, repo, rev, fs)
-    echo(EMOJI_LOAD + f"Importing object from {loc.uri}")
+    echo(EMOJI_LOAD + f"Importing object from {loc.uri_repr}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
         if type_ not in ImportHook.__type_map__:
