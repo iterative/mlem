@@ -9,7 +9,7 @@ from mlem.core.objects import (
     DeployStatus,
     TargetEnvMeta,
 )
-from mlem.runtime.client.base import HTTPClient
+from mlem.runtime.client.base import BaseClient, HTTPClient
 
 from ...core.errors import DeploymentError
 from ..docker.base import DockerImage
@@ -43,7 +43,7 @@ class HerokuState(DeployState):
             raise ValueError("App is not created yet")
         return self.app
 
-    def get_client(self) -> HTTPClient:
+    def get_client(self) -> BaseClient:
         return HTTPClient(
             host=urlparse(self.ensured_app.web_url).netloc, port=80
         )

@@ -41,6 +41,9 @@ class MyDeployState(DeployState):
     def destroy(self):
         pass
 
+    def get_client(self):
+        pass
+
 
 @pytest.fixture()
 def meta():

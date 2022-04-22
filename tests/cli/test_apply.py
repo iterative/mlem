@@ -2,12 +2,20 @@ import os.path
 import posixpath
 import tempfile
 
+import pytest
 from numpy import ndarray
 from sklearn.datasets import load_iris
 
 from mlem.api import load
 from mlem.core.errors import MlemRootNotFound
+from mlem.runtime.client.base import HTTPClient
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
+
+
+@pytest.fixture
+def mlem_client(request_get_mock, request_post_mock):
+    client = HTTPClient(host="", port=None)
+    return client
 
 
 def test_apply(runner, model_path, data_path):
@@ -112,3 +120,24 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
     assert result.exit_code == 0, (result.output, result.exception)
     predictions = load(out)
     assert isinstance(predictions, ndarray)
+
+
+def test_apply_remote(mlem_client, runner, data_path):
+    with tempfile.TemporaryDirectory() as dir:
+        path = posixpath.join(dir, "data")
+        result = runner.invoke(
+            [
+                "apply-remote",
+                "http",
+                data_path,
+                "-c",
+                "host=''",
+                "-c",
+                "port=None",
+                "-o",
+                path,
+            ],
+        )
+        assert result.exit_code == 0, (result.output, result.exception)
+        predictions = load(path)
+        assert isinstance(predictions, ndarray)

@@ -7,19 +7,27 @@ from fsspec.implementations.local import LocalFileSystem
 from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
-from mlem.api import apply, link, load_meta
+from mlem.api import apply, apply_remote, link, load_meta
 from mlem.api.commands import import_object, init, ls
 from mlem.config import CONFIG_FILE_NAME
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
 from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
+from mlem.runtime.client.base import HTTPClient
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 IMPORT_MODEL_FILENAME = "mymodel"
+
+
+@pytest.fixture
+def mlem_client(request_get_mock, request_post_mock):
+    client = HTTPClient(host="", port=None)
+    return client
 
 
 @pytest.mark.parametrize(
@@ -42,6 +50,11 @@ IMPORT_MODEL_FILENAME = "mymodel"
 )
 def test_apply(m, d):
     res = apply(m, d, method="predict")
+    assert isinstance(res, ndarray)
+
+
+def test_apply_remote(mlem_client, train):
+    res = apply_remote(mlem_client, train, method=PREDICT_METHOD_NAME)
     assert isinstance(res, ndarray)
 
 

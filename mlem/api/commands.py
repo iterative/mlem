@@ -18,6 +18,7 @@ from mlem.api.utils import (
 from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
+    InvalidArgumentError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemRootNotFound,
@@ -35,6 +36,7 @@ from mlem.core.objects import (
     TargetEnvMeta,
 )
 from mlem.pack import Packager
+from mlem.runtime.client.base import BaseClient
 from mlem.runtime.server.base import Server
 from mlem.ui import (
     EMOJI_APPLY,
@@ -92,6 +94,54 @@ def apply(
         return res
     if len(res) == 1:
         return save(res[0], output, external=external, link=link)
+
+    raise NotImplementedError(
+        "Saving several input data objects is not implemented yet"
+    )
+
+
+def apply_remote(
+    client: Union[str, BaseClient],
+    *data: Union[str, DatasetMeta, Any],
+    method: str = None,
+    output: str = None,
+    link: bool = False,
+    **client_kwargs,
+) -> Optional[Any]:
+    """Apply provided model against provided data
+
+    Args:
+        client (BaseClient): The client to access methods of deployed model.
+        data (Any): Input to the model.
+        method (str, optional): Which model method to use.
+            If None, use the only method model has.
+            If more than one is available, will fail.
+        output (str, optional): If value is provided,
+            assume it's path and save output there.
+        link (bool): Whether to create a link to saved output in MLEM root folder.
+
+    Returns:
+        If `output=None`, returns results for given data.
+            Otherwise returns None.
+
+    """
+    client = ensure_mlem_object(BaseClient, client, **client_kwargs)
+    if method is not None:
+        try:
+            resolved_method = getattr(client, method)
+        except WrongMethodError:
+            resolved_method = getattr(client, PREDICT_METHOD_NAME)
+    else:
+        raise InvalidArgumentError("method cannot be None")
+
+    echo(EMOJI_APPLY + f"Applying `{resolved_method.method.name}` method...")
+    res = [resolved_method(get_dataset_value(part)) for part in data]
+    if output is None:
+        if len(res) == 1:
+            return res[0]
+        return res
+    if len(res) == 1:
+        return save(res[0], output, link=link)
 
     raise NotImplementedError(
         "Saving several input data objects is not implemented yet"
@@ -212,7 +262,7 @@ def link(
     source_repo: Optional[str] = None,
     rev: Optional[str] = None,
     target: Optional[str] = None,
-    target_repo: [str] = None,
+    target_repo: Optional[str] = None,
     external: Optional[bool] = None,
     follow_links: bool = True,
     absolute: bool = False,

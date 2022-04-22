@@ -680,9 +680,9 @@ class DeployState(MlemObject):
 
     abs_name: ClassVar[str] = "deploy_state"
 
-    # @abstractmethod
-    # def get_client(self) -> BaseClient:
-    #     pass
+    @abstractmethod
+    def get_client(self):
+        raise NotImplementedError
 
 
 DT = TypeVar("DT", bound="DeployMeta")

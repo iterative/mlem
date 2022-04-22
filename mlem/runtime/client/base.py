@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class BaseClient(MlemObject, ABC):
+    class Config:
+        type_root = True
+        type_field = "type"
+
+    type: ClassVar[str]
     abs_name: ClassVar[str] = "client"
 
     @property
@@ -82,6 +87,7 @@ class _MethodCall(BaseModel):
 
 
 class HTTPClient(BaseClient):
+    type: ClassVar[str] = "http"
     host: str = "0.0.0.0"
     port: Optional[int] = 8080
 
