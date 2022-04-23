@@ -11,6 +11,7 @@ from testcontainers.general import TestContainer
 from mlem.api import serve
 from mlem.contrib.rabbitmq import RabbitMQClient, RabbitMQServer
 from tests.conftest import long
+from tests.contrib.test_docker.conftest import docker_test
 
 RMQ_PORT = 5672
 RMQ_MANAGE_PORT = 15672
@@ -52,6 +53,7 @@ def rmq_server(model_meta_saved_single, rmq_instance):
 
 
 @long
+@docker_test
 def test_serving(rmq_server):
 
     for _ in range(10):
