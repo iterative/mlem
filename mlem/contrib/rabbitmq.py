@@ -76,6 +76,12 @@ class RabbitMQServer(Server, RabbitMQMixin):
         return handler
 
     def serve(self, interface: Interface):
+        self.channel.queue_declare(self.queue_prefix + INTERFACE)
+        schema = json.dumps(interface.get_descriptor().dict())
+        self.channel.basic_publish(
+            self.exchange, self.queue_prefix + INTERFACE, schema.encode("utf8")
+        )
+
         for method, signature in interface.iter_methods():
             self.channel.queue_declare(self.queue_prefix + method + REQUEST)
             self.channel.basic_consume(
@@ -85,12 +91,6 @@ class RabbitMQServer(Server, RabbitMQMixin):
                 ),
             )
             self.channel.queue_declare(self.queue_prefix + method + RESPONSE)
-
-        self.channel.queue_declare(self.queue_prefix + INTERFACE)
-        schema = json.dumps(interface.get_descriptor().dict())
-        self.channel.basic_publish(
-            self.exchange, self.queue_prefix + INTERFACE, schema.encode("utf8")
-        )
 
         self.channel.start_consuming()
 
