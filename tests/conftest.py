@@ -2,7 +2,7 @@ import os
 import posixpath
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Type
+from typing import Any, Callable, Optional, Type
 
 import git
 import pandas as pd
@@ -21,6 +21,7 @@ from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
+from mlem.core.errors import UnsupportedDatasetBatchLoadingType
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
@@ -305,6 +306,39 @@ def dataset_write_read_check(
     reader_type: Type[DatasetReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
     custom_assert: Callable[[Any, Any], Any] = None,
+    batch: Optional[int] = None,
+    writer_args: Any = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        writer = writer or dataset.get_writer()
+
+        storage = LOCAL_STORAGE
+        reader, artifacts = writer.write(
+            dataset, storage, posixpath.join(tmpdir, "data"), writer_args
+        )
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        if batch:
+            new = reader.read_batch(artifacts, batch)
+        else:
+            new = reader.read(artifacts)
+
+        assert dataset == new
+        if custom_assert is not None:
+            custom_assert(new.data, dataset.data)
+        else:
+            if custom_eq is not None:
+                assert custom_eq(new.data, dataset.data)
+            else:
+                assert new.data == dataset.data
+
+
+def dataset_write_read_batch_unsupported(
+    dataset: DatasetType,
+    batch: int,
+    writer: DatasetWriter = None,
+    reader_type: Type[DatasetReader] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
         writer = writer or dataset.get_writer()
@@ -316,16 +350,11 @@ def dataset_write_read_check(
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
-        new = reader.read(artifacts)
-
-        assert dataset == new
-        if custom_assert is not None:
-            custom_assert(new.data, dataset.data)
-        else:
-            if custom_eq is not None:
-                assert custom_eq(new.data, dataset.data)
-            else:
-                assert new.data == dataset.data
+        with pytest.raises(
+            UnsupportedDatasetBatchLoadingType,
+            match="Batch-loading Dataset of type .*",
+        ):
+            reader.read_batch(artifacts, batch)
 
 
 def check_model_type_common_interface(
