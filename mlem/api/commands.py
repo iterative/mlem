@@ -58,6 +58,7 @@ def apply(
     output: str = None,
     link: bool = None,
     external: bool = None,
+    batch: Optional[int] = None,
 ) -> Optional[Any]:
     """Apply provided model against provided data
 
@@ -85,7 +86,7 @@ def apply(
         resolved_method = PREDICT_METHOD_NAME
     echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
     res = [
-        w.call_method(resolved_method, get_dataset_value(part))
+        w.call_method(resolved_method, get_dataset_value(part, batch))
         for part in data
     ]
     if output is None:
@@ -412,6 +413,7 @@ def import_object(
     target_repo: Optional[str] = None,
     target_fs: Optional[AbstractFileSystem] = None,
     type_: Optional[str] = None,
+    batch: Optional[int] = None,
     copy_data: bool = True,
     external: bool = None,
     link: bool = None,
@@ -426,7 +428,7 @@ def import_object(
         if type_ not in ImportHook.__type_map__:
             raise ValueError(f"Unknown import type {type_}")
         meta = ImportHook.__type_map__[type_].process(
-            loc, copy_data=copy_data, modifier=modifier
+            loc, copy_data=copy_data, modifier=modifier, batch=batch
         )
     else:
         meta = ImportAnalyzer.analyze(loc, copy_data=copy_data)

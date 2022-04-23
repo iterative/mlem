@@ -668,6 +668,9 @@ class DatasetMeta(_WithArtifacts):
     def load_value(self):
         self.dataset = self.reader.read(self.relative_artifacts)
 
+    def load_batch_value(self, batch: int):
+        self.dataset = self.reader.read_batch(self.relative_artifacts, batch)  # type: ignore
+
     def get_value(self):
         return self.data
 

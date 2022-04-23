@@ -404,6 +404,10 @@ class DatasetReader(MlemObject, ABC):
     def read(self, artifacts: Artifacts) -> DatasetType:
         raise NotImplementedError
 
+    @abstractmethod
+    def read_batch(self, artifacts: Artifacts, batch: int) -> DatasetType:
+        raise NotImplementedError
+
 
 class DatasetWriter(MlemObject):
     """"""
@@ -416,6 +420,10 @@ class DatasetWriter(MlemObject):
 
     @abstractmethod
     def write(
-        self, dataset: DatasetType, storage: Storage, path: str
+        self,
+        dataset: DatasetType,
+        storage: Storage,
+        path: str,
+        writer_fmt_args: Optional[Dict[str, Any]] = None,
     ) -> Tuple[DatasetReader, Artifacts]:
         raise NotImplementedError

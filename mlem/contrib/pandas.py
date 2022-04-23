@@ -44,7 +44,12 @@ from mlem.core.dataset_type import (
     DatasetType,
     DatasetWriter,
 )
-from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.errors import (
+    DatasetBatchLoadingJSONError,
+    DeserializationError,
+    SerializationError,
+    UnsupportedDatasetBatchLoadingType,
+)
 from mlem.core.import_objects import ExtImportHook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
@@ -320,7 +325,7 @@ class DataFrameType(_PandasDatasetType):
             if filename is not None:
                 _, ext = os.path.splitext(filename)
                 ext = ext.lstrip(".")
-                if ext in PANDAS_FORMATS:
+                if ext in get_pandas_formats():
                     fmt = ext
         return PandasWriter(format=fmt)
 
@@ -386,6 +391,9 @@ class PandasFormat:
     file_name: str = "data.pd"
     string_buffer: bool = False
 
+    def update_variable(self, name: str, val: Any):
+        setattr(self, name, val)
+
     def read(self, artifacts: Artifacts, **kwargs):
         """Read DataFrame"""
         read_kwargs = {}
@@ -428,8 +436,37 @@ def read_csv_with_unnamed(*args, **kwargs):
     return df.rename(unnamed, axis=1)  # pylint: disable=no-member
 
 
+def read_batch_csv_with_unnamed(*args, **kwargs):
+    df = None
+    df_iterator = pd.read_csv(*args, **kwargs)
+    unnamed = {}
+    for i, df_chunk in enumerate(df_iterator):
+        # Instantiate Pandas DataFrame if it is the first chunk
+        if i == 0:
+            df = pd.DataFrame(columns=df_chunk.columns)
+            for col in df_chunk.columns:
+                if col.startswith("Unnamed: "):
+                    unnamed[col] = ""
+        df = pd.concat([df, df_chunk], ignore_index=True)
+    if not unnamed:
+        return df
+    return df.rename(unnamed, axis=1)  # pylint: disable=no-member
+
+
 def read_json_reset_index(*args, **kwargs):
     return pd.read_json(*args, **kwargs).reset_index(drop=True)
+
+
+def read_batch_json_reset_index(*args, **kwargs):
+    df = None
+    df_iterator = pd.read_json(*args, **kwargs)
+    for i, df_chunk in enumerate(df_iterator):
+        # Instantiate Pandas DataFrame if it is the first chunk
+        if i == 0:
+            df = pd.DataFrame(columns=df_chunk.columns)
+        df = pd.concat([df, df_chunk], ignore_index=True)
+    df = df.reset_index(drop=True)
+    return df
 
 
 def read_html(*args, **kwargs):
@@ -437,45 +474,50 @@ def read_html(*args, **kwargs):
     return pd.read_html(*args, **kwargs)[0]
 
 
-PANDAS_FORMATS = {
-    "csv": PandasFormat(
-        read_csv_with_unnamed,
-        pd.DataFrame.to_csv,
-        file_name="data.csv",
-        write_args={"index": False},
-    ),
-    "json": PandasFormat(
-        read_json_reset_index,
-        pd.DataFrame.to_json,
-        file_name="data.json",
-        write_args={"date_format": "iso", "date_unit": "ns"},
-    ),
-    "html": PandasFormat(
-        read_html,
-        pd.DataFrame.to_html,
-        file_name="data.html",
-        write_args={"index": False},
-        string_buffer=True,
-    ),
-    "excel": PandasFormat(
-        pd.read_excel,
-        pd.DataFrame.to_excel,
-        file_name="data.xlsx",
-        write_args={"index": False},
-    ),
-    "parquet": PandasFormat(
-        pd.read_parquet, pd.DataFrame.to_parquet, file_name="data.parquet"
-    ),
-    "feather": PandasFormat(
-        pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
-    ),
-    "pickle": PandasFormat(  # TODO buffer closed error for some reason
-        pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
-    ),
-    "strata": PandasFormat(  # TODO int32 converts to int64 for some reason
-        pd.read_stata, pd.DataFrame.to_stata, write_args={"write_index": False}
-    ),
-}
+def get_pandas_formats():
+    PANDAS_FORMATS = {
+        "csv": PandasFormat(
+            read_csv_with_unnamed,
+            pd.DataFrame.to_csv,
+            file_name="data.csv",
+            write_args={"index": False},
+        ),
+        "json": PandasFormat(
+            read_json_reset_index,
+            pd.DataFrame.to_json,
+            file_name="data.json",
+            write_args={"date_format": "iso", "date_unit": "ns"},
+        ),
+        "html": PandasFormat(
+            read_html,
+            pd.DataFrame.to_html,
+            file_name="data.html",
+            write_args={"index": False},
+            string_buffer=True,
+        ),
+        "excel": PandasFormat(
+            pd.read_excel,
+            pd.DataFrame.to_excel,
+            file_name="data.xlsx",
+            write_args={"index": False},
+        ),
+        "parquet": PandasFormat(
+            pd.read_parquet, pd.DataFrame.to_parquet, file_name="data.parquet"
+        ),
+        "feather": PandasFormat(
+            pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
+        ),
+        "pickle": PandasFormat(  # TODO buffer closed error for some reason
+            pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
+        ),
+        "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
+            pd.read_stata,
+            pd.DataFrame.to_stata,
+            write_args={"write_index": False},
+        ),
+    }
+
+    return PANDAS_FORMATS
 
 
 class _PandasIO(BaseModel):
@@ -485,13 +527,13 @@ class _PandasIO(BaseModel):
     def is_valid_format(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
-        if value not in PANDAS_FORMATS:
+        if value not in get_pandas_formats():
             raise ValueError(f"format {value} is not supported")
         return value
 
     @property
     def fmt(self):
-        return PANDAS_FORMATS[self.format]
+        return get_pandas_formats()[self.format]
 
 
 class PandasReader(_PandasIO, DatasetReader):
@@ -505,6 +547,21 @@ class PandasReader(_PandasIO, DatasetReader):
             self.dataset_type.align(self.fmt.read(artifacts))
         )
 
+    def read_batch(self, artifacts: Artifacts, batch: int) -> DatasetType:
+        fmt = update_batch_args(self.format, self.fmt, batch)
+
+        # Pandas supports batch-reading for JSON only if the JSON file is line-delimited
+        # https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#line-delimited-json
+        if self.format == "json":
+            dataset_lines = sum(1 for line in open(artifacts["data"].uri))
+            if dataset_lines <= 1:
+                raise DatasetBatchLoadingJSONError(
+                    "Batch-loading Dataset of type JSON requires provided JSON file to be line-delimited."
+                )
+        return self.dataset_type.copy().bind(
+            self.dataset_type.align(fmt.read(artifacts))
+        )
+
 
 class PandasWriter(DatasetWriter, _PandasIO):
     """DatasetWriter for pandas dataframes"""
@@ -512,9 +569,16 @@ class PandasWriter(DatasetWriter, _PandasIO):
     type: ClassVar[str] = "pandas"
 
     def write(
-        self, dataset: DatasetType, storage: Storage, path: str
+        self,
+        dataset: DatasetType,
+        storage: Storage,
+        path: str,
+        writer_fmt_args: Optional[Dict[str, Any]] = None,
     ) -> Tuple[DatasetReader, Artifacts]:
         fmt = self.fmt
+        if writer_fmt_args:
+            for k, v in writer_fmt_args.items():
+                setattr(fmt, k, v)
         art = fmt.write(dataset.data, storage, path)
         if not isinstance(dataset, DataFrameType):
             raise ValueError("Cannot write non-pandas Dataset")
@@ -524,7 +588,7 @@ class PandasWriter(DatasetWriter, _PandasIO):
 
 
 class PandasImport(ExtImportHook):
-    EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
+    EXTS: ClassVar = tuple(f".{k}" for k in get_pandas_formats())
     type: ClassVar = "pandas"
 
     @classmethod
@@ -537,10 +601,13 @@ class PandasImport(ExtImportHook):
         obj: Location,
         copy_data: bool = True,
         modifier: Optional[str] = None,
+        batch: Optional[int] = None,
         **kwargs,
     ) -> MlemMeta:
         ext = modifier or posixpath.splitext(obj.path)[1][1:]
-        fmt = PANDAS_FORMATS[ext]
+        fmt = get_pandas_formats()[ext]
+        if batch:
+            fmt = update_batch_args(ext, fmt, batch)
         read_args = fmt.read_args or {}
         read_args.update(kwargs)
         with obj.open("rb") as f:
@@ -555,3 +622,24 @@ class PandasImport(ExtImportHook):
                 )
             }
         return meta
+
+
+def update_batch_args(
+    type_: str, fmt: PandasFormat, batch: int
+) -> PandasFormat:
+    # Check if batch reading is supported for specified _type format
+    if type_ == "csv":
+        fmt.read_func = read_batch_csv_with_unnamed
+        fmt.read_args = {"chunksize": batch}
+    elif type_ == "json":
+        fmt.read_func = read_batch_json_reset_index
+        # JSON batch-reading requires line-delimited data, and orient to be records
+        fmt.read_args = {
+            "chunksize": batch,
+            "lines": True,
+            "orient": "records",
+        }
+    else:
+        raise UnsupportedDatasetBatchLoadingType(type_)
+
+    return fmt

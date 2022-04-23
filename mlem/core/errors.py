@@ -70,6 +70,25 @@ class MlemObjectNotLoadedError(ValueError, MlemError):
     """Thrown if model or dataset value is not loaded"""
 
 
+class UnsupportedDatasetBatchLoadingType(ValueError, MlemError):
+    """Thrown if batch loading of dataset with unsupported file type is called"""
+
+    _message = "Batch-loading Dataset of type '{dataset_type}' is currently not supported. Please remove batch parameter."
+
+    def __init__(
+        self,
+        dataset_type,
+    ) -> None:
+
+        self.dataset_type = dataset_type
+        self.message = self._message.format(dataset_type=dataset_type)
+        super().__init__(self.message)
+
+
+class DatasetBatchLoadingJSONError(ValueError, MlemError):
+    """Thrown if batch loading of JSON dataset is not line-delimited"""
+
+
 class WrongMethodError(ValueError, MlemError):
     """Thrown if wrong method name for model is provided"""
 

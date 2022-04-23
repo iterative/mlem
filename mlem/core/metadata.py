@@ -107,6 +107,7 @@ def load(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    batch: Optional[int] = None,
     follow_links: bool = True,
 ) -> Any:
     """Load python object saved by MLEM
@@ -115,6 +116,7 @@ def load(
         path (str): Path to the object. Could be local path or path inside a git repo.
         repo (Optional[str], optional): URL to repo if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
+        batch (Optional[int], optional): batch, required if performing batch-reading of Dataset.
         follow_links (bool, optional): If object we read is a MLEM link, whether to load the
             actual object link points to. Defaults to True.
 
@@ -127,6 +129,7 @@ def load(
         rev=rev,
         follow_links=follow_links,
         load_value=True,
+        batch=batch,
     )
     return meta.get_value()
 
@@ -142,6 +145,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
+    batch: Optional[int] = None,
     *,
     force_type: Literal[None] = None,
 ) -> MlemMeta:
@@ -156,6 +160,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
+    batch: Optional[int] = None,
     *,
     force_type: Optional[Type[T]] = None,
 ) -> T:
@@ -169,6 +174,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
+    batch: Optional[int] = None,
     *,
     force_type: Optional[Type[T]] = None,
 ) -> T:
@@ -199,6 +205,9 @@ def load_meta(
         follow_links=follow_links,
     )
     if load_value:
+        if isinstance(meta, DatasetMeta) and batch:
+            meta.load_batch_value(batch)
+            return meta  # type: ignore[return-value]
         meta.load_value()
     if not isinstance(meta, cls):
         raise WrongMetaType(meta, force_type)
