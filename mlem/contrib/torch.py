@@ -64,10 +64,10 @@ class TorchTensorDatasetType(
         return Requirements.new([InstallableRequirement.from_module(torch)])
 
     def get_reader(self, **kwargs) -> DatasetReader:
-        raise NotImplementedError()
+        return TorchTensorReader()
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        raise NotImplementedError()
+        return TorchTensorWriter()
 
     def get_model(self):
         raise NotImplementedError()
@@ -78,6 +78,33 @@ class TorchTensorDatasetType(
             shape=(None,) + obj.shape[1:],
             dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
         )
+
+
+DATA_FILE = "data.pt"
+
+
+class TorchTensorWriter(DatasetWriter):
+    type: ClassVar[str] = "torch"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            torch.save(dataset.data, f)
+        return TorchTensorReader(dataset_type=dataset), {self.art_name: art}
+
+
+class TorchTensorReader(DatasetReader):
+    type: ClassVar[str] = "torch"
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+            )
+        with artifacts[DatasetWriter.art_name].open() as f:
+            data = torch.load(f)
+            return self.dataset_type.copy().bind(data)
 
 
 class TorchModelIO(ModelIO):
