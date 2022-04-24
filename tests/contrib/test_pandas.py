@@ -125,13 +125,12 @@ def test_simple_df(data, format):
 
 
 @for_all_formats(
-    exclude=[  # Following file formats do not support chunksize parameter
+    exclude=[  # Following file formats do not support Pandas chunksize parameter
         "html",
         "excel",
         "parquet",
         "feather",
         "pickle",
-        "stata",  # TODO: Add support for stata
     ]
 )
 def test_simple_batch_df(data, format):
@@ -158,10 +157,10 @@ def test_simple_batch_df(data, format):
 
 
 @for_all_formats(
-    exclude=[  # Following file formats do not support chunksize parameter
+    exclude=[  # Following file formats support Pandas chunksize parameter
         "csv",
         "json",
-        "stata",  # TODO: Add support for stata
+        "stata",
     ]
 )
 def test_unsupported_batch_df(data, format):

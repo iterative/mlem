@@ -469,6 +469,18 @@ def read_batch_json_reset_index(*args, **kwargs):
     return df
 
 
+def read_batch_stata_reset_index(*args, **kwargs):
+    df = None
+    df_iterator = pd.read_stata(*args, **kwargs)
+    for i, df_chunk in enumerate(df_iterator):
+        # Instantiate Pandas DataFrame if it is the first chunk
+        if i == 0:
+            df = pd.DataFrame(columns=df_chunk.columns)
+        df = pd.concat([df, df_chunk], ignore_index=True)
+    df = df.reset_index(drop=True)
+    return df
+
+
 def read_html(*args, **kwargs):
     # read_html returns list of dataframes
     return pd.read_html(*args, **kwargs)[0]
@@ -639,6 +651,9 @@ def update_batch_args(
             "lines": True,
             "orient": "records",
         }
+    elif type_ == "stata":
+        fmt.read_func = read_batch_stata_reset_index
+        fmt.read_args = {"chunksize": batch}
     else:
         raise UnsupportedDatasetBatchLoadingType(type_)
 
