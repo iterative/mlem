@@ -172,7 +172,7 @@ DATA_FILE_FOR_NUMBER = "data.npy"
 
 
 class NumpyNumberWriter(DatasetWriter):
-    type: ClassVar[str] = "numpy"
+    type: ClassVar[str] = "numpy_number"
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
@@ -183,7 +183,7 @@ class NumpyNumberWriter(DatasetWriter):
 
 
 class NumpyNumberReader(DatasetReader):
-    type: ClassVar[str] = "numpy"
+    type: ClassVar[str] = "numpy_number"
 
     def read(self, artifacts: Artifacts) -> DatasetType:
         if len(artifacts) != 1:
