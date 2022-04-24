@@ -2,6 +2,7 @@
 Base classes for working with datasets in MLEM
 """
 import builtins
+import pickle
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
@@ -39,6 +40,10 @@ class DatasetType(ABC, MlemABC, WithRequirements):
     def get_requirements(self) -> Requirements:
         """"""  # TODO: https://github.com/iterative/mlem/issues/16 docs
         return get_object_requirements(self)
+
+    @abstractmethod
+    def get_reader(self, **kwargs) -> "DatasetReader":
+        raise NotImplementedError
 
     @abstractmethod
     def get_writer(self, **kwargs) -> "DatasetWriter":
@@ -84,6 +89,9 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
     def get_requirements(self) -> Requirements:
         return Requirements()
 
+    def get_reader(self, **kwargs) -> "DatasetReader":
+        raise NotImplementedError
+
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
@@ -97,6 +105,36 @@ class DatasetHook(Hook[DatasetType], ABC):
 
 class DatasetAnalyzer(Analyzer):
     base_hook_class = DatasetHook
+
+
+class DatasetReader(MlemObject, ABC):
+    """"""
+
+    class Config:
+        type_root = True
+
+    dataset_type: DatasetType
+    abs_name: ClassVar[str] = "dataset_reader"
+
+    @abstractmethod
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        raise NotImplementedError
+
+
+class DatasetWriter(MlemObject):
+    """"""
+
+    class Config:
+        type_root = True
+
+    abs_name: ClassVar[str] = "dataset_writer"
+    art_name: ClassVar[str] = "data"
+
+    @abstractmethod
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        raise NotImplementedError
 
 
 class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
@@ -130,14 +168,44 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         self.check_type(instance, self.to_type, ValueError)
         return instance
 
+    def get_reader(self, **kwargs) -> "DatasetReader":
+        return PrimitiveReader()
+
     def get_writer(self, **kwargs):
-        raise NotImplementedError  # TODO: https://github.com/iterative/mlem/issues/35
+        return PrimitiveWriter()
 
     def get_requirements(self) -> Requirements:
         return Requirements.new()
 
     def get_model(self) -> Type[BaseModel]:
         return create_model("Primitive", __root__=(self.to_type, ...))
+
+
+DATA_FILE = "data.txt"
+
+
+class PrimitiveWriter(DatasetWriter):
+    type: ClassVar[str] = "primitive"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            pickle.dump(dataset.data, f)
+        return PrimitiveReader(dataset_type=dataset), {self.art_name: art}
+
+
+class PrimitiveReader(DatasetReader):
+    type: ClassVar[str] = "primitive"
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+            )
+        with artifacts[DatasetWriter.art_name].open() as f:
+            data = pickle.load(f)
+            return self.dataset_type.copy().bind(data)
 
 
 class ListTypeWithSpec(DatasetType):
@@ -183,6 +251,9 @@ class ListDatasetType(SizedTypedListType, DatasetSerializer):
         _check_type_and_size(instance, list, self.size, SerializationError)
         return [self.dtype.get_serializer().serialize(o) for o in instance]
 
+    def get_reader(self, **kwargs) -> "DatasetReader":
+        raise NotImplementedError
+
     def get_writer(self, **kwargs):
         raise NotImplementedError
 
@@ -224,7 +295,10 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
             [i.get_requirements() for i in self.items], Requirements.new()
         )
 
-    def get_writer(self, **kwargs):
+    def get_reader(self, **kwargs) -> "DatasetReader":
+        raise NotImplementedError
+
+    def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
     def get_model(self) -> Type[BaseModel]:
@@ -351,7 +425,10 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
             Requirements.new(),
         )
 
-    def get_writer(self, **kwargs):
+    def get_reader(self, **kwargs) -> "DatasetReader":
+        raise NotImplementedError
+
+    def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
     def get_model(self) -> Type[BaseModel]:
@@ -389,33 +466,3 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
 #
 #     def get_writer(self):
 #         return PickleWriter()
-
-
-class DatasetReader(MlemABC, ABC):
-    """"""
-
-    class Config:
-        type_root = True
-
-    dataset_type: DatasetType
-    abs_name: ClassVar[str] = "dataset_reader"
-
-    @abstractmethod
-    def read(self, artifacts: Artifacts) -> DatasetType:
-        raise NotImplementedError
-
-
-class DatasetWriter(MlemABC):
-    """"""
-
-    class Config:
-        type_root = True
-
-    abs_name: ClassVar[str] = "dataset_writer"
-    art_name: ClassVar[str] = "data"
-
-    @abstractmethod
-    def write(
-        self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
-        raise NotImplementedError

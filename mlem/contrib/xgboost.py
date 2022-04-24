@@ -11,6 +11,7 @@ from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetHook,
+    DatasetReader,
     DatasetSerializer,
     DatasetType,
     DatasetWriter,
@@ -107,6 +108,9 @@ class DMatrixDatasetType(
     @classmethod
     def process(cls, obj: xgboost.DMatrix, **kwargs) -> DatasetType:
         return DMatrixDatasetType.from_dmatrix(obj)
+
+    def get_reader(self, **kwargs) -> DatasetReader:
+        raise NotImplementedError()
 
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35

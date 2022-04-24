@@ -3,7 +3,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mlem.contrib.lightgbm import LightGBMDatasetType, LightGBMModel
+from mlem.contrib.lightgbm import (
+    LightGBMDatasetReader,
+    LightGBMDatasetType,
+    LightGBMDatasetWriter,
+    LightGBMModel,
+)
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
 from mlem.core.artifacts import LOCAL_STORAGE
@@ -11,7 +16,11 @@ from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface, long
+from tests.conftest import (
+    check_model_type_common_interface,
+    dataset_write_read_check,
+    long,
+)
 
 
 @pytest.fixture
@@ -52,12 +61,12 @@ def model(booster, dataset_np) -> ModelType:
 
 @pytest.fixture
 def dtype_np(dataset_np):
-    return DatasetAnalyzer.analyze(dataset_np)
+    return DatasetType.create(obj=dataset_np)
 
 
 @pytest.fixture
 def dtype_df(dataset_df):
-    return DatasetAnalyzer.analyze(dataset_df)
+    return DatasetType.create(obj=dataset_df)
 
 
 def test_hook_np(dtype_np: DatasetType):
@@ -102,6 +111,21 @@ def test_hook_df(dtype_df: DatasetType):
             }
         },
     }
+
+
+@pytest.mark.parametrize(
+    "lgb_dtype, dataset_type",
+    [("dtype_np", NumpyNdarrayType), ("dtype_df", DataFrameType)],
+)
+def test_lightgbm_source(lgb_dtype, dataset_type, request):
+    lgb_dtype = request.getfixturevalue(lgb_dtype)
+    assert isinstance(lgb_dtype, LightGBMDatasetType)
+    assert isinstance(lgb_dtype.inner, dataset_type)
+    dataset_write_read_check(
+        lgb_dtype,
+        writer=LightGBMDatasetWriter(),
+        reader_type=LightGBMDatasetReader,
+    )
 
 
 def test_serialize__np(dtype_np, np_payload):

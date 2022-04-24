@@ -20,7 +20,7 @@ from tests.conftest import dataset_write_read_check
 
 def test_npnumber_source():
     data = np.float32(1.5)
-    dataset = Dataset.create(data)
+    dataset = DatasetType.create(data)
 
     def custom_assert(x, y):
         assert x.dtype == y.dtype

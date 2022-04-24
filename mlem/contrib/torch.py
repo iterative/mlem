@@ -6,6 +6,7 @@ from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetHook,
+    DatasetReader,
     DatasetSerializer,
     DatasetType,
     DatasetWriter,
@@ -61,6 +62,9 @@ class TorchTensorDatasetType(
 
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(torch)])
+
+    def get_reader(self, **kwargs) -> DatasetReader:
+        raise NotImplementedError()
 
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()

@@ -73,6 +73,9 @@ class NumpyNumberType(
     def process(cls, obj: np.number, **kwargs) -> "NumpyNumberType":
         return NumpyNumberType(dtype=obj.dtype.name)
 
+    def get_reader(self, **kwargs):
+        return NumpyNumberReader()
+
     def get_writer(self, **kwargs):
         return NumpyNumberWriter()
 
@@ -156,39 +159,41 @@ class NumpyNdarrayType(
                 f"given array is of shape: {(None,) + tuple(array.shape)[1:]}, expected: {self.shape}"
             )
 
+    def get_reader(self, **kwargs):
+        return NumpyArrayReader(**kwargs)
+
     def get_writer(self, **kwargs):
         return NumpyArrayWriter()
 
 
 DATA_FILE = "data.npz"
 DATA_KEY = "data"
+DATA_FILE_FOR_NUMBER = "data.npy"
 
 
 class NumpyNumberWriter(DatasetWriter):
     type: ClassVar[str] = "numpy"
 
     def write(
-        self, dataset: Dataset, storage: Storage, path: str
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             np.save(f, dataset.data)
-        return NumpyNumberReader(dataset_type=dataset.dataset_type), {
-            self.art_name: art
-        }
+        return NumpyNumberReader(dataset_type=dataset), {self.art_name: art}
 
 
 class NumpyNumberReader(DatasetReader):
     type: ClassVar[str] = "numpy"
 
-    def read(self, artifacts: Artifacts) -> Dataset:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DATA_FILE_FOR_NUMBER} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             res = np.load(f)
             data = getattr(np, res.dtype.name)(res.item())
-            return Dataset(data, self.dataset_type)
+            return self.dataset_type.copy().bind(data)
 
 
 class NumpyArrayWriter(DatasetWriter):

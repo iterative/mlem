@@ -3,7 +3,7 @@ from typing import Any, ClassVar
 import pytest
 
 import mlem
-from mlem.core.dataset_type import DatasetType, DatasetWriter
+from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
 from mlem.core.model import Argument, Signature
 from mlem.core.requirements import Requirements
 from mlem.runtime import Interface
@@ -24,6 +24,9 @@ class Container(DatasetType):
 
     def get_requirements(self) -> Requirements:
         return Requirements.new([])
+
+    def get_reader(self, **kwargs) -> DatasetReader:
+        raise NotImplementedError()
 
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()

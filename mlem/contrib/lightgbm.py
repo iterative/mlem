@@ -1,7 +1,7 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Optional, Type
+from typing import Any, ClassVar, Optional, Tuple, Type
 
 import lightgbm as lgb
 from pydantic import BaseModel
@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
-    DatasetAnalyzer,
     DatasetHook,
+    DatasetReader,
     DatasetSerializer,
     DatasetType,
     DatasetWriter,
@@ -62,15 +62,47 @@ class LightGBMDatasetType(
             + LGB_REQUIREMENT
         )
 
+    def get_reader(self, **kwargs) -> DatasetReader:
+        return LightGBMDatasetReader()
+
     def get_writer(self, **kwargs) -> DatasetWriter:
-        raise NotImplementedError()
+        return LightGBMDatasetWriter()
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:
-        return LightGBMDatasetType(inner=DatasetAnalyzer.analyze(obj.data))
+        return LightGBMDatasetType(inner=DatasetType.create(obj.data))
 
     def get_model(self) -> Type[BaseModel]:
         return self.inner.get_serializer().get_model()
+
+
+DATA_FILE = "data.npy"
+
+
+class LightGBMDatasetWriter(DatasetWriter):
+    type: ClassVar[str] = "lightgbm"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        _, art = dataset.inner.get_writer().write(dataset.inner, storage, path)  # type: ignore
+        return LightGBMDatasetReader(dataset_type=dataset), art
+
+
+class LightGBMDatasetReader(DatasetReader):
+    type: ClassVar[str] = "lightgbm"
+    dataset_type: LightGBMDatasetType
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        if len(artifacts) != 1:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+            )
+        data = self.dataset_type.inner.get_reader(
+            dataset_type=self.dataset_type.inner
+        ).read(artifacts)
+        self.dataset_type.inner = self.dataset_type.inner.copy().bind(data)
+        return self.dataset_type
 
 
 class LightGBMModelIO(ModelIO):

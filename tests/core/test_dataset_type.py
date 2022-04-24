@@ -6,9 +6,11 @@ from mlem.core.dataset_type import (
     DatasetType,
     DictDatasetType,
     ListDatasetType,
+    PrimitiveReader,
     PrimitiveType,
     TupleDatasetType,
 )
+from tests.conftest import dataset_write_read_check
 
 type_schema_map = {
     int: "integer",
@@ -25,6 +27,26 @@ class NotPrimitive:
 
 def test_primitives_not_ok():
     assert not PrimitiveType.is_object_valid(NotPrimitive())
+
+
+@pytest.mark.parametrize("ptype", PrimitiveType.PRIMITIVES)
+def test_primitive_source(ptype):
+    if isinstance(ptype, type(None)):
+        data = None
+    else:
+        data = ptype(1.5)
+    dataset = DatasetType.create(data)
+
+    def custom_assert(x, y):
+        assert x == y
+        assert isinstance(x, ptype)
+        assert isinstance(y, ptype)
+
+    dataset_write_read_check(
+        dataset,
+        reader_type=PrimitiveReader,
+        custom_assert=custom_assert,
+    )
 
 
 @pytest.mark.parametrize("ptype", PrimitiveType.PRIMITIVES - {complex})
