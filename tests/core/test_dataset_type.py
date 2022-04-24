@@ -31,7 +31,7 @@ def test_primitives_not_ok():
 
 @pytest.mark.parametrize("ptype", PrimitiveType.PRIMITIVES)
 def test_primitive_source(ptype):
-    if isinstance(ptype, type(None)):
+    if ptype is type(None):  # noqa: E721
         data = None
     else:
         data = ptype(1.5)
