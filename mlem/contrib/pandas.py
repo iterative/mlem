@@ -442,7 +442,7 @@ def read_batch_csv_with_unnamed(*args, **kwargs):
     df_iterator = pd.read_csv(*args, **kwargs)
     unnamed = {}
     for i, df_chunk in enumerate(df_iterator):
-        # Instantiate Pandas DataFrame if it is the first chunk
+        # Instantiate Pandas DataFrame with columns if it is the first chunk
         if i == 0:
             df = pd.DataFrame(columns=df_chunk.columns)
             for col in df_chunk.columns:
@@ -462,7 +462,7 @@ def read_batch_reset_index(read_func: Callable, *args, **kwargs):
     df = pd.DataFrame()
     df_iterator = read_func(*args, **kwargs)
     for i, df_chunk in enumerate(df_iterator):
-        # Instantiate Pandas DataFrame if it is the first chunk
+        # Instantiate Pandas DataFrame with columns if it is the first chunk
         if i == 0:
             df = pd.DataFrame(columns=df_chunk.columns)
         df = pd.concat([df, df_chunk], ignore_index=True)
