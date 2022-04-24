@@ -3,6 +3,7 @@ import posixpath
 import re
 from abc import ABC
 from dataclasses import dataclass
+from functools import partial
 from typing import (
     IO,
     Any,
@@ -457,21 +458,9 @@ def read_json_reset_index(*args, **kwargs):
     return pd.read_json(*args, **kwargs).reset_index(drop=True)
 
 
-def read_batch_json_reset_index(*args, **kwargs):
-    df = None
-    df_iterator = pd.read_json(*args, **kwargs)
-    for i, df_chunk in enumerate(df_iterator):
-        # Instantiate Pandas DataFrame if it is the first chunk
-        if i == 0:
-            df = pd.DataFrame(columns=df_chunk.columns)
-        df = pd.concat([df, df_chunk], ignore_index=True)
-    df = df.reset_index(drop=True)
-    return df
-
-
-def read_batch_stata_reset_index(*args, **kwargs):
-    df = None
-    df_iterator = pd.read_stata(*args, **kwargs)
+def read_batch_reset_index(read_func: Callable, *args, **kwargs):
+    df = pd.DataFrame()
+    df_iterator = read_func(*args, **kwargs)
     for i, df_chunk in enumerate(df_iterator):
         # Instantiate Pandas DataFrame if it is the first chunk
         if i == 0:
@@ -644,7 +633,7 @@ def update_batch_args(
         fmt.read_func = read_batch_csv_with_unnamed
         fmt.read_args = {"chunksize": batch}
     elif type_ == "json":
-        fmt.read_func = read_batch_json_reset_index
+        fmt.read_func = partial(read_batch_reset_index, pd.read_json)
         # JSON batch-reading requires line-delimited data, and orient to be records
         fmt.read_args = {
             "chunksize": batch,
@@ -652,7 +641,7 @@ def update_batch_args(
             "orient": "records",
         }
     elif type_ == "stata":
-        fmt.read_func = read_batch_stata_reset_index
+        fmt.read_func = partial(read_batch_reset_index, pd.read_stata)
         fmt.read_args = {"chunksize": batch}
     else:
         raise UnsupportedDatasetBatchLoadingType(type_)
