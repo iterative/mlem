@@ -2,7 +2,7 @@ import os
 import posixpath
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Optional, Type
+from typing import Any, Callable, Type
 
 import git
 import pandas as pd
@@ -18,6 +18,7 @@ from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
+from mlem.contrib.pandas import PandasReader, get_pandas_batch_formats
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
@@ -306,23 +307,49 @@ def dataset_write_read_check(
     reader_type: Type[DatasetReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
     custom_assert: Callable[[Any, Any], Any] = None,
-    batch: Optional[int] = None,
-    writer_args: Any = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
         writer = writer or dataset.get_writer()
 
         storage = LOCAL_STORAGE
         reader, artifacts = writer.write(
-            dataset, storage, posixpath.join(tmpdir, "data"), writer_args
+            dataset, storage, posixpath.join(tmpdir, "data")
         )
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
-        if batch:
-            new = reader.read_batch(artifacts, batch)
+        new = reader.read(artifacts)
+
+        assert dataset == new
+        if custom_assert is not None:
+            custom_assert(new.data, dataset.data)
         else:
-            new = reader.read(artifacts)
+            if custom_eq is not None:
+                assert custom_eq(new.data, dataset.data)
+            else:
+                assert new.data == dataset.data
+
+
+def dataset_write_read_batch_check(
+    dataset: DatasetType,
+    format: str,
+    reader_type: Type[DatasetReader] = None,
+    custom_eq: Callable[[Any, Any], bool] = None,
+    custom_assert: Callable[[Any, Any], Any] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # writer = writer or dataset.get_writer()
+        BATCH_SIZE = 2
+        storage = LOCAL_STORAGE
+
+        fmt = get_pandas_batch_formats(BATCH_SIZE)[format]
+        art = fmt.write(dataset.data, storage, posixpath.join(tmpdir, "data"))
+        reader = PandasReader(dataset_type=dataset, format=format)
+        artifacts = {"data": art}
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        new = reader.read_batch(artifacts, BATCH_SIZE)
 
         assert dataset == new
         if custom_assert is not None:

@@ -85,10 +85,6 @@ class UnsupportedDatasetBatchLoadingType(ValueError, MlemError):
         super().__init__(self.message)
 
 
-class DatasetBatchLoadingJSONError(ValueError, MlemError):
-    """Thrown if batch loading of JSON dataset is not line-delimited"""
-
-
 class WrongMethodError(ValueError, MlemError):
     """Thrown if wrong method name for model is provided"""
 

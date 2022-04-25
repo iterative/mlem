@@ -1,5 +1,5 @@
 from types import ModuleType
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
@@ -172,11 +172,7 @@ class NumpyArrayWriter(DatasetWriter):
     type: ClassVar[str] = "numpy"
 
     def write(
-        self,
-        dataset: DatasetType,
-        storage: Storage,
-        path: str,
-        writer_fmt_args: Optional[Dict[str, Any]] = None,
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})

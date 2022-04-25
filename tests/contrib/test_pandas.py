@@ -13,12 +13,12 @@ from sklearn.model_selection import train_test_split
 
 from mlem.api.commands import import_object
 from mlem.contrib.pandas import (
+    PANDAS_FORMATS,
     DataFrameType,
     PandasConfig,
     PandasReader,
     PandasWriter,
     SeriesType,
-    get_pandas_formats,
     pd_type_from_string,
     python_type_from_pd_string_repr,
     python_type_from_pd_type,
@@ -30,6 +30,7 @@ from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
 from tests.conftest import (
+    dataset_write_read_batch_check,
     dataset_write_read_batch_unsupported,
     dataset_write_read_check,
     long,
@@ -109,7 +110,7 @@ def series_df_type(series_data):
 
 def for_all_formats(exclude: Union[List[str], Callable] = None):
     ex = exclude if isinstance(exclude, list) else []
-    formats = [name for name in get_pandas_formats() if name not in ex]
+    formats = [name for name in PANDAS_FORMATS if name not in ex]
     mark = pytest.mark.parametrize("format", formats)
     if isinstance(exclude, list):
         return mark
@@ -134,25 +135,11 @@ def test_simple_df(data, format):
     ]
 )
 def test_simple_batch_df(data, format):
-    writer = PandasWriter(format=format)
-    # Batch-reading JSON files require line-delimited data
-    writer_args = None
-    if format == "json":
-        writer_args = {
-            "write_args": {
-                "date_format": "iso",
-                "date_unit": "ns",
-                "orient": "records",
-                "lines": True,
-            }
-        }
-    dataset_write_read_check(
+    dataset_write_read_batch_check(
         DatasetType.create(data),
-        writer,
+        format,
         PandasReader,
         pd.DataFrame.equals,
-        batch=2,
-        writer_args=writer_args,
     )
 
 

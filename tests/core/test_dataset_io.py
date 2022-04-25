@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from mlem.contrib.numpy import NumpyArrayReader, NumpyArrayWriter
-from mlem.contrib.pandas import PandasReader, PandasWriter, get_pandas_formats
+from mlem.contrib.pandas import PANDAS_FORMATS, PandasReader, PandasWriter
 from mlem.core.artifacts import FSSpecStorage
 from mlem.core.dataset_type import DatasetType
 
@@ -27,7 +27,7 @@ def test_numpy_read_write():
     assert np.array_equal(dataset2.data, data)
 
 
-@pytest.mark.parametrize("format", list(get_pandas_formats().keys()))
+@pytest.mark.parametrize("format", list(PANDAS_FORMATS.keys()))
 def test_pandas_read_write(format):
     data = pd.DataFrame([{"a": 1, "b": 2}])
     dataset = DatasetType.create(data)

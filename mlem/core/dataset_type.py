@@ -420,10 +420,6 @@ class DatasetWriter(MlemObject):
 
     @abstractmethod
     def write(
-        self,
-        dataset: DatasetType,
-        storage: Storage,
-        path: str,
-        writer_fmt_args: Optional[Dict[str, Any]] = None,
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         raise NotImplementedError

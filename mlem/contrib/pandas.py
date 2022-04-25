@@ -46,7 +46,6 @@ from mlem.core.dataset_type import (
     DatasetWriter,
 )
 from mlem.core.errors import (
-    DatasetBatchLoadingJSONError,
     DeserializationError,
     SerializationError,
     UnsupportedDatasetBatchLoadingType,
@@ -326,7 +325,7 @@ class DataFrameType(_PandasDatasetType):
             if filename is not None:
                 _, ext = os.path.splitext(filename)
                 ext = ext.lstrip(".")
-                if ext in get_pandas_formats():
+                if ext in PANDAS_FORMATS:
                     fmt = ext
         return PandasWriter(format=fmt)
 
@@ -475,46 +474,78 @@ def read_html(*args, **kwargs):
     return pd.read_html(*args, **kwargs)[0]
 
 
-def get_pandas_formats():
+PANDAS_FORMATS = {
+    "csv": PandasFormat(
+        read_csv_with_unnamed,
+        pd.DataFrame.to_csv,
+        file_name="data.csv",
+        write_args={"index": False},
+    ),
+    "json": PandasFormat(
+        read_json_reset_index,
+        pd.DataFrame.to_json,
+        file_name="data.json",
+        write_args={"date_format": "iso", "date_unit": "ns"},
+    ),
+    "html": PandasFormat(
+        read_html,
+        pd.DataFrame.to_html,
+        file_name="data.html",
+        write_args={"index": False},
+        string_buffer=True,
+    ),
+    "excel": PandasFormat(
+        pd.read_excel,
+        pd.DataFrame.to_excel,
+        file_name="data.xlsx",
+        write_args={"index": False},
+    ),
+    "parquet": PandasFormat(
+        pd.read_parquet, pd.DataFrame.to_parquet, file_name="data.parquet"
+    ),
+    "feather": PandasFormat(
+        pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
+    ),
+    "pickle": PandasFormat(  # TODO buffer closed error for some reason
+        pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
+    ),
+    "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
+        pd.read_stata,
+        pd.DataFrame.to_stata,
+        write_args={"write_index": False},
+    ),
+}
+
+
+def get_pandas_batch_formats(batch: int):
     PANDAS_FORMATS = {
         "csv": PandasFormat(
-            read_csv_with_unnamed,
+            read_batch_csv_with_unnamed,
             pd.DataFrame.to_csv,
             file_name="data.csv",
             write_args={"index": False},
+            read_args={"chunksize": batch},
         ),
         "json": PandasFormat(
-            read_json_reset_index,
+            partial(read_batch_reset_index, pd.read_json),
             pd.DataFrame.to_json,
             file_name="data.json",
-            write_args={"date_format": "iso", "date_unit": "ns"},
-        ),
-        "html": PandasFormat(
-            read_html,
-            pd.DataFrame.to_html,
-            file_name="data.html",
-            write_args={"index": False},
-            string_buffer=True,
-        ),
-        "excel": PandasFormat(
-            pd.read_excel,
-            pd.DataFrame.to_excel,
-            file_name="data.xlsx",
-            write_args={"index": False},
-        ),
-        "parquet": PandasFormat(
-            pd.read_parquet, pd.DataFrame.to_parquet, file_name="data.parquet"
-        ),
-        "feather": PandasFormat(
-            pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
-        ),
-        "pickle": PandasFormat(  # TODO buffer closed error for some reason
-            pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
+            write_args={
+                "date_format": "iso",
+                "date_unit": "ns",
+                "orient": "records",
+                "lines": True,
+            },
+            # Pandas supports batch-reading for JSON only if the JSON file is line-delimited
+            # and orient to be records
+            # https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#line-delimited-json
+            read_args={"chunksize": batch, "orient": "records", "lines": True},
         ),
         "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
-            pd.read_stata,
+            partial(read_batch_reset_index, pd.read_stata),
             pd.DataFrame.to_stata,
             write_args={"write_index": False},
+            read_args={"chunksize": batch},
         ),
     }
 
@@ -528,13 +559,13 @@ class _PandasIO(BaseModel):
     def is_valid_format(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
-        if value not in get_pandas_formats():
+        if value not in PANDAS_FORMATS:
             raise ValueError(f"format {value} is not supported")
         return value
 
     @property
     def fmt(self):
-        return get_pandas_formats()[self.format]
+        return PANDAS_FORMATS[self.format]
 
 
 class PandasReader(_PandasIO, DatasetReader):
@@ -549,16 +580,11 @@ class PandasReader(_PandasIO, DatasetReader):
         )
 
     def read_batch(self, artifacts: Artifacts, batch: int) -> DatasetType:
-        fmt = update_batch_args(self.format, self.fmt, batch)
+        batch_formats = get_pandas_batch_formats(batch)
+        if self.format not in batch_formats:
+            raise UnsupportedDatasetBatchLoadingType(self.format)
+        fmt = batch_formats[self.format]
 
-        # Pandas supports batch-reading for JSON only if the JSON file is line-delimited
-        # https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#line-delimited-json
-        if self.format == "json":
-            dataset_lines = sum(1 for line in open(artifacts["data"].uri))
-            if dataset_lines <= 1:
-                raise DatasetBatchLoadingJSONError(
-                    "Batch-loading Dataset of type JSON requires provided JSON file to be line-delimited."
-                )
         return self.dataset_type.copy().bind(
             self.dataset_type.align(fmt.read(artifacts))
         )
@@ -570,16 +596,9 @@ class PandasWriter(DatasetWriter, _PandasIO):
     type: ClassVar[str] = "pandas"
 
     def write(
-        self,
-        dataset: DatasetType,
-        storage: Storage,
-        path: str,
-        writer_fmt_args: Optional[Dict[str, Any]] = None,
+        self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Artifacts]:
         fmt = self.fmt
-        if writer_fmt_args:
-            for k, v in writer_fmt_args.items():
-                setattr(fmt, k, v)
         art = fmt.write(dataset.data, storage, path)
         if not isinstance(dataset, DataFrameType):
             raise ValueError("Cannot write non-pandas Dataset")
@@ -589,7 +608,7 @@ class PandasWriter(DatasetWriter, _PandasIO):
 
 
 class PandasImport(ExtImportHook):
-    EXTS: ClassVar = tuple(f".{k}" for k in get_pandas_formats())
+    EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
     type: ClassVar = "pandas"
 
     @classmethod
@@ -606,9 +625,9 @@ class PandasImport(ExtImportHook):
         **kwargs,
     ) -> MlemMeta:
         ext = modifier or posixpath.splitext(obj.path)[1][1:]
-        fmt = get_pandas_formats()[ext]
+        fmt = PANDAS_FORMATS[ext]
         if batch:
-            fmt = update_batch_args(ext, fmt, batch)
+            fmt = get_pandas_batch_formats(batch)[ext]
         read_args = fmt.read_args or {}
         read_args.update(kwargs)
         with obj.open("rb") as f:
@@ -623,27 +642,3 @@ class PandasImport(ExtImportHook):
                 )
             }
         return meta
-
-
-def update_batch_args(
-    type_: str, fmt: PandasFormat, batch: int
-) -> PandasFormat:
-    # Check if batch reading is supported for specified _type format
-    if type_ == "csv":
-        fmt.read_func = read_batch_csv_with_unnamed
-        fmt.read_args = {"chunksize": batch}
-    elif type_ == "json":
-        fmt.read_func = partial(read_batch_reset_index, pd.read_json)
-        # JSON batch-reading requires line-delimited data, and orient to be records
-        fmt.read_args = {
-            "chunksize": batch,
-            "lines": True,
-            "orient": "records",
-        }
-    elif type_ == "stata":
-        fmt.read_func = partial(read_batch_reset_index, pd.read_stata)
-        fmt.read_args = {"chunksize": batch}
-    else:
-        raise UnsupportedDatasetBatchLoadingType(type_)
-
-    return fmt
