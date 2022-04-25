@@ -2,12 +2,12 @@ import os
 from abc import ABC, abstractmethod
 from typing import ClassVar, Dict, List, Optional
 
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.requirements import WithRequirements
 from mlem.runtime.interface.base import Interface
 
 
-class Server(MlemObject, ABC, WithRequirements):
+class Server(MlemABC, ABC, WithRequirements):
     """"""
 
     class Config:

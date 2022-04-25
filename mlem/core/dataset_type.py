@@ -9,14 +9,14 @@ from pydantic import BaseModel
 from pydantic.main import create_model
 
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
 
 
-class DatasetType(ABC, MlemObject, WithRequirements):
+class DatasetType(ABC, MlemABC, WithRequirements):
     """
     Base class for dataset type metadata.
     """
@@ -391,7 +391,7 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
 #         return PickleWriter()
 
 
-class DatasetReader(MlemObject, ABC):
+class DatasetReader(MlemABC, ABC):
     """"""
 
     class Config:
@@ -405,7 +405,7 @@ class DatasetReader(MlemObject, ABC):
         raise NotImplementedError
 
 
-class DatasetWriter(MlemObject):
+class DatasetWriter(MlemABC):
     """"""
 
     class Config:

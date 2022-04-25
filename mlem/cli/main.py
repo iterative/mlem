@@ -19,7 +19,7 @@ from yaml import safe_load
 from mlem import version
 from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
-from mlem.core.base import MlemObject, build_mlem_object
+from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemMeta
@@ -406,7 +406,7 @@ def _format_validation_error(error: ValidationError) -> List[str]:
 
 
 @contextlib.contextmanager
-def wrap_build_error(subtype, model: Type[MlemObject]):
+def wrap_build_error(subtype, model: Type[MlemABC]):
     try:
         yield
     except ValidationError as e:
@@ -417,13 +417,13 @@ def wrap_build_error(subtype, model: Type[MlemObject]):
 
 
 def config_arg(
-    model: Type[MlemObject],
+    model: Type[MlemABC],
     load: Optional[str],
     subtype: str,
     conf: Optional[List[str]],
     file_conf: Optional[List[str]],
 ):
-    obj: MlemObject
+    obj: MlemABC
     if load is not None:
         if issubclass(model, MlemMeta):
             obj = load_meta(load, force_type=model)

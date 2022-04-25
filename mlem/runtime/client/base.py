@@ -5,7 +5,7 @@ from typing import Callable, ClassVar, Optional
 import requests
 from pydantic import BaseModel, parse_obj_as
 
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.errors import WrongMethodError
 from mlem.core.model import Signature
 from mlem.runtime.interface.base import ExecutionError, InterfaceDescriptor
@@ -13,7 +13,7 @@ from mlem.runtime.interface.base import ExecutionError, InterfaceDescriptor
 logger = logging.getLogger(__name__)
 
 
-class BaseClient(MlemObject, ABC):
+class BaseClient(MlemABC, ABC):
     class Config:
         type_root = True
         type_field = "type"

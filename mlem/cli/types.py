@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typer import Argument
 
 from mlem.cli.main import mlem_command
-from mlem.core.base import MlemObject, load_impl_ext
+from mlem.core.base import MlemABC, load_impl_ext
 from mlem.core.objects import MlemMeta
 from mlem.ext import list_implementations
 from mlem.ui import EMOJI_BASE, bold, color, echo
@@ -36,7 +36,7 @@ def explain_type(cls: Type[BaseModel], prefix="", force_not_req=False):
             default = ""
         if (
             isinstance(field.type_, type)
-            and issubclass(field.type_, MlemObject)
+            and issubclass(field.type_, MlemABC)
             and field.type_.__is_root__
         ):
             echo(
@@ -73,7 +73,7 @@ def list_types(
         $ mlem types server
     """
     if abc is None:
-        for at in MlemObject.abs_types.values():
+        for at in MlemABC.abs_types.values():
             echo(EMOJI_BASE + bold(at.abs_name) + ":")
             echo(
                 f"\tBase class: {at.__module__}.{at.__name__}\n\t{at.__doc__.strip()}"

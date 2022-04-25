@@ -26,7 +26,7 @@ from typing import (
 
 from pydantic import BaseModel
 
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 
 # I dont know how to do this better
 from mlem.core.errors import HookNotFound
@@ -42,7 +42,7 @@ MODULE_PACKAGE_MAPPING = {
 PACKAGE_MODULE_MAPPING = {v: k for k, v in MODULE_PACKAGE_MAPPING.items()}
 
 
-class Requirement(MlemObject):
+class Requirement(MlemABC):
     """
     Base class for python requirement
     """

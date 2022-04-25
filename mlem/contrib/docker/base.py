@@ -17,7 +17,7 @@ from mlem.contrib.docker.utils import (
     image_exists_at_dockerhub,
     print_docker_logs,
 )
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
@@ -27,7 +27,7 @@ from mlem.ui import echo
 logger = logging.getLogger(__name__)
 
 
-class DockerRegistry(MlemObject):
+class DockerRegistry(MlemABC):
     """Registry for docker images. This is the default implementation that represents registry of the docker daemon"""
 
     abs_name: ClassVar = "docker_registry"
@@ -214,7 +214,7 @@ class RemoteRegistry(DockerRegistry):
         requests.delete(f"http://{self.host}/v2/{name}/manifests/{digest}")
 
 
-class DockerDaemon(MlemObject):
+class DockerDaemon(MlemABC):
     """Class that represents docker daemon
 
     :param host: adress of the docker daemon (empty string for local)"""

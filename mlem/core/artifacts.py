@@ -16,7 +16,7 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from typing_extensions import Literal, TypedDict
 
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.meta_io import Location, get_fs, get_path_by_fs_path
 
 CHUNK_SIZE = 2**20  # 1 mb
@@ -27,7 +27,7 @@ class ArtifactInfo(TypedDict):
     hash: str
 
 
-class Artifact(MlemObject, ABC):
+class Artifact(MlemABC, ABC):
     """"""
 
     class Config:
@@ -160,7 +160,7 @@ class PlaceholderArtifact(Artifact):
         return FSSpecArtifact(uri=self.uri, **self.info)
 
 
-class Storage(MlemObject, ABC):
+class Storage(MlemABC, ABC):
     """"""
 
     class Config:

@@ -2,12 +2,7 @@ from typing import ClassVar, Optional
 
 from mlem.contrib.docker import DockerImagePackager
 from mlem.contrib.fastapi import FastAPIServer
-from mlem.core.base import (
-    MlemObject,
-    build_mlem_object,
-    parse_links,
-    smart_split,
-)
+from mlem.core.base import MlemABC, build_mlem_object, parse_links, smart_split
 from mlem.core.objects import MlemLink, MlemMeta, ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
@@ -44,25 +39,25 @@ def test_parse_links():
     )
 
 
-class MockMlemObject(MlemObject):
+class MockMlemABC(MlemABC):
     abs_name: ClassVar = "mock"
     server: Server
 
 
 def test_build_with_replace():
     res = build_mlem_object(
-        MockMlemObject,
+        MockMlemABC,
         "mock",
         ["server=fastapi", "server.port=8081"],
     )
-    assert isinstance(res, MockMlemObject)
+    assert isinstance(res, MockMlemABC)
     assert isinstance(res.server, FastAPIServer)
     assert res.server.port == 8081
 
     res = build_mlem_object(
-        MockMlemObject,
+        MockMlemABC,
         "mock",
         ["server=fastapi"],
     )
-    assert isinstance(res, MockMlemObject)
+    assert isinstance(res, MockMlemABC)
     assert isinstance(res.server, FastAPIServer)

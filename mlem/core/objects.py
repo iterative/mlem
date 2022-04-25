@@ -36,7 +36,7 @@ from mlem.core.artifacts import (
     LocalArtifact,
     PlaceholderArtifact,
 )
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.dataset_type import DatasetReader, DatasetType
 from mlem.core.errors import (
     DeploymentError,
@@ -62,7 +62,7 @@ from mlem.utils.root import find_repo_root
 T = TypeVar("T", bound="MlemMeta")
 
 
-class MlemMeta(MlemObject):
+class MlemMeta(MlemABC):
     """"""
 
     class Config:
@@ -672,7 +672,7 @@ class DatasetMeta(_WithArtifacts):
         return self.data
 
 
-class DeployState(MlemObject):
+class DeployState(MlemABC):
     """"""
 
     class Config:
