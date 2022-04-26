@@ -12,6 +12,7 @@ from mlem.config import CONFIG
 console = Console()
 
 _echo_func: Optional[Callable] = None
+_offset: int = 0
 
 
 @contextlib.contextmanager
@@ -29,6 +30,17 @@ def set_echo(echo_func=...):
 
 
 @contextlib.contextmanager
+def set_offset(offset=0):
+    global _offset  # pylint: disable=global-statement
+    tmp = _offset
+    try:
+        _offset = offset
+        yield
+    finally:
+        _offset = tmp
+
+
+@contextlib.contextmanager
 def cli_echo():
     with set_echo(console.print):
         yield
@@ -41,6 +53,8 @@ def no_echo():
 
 
 def echo(*message):
+    if _offset > 0:
+        message = [" " * (_offset - 1), *message]
     if _echo_func is not None:
         _echo_func(*message)
 
@@ -83,3 +97,6 @@ EMOJI_BASE = emoji("🏛")
 EMOJI_NAILS = emoji("💅")
 EMOJI_LINK = emoji("🔗")
 EMOJI_PACK = emoji("💼")
+EMOJI_BUILD = emoji("🛠")
+EMOJI_UPLOAD = emoji("🔼")
+EMOJI_STOP = emoji("🔻")

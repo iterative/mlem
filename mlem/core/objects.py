@@ -335,7 +335,12 @@ class MlemMeta(MlemABC):
     def update(self):
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot update not saved object")
-        self._write_meta(self.location, False)
+        echo(
+            EMOJI_SAVE
+            + f"Updating {self.object_type} at {self.location.uri_repr}"
+        )
+        with no_echo():
+            self._write_meta(self.location, False)
 
 
 class MlemLink(MlemMeta):

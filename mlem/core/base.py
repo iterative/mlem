@@ -39,7 +39,7 @@ def load_impl_ext(
         try:
             obj = import_string(type_name)
             if not issubclass(obj, MlemABC):
-                raise ValueError(f"{obj} is not subclass of MlemObject")
+                raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj
         except ImportError:
             pass
@@ -49,7 +49,7 @@ def load_impl_ext(
         if ep.abs_name == abs_name and ep.name == type_name:
             obj = ep.ep.load()
             if not issubclass(obj, MlemABC):
-                raise ValueError(f"{obj} is not subclass of MlemObject")
+                raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj
     if raise_on_missing:
         raise ValueError(

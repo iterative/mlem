@@ -6,6 +6,7 @@ from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import ModelMeta
 from mlem.runtime import Interface
 
+from ...ui import EMOJI_BUILD, echo, set_offset
 from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
 from ..docker.helpers import build_model_image
 from .config import HEROKU_CONFIG
@@ -53,19 +54,20 @@ def build_heroku_docker(
             host="registry.heroku.com", api_key=api_key
         )
     )
-
-    return build_model_image(
-        meta,
-        process_type,
-        server=HerokuServer(),
-        env=docker_env,
-        repository=app_name,
-        force_overwrite=True,
-        # heroku does not support arm64 images built on Mac M1 devices
-        # todo: add this to docs for heroku deploy https://github.com/iterative/mlem/issues/151
-        # notice: if you previosly built an arm64 image on the same device,
-        # you may cached base images (e.g `python` ) for this image for another architecture and build will fail
-        # with message "image with reference sha256:... was found but does not match the specified platform ..."
-        platform="linux/amd64",
-        push=push,
-    )
+    echo(EMOJI_BUILD + "Creating docker image for heroku")
+    with set_offset(2):
+        return build_model_image(
+            meta,
+            process_type,
+            server=HerokuServer(),
+            env=docker_env,
+            repository=app_name,
+            force_overwrite=True,
+            # heroku does not support arm64 images built on Mac M1 devices
+            # todo: add this to docs for heroku deploy https://github.com/iterative/mlem/issues/151
+            # notice: if you previosly built an arm64 image on the same device,
+            # you may cached base images (e.g `python` ) for this image for another architecture and build will fail
+            # with message "image with reference sha256:... was found but does not match the specified platform ..."
+            platform="linux/amd64",
+            push=push,
+        )

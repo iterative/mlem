@@ -477,5 +477,9 @@ def deploy(
     else:
         deploy_meta = deploy_meta_or_path
 
+    # ensuring links are working
+    deploy_meta.get_env()
+    deploy_meta.get_model()
+
     deploy_meta.deploy()
     return deploy_meta

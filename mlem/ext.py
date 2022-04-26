@@ -104,7 +104,7 @@ class ExtensionLoader:
         # Extension('mlem.contrib.imageio', ['imageio']),
         Extension("mlem.contrib.lightgbm", ["lightgbm"], False),
         Extension("mlem.contrib.xgboost", ["xgboost"], False),
-        # Extension("mlem.contrib.docker", ["docker"], False),
+        Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
     )

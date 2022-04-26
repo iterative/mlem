@@ -16,6 +16,8 @@ def explain_type(cls: Type[BaseModel], prefix="", force_not_req=False):
     ):
         if issubclass(cls, MlemMeta) and name in MlemMeta.__fields__:
             continue
+        if issubclass(cls, MlemABC) and name in cls.__config__.exclude:
+            continue
         fullname = name if not prefix else f"{prefix}.{name}"
         module = field.type_.__module__
         type_name = getattr(field.type_, "__name__", str(field.type_))

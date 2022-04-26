@@ -9,7 +9,7 @@ from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import MLEM_DIR
 from mlem.core.base import get_recursively, set_recursively, smart_split
 from mlem.core.errors import MlemError
-from mlem.core.meta_io import get_fs
+from mlem.core.meta_io import get_fs, get_uri
 from mlem.ui import EMOJI_OK, echo
 from mlem.utils.root import find_repo_root
 
@@ -44,7 +44,10 @@ def config_set(
             new_conf,
             f,
         )
-    echo(EMOJI_OK + f"Set `{name}` to `{value}` in repo {repo}")
+    echo(
+        EMOJI_OK
+        + f"Set `{name}` to `{value}` in repo {get_uri(fs, path, True)}"
+    )
 
 
 @mlem_command("get", parent=config)
