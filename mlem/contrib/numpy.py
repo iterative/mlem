@@ -74,10 +74,10 @@ class NumpyNumberType(
         return NumpyNumberType(dtype=obj.dtype.name)
 
     def get_reader(self, **kwargs):
-        return NumpyNumberReader()
+        return NumpyNumberReader(**kwargs)
 
     def get_writer(self, **kwargs):
-        return NumpyNumberWriter()
+        return NumpyNumberWriter(**kwargs)
 
     def get_model(self) -> Type[BaseModel]:
         return create_model(
@@ -163,7 +163,7 @@ class NumpyNdarrayType(
         return NumpyArrayReader(**kwargs)
 
     def get_writer(self, **kwargs):
-        return NumpyArrayWriter()
+        return NumpyArrayWriter(**kwargs)
 
 
 DATA_FILE = "data.npz"

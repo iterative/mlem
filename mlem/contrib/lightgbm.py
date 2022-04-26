@@ -63,10 +63,10 @@ class LightGBMDatasetType(
         )
 
     def get_reader(self, **kwargs) -> DatasetReader:
-        return LightGBMDatasetReader()
+        return LightGBMDatasetReader(**kwargs)
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        return LightGBMDatasetWriter()
+        return LightGBMDatasetWriter(**kwargs)
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:

@@ -5,6 +5,7 @@ from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetType,
     DictDatasetType,
+    DictReader,
     ListDatasetType,
     PrimitiveReader,
     PrimitiveType,
@@ -133,3 +134,19 @@ def test_dict():
     assert d == dt.deserialize(d)
     assert dt.get_model().__name__ == "DictDataset"
     # assert dt.get_model().schema() fails due to KeyError: <class 'pydantic.main.Primitive'>, TODO https://github.com/iterative/mlem/issues/194
+
+
+def test_dict_source():
+    dataset = DatasetType.create({"1": 1, "2": "a", "3": {"m": False}})
+
+    def custom_assert(x, y):
+        assert x == y
+        assert len(x) == len(y)
+        assert isinstance(x, dict)
+        assert isinstance(y, dict)
+
+    dataset_write_read_check(
+        dataset,
+        reader_type=DictReader,
+        custom_assert=custom_assert,
+    )

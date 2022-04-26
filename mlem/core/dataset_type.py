@@ -169,10 +169,10 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return instance
 
     def get_reader(self, **kwargs) -> "DatasetReader":
-        return PrimitiveReader()
+        return PrimitiveReader(**kwargs)
 
     def get_writer(self, **kwargs):
-        return PrimitiveWriter()
+        return PrimitiveWriter(**kwargs)
 
     def get_requirements(self) -> Requirements:
         return Requirements.new()
@@ -389,9 +389,7 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     @classmethod
     def process(cls, obj: Any, **kwargs) -> "DictDatasetType":
         return DictDatasetType(
-            item_types={
-                k: DatasetAnalyzer.analyze(v) for (k, v) in obj.items()
-            }
+            item_types={k: DatasetType.create(v) for (k, v) in obj.items()}
         )
 
     def deserialize(self, obj):
@@ -426,10 +424,10 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
         )
 
     def get_reader(self, **kwargs) -> "DatasetReader":
-        raise NotImplementedError
+        return DictReader(**kwargs)
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        raise NotImplementedError
+        return DictWriter(**kwargs)
 
     def get_model(self) -> Type[BaseModel]:
         kwargs = {
@@ -437,6 +435,35 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
             for k, v in self.item_types.items()
         }
         return create_model("DictDataset", **kwargs)  # type: ignore
+
+
+class DictWriter(DatasetWriter):
+    type: ClassVar[str] = "dict"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        res = {}
+        for (k, v) in dataset.item_types.items():  # type: ignore
+            _, art = v.get_writer().write(v, storage, path + f"/{k}")
+            res[self.art_name + f"/{k}"] = art
+        return DictReader(dataset_type=dataset), res
+
+
+class DictReader(DatasetReader):
+    type: ClassVar[str] = "dict"
+    dataset_type: DictDatasetType
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        data_dict = {}
+        for (k, v) in self.dataset_type.item_types.items():
+            artifact_name = DatasetWriter.art_name + f"/{k}"
+            v_dataset_type = v.get_reader(dataset_type=v).read(
+                artifacts[artifact_name]
+            )
+            v = v.copy().bind(v_dataset_type.data)
+            data_dict[k] = v.data
+        return self.dataset_type.copy().bind(data_dict)
 
 
 #

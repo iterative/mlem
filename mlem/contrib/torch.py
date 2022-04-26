@@ -64,10 +64,10 @@ class TorchTensorDatasetType(
         return Requirements.new([InstallableRequirement.from_module(torch)])
 
     def get_reader(self, **kwargs) -> DatasetReader:
-        return TorchTensorReader()
+        return TorchTensorReader(**kwargs)
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        return TorchTensorWriter()
+        return TorchTensorWriter(**kwargs)
 
     def get_model(self):
         raise NotImplementedError()
