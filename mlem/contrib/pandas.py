@@ -3,13 +3,13 @@ import posixpath
 import re
 from abc import ABC
 from dataclasses import dataclass
-from functools import partial
 from typing import (
     IO,
     Any,
     Callable,
     ClassVar,
     Dict,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -436,37 +436,8 @@ def read_csv_with_unnamed(*args, **kwargs):
     return df.rename(unnamed, axis=1)  # pylint: disable=no-member
 
 
-def read_batch_csv_with_unnamed(*args, **kwargs):
-    df = None
-    df_iterator = pd.read_csv(*args, **kwargs)
-    unnamed = {}
-    for i, df_chunk in enumerate(df_iterator):
-        # Instantiate Pandas DataFrame with columns if it is the first chunk
-        if i == 0:
-            df = pd.DataFrame(columns=df_chunk.columns)
-            for col in df_chunk.columns:
-                if col.startswith("Unnamed: "):
-                    unnamed[col] = ""
-        df = pd.concat([df, df_chunk], ignore_index=True)
-    if not unnamed:
-        return df
-    return df.rename(unnamed, axis=1)  # pylint: disable=no-member
-
-
 def read_json_reset_index(*args, **kwargs):
     return pd.read_json(*args, **kwargs).reset_index(drop=True)
-
-
-def read_batch_reset_index(read_func: Callable, *args, **kwargs):
-    df = pd.DataFrame()
-    df_iterator = read_func(*args, **kwargs)
-    for i, df_chunk in enumerate(df_iterator):
-        # Instantiate Pandas DataFrame with columns if it is the first chunk
-        if i == 0:
-            df = pd.DataFrame(columns=df_chunk.columns)
-        df = pd.concat([df, df_chunk], ignore_index=True)
-    df = df.reset_index(drop=True)
-    return df
 
 
 def read_html(*args, **kwargs):
@@ -520,14 +491,14 @@ PANDAS_FORMATS = {
 def get_pandas_batch_formats(batch: int):
     PANDAS_FORMATS = {
         "csv": PandasFormat(
-            read_batch_csv_with_unnamed,
+            pd.read_csv,
             pd.DataFrame.to_csv,
             file_name="data.csv",
             write_args={"index": False},
             read_args={"chunksize": batch},
         ),
         "json": PandasFormat(
-            partial(read_batch_reset_index, pd.read_json),
+            pd.read_json,
             pd.DataFrame.to_json,
             file_name="data.json",
             write_args={
@@ -542,7 +513,7 @@ def get_pandas_batch_formats(batch: int):
             read_args={"chunksize": batch, "orient": "records", "lines": True},
         ),
         "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
-            partial(read_batch_reset_index, pd.read_stata),
+            pd.read_stata,
             pd.DataFrame.to_stata,
             write_args={"write_index": False},
             read_args={"chunksize": batch},
@@ -579,15 +550,28 @@ class PandasReader(_PandasIO, DatasetReader):
             self.dataset_type.align(self.fmt.read(artifacts))
         )
 
-    def read_batch(self, artifacts: Artifacts, batch: int) -> DatasetType:
+    def read_batch(self, artifacts: Artifacts, batch: int) -> Iterator:
         batch_formats = get_pandas_batch_formats(batch)
         if self.format not in batch_formats:
             raise UnsupportedDatasetBatchLoadingType(self.format)
         fmt = batch_formats[self.format]
 
-        return self.dataset_type.copy().bind(
-            self.dataset_type.align(fmt.read(artifacts))
-        )
+        read_kwargs = {}
+        if fmt.read_args:
+            read_kwargs.update(fmt.read_args)
+        with artifacts[DatasetWriter.art_name].open() as f:
+            iter_df = fmt.read_func(f, **read_kwargs)
+            for df in iter_df:
+                unnamed = {}
+                for col in df.columns:
+                    if col.startswith("Unnamed: "):
+                        unnamed[col] = ""
+                if unnamed:
+                    df = df.rename(unnamed, axis=1)
+
+                yield self.dataset_type.copy().bind(
+                    self.dataset_type.align(df)
+                )
 
 
 class PandasWriter(DatasetWriter, _PandasIO):

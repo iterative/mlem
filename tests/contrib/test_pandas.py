@@ -31,7 +31,6 @@ from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
 from tests.conftest import (
     dataset_write_read_batch_check,
-    dataset_write_read_batch_unsupported,
     dataset_write_read_check,
     long,
 )
@@ -80,7 +79,12 @@ def pandas_assert(actual: pd.DataFrame, expected: pd.DataFrame):
 
 @pytest.fixture
 def data():
-    return pd.DataFrame([{"a": 1, "b": 3, "c": 5}, {"a": 2, "b": 4, "c": 6}])
+    return pd.DataFrame(
+        [
+            {"a": 1, "b": 3, "c": 5},
+            {"a": 2, "b": 4, "c": 6},
+        ]
+    )
 
 
 @pytest.fixture
@@ -140,20 +144,6 @@ def test_simple_batch_df(data, format):
         format,
         PandasReader,
         pd.DataFrame.equals,
-    )
-
-
-@for_all_formats(
-    exclude=[  # Following file formats support Pandas chunksize parameter
-        "csv",
-        "json",
-        "stata",
-    ]
-)
-def test_unsupported_batch_df(data, format):
-    writer = PandasWriter(format=format)
-    dataset_write_read_batch_unsupported(
-        DatasetType.create(data), 2, writer, PandasReader
     )
 
 

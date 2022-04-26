@@ -3,7 +3,17 @@ Base classes for working with datasets in MLEM
 """
 import builtins
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sized,
+    Tuple,
+    Type,
+)
 
 from pydantic import BaseModel
 from pydantic.main import create_model
@@ -405,7 +415,7 @@ class DatasetReader(MlemObject, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def read_batch(self, artifacts: Artifacts, batch: int) -> DatasetType:
+    def read_batch(self, artifacts: Artifacts, batch: int) -> Iterator:
         raise NotImplementedError
 
 
