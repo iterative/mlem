@@ -1,7 +1,7 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Optional, Tuple, Type
+from typing import Any, ClassVar, Dict, Optional, Tuple, Type
 
 import lightgbm as lgb
 from pydantic import BaseModel
@@ -84,7 +84,7 @@ class LightGBMDatasetWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         _, art = dataset.inner.get_writer().write(dataset.inner, storage, path)  # type: ignore
         return LightGBMDatasetReader(dataset_type=dataset), art
 
@@ -93,7 +93,7 @@ class LightGBMDatasetReader(DatasetReader):
     type: ClassVar[str] = "lightgbm"
     dataset_type: LightGBMDatasetType
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"

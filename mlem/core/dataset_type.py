@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 from pydantic import BaseModel
 from pydantic.main import create_model
 
-from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.artifacts import Storage
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import Analyzer, Hook
@@ -117,7 +117,7 @@ class DatasetReader(MlemObject, ABC):
     abs_name: ClassVar[str] = "dataset_reader"
 
     @abstractmethod
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         raise NotImplementedError
 
 
@@ -133,7 +133,7 @@ class DatasetWriter(MlemObject):
     @abstractmethod
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         raise NotImplementedError
 
 
@@ -189,7 +189,7 @@ class PrimitiveWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         with storage.open(path) as (f, art):
             pickle.dump(dataset.data, f)
         return PrimitiveReader(dataset_type=dataset), {self.art_name: art}
@@ -198,7 +198,7 @@ class PrimitiveWriter(DatasetWriter):
 class PrimitiveReader(DatasetReader):
     type: ClassVar[str] = "primitive"
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
@@ -442,7 +442,7 @@ class DictWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         res = {}
         for (k, v) in dataset.item_types.items():  # type: ignore
             _, art = v.get_writer().write(v, storage, path + f"/{k}")
@@ -454,7 +454,7 @@ class DictReader(DatasetReader):
     type: ClassVar[str] = "dict"
     dataset_type: DictDatasetType
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         data_dict = {}
         for (k, v) in self.dataset_type.item_types.items():
             artifact_name = DatasetWriter.art_name + f"/{k}"

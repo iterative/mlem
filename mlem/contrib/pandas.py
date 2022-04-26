@@ -579,7 +579,7 @@ class PandasSeriesReader(_PandasIO, DatasetReader):
     type: ClassVar[str] = "pandas_series"
     dataset_type: SeriesType
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         data = self.dataset_type.align(
             self.series_fmt.read(artifacts)
         ).squeeze()
@@ -595,7 +595,7 @@ class PandasSeriesWriter(DatasetWriter, _PandasIO):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         fmt = self.series_fmt
         art = fmt.write(pd.DataFrame(dataset.data), storage, path)
         if not isinstance(dataset, SeriesType):
@@ -611,7 +611,7 @@ class PandasReader(_PandasIO, DatasetReader):
     type: ClassVar[str] = "pandas"
     dataset_type: DataFrameType
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         return self.dataset_type.copy().bind(
             self.dataset_type.align(self.fmt.read(artifacts))
         )
@@ -624,7 +624,7 @@ class PandasWriter(DatasetWriter, _PandasIO):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         fmt = self.fmt
         art = fmt.write(dataset.data, storage, path)
         if not isinstance(dataset, DataFrameType):

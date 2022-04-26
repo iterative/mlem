@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, Tuple
+from typing import Any, ClassVar, Dict, Optional, Tuple
 
 import torch
 
@@ -88,7 +88,7 @@ class TorchTensorWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         with storage.open(path) as (f, art):
             torch.save(dataset.data, f)
         return TorchTensorReader(dataset_type=dataset), {self.art_name: art}
@@ -97,7 +97,7 @@ class TorchTensorWriter(DatasetWriter):
 class TorchTensorReader(DatasetReader):
     type: ClassVar[str] = "torch"
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"

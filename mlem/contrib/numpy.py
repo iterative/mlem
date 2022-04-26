@@ -1,10 +1,10 @@
 from types import ModuleType
-from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
 
-from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.artifacts import Storage
 from mlem.core.dataset_type import (
     DatasetHook,
     DatasetReader,
@@ -176,7 +176,7 @@ class NumpyNumberWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         with storage.open(path) as (f, art):
             np.save(f, dataset.data)
         return NumpyNumberReader(dataset_type=dataset), {self.art_name: art}
@@ -185,7 +185,7 @@ class NumpyNumberWriter(DatasetWriter):
 class NumpyNumberReader(DatasetReader):
     type: ClassVar[str] = "numpy_number"
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE_FOR_NUMBER} file"
@@ -203,7 +203,7 @@ class NumpyArrayWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+    ) -> Tuple[DatasetReader, Dict]:
         with storage.open(path) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})
         return NumpyArrayReader(dataset_type=dataset), {self.art_name: art}
@@ -214,7 +214,7 @@ class NumpyArrayReader(DatasetReader):
 
     type: ClassVar[str] = "numpy"
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
+    def read(self, artifacts: Dict) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
