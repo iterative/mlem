@@ -254,10 +254,6 @@ class DockerModelDirectory(BaseModel):
         echo(EMOJI_BUILD + "Building MLEM wheel file...")
         logger.debug("Building mlem whl from %s...", repo_path)
         with tempfile.TemporaryDirectory() as whl_dir:
-            try:
-                subprocess.check_call("dir", shell=True, cwd=repo_path)
-            except Exception:  # pylint: disable=broad-except
-                pass
             subprocess.check_output(
                 f"pip wheel . --no-deps -w {whl_dir}",
                 shell=True,
