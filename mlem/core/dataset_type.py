@@ -2,6 +2,7 @@
 Base classes for working with datasets in MLEM
 """
 import builtins
+import os
 import pickle
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
@@ -389,7 +390,9 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     @classmethod
     def process(cls, obj: Any, **kwargs) -> "DictDatasetType":
         return DictDatasetType(
-            item_types={k: DatasetType.create(v) for (k, v) in obj.items()}
+            item_types={
+                k: DatasetAnalyzer.analyze(v) for (k, v) in obj.items()
+            }
         )
 
     def deserialize(self, obj):
@@ -443,26 +446,29 @@ class DictWriter(DatasetWriter):
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
+        assert isinstance(dataset, DictDatasetType)
         res = {}
-        for (k, v) in dataset.item_types.items():  # type: ignore
-            _, art = v.get_writer().write(v, storage, path + f"/{k}")
-            res[self.art_name + f"/{k}"] = art
-        return DictReader(dataset_type=dataset), res
+        readers = {}
+        for (k, v) in dataset.item_types.items():
+            v_reader, art = v.get_writer().write(
+                v, storage, os.path.join(path, k)
+            )
+            res[os.path.join(self.art_name, k)] = art
+            readers[k] = v_reader
+        return DictReader(dataset_type=dataset, item_readers=readers), res
 
 
 class DictReader(DatasetReader):
     type: ClassVar[str] = "dict"
     dataset_type: DictDatasetType
+    item_readers: Dict[str, DatasetReader]
 
     def read(self, artifacts: Dict) -> DatasetType:
         data_dict = {}
-        for (k, v) in self.dataset_type.item_types.items():
-            artifact_name = DatasetWriter.art_name + f"/{k}"
-            v_dataset_type = v.get_reader(dataset_type=v).read(
-                artifacts[artifact_name]
-            )
-            v = v.copy().bind(v_dataset_type.data)
-            data_dict[k] = v.data
+        for (k, v) in self.item_readers.items():
+            artifact_name = os.path.join(DatasetWriter.art_name, k)
+            v_dataset_type = v.read(artifacts[artifact_name])
+            data_dict[k] = v_dataset_type.data
         return self.dataset_type.copy().bind(data_dict)
 
 
