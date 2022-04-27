@@ -17,20 +17,21 @@ from mlem.contrib.docker.utils import (
     image_exists_at_dockerhub,
     print_docker_logs,
 )
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import ModelMeta
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
-from mlem.ui import echo
+from mlem.ui import EMOJI_BUILD, EMOJI_OK, EMOJI_UPLOAD, echo
 
 logger = logging.getLogger(__name__)
 
 
-class DockerRegistry(MlemObject):
+class DockerRegistry(MlemABC):
     """Registry for docker images. This is the default implementation that represents registry of the docker daemon"""
 
     abs_name: ClassVar = "docker_registry"
+    type: ClassVar = "local"
 
     class Config:
         type_root = True
@@ -96,7 +97,7 @@ class DockerIORegistry(DockerRegistry):
 
     def push(self, client, tag):
         client.images.push(tag)
-        logger.info("Pushed image %s to docker.io", tag)
+        echo(EMOJI_UPLOAD + f"Pushed image {tag} to docker.io")
 
     def image_exists(self, client, image: "DockerImage"):
         return image_exists_at_dockerhub(image.uri)
@@ -137,7 +138,7 @@ class RemoteRegistry(DockerRegistry):
 
         if username and password:
             self._login(self.host, client, username, password)
-            logger.info("Logged in to remote registry at host %s", self.host)
+            logger.debug("Logged in to remote registry at host %s", self.host)
         else:
             logger.warning(
                 "Skipped logging in to remote registry at host %s because no credentials given. "
@@ -159,6 +160,7 @@ class RemoteRegistry(DockerRegistry):
         return self.host
 
     def push(self, client, tag):
+        echo(EMOJI_UPLOAD + f"Pushing image {tag} to {self.get_host()}")
         res = client.images.push(tag)
         for line in res.splitlines():
             status = json.loads(line)
@@ -170,9 +172,7 @@ class RemoteRegistry(DockerRegistry):
                 raise DeploymentError(
                     f"Cannot push docker image: {error_msg} {auth}"
                 )
-        logger.info(
-            "Pushed image %s to remote registry at host %s", tag, self.host
-        )
+        echo(EMOJI_OK + f"Pushed image {tag} to {self.host}")
 
     def uri(self, image: str):
         return f"{self.host}/{image}"
@@ -213,7 +213,7 @@ class RemoteRegistry(DockerRegistry):
         requests.delete(f"http://{self.host}/v2/{name}/manifests/{digest}")
 
 
-class DockerDaemon(MlemObject):
+class DockerDaemon(MlemABC):
     """Class that represents docker daemon
 
     :param host: adress of the docker daemon (empty string for local)"""
@@ -339,7 +339,7 @@ class DockerImagePackager(Packager, _DockerPackMixin):
     def build(self, context_dir: str) -> DockerImage:
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
-        echo(f"Building docker image {tag}...")
+        echo(EMOJI_BUILD + f"Building docker image {tag}...")
         with self.env.daemon.client() as client:
             if self.push:
                 self.image.registry.login(client)
@@ -361,7 +361,7 @@ class DockerImagePackager(Packager, _DockerPackMixin):
                     platform=self.args.platform,
                 )
                 self.image.image_id = image.id
-                logger.info("Built docker image %s", tag)
+                echo(EMOJI_OK + f"Built docker image {tag}")
 
                 if self.push:
                     self.image.registry.push(client, tag)

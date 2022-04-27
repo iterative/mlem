@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple, Type
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.github import GithubFileSystem
+from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
 
 from mlem.core.errors import (
@@ -67,6 +68,15 @@ class Location(BaseModel):
 
     def is_same_repo(self, other: "Location"):
         return other.fs == self.fs and other.repo == self.repo
+
+    @property
+    def uri_repr(self):
+        if (
+            isinstance(self.fs, LocalFileSystem)
+            and posixpath.abspath("") in self.fullpath
+        ):
+            return posixpath.relpath(self.fullpath, "")
+        return self.uri
 
 
 class UriResolver(ABC):
@@ -346,6 +356,13 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     return UriResolver.find_resolver(path, None, None, fs=fs).get_uri(
         path, None, None, fs=fs
     )
+
+
+def get_uri(fs: AbstractFileSystem, path: str, repr: bool = False):
+    loc = UriResolver.resolve(path, None, None, fs=fs)
+    if repr:
+        return loc.uri_repr
+    return loc.uri
 
 
 def read(uri: str, mode: str = "r"):

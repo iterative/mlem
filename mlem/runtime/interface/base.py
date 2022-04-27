@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 import mlem
 import mlem.version
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.dataset_type import DatasetType
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
@@ -23,7 +23,7 @@ class InterfaceDescriptor(BaseModel):
     methods: Dict[str, Signature] = {}
 
 
-class Interface(ABC, MlemObject):
+class Interface(ABC, MlemABC):
     """"""
 
     class Config:

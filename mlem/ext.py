@@ -16,7 +16,7 @@ from typing import Callable, Dict, List, Type, Union
 import entrypoints
 
 from mlem.config import CONFIG
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.objects import MlemMeta
 from mlem.utils.importing import (
     import_module,
@@ -104,7 +104,7 @@ class ExtensionLoader:
         # Extension('mlem.contrib.imageio', ['imageio']),
         Extension("mlem.contrib.lightgbm", ["lightgbm"], False),
         Extension("mlem.contrib.xgboost", ["xgboost"], False),
-        # Extension("mlem.contrib.docker", ["docker"], False),
+        Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
     )
@@ -284,17 +284,17 @@ def load_entrypoints() -> Dict[str, Entrypoint]:
 
 
 def list_implementations(
-    base_class: Union[str, Type[MlemObject]],
+    base_class: Union[str, Type[MlemABC]],
     meta_subtype: Type[MlemMeta] = None,
 ) -> List[str]:
-    if isinstance(base_class, type) and issubclass(base_class, MlemObject):
+    if isinstance(base_class, type) and issubclass(base_class, MlemABC):
         abs_name = base_class.abs_name
     if base_class == "meta" and meta_subtype is not None:
         base_class = meta_subtype.object_type
         abs_name = "meta"
     if isinstance(base_class, str):
         abs_name = base_class
-        base_class = MlemObject.abs_types[abs_name]
+        base_class = MlemABC.abs_types[abs_name]
     eps = {
         e.name for e in load_entrypoints().values() if e.abs_name == abs_name
     }
@@ -334,7 +334,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
             if (
                 isinstance(obj, type)
                 and obj.__module__ == module.__name__
-                and issubclass(obj, MlemObject)
+                and issubclass(obj, MlemABC)
                 and not obj.__is_root__
                 and not isabstract(obj)
                 and hasattr(obj, "abs_name")

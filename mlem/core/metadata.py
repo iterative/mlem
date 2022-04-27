@@ -227,7 +227,7 @@ def find_meta_location(location: Location) -> Location:
             )
         except (ValueError, MlemRootNotFound) as e:
             raise MlemObjectNotFound(
-                f"MLEM object was not found at {location.uri}"
+                f"MLEM object was not found at `{location.uri_repr}`"
             ) from e
     if location.repo is not None:
         path = posixpath.relpath(path, location.repo)

@@ -1,7 +1,7 @@
 import re
 from typing import Any, Optional, Tuple, Type, TypeVar, Union
 
-from mlem.core.base import MlemObject, build_mlem_object
+from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import InvalidArgumentError, WrongMetaType
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta
@@ -50,7 +50,7 @@ def ensure_meta(as_class: Type[MM], obj_or_path: Union[str, MM]) -> MM:
     raise ValueError(f"Cannot get {as_class} from '{obj_or_path}'")
 
 
-MO = TypeVar("MO", bound=MlemObject)
+MO = TypeVar("MO", bound=MlemABC)
 
 
 def ensure_mlem_object(

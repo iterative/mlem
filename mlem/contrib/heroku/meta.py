@@ -12,6 +12,7 @@ from mlem.core.objects import (
 from mlem.runtime.client.base import BaseClient, HTTPClient
 
 from ...core.errors import DeploymentError
+from ...ui import EMOJI_OK, echo
 from ..docker.base import DockerImage
 from .build import build_heroku_docker
 
@@ -89,11 +90,16 @@ class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
             )
             meta.update()
 
+        echo(
+            EMOJI_OK
+            + f"Service {meta.app_name} is up. You can check it out at {meta.state.app.web_url}"
+        )
+
     def destroy(self, meta: HerokuDeploy):
         from .utils import delete_app
 
         self.check_type(meta)
-        if meta.state is None or meta.state.release_state is None:
+        if meta.state is None:
             return
 
         delete_app(meta.state.ensured_app.name, self.api_key)

@@ -19,7 +19,7 @@ from typing import (
 from pydantic import BaseModel
 
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetType,
@@ -31,7 +31,7 @@ from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
 
 
-class ModelIO(MlemObject):
+class ModelIO(MlemABC):
     """
     IO base class for models
     """
@@ -190,7 +190,7 @@ class Signature(BaseModel, WithRequirements):
 T = TypeVar("T", bound="ModelType")
 
 
-class ModelType(ABC, MlemObject, WithRequirements):
+class ModelType(ABC, MlemABC, WithRequirements):
     """
     Base class for dataset type metadata.
     """

@@ -14,20 +14,20 @@ from mlem.utils.path import make_posix
 @overload
 def load_impl_ext(
     abs_name: str, type_name: str, raise_on_missing: Literal[True] = ...
-) -> Type["MlemObject"]:
+) -> Type["MlemABC"]:
     ...
 
 
 @overload
 def load_impl_ext(
     abs_name: str, type_name: str, raise_on_missing: Literal[False] = ...
-) -> Optional[Type["MlemObject"]]:
+) -> Optional[Type["MlemABC"]]:
     ...
 
 
 def load_impl_ext(
     abs_name: str, type_name: str, raise_on_missing: bool = True
-) -> Optional[Type["MlemObject"]]:
+) -> Optional[Type["MlemABC"]]:
     """Sometimes, we will not have subclass imported when we deserialize.
     In that case, we first try to import the type_name string
     (because default for PolyModel._get_alias() is module_name.class_name).
@@ -38,8 +38,8 @@ def load_impl_ext(
     if "." in type_name:
         try:
             obj = import_string(type_name)
-            if not issubclass(obj, MlemObject):
-                raise ValueError(f"{obj} is not subclass of MlemObject")
+            if not issubclass(obj, MlemABC):
+                raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj
         except ImportError:
             pass
@@ -48,8 +48,8 @@ def load_impl_ext(
     for ep in eps.values():
         if ep.abs_name == abs_name and ep.name == type_name:
             obj = ep.ep.load()
-            if not issubclass(obj, MlemObject):
-                raise ValueError(f"{obj} is not subclass of MlemObject")
+            if not issubclass(obj, MlemABC):
+                raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj
     if raise_on_missing:
         raise ValueError(
@@ -58,20 +58,20 @@ def load_impl_ext(
     return None
 
 
-MT = TypeVar("MT", bound="MlemObject")
+MT = TypeVar("MT", bound="MlemABC")
 
 
-class MlemObject(PolyModel):
+class MlemABC(PolyModel):
     """
     Base class for all MLEM Python objects
     which should be serialized and deserialized
     """
 
-    abs_types: ClassVar[Dict[str, Type["MlemObject"]]] = {}
+    abs_types: ClassVar[Dict[str, Type["MlemABC"]]] = {}
     abs_name: ClassVar[str]
 
     @classmethod
-    def __resolve_subtype__(cls, type_name: str) -> Type["MlemObject"]:
+    def __resolve_subtype__(cls, type_name: str) -> Type["MlemABC"]:
         """The __type_map__ contains an entry only if the subclass was imported.
         If it is there, we return it.
         If not, we try to load extension using entrypoints registered in setup.py.
@@ -82,10 +82,10 @@ class MlemObject(PolyModel):
             child_cls = load_impl_ext(cls.abs_name, type_name)
         return child_cls
 
-    def __init_subclass__(cls: Type["MlemObject"]):
+    def __init_subclass__(cls: Type["MlemABC"]):
         super().__init_subclass__()
         if cls.__is_root__:
-            MlemObject.abs_types[cls.abs_name] = cls
+            MlemABC.abs_types[cls.abs_name] = cls
 
     @classmethod
     def non_abstract_subtypes(cls: Type[MT]) -> Dict[str, Type["MT"]]:
@@ -143,7 +143,7 @@ def smart_split(string: str, char: str):
 
 
 def build_mlem_object(
-    model: Type[MlemObject],
+    model: Type[MlemABC],
     subtype: str,
     str_conf: List[str] = None,
     file_conf: List[str] = None,
