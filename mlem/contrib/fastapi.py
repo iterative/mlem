@@ -6,8 +6,8 @@ from typing import ClassVar, List, Type
 import fastapi
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
-from starlette.responses import RedirectResponse
 
 from mlem.core.model import Signature
 from mlem.core.requirements import LibRequirementsMixin

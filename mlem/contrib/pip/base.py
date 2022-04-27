@@ -2,6 +2,7 @@ import glob
 import logging
 import os.path
 import posixpath
+import subprocess
 import tempfile
 from typing import ClassVar, Dict, List, Optional
 
@@ -90,14 +91,11 @@ class WhlPackager(Packager, PipMixin):
     target: str
 
     def build_whl(self, path, target, target_fs):
-        import subprocess
-
         target_fs.makedirs(target, exist_ok=True)
         logger.debug("Building whl from %s...", path)
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
-                f"cd {path} && pip wheel . --no-deps -w {whl_dir}",
-                shell=True,
+                f"pip wheel . --no-deps -w {whl_dir}", shell=True, cwd=path
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
             whl_name = os.path.basename(whl_path)

@@ -3,6 +3,7 @@ import logging
 import os
 import posixpath
 import shutil
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
@@ -249,15 +250,15 @@ class DockerModelDirectory(BaseModel):
             sh.write(f"mlem serve {self.model_name} {self.server.type}")
 
     def _build_local_mlem_wheel(self):
-        import subprocess
-
         repo_path = os.path.dirname(os.path.dirname(mlem.__file__))
         echo(EMOJI_BUILD + "Building MLEM wheel file...")
         logger.debug("Building mlem whl from %s...", repo_path)
         with tempfile.TemporaryDirectory() as whl_dir:
+            subprocess.check_call("dir", shell=True, cwd=repo_path)
             subprocess.check_output(
-                f"cd {repo_path} && pip wheel . --no-deps -w {whl_dir}",
+                f"pip wheel . --no-deps -w {whl_dir}",
                 shell=True,
+                cwd=repo_path,
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
             whl_name = os.path.basename(whl_path)
