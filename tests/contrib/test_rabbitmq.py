@@ -4,7 +4,7 @@ from threading import Thread
 import numpy as np
 import pytest
 import requests
-from pika.exceptions import ChannelClosedByBroker
+from pika.exceptions import AMQPError
 from requests.exceptions import ConnectionError, HTTPError
 from testcontainers.general import TestContainer
 
@@ -66,7 +66,7 @@ def test_serving(rmq_server):
             res = client.predict(np.array([[1.0, 1.0, 1.0, 1.0]]))
             assert isinstance(res, np.ndarray)
             break
-        except ChannelClosedByBroker:
+        except AMQPError:
             time.sleep(0.5)
     else:
         pytest.fail("could not connect to server")
