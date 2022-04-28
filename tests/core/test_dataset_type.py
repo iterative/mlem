@@ -7,6 +7,7 @@ from mlem.core.dataset_type import (
     DictDatasetType,
     DictReader,
     ListDatasetType,
+    ListReader,
     PrimitiveReader,
     PrimitiveType,
     TupleDatasetType,
@@ -93,6 +94,16 @@ def test_list():
             "Primitive": {"title": "Primitive", "type": "integer"}
         },
     }
+
+
+def test_list_source():
+    l_value = [1, 2, 3, 4, 5]
+    dt = DatasetType.create(l_value)
+
+    dataset_write_read_check(
+        dt,
+        reader_type=ListReader,
+    )
 
 
 def test_tuple():

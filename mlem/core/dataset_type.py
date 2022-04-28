@@ -5,7 +5,7 @@ import builtins
 import pickle
 import posixpath
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
+from typing import Any, ClassVar, Dict, List, Sized, Tuple, Type
 
 from pydantic import BaseModel
 from pydantic.main import create_model
@@ -218,7 +218,7 @@ class SizedTypedListType(ListTypeWithSpec):
     """
 
     dtype: DatasetType
-    size: Optional[int]
+    size: int
 
     def list_size(self):
         return self.size
@@ -243,13 +243,47 @@ class ListDatasetType(SizedTypedListType, DatasetSerializer):
         return [self.dtype.get_serializer().serialize(o) for o in instance]
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError
+        return ListWriter(**kwargs)
 
     def get_model(self) -> Type[BaseModel]:
         return create_model(
             "ListDataset",
             __root__=(List[self.dtype.get_serializer().get_model()], ...),  # type: ignore
         )
+
+
+class ListWriter(DatasetWriter):
+    type: ClassVar[str] = "list"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Dict]:
+        assert isinstance(dataset, ListDatasetType)
+        res = {}
+        readers = []
+        for i in range(dataset.size):
+            elem = dataset.data[i]
+            elem_reader, art = dataset.dtype.get_writer().write(
+                DatasetType.create(elem), storage, posixpath.join(path, str(i))
+            )
+            res[posixpath.join(self.art_name, str(i))] = art
+            readers.append(elem_reader)
+
+        return ListReader(dataset_type=dataset, readers=readers), res
+
+
+class ListReader(DatasetReader):
+    type: ClassVar[str] = "list"
+    dataset_type: ListDatasetType
+    readers: List[DatasetReader]
+
+    def read(self, artifacts: Dict) -> DatasetType:
+        data_list = []
+        for i in range(self.dataset_type.size):
+            artifact_name = posixpath.join(DatasetWriter.art_name, str(i))
+            elem_dtype = self.readers[i].read(artifacts[artifact_name])
+            data_list.append(elem_dtype.data)
+        return self.dataset_type.copy().bind(data_list)
 
 
 class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
