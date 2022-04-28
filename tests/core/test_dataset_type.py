@@ -137,7 +137,7 @@ def test_dict():
 
 
 def test_dict_source():
-    dataset = DatasetType.create({"1": 1, "2": "a", "3": {"m": False}})
+    dataset = DatasetType.create({"1": 1.5, "2": "a", "3": {"m": False}})
 
     def custom_assert(x, y):
         assert x == y

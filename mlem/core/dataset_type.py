@@ -451,7 +451,9 @@ class DictWriter(DatasetWriter):
         readers = {}
         for (k, v) in dataset.item_types.items():
             v_reader, art = v.get_writer().write(
-                v, storage, os.path.join(path, k)
+                DatasetType.create(dataset.data[k]),
+                storage,
+                os.path.join(path, k),
             )
             res[os.path.join(self.art_name, k)] = art
             readers[k] = v_reader
