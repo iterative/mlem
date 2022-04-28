@@ -101,7 +101,7 @@ class DatasetAnalyzer(Analyzer):
     base_hook_class = DatasetHook
 
 
-class DatasetReader(MlemObject, ABC):
+class DatasetReader(MlemABC, ABC):
     """"""
 
     class Config:
@@ -115,7 +115,7 @@ class DatasetReader(MlemObject, ABC):
         raise NotImplementedError
 
 
-class DatasetWriter(MlemObject):
+class DatasetWriter(MlemABC):
     """"""
 
     class Config:
