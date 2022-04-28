@@ -43,10 +43,6 @@ class DatasetType(ABC, MlemABC, WithRequirements):
         return get_object_requirements(self)
 
     @abstractmethod
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        raise NotImplementedError
-
-    @abstractmethod
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
@@ -89,9 +85,6 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
 
     def get_requirements(self) -> Requirements:
         return Requirements()
-
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        raise NotImplementedError
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
@@ -168,9 +161,6 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
     def serialize(self, instance):
         self.check_type(instance, self.to_type, ValueError)
         return instance
-
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        return PrimitiveReader(**kwargs)
 
     def get_writer(self, **kwargs):
         return PrimitiveWriter(**kwargs)
@@ -252,9 +242,6 @@ class ListDatasetType(SizedTypedListType, DatasetSerializer):
         _check_type_and_size(instance, list, self.size, SerializationError)
         return [self.dtype.get_serializer().serialize(o) for o in instance]
 
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        raise NotImplementedError
-
     def get_writer(self, **kwargs):
         raise NotImplementedError
 
@@ -295,9 +282,6 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
         return sum(
             [i.get_requirements() for i in self.items], Requirements.new()
         )
-
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        raise NotImplementedError
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
@@ -425,9 +409,6 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
             [i.get_requirements() for i in self.item_types.values()],
             Requirements.new(),
         )
-
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        return DictReader(**kwargs)
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
         return DictWriter(**kwargs)

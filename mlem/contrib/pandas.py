@@ -251,19 +251,6 @@ class SeriesType(_PandasDatasetType):
     def serialize(self, instance: pd.Series):
         return super().serialize(pd.DataFrame(instance))["values"]
 
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        fmt = PANDAS_CONFIG.DEFAULT_FORMAT
-        if "format" in kwargs:
-            fmt = kwargs["format"]
-        elif "filename" in kwargs:
-            filename = kwargs["filename"]
-            if filename is not None:
-                _, ext = os.path.splitext(filename)
-                ext = ext.lstrip(".")
-                if ext in PANDAS_SERIES_FORMATS:
-                    fmt = ext
-        return PandasSeriesReader(dataset_type=self, format=fmt)
-
     def get_writer(self, **kwargs) -> "DatasetWriter":
         fmt = PANDAS_CONFIG.DEFAULT_FORMAT
         if "format" in kwargs:
@@ -335,19 +322,6 @@ class DataFrameType(_PandasDatasetType):
                 for c, t in zip(self.columns, self.dtypes)
             },
         )
-
-    def get_reader(self, **kwargs) -> "DatasetReader":
-        fmt = PANDAS_CONFIG.DEFAULT_FORMAT
-        if "format" in kwargs:
-            fmt = kwargs["format"]
-        elif "filename" in kwargs:
-            filename = kwargs["filename"]
-            if filename is not None:
-                _, ext = os.path.splitext(filename)
-                ext = ext.lstrip(".")
-                if ext in PANDAS_FORMATS:
-                    fmt = ext
-        return PandasReader(dataset_type=self, format=fmt)
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
         fmt = PANDAS_CONFIG.DEFAULT_FORMAT

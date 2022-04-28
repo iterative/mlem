@@ -44,7 +44,7 @@ def df_payload():
 def dataset_df(df_payload):
     return lgb.Dataset(
         df_payload,
-        label=np.linspace(0, 2).reshape((-1, 1)),
+        label=np.array([0, 1]),
         free_raw_data=False,
     )
 
@@ -121,10 +121,18 @@ def test_lightgbm_source(lgb_dtype, dataset_type, request):
     lgb_dtype = request.getfixturevalue(lgb_dtype)
     assert isinstance(lgb_dtype, LightGBMDatasetType)
     assert isinstance(lgb_dtype.inner, dataset_type)
+
+    def custom_assert(x, y):
+        assert hasattr(x, "data")
+        assert hasattr(y, "data")
+        assert all(x.data == y.data)
+        assert all(x.label == y.label)
+
     dataset_write_read_check(
         lgb_dtype,
         writer=LightGBMDatasetWriter(),
         reader_type=LightGBMDatasetReader,
+        custom_assert=custom_assert,
     )
 
 

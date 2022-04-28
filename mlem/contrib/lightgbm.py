@@ -62,9 +62,6 @@ class LightGBMDatasetType(
             + LGB_REQUIREMENT
         )
 
-    def get_reader(self, **kwargs) -> DatasetReader:
-        return LightGBMDatasetReader(**kwargs)
-
     def get_writer(self, **kwargs) -> DatasetWriter:
         return LightGBMDatasetWriter(**kwargs)
 
@@ -85,24 +82,40 @@ class LightGBMDatasetWriter(DatasetWriter):
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
-        _, art = dataset.inner.get_writer().write(dataset.inner, storage, path)  # type: ignore
-        return LightGBMDatasetReader(dataset_type=dataset), art
+        assert isinstance(dataset, LightGBMDatasetType)
+        lightgbm_construct = dataset.data.construct()
+        raw_data = lightgbm_construct.get_data()
+        underlying_labels = lightgbm_construct.get_label()
+        inner_reader, art = dataset.inner.get_writer().write(
+            DatasetType.create(raw_data), storage, path
+        )
+        return (
+            LightGBMDatasetReader(
+                dataset_type=dataset,
+                inner=inner_reader,
+                label=underlying_labels,
+            ),
+            art,
+        )
 
 
 class LightGBMDatasetReader(DatasetReader):
     type: ClassVar[str] = "lightgbm"
     dataset_type: LightGBMDatasetType
+    inner: DatasetReader
+    label: Any
 
     def read(self, artifacts: Dict) -> DatasetType:
         if len(artifacts) != 1:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
             )
-        data = self.dataset_type.inner.get_reader(
-            dataset_type=self.dataset_type.inner
-        ).read(artifacts)
-        self.dataset_type.inner = self.dataset_type.inner.copy().bind(data)
-        return self.dataset_type
+        inner_dataset_type = self.inner.read(artifacts)
+        return LightGBMDatasetType(inner=inner_dataset_type).bind(
+            lgb.Dataset(
+                inner_dataset_type.data, label=self.label, free_raw_data=False
+            )
+        )
 
 
 class LightGBMModelIO(ModelIO):

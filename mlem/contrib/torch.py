@@ -63,9 +63,6 @@ class TorchTensorDatasetType(
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(torch)])
 
-    def get_reader(self, **kwargs) -> DatasetReader:
-        return TorchTensorReader(**kwargs)
-
     def get_writer(self, **kwargs) -> DatasetWriter:
         return TorchTensorWriter(**kwargs)
 
