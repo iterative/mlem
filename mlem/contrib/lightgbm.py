@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
+    DatasetAnalyzer,
     DatasetHook,
     DatasetReader,
     DatasetSerializer,
@@ -67,7 +68,7 @@ class LightGBMDatasetType(
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:
-        return LightGBMDatasetType(inner=DatasetType.create(obj.data))
+        return LightGBMDatasetType(inner=DatasetAnalyzer.analyze(obj.data))
 
     def get_model(self) -> Type[BaseModel]:
         return self.inner.get_serializer().get_model()
