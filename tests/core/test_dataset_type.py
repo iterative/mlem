@@ -11,6 +11,8 @@ from mlem.core.dataset_type import (
     PrimitiveReader,
     PrimitiveType,
     TupleDatasetType,
+    _TupleLikeDatasetReader,
+    _TupleLikeDatasetWriter,
 )
 from tests.conftest import dataset_write_read_check
 
@@ -125,6 +127,28 @@ def test_tuple():
     assert t == dt.deserialize(t)
     assert dt.get_model().__name__ == "_TupleLikeDataset"
     # assert dt.get_model().schema() fails due to KeyError: <class 'pydantic.main.Primitive'>, TODO https://github.com/iterative/mlem/issues/194
+
+
+def test_tuple_source():
+    t_value = (1, False, 3.2, "mlem", None)
+    dt = DatasetType.create(t_value)
+
+    dataset_write_read_check(
+        dt,
+        reader_type=_TupleLikeDatasetReader,
+        writer=_TupleLikeDatasetWriter(),
+    )
+
+
+def test_mixed_list_source():
+    t_value = [1, False, 3.2, "mlem", None]
+    dt = DatasetType.create(t_value)
+
+    dataset_write_read_check(
+        dt,
+        reader_type=_TupleLikeDatasetReader,
+        writer=_TupleLikeDatasetWriter(),
+    )
 
 
 def test_dict():

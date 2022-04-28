@@ -318,7 +318,7 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
         )
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        raise NotImplementedError
+        return _TupleLikeDatasetWriter(**kwargs)
 
     def get_model(self) -> Type[BaseModel]:
         return create_model(
@@ -338,6 +338,44 @@ def _check_type_and_size(obj, dtype, size, exc_type):
         raise exc_type(
             f"given {dtype.__name__} has len: {len(obj)}, expected: {size}"
         )
+
+
+class _TupleLikeDatasetWriter(DatasetWriter):
+    type: ClassVar[str] = "tuple_like"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Dict]:
+        assert isinstance(dataset, _TupleLikeDatasetType)
+        res = {}
+        readers = []
+        for i, elem_dtype in enumerate(dataset.items):
+            elem = dataset.data[i]
+            elem_reader, art = elem_dtype.get_writer().write(
+                DatasetType.create(elem), storage, posixpath.join(path, str(i))
+            )
+            res[posixpath.join(self.art_name, str(i))] = art
+            readers.append(elem_reader)
+
+        return (
+            _TupleLikeDatasetReader(dataset_type=dataset, readers=readers),
+            res,
+        )
+
+
+class _TupleLikeDatasetReader(DatasetReader):
+    type: ClassVar[str] = "tuple_like"
+    dataset_type: _TupleLikeDatasetType
+    readers: List[DatasetReader]
+
+    def read(self, artifacts: Dict) -> DatasetType:
+        data_list = []
+        for i, elem_reader in enumerate(self.readers):
+            artifact_name = posixpath.join(DatasetWriter.art_name, str(i))
+            elem_dtype = elem_reader.read(artifacts[artifact_name])
+            data_list.append(elem_dtype.data)
+        data_list = self.dataset_type.actual_type(data_list)
+        return self.dataset_type.copy().bind(data_list)
 
 
 class TupleLikeListDatasetType(_TupleLikeDatasetType):
