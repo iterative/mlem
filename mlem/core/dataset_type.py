@@ -2,8 +2,8 @@
 Base classes for working with datasets in MLEM
 """
 import builtins
-import os
 import pickle
+import posixpath
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
@@ -434,9 +434,9 @@ class DictWriter(DatasetWriter):
             v_reader, art = v.get_writer().write(
                 DatasetType.create(dataset.data[k]),
                 storage,
-                os.path.join(path, k),
+                posixpath.join(path, k),
             )
-            res[os.path.join(self.art_name, k)] = art
+            res[posixpath.join(self.art_name, k)] = art
             readers[k] = v_reader
         return DictReader(dataset_type=dataset, item_readers=readers), res
 
@@ -449,7 +449,7 @@ class DictReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         data_dict = {}
         for (k, v) in self.item_readers.items():
-            artifact_name = os.path.join(DatasetWriter.art_name, k)
+            artifact_name = posixpath.join(DatasetWriter.art_name, k)
             v_dataset_type = v.read(artifacts[artifact_name])
             data_dict[k] = v_dataset_type.data
         return self.dataset_type.copy().bind(data_dict)
