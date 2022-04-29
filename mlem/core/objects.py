@@ -14,6 +14,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -672,6 +673,9 @@ class DatasetMeta(_WithArtifacts):
 
     def load_value(self):
         self.dataset = self.reader.read(self.relative_artifacts)
+
+    def read_batch(self, batch: int) -> Iterator[DatasetType]:
+        return self.reader.read_batch(self.relative_artifacts, batch)  # type: ignore
 
     def get_value(self):
         return self.data

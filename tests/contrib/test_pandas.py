@@ -29,7 +29,11 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
-from tests.conftest import dataset_write_read_check, long
+from tests.conftest import (
+    dataset_write_read_batch_check,
+    dataset_write_read_check,
+    long,
+)
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -120,6 +124,24 @@ def test_simple_df(data, format):
     )
 
 
+@for_all_formats(
+    exclude=[  # Following file formats do not support Pandas chunksize parameter
+        "html",
+        "excel",
+        "parquet",
+        "feather",
+        "pickle",
+    ]
+)
+def test_simple_batch_df(data, format):
+    dataset_write_read_batch_check(
+        DatasetType.create(data),
+        format,
+        PandasReader,
+        pd.DataFrame.equals,
+    )
+
+
 @for_all_formats
 def test_with_index(data, format):
     writer = PandasWriter(format=format)
@@ -146,7 +168,7 @@ def test_with_multiindex(data, format):
     exclude=[
         "excel",  # Excel does not support datetimes with timezones
         "parquet",  # Casting from timestamp[ns] to timestamp[ms] would lose data
-        "strata",  # Data type datetime64[ns, UTC] not supported.
+        "stata",  # Data type datetime64[ns, UTC] not supported.
     ]
 )
 @pytest.mark.parametrize(
