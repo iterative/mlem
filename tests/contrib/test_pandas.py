@@ -1,8 +1,9 @@
 import io
 import json
 import posixpath
+import tempfile
 from datetime import datetime, timezone
-from typing import Callable, List, Union
+from typing import Any, Callable, Iterator, List, Type, Union
 
 import pandas as pd
 import pytest
@@ -19,21 +20,19 @@ from mlem.contrib.pandas import (
     PandasReader,
     PandasWriter,
     SeriesType,
+    get_pandas_batch_formats,
     pd_type_from_string,
     python_type_from_pd_string_repr,
     python_type_from_pd_type,
     string_repr_from_pd_type,
 )
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
+from mlem.core.artifacts import LOCAL_STORAGE
+from mlem.core.dataset_type import DatasetAnalyzer, DatasetReader, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
-from tests.conftest import (
-    dataset_write_read_batch_check,
-    dataset_write_read_check,
-    long,
-)
+from tests.conftest import dataset_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -107,6 +106,40 @@ def series_df_type(series_data):
     return DatasetAnalyzer.analyze(series_data)
 
 
+def dataset_write_read_batch_check(
+    dataset: DatasetType,
+    format: str,
+    reader_type: Type[DatasetReader] = None,
+    custom_eq: Callable[[Any, Any], bool] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        BATCH_SIZE = 2
+        storage = LOCAL_STORAGE
+
+        fmt = get_pandas_batch_formats(BATCH_SIZE)[format]
+        art = fmt.write(dataset.data, storage, posixpath.join(tmpdir, "data"))
+        reader = PandasReader(dataset_type=dataset, format=format)
+        artifacts = {"data": art}
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        df_iterable: Iterator = reader.read_batch(artifacts, BATCH_SIZE)
+        df = None
+        col_types = None
+        while True:
+            try:
+                chunk = next(df_iterable)
+                if df is None:
+                    df = pd.DataFrame(columns=chunk.columns, dtype=col_types)
+                    col_types = dict(zip(chunk.columns, chunk.dtypes))
+                    df = df.astype(dtype=col_types)
+                df = pd.concat([df, chunk.data], ignore_index=True)
+            except StopIteration:
+                break
+
+        assert custom_eq(df, dataset.data)
+
+
 def for_all_formats(exclude: Union[List[str], Callable] = None):
     ex = exclude if isinstance(exclude, list) else []
     formats = [name for name in PANDAS_FORMATS if name not in ex]
@@ -124,15 +157,7 @@ def test_simple_df(data, format):
     )
 
 
-@for_all_formats(
-    exclude=[  # Following file formats do not support Pandas chunksize parameter
-        "html",
-        "excel",
-        "parquet",
-        "feather",
-        "pickle",
-    ]
-)
+@pytest.mark.parametrize("format", ["csv", "json", "stata"])
 def test_simple_batch_df(data, format):
     dataset_write_read_batch_check(
         DatasetType.create(data),

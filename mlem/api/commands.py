@@ -90,13 +90,9 @@ def apply(
         res: Any = []
         for part in data:
             batch_dataset = get_dataset_value(part, batch)
-            while True:
-                try:
-                    chunk = next(batch_dataset)
-                    preds = w.call_method(resolved_method, chunk.data)
-                    res = [*res, *preds]
-                except StopIteration:
-                    break
+            for chunk in batch_dataset:
+                preds = w.call_method(resolved_method, chunk.data)
+                res += [*preds]
         res = [np.array(res)]
     else:
         res = [
