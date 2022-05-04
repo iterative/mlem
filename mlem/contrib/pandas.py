@@ -164,6 +164,9 @@ class _PandasDatasetType(
             df = df.set_index(self.index_cols)
         return df
 
+    def align(self, df):
+        return self.align_index(self.align_types(df))
+
     def _validate_columns(self, df: pd.DataFrame, exc_type):
         """Validates that df has correct columns"""
         if set(df.columns) != set(self.columns):
@@ -230,9 +233,6 @@ class SeriesType(_PandasDatasetType):
                 for c, t in zip(self.columns, self.dtypes)
             },
         )
-
-    def align(self, df):
-        return self.align_index(self.align_types(df))
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
@@ -310,9 +310,6 @@ class DataFrameType(_PandasDatasetType):
     def get_model(self) -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33
         return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
-
-    def align(self, df):
-        return self.align_index(self.align_types(df))
 
     def row_type(self):
         return create_model(

@@ -2,10 +2,9 @@
 Base classes for working with datasets in MLEM
 """
 import builtins
-import pickle
 import posixpath
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Sized, Tuple, Type
+from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
 from pydantic import BaseModel
 from pydantic.main import create_model
@@ -182,54 +181,45 @@ class PrimitiveWriter(DatasetWriter):
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
         with storage.open(path) as (f, art):
-            pickle.dump(dataset.data, f)
+            f.write(str(dataset.data).encode("utf-8"))
         return PrimitiveReader(dataset_type=dataset), {self.art_name: art}
 
 
 class PrimitiveReader(DatasetReader):
     type: ClassVar[str] = "primitive"
+    dataset_type: PrimitiveType
 
     def read(self, artifacts: Dict) -> DatasetType:
-        if len(artifacts) != 1:
+        if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
-            data = pickle.load(f)
+            res = f.read()
+            if res.decode("utf-8") == "None":
+                data = None
+            elif res.decode("utf-8") == "False":
+                data = False
+            else:
+                data = self.dataset_type.to_type(res.decode("utf-8"))
             return self.dataset_type.copy().bind(data)
 
 
-class ListTypeWithSpec(DatasetType):
+class ListDatasetType(DatasetType, DatasetSerializer):
     """
-    Abstract base class for `list`-like types providing its OpenAPI schema definition
+    DatasetType for list type
+    for a list of elements with same types such as [1, 2, 3, 4, 5]
     """
+
+    type: ClassVar[str] = "list"
+    dtype: DatasetType
+    size: Optional[int]
 
     def is_list(self):
         return True
 
-    @abstractmethod
-    def list_size(self):
-        raise NotImplementedError  # pragma: no cover
-
-
-class SizedTypedListType(ListTypeWithSpec):
-    """
-    Subclass of :class:`ListTypeWithSpec` which specifies size of internal `list`
-    """
-
-    dtype: DatasetType
-    size: int
-
     def list_size(self):
         return self.size
-
-
-class ListDatasetType(SizedTypedListType, DatasetSerializer):
-    """
-    DatasetType for list type
-    """
-
-    type: ClassVar[str] = "list"
 
     def get_requirements(self) -> Requirements:
         return self.dtype.get_requirements()
@@ -258,13 +248,17 @@ class ListWriter(DatasetWriter):
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
-        assert isinstance(dataset, ListDatasetType)
+        if not isinstance(dataset, ListDatasetType):
+            raise ValueError(
+                f"expected dataset to be of ListDatasetType, got {type(dataset)} instead"
+            )
         res = {}
         readers = []
-        for i in range(dataset.size):
-            elem = dataset.data[i]
+        for i, elem in enumerate(dataset.data):
             elem_reader, art = dataset.dtype.get_writer().write(
-                DatasetType.create(elem), storage, posixpath.join(path, str(i))
+                dataset.dtype.copy().bind(elem),
+                storage,
+                posixpath.join(path, str(i)),
             )
             res[posixpath.join(self.art_name, str(i))] = art
             readers.append(elem_reader)
@@ -279,9 +273,9 @@ class ListReader(DatasetReader):
 
     def read(self, artifacts: Dict) -> DatasetType:
         data_list = []
-        for i in range(self.dataset_type.size):
+        for i, reader in enumerate(self.readers):
             artifact_name = posixpath.join(DatasetWriter.art_name, str(i))
-            elem_dtype = self.readers[i].read(artifacts[artifact_name])
+            elem_dtype = reader.read(artifacts[artifact_name])
             data_list.append(elem_dtype.data)
         return self.dataset_type.copy().bind(data_list)
 
@@ -346,13 +340,19 @@ class _TupleLikeDatasetWriter(DatasetWriter):
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
-        assert isinstance(dataset, _TupleLikeDatasetType)
+        if not isinstance(dataset, _TupleLikeDatasetType):
+            raise ValueError(
+                f"expected dataset to be of _TupleLikeDatasetType, got {type(dataset)} instead"
+            )
         res = {}
         readers = []
-        for i, elem_dtype in enumerate(dataset.items):
-            elem = dataset.data[i]
+        for i, (elem_dtype, elem) in enumerate(
+            zip(dataset.items, dataset.data)
+        ):
             elem_reader, art = elem_dtype.get_writer().write(
-                DatasetType.create(elem), storage, posixpath.join(path, str(i))
+                elem_dtype.copy().bind(elem),
+                storage,
+                posixpath.join(path, str(i)),
             )
             res[posixpath.join(self.art_name, str(i))] = art
             readers.append(elem_reader)
@@ -381,6 +381,7 @@ class _TupleLikeDatasetReader(DatasetReader):
 class TupleLikeListDatasetType(_TupleLikeDatasetType):
     """
     DatasetType for tuple-like list type
+    can be a list of elements with different types such as [1, False, 3.2, "mlem", None]
     """
 
     actual_type: ClassVar = list
@@ -499,17 +500,20 @@ class DictWriter(DatasetWriter):
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
-        assert isinstance(dataset, DictDatasetType)
+        if not isinstance(dataset, DictDatasetType):
+            raise ValueError(
+                f"expected dataset to be of DictDatasetType, got {type(dataset)} instead"
+            )
         res = {}
         readers = {}
-        for (k, v) in dataset.item_types.items():
-            v_reader, art = v.get_writer().write(
-                DatasetType.create(dataset.data[k]),
+        for (key, dtype) in dataset.item_types.items():
+            dtype_reader, art = dtype.get_writer().write(
+                dtype.copy().bind(dataset.data[key]),
                 storage,
-                posixpath.join(path, k),
+                posixpath.join(path, key),
             )
-            res[posixpath.join(self.art_name, k)] = art
-            readers[k] = v_reader
+            res[posixpath.join(self.art_name, key)] = art
+            readers[key] = dtype_reader
         return DictReader(dataset_type=dataset, item_readers=readers), res
 
 
@@ -520,10 +524,10 @@ class DictReader(DatasetReader):
 
     def read(self, artifacts: Dict) -> DatasetType:
         data_dict = {}
-        for (k, v) in self.item_readers.items():
-            artifact_name = posixpath.join(DatasetWriter.art_name, k)
-            v_dataset_type = v.read(artifacts[artifact_name])
-            data_dict[k] = v_dataset_type.data
+        for (key, dtype_reader) in self.item_readers.items():
+            artifact_name = posixpath.join(DatasetWriter.art_name, key)
+            v_dataset_type = dtype_reader.read(artifacts[artifact_name])
+            data_dict[key] = v_dataset_type.data
         return self.dataset_type.copy().bind(data_dict)
 
 

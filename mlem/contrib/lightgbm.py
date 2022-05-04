@@ -74,21 +74,21 @@ class LightGBMDatasetType(
         return self.inner.get_serializer().get_model()
 
 
-DATA_FILE = "data.npy"
-
-
 class LightGBMDatasetWriter(DatasetWriter):
     type: ClassVar[str] = "lightgbm"
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
-        assert isinstance(dataset, LightGBMDatasetType)
+        if not isinstance(dataset, LightGBMDatasetType):
+            raise ValueError(
+                f"expected dataset to be of LightGBMDatasetType, got {type(dataset)} instead"
+            )
         lightgbm_construct = dataset.data.construct()
         raw_data = lightgbm_construct.get_data()
         underlying_labels = lightgbm_construct.get_label()
         inner_reader, art = dataset.inner.get_writer().write(
-            DatasetType.create(raw_data), storage, path
+            dataset.inner.copy().bind(raw_data), storage, path
         )
         return (
             LightGBMDatasetReader(
@@ -107,10 +107,6 @@ class LightGBMDatasetReader(DatasetReader):
     label: Any
 
     def read(self, artifacts: Dict) -> DatasetType:
-        if len(artifacts) != 1:
-            raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
-            )
         inner_dataset_type = self.inner.read(artifacts)
         return LightGBMDatasetType(inner=inner_dataset_type).bind(
             lgb.Dataset(

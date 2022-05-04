@@ -162,7 +162,7 @@ class NumpyNdarrayType(
 
 DATA_FILE = "data.npz"
 DATA_KEY = "data"
-DATA_FILE_FOR_NUMBER = "data.npy"
+DATA_FILE_FOR_NUMBER = "data.txt"
 
 
 class NumpyNumberWriter(DatasetWriter):
@@ -172,21 +172,22 @@ class NumpyNumberWriter(DatasetWriter):
         self, dataset: DatasetType, storage: Storage, path: str
     ) -> Tuple[DatasetReader, Dict]:
         with storage.open(path) as (f, art):
-            np.save(f, dataset.data)
+            f.write(str(dataset.data).encode("utf-8"))
         return NumpyNumberReader(dataset_type=dataset), {self.art_name: art}
 
 
 class NumpyNumberReader(DatasetReader):
     type: ClassVar[str] = "numpy_number"
+    dataset_type: NumpyNumberType
 
     def read(self, artifacts: Dict) -> DatasetType:
-        if len(artifacts) != 1:
+        if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE_FOR_NUMBER} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
-            res = np.load(f)
-            data = getattr(np, res.dtype.name)(res.item())
+            res = f.read()
+            data = getattr(np, self.dataset_type.dtype)(res)
             return self.dataset_type.copy().bind(data)
 
 
@@ -209,7 +210,7 @@ class NumpyArrayReader(DatasetReader):
     type: ClassVar[str] = "numpy"
 
     def read(self, artifacts: Dict) -> DatasetType:
-        if len(artifacts) != 1:
+        if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
             )

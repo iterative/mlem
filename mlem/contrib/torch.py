@@ -95,7 +95,7 @@ class TorchTensorReader(DatasetReader):
     type: ClassVar[str] = "torch"
 
     def read(self, artifacts: Dict) -> DatasetType:
-        if len(artifacts) != 1:
+        if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
             )
