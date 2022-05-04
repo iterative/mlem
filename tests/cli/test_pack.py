@@ -1,7 +1,7 @@
 import os.path
 from typing import ClassVar
 
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.pack import Packager
 from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
@@ -11,7 +11,7 @@ class PackagerMock(Packager):
     type: ClassVar = "mock"
     target: str
 
-    def package(self, obj: ModelMeta):
+    def package(self, obj: MlemModel):
         with open(self.target, "w", encoding="utf8") as f:
             f.write(obj.loc.path)
 

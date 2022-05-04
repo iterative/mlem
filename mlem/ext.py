@@ -17,7 +17,7 @@ import entrypoints
 
 from mlem.config import CONFIG
 from mlem.core.base import MlemABC
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemObject
 from mlem.utils.importing import (
     import_module,
     module_importable,
@@ -285,7 +285,7 @@ def load_entrypoints() -> Dict[str, Entrypoint]:
 
 def list_implementations(
     base_class: Union[str, Type[MlemABC]],
-    meta_subtype: Type[MlemMeta] = None,
+    meta_subtype: Type[MlemObject] = None,
 ) -> List[str]:
     if isinstance(base_class, type) and issubclass(base_class, MlemABC):
         abs_name = base_class.abs_name

@@ -24,7 +24,7 @@ from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import MlemDataset, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.interface.base import ModelInterface
 from mlem.utils.github import ls_github_branches
@@ -138,7 +138,7 @@ def model(model_train_target):
 
 @pytest.fixture
 def interface(model, train):
-    model = ModelMeta.from_obj(model, sample_data=train)
+    model = MlemModel.from_obj(model, sample_data=train)
     interface = ModelInterface.from_model(model)
     return interface
 
@@ -185,28 +185,28 @@ def request_post_mock(mocker, client):
 
 @pytest.fixture
 def dataset_meta(train):
-    return DatasetMeta.from_data(train)
+    return MlemDataset.from_data(train)
 
 
 @pytest.fixture
 def model_meta(model):
-    return ModelMeta.from_obj(model)
+    return MlemModel.from_obj(model)
 
 
 @pytest.fixture
 def model_path(model_train_target, tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
     model, train, _ = model_train_target
-    # because of link=False we test reading by path here
+    # because of index=False we test reading by path here
     # reading by link name is not tested
-    save(model, path, tmp_sample_data=train, link=False)
+    save(model, path, sample_data=train, index=False)
     yield path
 
 
 @pytest.fixture
 def data_path(train, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(train, temp_dir, link=False)
+    save(train, temp_dir, index=False)
     yield temp_dir
 
 
@@ -225,7 +225,7 @@ def model_meta_saved_single(tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model-single")
     train, target = load_iris(return_X_y=True)
     model = DecisionTreeClassifier().fit(train, target)
-    return save(model, path, tmp_sample_data=train)
+    return save(model, path, sample_data=train)
 
 
 @pytest.fixture
@@ -241,7 +241,7 @@ def complex_model_meta_saved_single(tmp_path_factory):
     p.mkdir(exist_ok=True)
     (p / "file1").write_text("data1", encoding="utf8")
     (p / "file2").write_text("data2", encoding="utf8")
-    model = ModelMeta(
+    model = MlemModel(
         artifacts={
             "file1": LocalArtifact(
                 uri=posixpath.join(name, "file1"), size=1, hash=""
@@ -279,7 +279,7 @@ def mlem_curdir_repo(tmpdir_factory):
 
 @pytest.fixture
 def filled_mlem_repo(mlem_repo):
-    model = ModelMeta(
+    model = MlemModel(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
@@ -295,7 +295,7 @@ def model_path_mlem_repo(model_train_target, tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, tmp_sample_data=train, link=True, external=True)
+    save(model, model_dir, sample_data=train, index=True, external=True)
     yield model_dir, dir
 
 

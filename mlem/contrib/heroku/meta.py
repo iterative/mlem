@@ -3,12 +3,7 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from mlem.core.objects import (
-    DeployMeta,
-    DeployState,
-    DeployStatus,
-    TargetEnvMeta,
-)
+from mlem.core.objects import DeployState, DeployStatus, MlemDeploy, MlemEnv
 from mlem.runtime.client.base import BaseClient, HTTPClient
 
 from ...core.errors import DeploymentError
@@ -50,7 +45,7 @@ class HerokuState(DeployState):
         )
 
 
-class HerokuDeploy(DeployMeta):
+class HerokuDeploy(MlemDeploy):
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
     app_name: str
@@ -59,7 +54,7 @@ class HerokuDeploy(DeployMeta):
     team: Optional[str] = None
 
 
-class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
+class HerokuEnvMeta(MlemEnv[HerokuDeploy]):
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeploy
     api_key: Optional[str] = None

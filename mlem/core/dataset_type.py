@@ -75,6 +75,8 @@ class DatasetSerializer(ABC):
 
 
 class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
+    type: ClassVar = "unspecified"
+
     def serialize(self, instance: object) -> dict:
         return instance  # type: ignore
 

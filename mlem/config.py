@@ -84,7 +84,6 @@ class MlemConfig(MlemConfigBase):
         default="", env="MLEM_ADDITIONAL_EXTENSIONS"
     )
     AUTOLOAD_EXTS: bool = True
-    DEFAULT_BRANCH: str = "main"
     LOG_LEVEL: str = "INFO"
     DEBUG: bool = False
     NO_ANALYTICS: bool = False

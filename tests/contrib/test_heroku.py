@@ -27,7 +27,7 @@ from mlem.contrib.heroku.utils import (
     heroku_api_request,
 )
 from mlem.core.errors import DeploymentError
-from mlem.core.objects import DeployStatus, ModelMeta
+from mlem.core.objects import DeployStatus, MlemModel
 from tests.conftest import long, skip_matrix
 
 heroku = pytest.mark.skipif(
@@ -74,7 +74,7 @@ def model(tmpdir_factory):
     X, y = bulk.data, bulk.target  # pylint: disable=no-member
     clf = RandomForestClassifier(n_estimators=1)
     clf.fit(X, y)
-    model = ModelMeta.from_obj(clf, sample_data=X)
+    model = MlemModel.from_obj(clf, sample_data=X)
     return model.dump(str(tmpdir_factory.mktemp("heroku_test") / "model"))
 
 
@@ -102,7 +102,7 @@ def test_create_app(heroku_app_name, heroku_env, model):
 
 @long
 @heroku_matrix
-def test_build_heroku_docker(model: ModelMeta, uses_docker_build):
+def test_build_heroku_docker(model: MlemModel, uses_docker_build):
     image_meta = build_heroku_docker(model, "test_build", push=False)
     client = DockerClient.from_env()
     image = client.images.get(image_meta.image_id)

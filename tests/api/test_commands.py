@@ -16,7 +16,7 @@ from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
-from mlem.core.objects import DatasetMeta, MlemLink, ModelMeta
+from mlem.core.objects import MlemDataset, MlemLink, MlemModel
 from mlem.runtime.client.base import HTTPClient
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -66,7 +66,7 @@ def test_link_as_separate_file(model_path_mlem_repo):
     link_object = load_meta(link_path, follow_links=False)
     assert isinstance(link_object, MlemLink)
     model = load_meta(link_path)
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
 
 
 def test_link_in_mlem_dir(model_path_mlem_repo):
@@ -92,7 +92,7 @@ def test_link_in_mlem_dir(model_path_mlem_repo):
         == os.path.relpath(model_path, mlem_repo) + MLEM_EXT
     )
     model = load_meta(link_dumped_to)
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
 
 
 @long
@@ -112,20 +112,20 @@ def test_link_from_remote_to_local(current_test_branch, mlem_repo):
     assert loaded_link_object.rev == "main"
     assert loaded_link_object.path == "simple/data/model" + MLEM_EXT
     model = loaded_link_object.load_link()
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
 
 
 def test_ls_local(filled_mlem_repo):
     objects = ls(filled_mlem_repo)
     assert len(objects) == 1
-    assert ModelMeta in objects
-    models = objects[ModelMeta]
+    assert MlemModel in objects
+    models = objects[MlemModel]
     assert len(models) == 2
     model, lnk = models
     if isinstance(model, MlemLink):
         model, lnk = lnk, model
 
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
     assert isinstance(lnk, MlemLink)
     assert (
         posixpath.join(make_posix(filled_mlem_repo), lnk.path)
@@ -145,18 +145,18 @@ def test_ls_remote(current_test_branch):
         os.path.join(MLEM_TEST_REPO, f"tree/{current_test_branch}/simple")
     )
     assert len(objects) == 2
-    assert ModelMeta in objects
-    models = objects[ModelMeta]
+    assert MlemModel in objects
+    models = objects[MlemModel]
     assert len(models) == 2
     model, lnk = models
     if isinstance(model, MlemLink):
         model, lnk = lnk, model
 
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
     assert isinstance(lnk, MlemLink)
 
-    assert DatasetMeta in objects
-    assert len(objects[DatasetMeta]) == 3
+    assert MlemDataset in objects
+    assert len(objects[MlemDataset]) == 3
 
 
 def test_init(tmpdir):
@@ -174,7 +174,7 @@ def test_init_remote(s3_tmp_path, s3_storage_fs):
 
 
 def _check_meta(meta, out_path, fs=None):
-    assert isinstance(meta, ModelMeta)
+    assert isinstance(meta, MlemModel)
     fs = fs or LocalFileSystem()
     assert fs.isfile(out_path + MLEM_EXT)
 
@@ -211,7 +211,7 @@ def _check_load_artifact(
     train,
     filename=IMPORT_MODEL_FILENAME,
 ):
-    assert isinstance(meta, ModelMeta)
+    assert isinstance(meta, MlemModel)
     assert len(meta.artifacts) == 1
     art = meta.artifacts[ModelIO.art_name]
     if is_abs:

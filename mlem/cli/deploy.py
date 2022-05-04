@@ -8,8 +8,8 @@ from mlem.cli.main import (
     app,
     mlem_command,
     option_external,
+    option_index,
     option_json,
-    option_link,
     option_method,
     option_repo,
 )
@@ -17,7 +17,7 @@ from mlem.core.base import parse_string_conf
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DatasetMeta, DeployMeta
+from mlem.core.objects import MlemDataset, MlemDeploy
 from mlem.ui import echo, no_echo, set_echo
 
 deploy = Typer(
@@ -38,7 +38,7 @@ def deploy_create(
     ),
     repo: Optional[str] = option_repo,
     external: bool = option_external,
-    link: bool = option_link,
+    index: bool = option_index,
     conf: Optional[List[str]] = Option(
         None,
         "-c",
@@ -66,7 +66,7 @@ def deploy_create(
         env,
         repo,
         external=external,
-        link=link,
+        index=index,
         **parse_string_conf(conf or []),
     )
 
@@ -81,7 +81,7 @@ def deploy_teardown(
     Examples:
         $ mlem deploy teardown service_name
     """
-    deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+    deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
     deploy_meta.destroy()
 
 
@@ -96,7 +96,7 @@ def deploy_status(
         $ mlem deploy status service_name
     """
     with no_echo():
-        deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+        deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
         status = deploy_meta.get_status()
     echo(status)
 
@@ -109,7 +109,7 @@ def deploy_apply(
         None, "-o", "--output", help="Where to store the outputs."
     ),
     method: str = option_method,
-    link: bool = option_link,
+    index: bool = option_index,
     json: bool = option_json,
     repo: Optional[str] = option_repo,
 ):
@@ -121,7 +121,7 @@ def deploy_apply(
     from mlem.api import apply_remote
 
     with set_echo(None if json else ...):
-        deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+        deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
         if deploy_meta.state is None:
             raise DeploymentError(
                 f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
@@ -133,14 +133,14 @@ def deploy_apply(
             None,
             None,
             load_value=True,
-            force_type=DatasetMeta,
+            force_type=MlemDataset,
         )
         result = apply_remote(
             client,
             dataset,
             method=method,
             output=output,
-            link=link,
+            index=index,
         )
     if output is None and json:
         print(

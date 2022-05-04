@@ -28,7 +28,7 @@ from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
-from mlem.core.objects import DatasetMeta
+from mlem.core.objects import MlemDataset
 from tests.conftest import dataset_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
@@ -300,7 +300,7 @@ def iris_data():
 
 def test_save_load(iris_data, tmpdir):
     tmpdir = str(tmpdir / "data")
-    save(iris_data, tmpdir, link=False)
+    save(iris_data, tmpdir, index=False)
     data2 = load(tmpdir)
 
     pandas_assert(data2, iris_data)
@@ -318,7 +318,7 @@ def write_csv():
 
 def _check_data(meta, out_path, fs=None):
     fs = fs or LocalFileSystem()
-    assert isinstance(meta, DatasetMeta)
+    assert isinstance(meta, MlemDataset)
     dt = meta.dataset
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a", "b"]
@@ -405,7 +405,7 @@ def test_infer_format(tmpdir):
     path = str(tmpdir / "mydata.parquet")
     value = pd.DataFrame([{"a": 1}])
     meta = save(value, path)
-    assert isinstance(meta, DatasetMeta)
+    assert isinstance(meta, MlemDataset)
     assert isinstance(meta.reader, PandasReader)
     assert meta.reader.format == "parquet"
 

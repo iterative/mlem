@@ -9,10 +9,10 @@ from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemObject
 
 
-class ImportHook(Hook[MlemMeta], MlemABC, ABC):
+class ImportHook(Hook[MlemObject], MlemABC, ABC):
     """"""
 
     type: ClassVar[str]
@@ -34,17 +34,17 @@ class ImportHook(Hook[MlemMeta], MlemABC, ABC):
         copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs,
-    ) -> MlemMeta:
+    ) -> MlemObject:
         raise NotImplementedError
 
 
-class ImportAnalyzer(Analyzer[MlemMeta]):
+class ImportAnalyzer(Analyzer[MlemObject]):
     base_hook_class: ClassVar = ImportHook
 
     @classmethod
     def analyze(  # pylint: disable=arguments-differ # so what
         cls, obj: Location, copy_data: bool = True, **kwargs
-    ) -> MlemMeta:
+    ) -> MlemObject:
         if not obj.exists():
             raise FileNotFoundOnImportError(f"Nothing found at {obj.uri}")
         return super().analyze(obj, copy_data=copy_data, **kwargs)
@@ -69,7 +69,7 @@ class PickleImportHook(ExtImportHook):
         copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs,
-    ) -> MlemMeta:
+    ) -> MlemObject:
         with obj.open("rb") as f:
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)
