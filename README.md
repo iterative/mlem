@@ -5,15 +5,24 @@
 [![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
 [![PyPi](https://img.shields.io/pypi/v/mlem.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/mlem)
 
-MLEM helps you package and deploy mahcine learning models. It saves ML model metadata in a standard, human-readable format that can be used in a variety of deployment scenarios, such as real-time serving through a REST API or a batch processing task. MLEM lets you keep Git as the single source of truth for code and models.
+MLEM helps you package and deploy machine learning models.
+It saves model metadata in a standard, human-readable format that can be used in a variety of deployment scenarios, such as real-time serving through a REST API or a batch processing task.
+MLEM lets you keep Git as the single source of truth for code and models.
 
-- **Run your model anywhere you want:** wrap models as a Python package or Docker Image, or deploy them to Heroku (SageMaker, Kubernetes, and more platforms coming soon). Switch between platforms transparently, with a single command.
+- **Run your ML models anywhere:**
+  Wrap models as a Python package or Docker Image, or deploy them to Heroku (SageMaker, Kubernetes, and more platforms coming soon).
+  Switch between platforms transparently, with a single command.
 
-- **Simple text file to save model metadata:** automatically include Python requirements and input data needs into a deployment-ready format. Use the same format on any ML framework.
+- **Simple text file to save model metadata:**
+  Automatically include Python requirements and input data needs into a deployment-ready format.
+  Use the same format on any ML framework.
 
-- **Stick to your training workflow:** MLEM doesn't ask you to rewrite model training code. Just add two lines around your Python code: one to import the library and one to save the model.
+- **Stick to your training workflow:**
+  MLEM doesn't ask you to rewrite model training code.
+  Just add two lines around your Python code: one to import the library and one to save the model.
 
-- **Developer-first experience:** use the CLI when you feel like DevOps and the API when you feel like a developer.
+- **Developer-first experience:**
+  Use the CLI when you feel like DevOps and the API when you feel like a developer.
 
 ## Why is MLEM special?
 
@@ -39,7 +48,7 @@ $ pyhon -m pip install git+https://github.com/iterative/mlem
 
 ## Anonymized Usage Analytics
 
-To help us better understand how MLEM is used and improve it, MLEM captures and reports anonymized usage statistics. You will be notified the first time you run `mlem init`.
+To help us better understand how MLEM is used and improve it, MLEM captures and reports anonymized usage statistics.
 
 MLEM's analytics record the following information per event:
 
@@ -53,6 +62,8 @@ MLEM's analytics record the following information per event:
 
 ### Opting out
 
-MLEM analytics have no performance impact and help the entire community, so leaving them on is appreciated. However, to opt out set an environment variable `MLEM_NO_ANALYTICS=true` or add `no_analytics: true` to `.mlem/config.yaml`.
+MLEM analytics have no performance impact and help the entire community, so leaving them on is appreciated.
+However, to opt out set an environment variable `MLEM_NO_ANALYTICS=true` or add `no_analytics: true` to `.mlem/config.yaml`.
 
-> This will disable it for the project. We'll add an option to opt out globally soon.
+> This will disable it for the project.
+> We'll add an option to opt out globally soon.
