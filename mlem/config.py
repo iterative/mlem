@@ -89,6 +89,7 @@ class MlemConfig(MlemConfigBase):
     NO_ANALYTICS: bool = False
     TESTS: bool = False
     DEFAULT_STORAGE: Dict = {}
+    INDEX: Dict = {}
     DEFAULT_EXTERNAL: bool = False
     EMOJIS: bool = True
 
@@ -100,6 +101,14 @@ class MlemConfig(MlemConfigBase):
             return LOCAL_STORAGE
         s = parse_obj_as(Storage, self.DEFAULT_STORAGE)
         return s
+
+    @property
+    def index(self):
+        from mlem.core.index import Index, LinkIndex
+
+        if not self.INDEX:
+            return LinkIndex()
+        return parse_obj_as(Index, self.INDEX)
 
     @property
     def ADDITIONAL_EXTENSIONS(self) -> List[str]:
