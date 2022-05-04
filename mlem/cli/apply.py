@@ -21,6 +21,7 @@ from mlem.cli.main import (
     option_target_repo,
 )
 from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.errors import UnsupportedDatasetBatchLoading
 from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
 from mlem.core.objects import DatasetMeta, ModelMeta
@@ -54,6 +55,9 @@ def apply(
         # TODO: change ImportHook to MlemObject to support ext machinery
         help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
     ),
+    batch: Optional[int] = Option(
+        None, "-b", "--batch", help="Batch size for reading data in batches."
+    ),
     link: bool = option_link,
     external: bool = option_external,
     json: bool = option_json,
@@ -76,6 +80,10 @@ def apply(
 
     with set_echo(None if json else ...):
         if import_:
+            if batch:
+                raise UnsupportedDatasetBatchLoading(
+                    "Batch data loading is currently not supported for loading data on-the-fly"
+                )
             dataset = import_object(
                 data, repo=data_repo, rev=data_rev, type_=import_type
             )
@@ -84,7 +92,7 @@ def apply(
                 data,
                 data_repo,
                 data_rev,
-                load_value=True,
+                load_value=batch is None,
                 force_type=DatasetMeta,
             )
         meta = load_meta(model, repo, rev, force_type=ModelMeta)
@@ -96,6 +104,7 @@ def apply(
             output=output,
             link=link,
             external=external,
+            batch=batch,
         )
     if output is None and json:
         print(

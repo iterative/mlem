@@ -4,7 +4,17 @@ Base classes for working with datasets in MLEM
 import builtins
 import posixpath
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sized,
+    Tuple,
+    Type,
+)
 
 import flatdict
 from pydantic import BaseModel
@@ -112,6 +122,12 @@ class DatasetReader(MlemABC, ABC):
 
     @abstractmethod
     def read(self, artifacts: Artifacts) -> DatasetType:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
         raise NotImplementedError
 
 

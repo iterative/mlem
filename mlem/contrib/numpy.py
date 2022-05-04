@@ -1,5 +1,5 @@
 from types import ModuleType
-from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
@@ -215,3 +215,8 @@ class NumpyArrayReader(DatasetReader):
         with artifacts[DatasetWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]
         return self.dataset_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
