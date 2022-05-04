@@ -260,7 +260,7 @@ class ListWriter(DatasetWriter):
                 storage,
                 posixpath.join(path, str(i)),
             )
-            res[posixpath.join(self.art_name, str(i))] = art
+            res[str(i)] = art
             readers.append(elem_reader)
 
         return ListReader(dataset_type=dataset, readers=readers), res
@@ -274,8 +274,7 @@ class ListReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         data_list = []
         for i, reader in enumerate(self.readers):
-            artifact_name = posixpath.join(DatasetWriter.art_name, str(i))
-            elem_dtype = reader.read(artifacts[artifact_name])
+            elem_dtype = reader.read(artifacts[str(i)])
             data_list.append(elem_dtype.data)
         return self.dataset_type.copy().bind(data_list)
 
@@ -354,7 +353,7 @@ class _TupleLikeDatasetWriter(DatasetWriter):
                 storage,
                 posixpath.join(path, str(i)),
             )
-            res[posixpath.join(self.art_name, str(i))] = art
+            res[str(i)] = art
             readers.append(elem_reader)
 
         return (
@@ -371,8 +370,7 @@ class _TupleLikeDatasetReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         data_list = []
         for i, elem_reader in enumerate(self.readers):
-            artifact_name = posixpath.join(DatasetWriter.art_name, str(i))
-            elem_dtype = elem_reader.read(artifacts[artifact_name])
+            elem_dtype = elem_reader.read(artifacts[str(i)])
             data_list.append(elem_dtype.data)
         data_list = self.dataset_type.actual_type(data_list)
         return self.dataset_type.copy().bind(data_list)
@@ -512,7 +510,7 @@ class DictWriter(DatasetWriter):
                 storage,
                 posixpath.join(path, key),
             )
-            res[posixpath.join(self.art_name, key)] = art
+            res[key] = art
             readers[key] = dtype_reader
         return DictReader(dataset_type=dataset, item_readers=readers), res
 
@@ -525,8 +523,7 @@ class DictReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         data_dict = {}
         for (key, dtype_reader) in self.item_readers.items():
-            artifact_name = posixpath.join(DatasetWriter.art_name, key)
-            v_dataset_type = dtype_reader.read(artifacts[artifact_name])
+            v_dataset_type = dtype_reader.read(artifacts[key])
             data_dict[key] = v_dataset_type.data
         return self.dataset_type.copy().bind(data_dict)
 
