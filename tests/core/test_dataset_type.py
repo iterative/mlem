@@ -102,10 +102,17 @@ def test_list_source():
     l_value = [1, 2, 3, 4, 5]
     dt = DatasetType.create(l_value)
 
-    dataset_write_read_check(
+    artifacts = dataset_write_read_check(
         dt,
         reader_type=ListReader,
     )
+
+    assert list(artifacts.keys()) == list(map(str, range(len(l_value))))
+    assert artifacts["0"]["data"].uri.endswith("data/0")
+    assert artifacts["1"]["data"].uri.endswith("data/1")
+    assert artifacts["2"]["data"].uri.endswith("data/2")
+    assert artifacts["3"]["data"].uri.endswith("data/3")
+    assert artifacts["4"]["data"].uri.endswith("data/4")
 
 
 def test_tuple():
@@ -130,25 +137,49 @@ def test_tuple():
 
 
 def test_tuple_source():
-    t_value = (1, False, 3.2, "mlem", None)
+    t_value = (1, [3, 7], False, 3.2, "mlem", None)
     dt = DatasetType.create(t_value)
 
-    dataset_write_read_check(
+    artifacts = dataset_write_read_check(
         dt,
         reader_type=_TupleLikeDatasetReader,
         writer=_TupleLikeDatasetWriter(),
     )
+
+    assert list(artifacts.keys()) == list(map(str, range(len(t_value))))
+    assert list(artifacts["1"].keys()) == list(
+        map(str, range(len(t_value[1])))
+    )
+    assert artifacts["0"]["data"].uri.endswith("data/0")
+    assert artifacts["1"]["0"]["data"].uri.endswith("data/1/0")
+    assert artifacts["1"]["1"]["data"].uri.endswith("data/1/1")
+    assert artifacts["2"]["data"].uri.endswith("data/2")
+    assert artifacts["3"]["data"].uri.endswith("data/3")
+    assert artifacts["4"]["data"].uri.endswith("data/4")
+    assert artifacts["5"]["data"].uri.endswith("data/5")
 
 
 def test_mixed_list_source():
-    t_value = [1, False, 3.2, "mlem", None]
+    t_value = [1, [3, 7], False, 3.2, "mlem", None]
     dt = DatasetType.create(t_value)
 
-    dataset_write_read_check(
+    artifacts = dataset_write_read_check(
         dt,
         reader_type=_TupleLikeDatasetReader,
         writer=_TupleLikeDatasetWriter(),
     )
+
+    assert list(artifacts.keys()) == list(map(str, range(len(t_value))))
+    assert list(artifacts["1"].keys()) == list(
+        map(str, range(len(t_value[1])))
+    )
+    assert artifacts["0"]["data"].uri.endswith("data/0")
+    assert artifacts["1"]["0"]["data"].uri.endswith("data/1/0")
+    assert artifacts["1"]["1"]["data"].uri.endswith("data/1/1")
+    assert artifacts["2"]["data"].uri.endswith("data/2")
+    assert artifacts["3"]["data"].uri.endswith("data/3")
+    assert artifacts["4"]["data"].uri.endswith("data/4")
+    assert artifacts["5"]["data"].uri.endswith("data/5")
 
 
 def test_dict():
@@ -172,7 +203,8 @@ def test_dict():
 
 
 def test_dict_source():
-    dataset = DatasetType.create({"1": 1.5, "2": "a", "3": {"m": False}})
+    d_value = {"1": 1.5, "2": "a", "3": {"1": False}}
+    dataset = DatasetType.create(d_value)
 
     def custom_assert(x, y):
         assert x == y
@@ -180,8 +212,14 @@ def test_dict_source():
         assert isinstance(x, dict)
         assert isinstance(y, dict)
 
-    dataset_write_read_check(
+    artifacts = dataset_write_read_check(
         dataset,
         reader_type=DictReader,
         custom_assert=custom_assert,
     )
+
+    assert list(artifacts.keys()) == list(d_value.keys())
+    assert list(artifacts["3"].keys()) == list(d_value["3"].keys())
+    assert artifacts["1"]["data"].uri.endswith("data/1")
+    assert artifacts["2"]["data"].uri.endswith("data/2")
+    assert artifacts["3"]["1"]["data"].uri.endswith("data/3/1")
