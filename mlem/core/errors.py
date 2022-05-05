@@ -103,8 +103,11 @@ class DeploymentError(MlemError):
 
 
 class WrongRequirementsError(MlemError):
-    def __init__(self, wrong, missing):
-        self.wrong = f"Wrong versions for {wrong}." if wrong else ""
-        self.missing = f"Missing packages: {missing}." if missing else ""
+    def __init__(self, wrong, missing, fix):
+        self.wrong = wrong
+        self.missing = f"\nMissing packages: {missing}." if missing else ""
+        self.fix = fix
 
-        super().__init__(f"Wrong requirements: {self.wrong} {self.missing}")
+        super().__init__(
+            f"Wrong requirements: {self.wrong} {self.missing}\nTo fix it, run `{fix}`"
+        )

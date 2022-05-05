@@ -333,6 +333,17 @@ option_target_repo = Option(
     show_default="none",  # type: ignore
 )
 option_json = Option(False, "--json", help="Output as json")
+option_data_repo = Option(
+    None,
+    "--data-repo",
+    "--dr",
+    help="Repo with dataset",
+)
+option_data_rev = Option(
+    None,
+    "--data-rev",
+    help="Revision of dataset",
+)
 
 
 def option_load(type_: str = None):

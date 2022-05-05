@@ -443,6 +443,7 @@ class Requirements(BaseModel):
         from mlem.utils.module import get_module_version
 
         wrong = []
+        versions = []
         missing = []
         for req in self.installable:
             try:
@@ -450,13 +451,19 @@ class Requirements(BaseModel):
                 ver = get_module_version(mod)
                 if ver != req.version:
                     wrong.append(req)
+                    versions.append(ver)
             except ImportError:
                 missing.append(req)
 
         if wrong or missing:
             raise WrongRequirementsError(
-                Requirements.new(wrong).to_pip(),
+                "\n".join(
+                    f"{mod.module} has version {ver}, but {mod.version} is required"
+                    for mod, ver in zip(wrong, versions)
+                ),
                 Requirements.new(missing).to_pip(),
+                "pip install "
+                + " ".join(Requirements.new(wrong + missing).to_pip()),
             )
 
 
