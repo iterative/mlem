@@ -10,7 +10,7 @@ from pydantic import ValidationError, parse_obj_as
 from sklearn.datasets import load_iris
 
 from mlem.core.artifacts import Artifacts, LocalArtifact, Storage
-from mlem.core.errors import MlemRootNotFound
+from mlem.core.errors import MlemRootNotFound, WrongRequirementsError
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.model import ModelIO
@@ -21,6 +21,7 @@ from mlem.core.objects import (
     MlemMeta,
     ModelMeta,
 )
+from mlem.core.requirements import InstallableRequirement, Requirements
 from tests.conftest import (
     MLEM_TEST_REPO,
     long,
@@ -410,3 +411,18 @@ def test_remove_old_artifacts(model, tmpdir, train):
     assert os.path.isfile(tmpdir / "model" / "second.pkl")
     assert not os.path.exists(tmpdir / "model" / "first.pkl")
     load(path).predict(train)
+
+
+def test_checkenv():
+    model = ModelMeta(
+        requirements=Requirements.new(
+            InstallableRequirement(module="pytest", version=pytest.__version__)
+        )
+    )
+
+    model.checkenv()
+
+    model.requirements.__root__[0].version = "asdasd"
+
+    with pytest.raises(WrongRequirementsError):
+        model.checkenv()

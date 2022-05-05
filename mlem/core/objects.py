@@ -564,6 +564,9 @@ class _WithArtifacts(ABC, MlemMeta):
             for name, a in self.artifacts.items()
         }
 
+    def checkenv(self):
+        self.requirements.check()
+
 
 class ModelMeta(_WithArtifacts):
     object_type: ClassVar = "model"

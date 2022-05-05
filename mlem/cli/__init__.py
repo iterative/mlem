@@ -2,6 +2,7 @@
 MLEM's command-line interface
 """
 from mlem.cli.apply import apply
+from mlem.cli.checkenv import checkenv
 from mlem.cli.clone import clone
 from mlem.cli.config import config
 from mlem.cli.create import create
@@ -32,6 +33,7 @@ __all__ = [
     "import_object",
     "list_types",
     "dev",
+    "checkenv",
 ]
 
 

@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from mlem.core.base import MlemABC
 
 # I dont know how to do this better
-from mlem.core.errors import HookNotFound
+from mlem.core.errors import HookNotFound, WrongRequirementsError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
 from mlem.utils.path import make_posix
@@ -438,6 +438,26 @@ class Requirements(BaseModel):
                 import_module(cr.module)
             yield
             sys.path.remove(dirname)
+
+    def check(self):
+        from mlem.utils.module import get_module_version
+
+        wrong = []
+        missing = []
+        for req in self.installable:
+            try:
+                mod = import_module(req.module)
+                ver = get_module_version(mod)
+                if ver != req.version:
+                    wrong.append(req)
+            except ImportError:
+                missing.append(req)
+
+        if wrong or missing:
+            raise WrongRequirementsError(
+                Requirements.new(wrong).to_pip(),
+                Requirements.new(missing).to_pip(),
+            )
 
 
 def resolve_requirements(other: "AnyRequirements") -> Requirements:
