@@ -23,7 +23,6 @@ from typing import (
     overload,
 )
 
-import flatdict
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError, parse_obj_as, validator
