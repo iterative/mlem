@@ -271,10 +271,11 @@ class ListReader(DatasetReader):
     dataset_type: ListDatasetType
     readers: List[DatasetReader]
 
-    def read(self, artifacts: flatdict.FlatterDict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         data_list = []
         for i, reader in enumerate(self.readers):
-            elem_dtype = reader.read(artifacts[str(i)])
+            elem_dtype = reader.read(artifacts[str(i)])  # type: ignore
             data_list.append(elem_dtype.data)
         return self.dataset_type.copy().bind(data_list)
 
@@ -367,10 +368,11 @@ class _TupleLikeDatasetReader(DatasetReader):
     dataset_type: _TupleLikeDatasetType
     readers: List[DatasetReader]
 
-    def read(self, artifacts: flatdict.FlatterDict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         data_list = []
         for i, elem_reader in enumerate(self.readers):
-            elem_dtype = elem_reader.read(artifacts[str(i)])
+            elem_dtype = elem_reader.read(artifacts[str(i)])  # type: ignore
             data_list.append(elem_dtype.data)
         data_list = self.dataset_type.actual_type(data_list)
         return self.dataset_type.copy().bind(data_list)
@@ -522,10 +524,11 @@ class DictReader(DatasetReader):
     dataset_type: DictDatasetType
     item_readers: Dict[str, DatasetReader]
 
-    def read(self, artifacts: flatdict.FlatterDict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         data_dict = {}
         for (key, dtype_reader) in self.item_readers.items():
-            v_dataset_type = dtype_reader.read(artifacts[key])
+            v_dataset_type = dtype_reader.read(artifacts[key])  # type: ignore
             data_dict[key] = v_dataset_type.data
         return self.dataset_type.copy().bind(data_dict)
 
