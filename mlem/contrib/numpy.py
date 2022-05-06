@@ -1,10 +1,10 @@
 from types import ModuleType
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
 
-from mlem.core.artifacts import Storage
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetHook,
     DatasetReader,
@@ -168,7 +168,7 @@ class NumpyNumberWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             f.write(str(dataset.data).encode("utf-8"))
         return NumpyNumberReader(dataset_type=dataset), {self.art_name: art}
@@ -178,7 +178,7 @@ class NumpyNumberReader(DatasetReader):
     type: ClassVar[str] = "numpy_number"
     dataset_type: NumpyNumberType
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
@@ -196,7 +196,7 @@ class NumpyArrayWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: dataset.data})
         return NumpyArrayReader(dataset_type=dataset), {self.art_name: art}
@@ -207,7 +207,7 @@ class NumpyArrayReader(DatasetReader):
 
     type: ClassVar[str] = "numpy"
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"

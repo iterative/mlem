@@ -23,6 +23,7 @@ install_requires = [
     "python-daemon",
     "distro",
     "gitpython",
+    "flatdict",
 ]
 
 tests = [

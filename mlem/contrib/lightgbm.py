@@ -1,7 +1,7 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
+from typing import Any, ClassVar, List, Optional, Tuple, Type
 
 import lightgbm as lgb
 from pydantic import BaseModel
@@ -79,7 +79,7 @@ class LightGBMDatasetWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         if not isinstance(dataset, LightGBMDatasetType):
             raise ValueError(
                 f"expected dataset to be of LightGBMDatasetType, got {type(dataset)} instead"
@@ -106,7 +106,7 @@ class LightGBMDatasetReader(DatasetReader):
     inner: DatasetReader
     label: List
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         inner_dataset_type = self.inner.read(artifacts)
         return LightGBMDatasetType(inner=inner_dataset_type).bind(
             lgb.Dataset(

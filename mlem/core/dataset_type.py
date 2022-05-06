@@ -6,10 +6,11 @@ import posixpath
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
 
+import flatdict
 from pydantic import BaseModel
 from pydantic.main import create_model
 
-from mlem.core.artifacts import Storage
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import Analyzer, Hook
@@ -110,7 +111,7 @@ class DatasetReader(MlemABC, ABC):
     abs_name: ClassVar[str] = "dataset_reader"
 
     @abstractmethod
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         raise NotImplementedError
 
 
@@ -126,7 +127,7 @@ class DatasetWriter(MlemABC):
     @abstractmethod
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         raise NotImplementedError
 
 
@@ -176,7 +177,7 @@ class PrimitiveWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         with storage.open(path) as (f, art):
             f.write(str(dataset.data).encode("utf-8"))
         return PrimitiveReader(dataset_type=dataset), {self.art_name: art}
@@ -186,7 +187,7 @@ class PrimitiveReader(DatasetReader):
     type: ClassVar[str] = "primitive"
     dataset_type: PrimitiveType
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: Artifacts) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
@@ -244,7 +245,7 @@ class ListWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         if not isinstance(dataset, ListDatasetType):
             raise ValueError(
                 f"expected dataset to be of ListDatasetType, got {type(dataset)} instead"
@@ -260,7 +261,9 @@ class ListWriter(DatasetWriter):
             res[str(i)] = art
             readers.append(elem_reader)
 
-        return ListReader(dataset_type=dataset, readers=readers), res
+        return ListReader(
+            dataset_type=dataset, readers=readers
+        ), flatdict.FlatterDict(res)
 
 
 class ListReader(DatasetReader):
@@ -268,7 +271,7 @@ class ListReader(DatasetReader):
     dataset_type: ListDatasetType
     readers: List[DatasetReader]
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: flatdict.FlatterDict) -> DatasetType:
         data_list = []
         for i, reader in enumerate(self.readers):
             elem_dtype = reader.read(artifacts[str(i)])
@@ -335,7 +338,7 @@ class _TupleLikeDatasetWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         if not isinstance(dataset, _TupleLikeDatasetType):
             raise ValueError(
                 f"expected dataset to be of _TupleLikeDatasetType, got {type(dataset)} instead"
@@ -355,7 +358,7 @@ class _TupleLikeDatasetWriter(DatasetWriter):
 
         return (
             _TupleLikeDatasetReader(dataset_type=dataset, readers=readers),
-            res,
+            flatdict.FlatterDict(res),
         )
 
 
@@ -364,7 +367,7 @@ class _TupleLikeDatasetReader(DatasetReader):
     dataset_type: _TupleLikeDatasetType
     readers: List[DatasetReader]
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: flatdict.FlatterDict) -> DatasetType:
         data_list = []
         for i, elem_reader in enumerate(self.readers):
             elem_dtype = elem_reader.read(artifacts[str(i)])
@@ -494,7 +497,7 @@ class DictWriter(DatasetWriter):
 
     def write(
         self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Dict]:
+    ) -> Tuple[DatasetReader, Artifacts]:
         if not isinstance(dataset, DictDatasetType):
             raise ValueError(
                 f"expected dataset to be of DictDatasetType, got {type(dataset)} instead"
@@ -509,7 +512,9 @@ class DictWriter(DatasetWriter):
             )
             res[key] = art
             readers[key] = dtype_reader
-        return DictReader(dataset_type=dataset, item_readers=readers), res
+        return DictReader(
+            dataset_type=dataset, item_readers=readers
+        ), flatdict.FlatterDict(res)
 
 
 class DictReader(DatasetReader):
@@ -517,7 +522,7 @@ class DictReader(DatasetReader):
     dataset_type: DictDatasetType
     item_readers: Dict[str, DatasetReader]
 
-    def read(self, artifacts: Dict) -> DatasetType:
+    def read(self, artifacts: flatdict.FlatterDict) -> DatasetType:
         data_dict = {}
         for (key, dtype_reader) in self.item_readers.items():
             v_dataset_type = dtype_reader.read(artifacts[key])
