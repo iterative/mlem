@@ -24,6 +24,11 @@ from mlem.utils.github import (
     get_github_kwargs,
     github_check_rev,
 )
+from mlem.utils.gitlabfs import (
+    GitlabFileSystem,
+    get_gitlab_kwargs,
+    gitlab_check_rev,
+)
 from mlem.utils.root import MLEM_DIR, find_repo_root
 
 MLEM_EXT = ".mlem"
@@ -303,7 +308,106 @@ class GithubResolver(UriResolver):
         fs: GithubFileSystem,
         uri: str,
     ):
-        return f"https://github.com/{fs.org}/{fs.repo}/"
+        return f"https://github.com/{fs.org}/{fs.repo}/{repo or ''}"
+
+
+class GitlabResolver(UriResolver):
+    PROTOCOL = "gitlab://"
+    GITLAB_COM = "https://gitlab.com"
+
+    # TODO: support on-prem gitlab (other hosts)
+    PREFIXES = [GITLAB_COM, PROTOCOL]
+    versioning_support = True
+
+    @classmethod
+    def check(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ) -> bool:
+        fullpath = posixpath.join(repo or "", path)
+        return isinstance(fs, GitlabFileSystem) or any(
+            fullpath.startswith(h) for h in cls.PREFIXES
+        )
+
+    @classmethod
+    def get_fs(
+        cls, uri: str, rev: Optional[str]
+    ) -> Tuple[AbstractFileSystem, str]:
+        options = {}  # get_github_envs()
+        if not uri.startswith(cls.PROTOCOL):
+            try:
+                gitlab_kwargs = get_gitlab_kwargs(uri)
+            except ValueError as e:
+                raise LocationNotFound(*e.args) from e
+            options.update(gitlab_kwargs)
+            path = options.pop("path")
+            options["sha"] = rev or options.get("sha", None)
+        else:
+            path = uri
+        try:
+            fs, _, (path,) = get_fs_token_paths(
+                path, protocol="gitlab", storage_options=options
+            )
+        except FileNotFoundError as e:  # TODO catch HTTPError for wrong org/repo
+            if options["sha"] is not None and not gitlab_check_rev(
+                options["project_id"], options["sha"]
+            ):
+                raise RevisionNotFound(options["sha"], uri) from e
+            raise LocationNotFound(
+                f"Could not resolve github location {uri}"
+            ) from e
+        return fs, path
+
+    @classmethod
+    def get_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: GitlabFileSystem,
+    ):
+        fullpath = posixpath.join(repo or "", path)
+        return (
+            f"https://gitlab.com/{fs.project_id}/-/blob/{fs.root}/{fullpath}"
+        )
+
+    @classmethod
+    def pre_process(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: Optional[AbstractFileSystem],
+    ):
+        if fs is not None and not isinstance(fs, GitlabFileSystem):
+            raise TypeError(
+                f"{path, repo, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
+            )
+        if (
+            isinstance(fs, GitlabFileSystem)
+            and rev is not None
+            and fs.root != rev
+        ):
+            fs.root = rev
+            fs.invalidate_cache()
+
+        return path, repo, rev, fs
+
+    @classmethod
+    def get_repo_uri(
+        cls,
+        path: str,
+        repo: Optional[str],
+        rev: Optional[str],
+        fs: GitlabFileSystem,
+        uri: str,
+    ):
+        return (
+            f"https://gitlab.com/{fs.project_id}/-/tree/{fs.root}/{repo or ''}"
+        )
 
 
 class FSSpecResolver(UriResolver):
@@ -343,7 +447,7 @@ class FSSpecResolver(UriResolver):
         return f"{protocol}://{fullpath}"
 
 
-def get_fs(uri: str):
+def get_fs(uri: str) -> Tuple[AbstractFileSystem, str]:
     location = UriResolver.resolve(path=uri, repo=None, rev=None, fs=None)
     return location.fs, location.fullpath
 
