@@ -56,7 +56,7 @@ def rmq_server(model_meta_saved_single, rmq_instance):
 @docker_test
 def test_serving(rmq_server):
 
-    for _ in range(10):
+    for _ in range(20):
         try:
             client = RabbitMQClient(
                 host=rmq_server.host,
