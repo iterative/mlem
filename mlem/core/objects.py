@@ -668,7 +668,7 @@ class DatasetMeta(_WithArtifacts):
                 filename,
             )
             self.reader = reader
-            return flatdict.FlatterDict(artifacts, delimiter="/")
+            return artifacts
         raise ValueError("Meta is not binded to actual data")
 
     def load_value(self):
