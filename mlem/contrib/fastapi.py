@@ -6,6 +6,7 @@ from typing import ClassVar, List, Type
 import fastapi
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
 
 from mlem.core.model import Signature
@@ -74,6 +75,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def app_init(self, interface: Interface):
         app = FastAPI()
         _create_schema_route(app, interface)
+        app.add_api_route("/", lambda: RedirectResponse("/docs"))
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)

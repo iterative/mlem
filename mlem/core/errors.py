@@ -100,3 +100,14 @@ class WrongMetaType(TypeError, MlemError):
 
 class DeploymentError(MlemError):
     """Thrown if something goes wrong during deployment process"""
+
+
+class WrongRequirementsError(MlemError):
+    def __init__(self, wrong, missing, fix):
+        self.wrong = wrong
+        self.missing = f"\nMissing packages: {missing}." if missing else ""
+        self.fix = fix
+
+        super().__init__(
+            f"Wrong requirements: {self.wrong} {self.missing}\nTo fix it, run `{fix}`"
+        )

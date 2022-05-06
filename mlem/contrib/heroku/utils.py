@@ -4,6 +4,7 @@ import requests
 from requests import HTTPError
 
 from ...core.errors import DeploymentError
+from ...ui import EMOJI_BASE, EMOJI_BUILD, EMOJI_STOP, echo
 from .config import HEROKU_CONFIG
 from .meta import HerokuAppMeta, HerokuDeploy
 
@@ -47,6 +48,7 @@ def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
         data["team"] = params.team
         endpoint = "/teams/apps"
 
+    echo(EMOJI_BASE + f"Creating Heroku App {params.app_name}")
     create_data = heroku_api_request(
         "post",
         endpoint,
@@ -76,6 +78,7 @@ def get_app(app_name: str, team: str = None, api_key: str = None):
 
 
 def delete_app(app_name: str, api_key: str = None):
+    echo(EMOJI_STOP + f"Deleting {app_name} heroku app")
     return heroku_api_request(
         "delete",
         f"/apps/{app_name}",
@@ -97,7 +100,7 @@ def list_dynos(app_name: str, filter_type: str = None, api_key: str = None):
 def release_docker_app(
     app_name, image_id, image_type: str = "web", api_key: str = None
 ):
-    print("Patching formation")
+    echo(EMOJI_BUILD + f"Releasing app {app_name} formation")
     return heroku_api_request(
         "patch",
         f"/apps/{app_name}/formation",

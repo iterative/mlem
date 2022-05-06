@@ -2,6 +2,7 @@ import glob
 import logging
 import os.path
 import posixpath
+import subprocess
 import tempfile
 from typing import ClassVar, Dict, List, Optional
 
@@ -9,10 +10,11 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
 import mlem
-from mlem.core.meta_io import get_fs
+from mlem.core.meta_io import get_fs, get_uri
 from mlem.core.objects import ModelMeta
 from mlem.core.requirements import InstallableRequirement
 from mlem.pack import Packager
+from mlem.ui import EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
 
@@ -54,8 +56,10 @@ class PipMixin(SetupTemplate):
         SourceTemplate(methods=list(obj.model_type.methods)).write(
             posixpath.join(path, "__init__.py"), fs
         )
-
-        obj.clone(posixpath.join(path, "model"), fs)
+        with no_echo():
+            obj.clone(
+                posixpath.join(path, "model"), fs, external=True, link=False
+            )
         with fs.open(posixpath.join(root, "requirements.txt"), "w") as f:
             f.write(
                 "\n".join(
@@ -67,6 +71,10 @@ class PipMixin(SetupTemplate):
             )
         with fs.open(posixpath.join(root, "MANIFEST.in"), "w") as f:
             f.write(f"graft {self.package_name}")
+        echo(
+            EMOJI_PACK
+            + f"Written `{self.package_name}` package data to `{get_uri(fs, root, True)}`"
+        )
 
 
 class PipPackager(Packager, PipMixin):
@@ -83,14 +91,11 @@ class WhlPackager(Packager, PipMixin):
     target: str
 
     def build_whl(self, path, target, target_fs):
-        import subprocess
-
         target_fs.makedirs(target, exist_ok=True)
         logger.debug("Building whl from %s...", path)
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
-                f"cd {path} && pip wheel . --no-deps -w {whl_dir}",
-                shell=True,
+                f"pip wheel . --no-deps -w {whl_dir}", shell=True, cwd=path
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
             whl_name = os.path.basename(whl_path)

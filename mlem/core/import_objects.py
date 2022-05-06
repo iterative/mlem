@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import ClassVar, Optional, Tuple
 
 from mlem.core.artifacts import PlaceholderArtifact, get_file_info
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.errors import FileNotFoundOnImportError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
@@ -12,7 +12,7 @@ from mlem.core.model import ModelIO
 from mlem.core.objects import MlemMeta
 
 
-class ImportHook(Hook[MlemMeta], MlemObject, ABC):
+class ImportHook(Hook[MlemMeta], MlemABC, ABC):
     """"""
 
     type: ClassVar[str]
