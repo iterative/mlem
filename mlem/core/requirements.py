@@ -26,10 +26,10 @@ from typing import (
 
 from pydantic import BaseModel
 
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 
 # I dont know how to do this better
-from mlem.core.errors import HookNotFound
+from mlem.core.errors import HookNotFound, WrongRequirementsError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
 from mlem.utils.path import make_posix
@@ -42,7 +42,7 @@ MODULE_PACKAGE_MAPPING = {
 PACKAGE_MODULE_MAPPING = {v: k for k, v in MODULE_PACKAGE_MAPPING.items()}
 
 
-class Requirement(MlemObject):
+class Requirement(MlemABC):
     """
     Base class for python requirement
     """
@@ -438,6 +438,33 @@ class Requirements(BaseModel):
                 import_module(cr.module)
             yield
             sys.path.remove(dirname)
+
+    def check(self):
+        from mlem.utils.module import get_module_version
+
+        wrong = []
+        versions = []
+        missing = []
+        for req in self.installable:
+            try:
+                mod = import_module(req.module)
+                ver = get_module_version(mod)
+                if ver != req.version:
+                    wrong.append(req)
+                    versions.append(ver)
+            except ImportError:
+                missing.append(req)
+
+        if wrong or missing:
+            raise WrongRequirementsError(
+                "\n".join(
+                    f"{mod.module} has version {ver}, but {mod.version} is required"
+                    for mod, ver in zip(wrong, versions)
+                ),
+                Requirements.new(missing).to_pip(),
+                "pip install "
+                + " ".join(Requirements.new(wrong + missing).to_pip()),
+            )
 
 
 def resolve_requirements(other: "AnyRequirements") -> Requirements:

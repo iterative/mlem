@@ -36,7 +36,7 @@ from mlem.core.artifacts import (
     LocalArtifact,
     PlaceholderArtifact,
 )
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.dataset_type import DatasetReader, DatasetType
 from mlem.core.errors import (
     DeploymentError,
@@ -62,7 +62,7 @@ from mlem.utils.root import find_repo_root
 T = TypeVar("T", bound="MlemMeta")
 
 
-class MlemMeta(MlemObject):
+class MlemMeta(MlemABC):
     """"""
 
     class Config:
@@ -172,7 +172,7 @@ class MlemMeta(MlemObject):
         """
         echo(
             EMOJI_LOAD
-            + f"Loading {getattr(cls, 'object_type', 'meta')} from {location.uri}"
+            + f"Loading {getattr(cls, 'object_type', 'meta')} from {location.uri_repr}"
         )
         with location.open() as f:
             payload = safe_load(f)
@@ -227,7 +227,7 @@ class MlemMeta(MlemObject):
         link: bool,
     ):
         """Write metadata to path in fs and possibly create link in mlem dir"""
-        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri}")
+        echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri_repr}")
         location.fs.makedirs(
             posixpath.dirname(location.fullpath), exist_ok=True
         )
@@ -335,7 +335,12 @@ class MlemMeta(MlemObject):
     def update(self):
         if not self.is_saved:
             raise MlemObjectNotSavedError("Cannot update not saved object")
-        self._write_meta(self.location, False)
+        echo(
+            EMOJI_SAVE
+            + f"Updating {self.object_type} at {self.location.uri_repr}"
+        )
+        with no_echo():
+            self._write_meta(self.location, False)
 
 
 class MlemLink(MlemMeta):
@@ -354,7 +359,7 @@ class MlemLink(MlemMeta):
     def resolved_type(self):
         return self.link_type
 
-    @validator("path", "repo")
+    @validator("path", "repo", allow_reuse=True)
     def make_posix(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
@@ -378,7 +383,7 @@ class MlemLink(MlemMeta):
         if force_type is not None and self.link_cls != force_type:
             raise WrongMetaType(self.link_type, force_type)
         link = self.parse_link()
-        echo(EMOJI_LINK + f"Loading link to {link.uri}")
+        echo(EMOJI_LINK + f"Loading link to {link.uri_repr}")
         with no_echo():
             return self.link_cls.read(link, follow_links=follow_links)
 
@@ -559,6 +564,9 @@ class _WithArtifacts(ABC, MlemMeta):
             for name, a in self.artifacts.items()
         }
 
+    def checkenv(self):
+        self.requirements.check()
+
 
 class ModelMeta(_WithArtifacts):
     object_type: ClassVar = "model"
@@ -672,7 +680,7 @@ class DatasetMeta(_WithArtifacts):
         return self.data
 
 
-class DeployState(MlemObject):
+class DeployState(MlemABC):
     """"""
 
     class Config:
