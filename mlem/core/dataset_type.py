@@ -171,9 +171,6 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return create_model("Primitive", __root__=(self.to_type, ...))
 
 
-DATA_FILE = "data.txt"
-
-
 class PrimitiveWriter(DatasetWriter):
     type: ClassVar[str] = "primitive"
 
@@ -192,16 +189,16 @@ class PrimitiveReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
-            res = f.read()
-            if res.decode("utf-8") == "None":
+            res = f.read().decode("utf-8")
+            if res == "None":
                 data = None
-            elif res.decode("utf-8") == "False":
+            elif res == "False":
                 data = False
             else:
-                data = self.dataset_type.to_type(res.decode("utf-8"))
+                data = self.dataset_type.to_type(res)
             return self.dataset_type.copy().bind(data)
 
 

@@ -62,8 +62,8 @@ class NumpyNumberType(
         return instance.item()
 
     @property
-    def actual_type(self) -> np.dtype:
-        return np_type_from_string(self.dtype)
+    def actual_type(self) -> Type:
+        return np_type_from_string(self.dtype).type
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
@@ -157,12 +157,10 @@ class NumpyNdarrayType(
             )
 
     def get_writer(self, **kwargs):
-        return NumpyArrayWriter(**kwargs)
+        return NumpyArrayWriter()
 
 
-DATA_FILE = "data.npz"
 DATA_KEY = "data"
-DATA_FILE_FOR_NUMBER = "data.txt"
 
 
 class NumpyNumberWriter(DatasetWriter):
@@ -183,11 +181,11 @@ class NumpyNumberReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DATA_FILE_FOR_NUMBER} file"
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             res = f.read()
-            data = getattr(np, self.dataset_type.dtype)(res)
+            data = self.dataset_type.actual_type(res)
             return self.dataset_type.copy().bind(data)
 
 
@@ -212,7 +210,7 @@ class NumpyArrayReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]

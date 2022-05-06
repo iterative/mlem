@@ -44,7 +44,7 @@ def test_ndarray_source():
 
 @pytest.fixture
 def nat():
-    return DatasetAnalyzer.analyze(np.array([[1, 2], [3, 4]]))
+    return DatasetType.create(np.array([[1, 2], [3, 4]]))
 
 
 def test_python_type_from_np_string_repr():
@@ -80,9 +80,12 @@ def test_number():
         "title": "NumpyNumber",
         "type": "number",
     }
+    n_payload = ndt.get_serializer().serialize(value)
+    assert ndt.get_serializer().deserialize(n_payload) == value
 
 
 def test_ndarray(nat):
+    value = nat.data
     assert isinstance(nat, NumpyNdarrayType)
     assert nat.shape == (None, 2)
     assert python_type_from_np_string_repr(nat.dtype) == int
@@ -101,6 +104,8 @@ def test_ndarray(nat):
             "maxItems": 2,
         },
     }
+    n_payload = nat.get_serializer().serialize(value)
+    assert (nat.get_serializer().deserialize(n_payload) == value).all()
 
 
 @pytest.mark.parametrize(

@@ -77,9 +77,6 @@ class TorchTensorDatasetType(
         )
 
 
-DATA_FILE = "data.pt"
-
-
 class TorchTensorWriter(DatasetWriter):
     type: ClassVar[str] = "torch"
 
@@ -97,7 +94,7 @@ class TorchTensorReader(DatasetReader):
     def read(self, artifacts: Dict) -> DatasetType:
         if DatasetWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             data = torch.load(f)

@@ -31,7 +31,9 @@ def np_payload():
 @pytest.fixture
 def dataset_np(np_payload):
     return lgb.Dataset(
-        np_payload, label=np_payload.reshape((-1,)), free_raw_data=False
+        np_payload,
+        label=np_payload.reshape((-1,)).tolist(),
+        free_raw_data=False,
     )
 
 
@@ -44,7 +46,7 @@ def df_payload():
 def dataset_df(df_payload):
     return lgb.Dataset(
         df_payload,
-        label=np.array([0, 1]),
+        label=np.array([0, 1]).tolist(),
         free_raw_data=False,
     )
 

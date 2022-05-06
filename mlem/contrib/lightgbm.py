@@ -1,7 +1,7 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Dict, Optional, Tuple, Type
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
 
 import lightgbm as lgb
 from pydantic import BaseModel
@@ -86,7 +86,7 @@ class LightGBMDatasetWriter(DatasetWriter):
             )
         lightgbm_construct = dataset.data.construct()
         raw_data = lightgbm_construct.get_data()
-        underlying_labels = lightgbm_construct.get_label()
+        underlying_labels = lightgbm_construct.get_label().tolist()
         inner_reader, art = dataset.inner.get_writer().write(
             dataset.inner.copy().bind(raw_data), storage, path
         )
@@ -104,7 +104,7 @@ class LightGBMDatasetReader(DatasetReader):
     type: ClassVar[str] = "lightgbm"
     dataset_type: LightGBMDatasetType
     inner: DatasetReader
-    label: Any
+    label: List
 
     def read(self, artifacts: Dict) -> DatasetType:
         inner_dataset_type = self.inner.read(artifacts)
