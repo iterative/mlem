@@ -55,7 +55,7 @@ def rmq_server(model_meta_saved_single, rmq_instance):
 @long
 @docker_test
 def test_serving(rmq_server):
-
+    error = None
     for _ in range(20):
         try:
             client = RabbitMQClient(
@@ -66,7 +66,10 @@ def test_serving(rmq_server):
             res = client.predict(np.array([[1.0, 1.0, 1.0, 1.0]]))
             assert isinstance(res, np.ndarray)
             break
-        except AMQPError:
+        except AMQPError as e:
             time.sleep(0.5)
+            error = e
     else:
+        if error is not None:
+            raise error
         pytest.fail("could not connect to server")
