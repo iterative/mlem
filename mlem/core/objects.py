@@ -23,6 +23,7 @@ from typing import (
     overload,
 )
 
+import flatdict
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError, parse_obj_as, validator
@@ -667,7 +668,7 @@ class DatasetMeta(_WithArtifacts):
                 filename,
             )
             self.reader = reader
-            return artifacts
+            return flatdict.FlatterDict(artifacts, delimiter="/")
         raise ValueError("Meta is not binded to actual data")
 
     def load_value(self):

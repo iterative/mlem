@@ -263,7 +263,7 @@ class ListWriter(DatasetWriter):
 
         return ListReader(
             dataset_type=dataset, readers=readers
-        ), flatdict.FlatterDict(res)
+        ), flatdict.FlatterDict(res, delimiter="/")
 
 
 class ListReader(DatasetReader):
@@ -358,7 +358,7 @@ class _TupleLikeDatasetWriter(DatasetWriter):
 
         return (
             _TupleLikeDatasetReader(dataset_type=dataset, readers=readers),
-            flatdict.FlatterDict(res),
+            flatdict.FlatterDict(res, delimiter="/"),
         )
 
 
@@ -514,7 +514,7 @@ class DictWriter(DatasetWriter):
             readers[key] = dtype_reader
         return DictReader(
             dataset_type=dataset, item_readers=readers
-        ), flatdict.FlatterDict(res)
+        ), flatdict.FlatterDict(res, delimiter="/")
 
 
 class DictReader(DatasetReader):
