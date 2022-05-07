@@ -40,10 +40,9 @@ $ pip install git+https://github.com/iterative/mlem
 
 ```python
 # train.py
-from mlem.api import load, save
+from mlem.api import save
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
 
 def main():
     data, y = load_iris(return_X_y=True, as_frame=True)
@@ -74,7 +73,8 @@ rf.mlem
 $ cat rf.mlem
 ```
 <details>
-  <summary>Output: yaml file contents</summary>
+  <summary>Click to show `cat` output</summary>
+
 ```yaml
 artifacts:
   data:
@@ -202,7 +202,7 @@ $ mlem create env heroku staging
 Define the deployment:
 
 ```shell
-$ mlem create deployment staging myservice -c app_name=mlem-quick-start -c model=rf -c env=staging
+$ mlem create deployment heroku myservice -c app_name=mlem-quick-start -c model=rf -c env=staging
 💾 Saving deployment to service_name.mlem
 ```
 
@@ -226,10 +226,51 @@ $ mlem deploy create myservice
 💾 Updating deployment at .mlem/deployment/myservice.mlem
 🛠 Releasing app my-mlem-service formation
 💾 Updating deployment at .mlem/deployment/myservice.mlem
-✅  Service example-mlem-get-started is up. You can check it out at https://my-mlem-service.herokuapp.com/
+✅  Service example-mlem-get-started is up. You can check it out at https://mlem-quick-start.herokuapp.com/
 ```
 
 ### Check the deployment
 
+https://mlem-quick-start.herokuapp.com
+
+Let's save some data first:
+```python
+# save_data.py
+from mlem.api import save
+from sklearn.datasets import load_iris
+
+def main():
+    data, y = load_iris(return_X_y=True, as_frame=True)
+    save(
+        data,
+        "train.csv",
+        description="Training data for Random Forest Classifier",
+    )
+
+if __name__ == "__main__":
+    main()
+```
+
+```
+$ mlem apply-remote http train.csv -c host=https://mlem-quick-start.herokuapp.com -c port=80 --json
+```
+
 ### Stop the deployment
 
+```
+$ mlem deploy status myservice.mlem
+running
+```
+
+```
+$ mlem deploy teardown myservice.mlem
+⏳️ Loading deployment from myservice.mlem
+🔗 Loading link to file://staging.mlem
+🔻 Deleting mlem-quick-start heroku app
+💾 Updating deployment at myservice.mlem
+```
+
+```
+$ mlem deploy status myservice.mlem
+not_deployed
+```
