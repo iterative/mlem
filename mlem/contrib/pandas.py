@@ -598,6 +598,11 @@ class PandasSeriesReader(_PandasIO, DatasetReader):
             data.index.name = None
         return self.dataset_type.copy().bind(data)
 
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
 
 class PandasSeriesWriter(DatasetWriter, _PandasIO):
     """DatasetWriter for pandas series"""

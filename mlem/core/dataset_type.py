@@ -218,6 +218,11 @@ class PrimitiveReader(DatasetReader):
                 data = self.dataset_type.to_type(res)
             return self.dataset_type.copy().bind(data)
 
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
 
 class ListDatasetType(DatasetType, DatasetSerializer):
     """
@@ -294,6 +299,11 @@ class ListReader(DatasetReader):
             elem_dtype = reader.read(artifacts[str(i)])  # type: ignore
             data_list.append(elem_dtype.data)
         return self.dataset_type.copy().bind(data_list)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
@@ -392,6 +402,11 @@ class _TupleLikeDatasetReader(DatasetReader):
             data_list.append(elem_dtype.data)
         data_list = self.dataset_type.actual_type(data_list)
         return self.dataset_type.copy().bind(data_list)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 class TupleLikeListDatasetType(_TupleLikeDatasetType):
@@ -547,6 +562,11 @@ class DictReader(DatasetReader):
             v_dataset_type = dtype_reader.read(artifacts[key])  # type: ignore
             data_dict[key] = v_dataset_type.data
         return self.dataset_type.copy().bind(data_dict)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 #

@@ -1,7 +1,7 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, List, Optional, Tuple, Type
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type
 
 import lightgbm as lgb
 from pydantic import BaseModel
@@ -113,6 +113,11 @@ class LightGBMDatasetReader(DatasetReader):
                 inner_dataset_type.data, label=self.label, free_raw_data=False
             )
         )
+
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 class LightGBMModelIO(ModelIO):

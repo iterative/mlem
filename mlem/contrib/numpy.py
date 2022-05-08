@@ -188,6 +188,11 @@ class NumpyNumberReader(DatasetReader):
             data = self.dataset_type.actual_type(res)
             return self.dataset_type.copy().bind(data)
 
+    def read_batch(
+        self, artifacts: Artifacts, batch: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
 
 class NumpyArrayWriter(DatasetWriter):
     """DatasetWriter implementation for numpy ndarray"""
