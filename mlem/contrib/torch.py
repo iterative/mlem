@@ -101,7 +101,7 @@ class TorchTensorReader(DatasetReader):
             return self.dataset_type.copy().bind(data)
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 

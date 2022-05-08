@@ -115,7 +115,7 @@ class LightGBMDatasetReader(DatasetReader):
         )
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 

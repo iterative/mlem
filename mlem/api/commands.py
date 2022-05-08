@@ -60,7 +60,7 @@ def apply(
     target_repo: str = None,
     link: bool = None,
     external: bool = None,
-    batch: Optional[int] = None,
+    batch_size: Optional[int] = None,
 ) -> Optional[Any]:
     """Apply provided model against provided data
 
@@ -87,10 +87,10 @@ def apply(
     except WrongMethodError:
         resolved_method = PREDICT_METHOD_NAME
     echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
-    if batch:
+    if batch_size:
         res: Any = []
         for part in data:
-            batch_dataset = get_dataset_value(part, batch)
+            batch_dataset = get_dataset_value(part, batch_size)
             for chunk in batch_dataset:
                 preds = w.call_method(resolved_method, chunk.data)
                 res += [*preds]

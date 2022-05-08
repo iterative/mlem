@@ -31,8 +31,17 @@ from mlem.contrib.pandas import (
     string_repr_from_pd_type,
 )
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetReader, DatasetType
-from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.dataset_type import (
+    DatasetAnalyzer,
+    DatasetReader,
+    DatasetType,
+    DatasetWriter,
+)
+from mlem.core.errors import (
+    DeserializationError,
+    SerializationError,
+    UnsupportedDatasetBatchLoadingType,
+)
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import DatasetMeta
@@ -170,6 +179,30 @@ def dataset_write_read_batch_check(
         assert custom_eq(df, dataset.data)
 
 
+def dataset_write_read_batch_unsupported(
+    dataset: DatasetType,
+    batch: int,
+    writer: DatasetWriter = None,
+    reader_type: Type[DatasetReader] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        writer = writer or dataset.get_writer()
+
+        storage = LOCAL_STORAGE
+        reader, artifacts = writer.write(
+            dataset, storage, posixpath.join(tmpdir, "data")
+        )
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        with pytest.raises(
+            UnsupportedDatasetBatchLoadingType,
+            match="Batch-loading Dataset of type.*",
+        ):
+            iter = reader.read_batch(artifacts, batch)
+            next(iter)
+
+
 @for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_simple_df(data, format):
     writer = PandasWriter(format=format)
@@ -196,6 +229,21 @@ def test_simple_batch_df(data, format):
         format,
         PandasReader,
         pd.DataFrame.equals,
+    )
+
+
+@for_all_formats(
+    valid_formats=PANDAS_FORMATS,
+    exclude=[
+        "csv",
+        "json",
+        "stata",
+    ],
+)
+def test_unsupported_batch_df(data, format):
+    writer = PandasWriter(format=format)
+    dataset_write_read_batch_unsupported(
+        DatasetType.create(data), 2, writer, PandasReader
     )
 
 

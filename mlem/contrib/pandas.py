@@ -529,14 +529,14 @@ PANDAS_SERIES_FORMATS = {
 }
 
 
-def get_pandas_batch_formats(batch: int):
+def get_pandas_batch_formats(batch_size: int):
     PANDAS_FORMATS = {
         "csv": PandasFormat(
             pd.read_csv,
             pd.DataFrame.to_csv,
             file_name="data.csv",
             write_args={"index": False},
-            read_args={"chunksize": batch},
+            read_args={"chunksize": batch_size},
         ),
         "json": PandasFormat(
             pd.read_json,
@@ -551,13 +551,17 @@ def get_pandas_batch_formats(batch: int):
             # Pandas supports batch-reading for JSON only if the JSON file is line-delimited
             # and orient to be records
             # https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#line-delimited-json
-            read_args={"chunksize": batch, "orient": "records", "lines": True},
+            read_args={
+                "chunksize": batch_size,
+                "orient": "records",
+                "lines": True,
+            },
         ),
         "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
             pd.read_stata,
             pd.DataFrame.to_stata,
             write_args={"write_index": False},
-            read_args={"chunksize": batch},
+            read_args={"chunksize": batch_size},
         ),
     }
 
@@ -599,7 +603,7 @@ class PandasSeriesReader(_PandasIO, DatasetReader):
         return self.dataset_type.copy().bind(data)
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 
@@ -633,9 +637,9 @@ class PandasReader(_PandasIO, DatasetReader):
         )
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
-        batch_formats = get_pandas_batch_formats(batch)
+        batch_formats = get_pandas_batch_formats(batch_size)
         if self.format not in batch_formats:
             raise UnsupportedDatasetBatchLoadingType(self.format)
         fmt = batch_formats[self.format]

@@ -126,7 +126,7 @@ class DatasetReader(MlemABC, ABC):
 
     @abstractmethod
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 
@@ -219,7 +219,7 @@ class PrimitiveReader(DatasetReader):
             return self.dataset_type.copy().bind(data)
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 
@@ -301,7 +301,7 @@ class ListReader(DatasetReader):
         return self.dataset_type.copy().bind(data_list)
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 
@@ -404,7 +404,7 @@ class _TupleLikeDatasetReader(DatasetReader):
         return self.dataset_type.copy().bind(data_list)
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 
@@ -564,7 +564,7 @@ class DictReader(DatasetReader):
         return self.dataset_type.copy().bind(data_dict)
 
     def read_batch(
-        self, artifacts: Artifacts, batch: int
+        self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DatasetType]:
         raise NotImplementedError
 

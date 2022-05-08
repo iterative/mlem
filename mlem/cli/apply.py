@@ -55,8 +55,11 @@ def apply(
         # TODO: change ImportHook to MlemObject to support ext machinery
         help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
     ),
-    batch: Optional[int] = Option(
-        None, "-b", "--batch", help="Batch size for reading data in batches."
+    batch_size: Optional[int] = Option(
+        None,
+        "-b",
+        "--batch_size",
+        help="Batch size for reading data in batches.",
     ),
     link: bool = option_link,
     external: bool = option_external,
@@ -80,7 +83,7 @@ def apply(
 
     with set_echo(None if json else ...):
         if import_:
-            if batch:
+            if batch_size:
                 raise UnsupportedDatasetBatchLoading(
                     "Batch data loading is currently not supported for loading data on-the-fly"
                 )
@@ -92,7 +95,7 @@ def apply(
                 data,
                 data_repo,
                 data_rev,
-                load_value=batch is None,
+                load_value=batch_size is None,
                 force_type=DatasetMeta,
             )
         meta = load_meta(model, repo, rev, force_type=ModelMeta)
@@ -104,7 +107,7 @@ def apply(
             output=output,
             link=link,
             external=external,
-            batch=batch,
+            batch_size=batch_size,
         )
     if output is None and json:
         print(
