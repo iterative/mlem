@@ -28,12 +28,12 @@ from mlem.core.import_objects import ImportAnalyzer, ImportHook
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
-    DatasetMeta,
-    DeployMeta,
+    MlemDataset,
+    MlemDeploy,
+    MlemEnv,
     MlemLink,
-    MlemMeta,
-    ModelMeta,
-    TargetEnvMeta,
+    MlemModel,
+    MlemObject,
 )
 from mlem.pack import Packager
 from mlem.runtime.client.base import BaseClient
@@ -52,25 +52,25 @@ from mlem.utils.root import find_repo_root, mlem_repo_exists
 
 
 def apply(
-    model: Union[str, ModelMeta],
-    *data: Union[str, DatasetMeta, Any],
+    model: Union[str, MlemModel],
+    *data: Union[str, MlemDataset, Any],
     method: str = None,
     output: str = None,
     target_repo: str = None,
-    link: bool = None,
+    index: bool = None,
     external: bool = None,
 ) -> Optional[Any]:
     """Apply provided model against provided data
 
     Args:
-        model (ModelMeta): MLEM model.
+        model (MlemModel): MLEM model.
         data (Any): Input to the model.
         method (str, optional): Which model method to use.
             If None, use the only method model has.
             If more than one is available, will fail.
         output (str, optional): If value is provided,
             assume it's path and save output there.
-        link (bool): Whether to create a link to saved output in MLEM root folder.
+        index (bool): Whether to index saved output in MLEM root folder.
         external (bool): Whether to save result outside mlem dir
 
     Returns:
@@ -95,7 +95,7 @@ def apply(
         return res
     if len(res) == 1:
         return save(
-            res[0], output, repo=target_repo, external=external, link=link
+            res[0], output, repo=target_repo, external=external, index=index
         )
 
     raise NotImplementedError(
@@ -105,11 +105,11 @@ def apply(
 
 def apply_remote(
     client: Union[str, BaseClient],
-    *data: Union[str, DatasetMeta, Any],
+    *data: Union[str, MlemDataset, Any],
     method: str = None,
     output: str = None,
     target_repo: str = None,
-    link: bool = False,
+    index: bool = False,
     **client_kwargs,
 ) -> Optional[Any]:
     """Apply provided model against provided data
@@ -122,7 +122,7 @@ def apply_remote(
             If more than one is available, will fail.
         output (str, optional): If value is provided,
             assume it's path and save output there.
-        link (bool): Whether to create a link to saved output in MLEM root folder.
+        index (bool): Whether to index saved output in MLEM root folder.
 
     Returns:
         If `output=None`, returns results for given data.
@@ -145,7 +145,7 @@ def apply_remote(
             return res[0]
         return res
     if len(res) == 1:
-        return save(res[0], output, repo=target_repo, link=link)
+        return save(res[0], output, repo=target_repo, index=index)
 
     raise NotImplementedError(
         "Saving several input data objects is not implemented yet"
@@ -162,9 +162,9 @@ def clone(
     target_fs: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
-    link: bool = None,
+    index: bool = None,
     external: bool = None,
-) -> MlemMeta:
+) -> MlemObject:
     """Clones MLEM object from `path` to `out`
         and returns Python representation for the created object
 
@@ -178,12 +178,12 @@ def clone(
         target_fs (Optional[AbstractFileSystem], optional): target filesystem
         follow_links (bool, optional): If object we read is a MLEM link, whether to load
             the actual object link points to. Defaults to True.
-        load_value (bool, optional): Load actual python object incorporated in MlemMeta object. Defaults to False.
-        link: whether to create link in target repo
+        load_value (bool, optional): Load actual python object incorporated in MlemObject. Defaults to False.
+        index: whether to index object in target repo
         external: wheter to put object inside mlem dir in target repo
 
     Returns:
-        MlemMeta: Copy of initial object saved to `out`
+        MlemObject: Copy of initial object saved to `out`
     """
     meta = load_meta(
         path,
@@ -197,7 +197,7 @@ def clone(
     if target in ("", "."):
         target = posixpath.basename(meta.loc.uri)
     return meta.clone(
-        target, fs=target_fs, repo=target_repo, link=link, external=external
+        target, fs=target_fs, repo=target_repo, index=index, external=external
     )
 
 
@@ -262,7 +262,7 @@ def init(path: str = ".") -> None:
 
 
 def link(
-    source: Union[str, MlemMeta],
+    source: Union[str, MlemObject],
     source_repo: Optional[str] = None,
     rev: Optional[str] = None,
     target: Optional[str] = None,
@@ -274,7 +274,7 @@ def link(
     """Creates MlemLink for an `source` object and dumps it if `target` is provided
 
     Args:
-        source (Union[str, MlemMeta]): The object to create link from.
+        source (Union[str, MlemObject]): The object to create link from.
         source_repo (str, optional): Path to mlem repo where to load obj from
         rev (str, optional): Revision if object is stored in git repo.
         target (str, optional): Where to store the link object.
@@ -288,7 +288,7 @@ def link(
     Returns:
         MlemLink: Link object to the `source`.
     """
-    if isinstance(source, MlemMeta):
+    if isinstance(source, MlemObject):
         if not source.is_saved:
             raise MlemObjectNotSavedError("Cannot link not saved meta object")
     else:
@@ -309,7 +309,7 @@ def link(
 
 def pack(
     packager: Union[str, Packager],
-    model: Union[str, ModelMeta],
+    model: Union[str, MlemModel],
     **packager_kwargs,
 ):
     """Pack model in docker-build-ready folder or directly build a docker image.
@@ -317,7 +317,7 @@ def pack(
     Args:
         packager (Union[str, Packager]): Packager to use.
             Out-of-the-box supported string values are "docker_dir" and "docker".
-        model (Union[str, ModelMeta]): The model to pack.
+        model (Union[str, MlemModel]): The model to pack.
     """
     model = get_model_meta(model)
     return ensure_mlem_object(Packager, packager, **packager_kwargs).package(
@@ -325,11 +325,11 @@ def pack(
     )
 
 
-def serve(model: ModelMeta, server: Union[Server, str], **server_kwargs):
+def serve(model: MlemModel, server: Union[Server, str], **server_kwargs):
     """Serve model via HTTP/HTTPS.
 
     Args:
-        model (ModelMeta): The model to serve.
+        model (MlemModel): The model to serve.
         server (Union[Server, str]): Out-of-the-box supported one is "fastapi".
     """
     from mlem.runtime.interface.base import ModelInterface
@@ -355,12 +355,14 @@ def ls(  # pylint: disable=too-many-locals
     repo: str = ".",
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
-    type_filter: Union[Type[MlemMeta], Iterable[Type[MlemMeta]], None] = None,
+    type_filter: Union[
+        Type[MlemObject], Iterable[Type[MlemObject]], None
+    ] = None,
     include_links: bool = True,
-) -> Dict[Type[MlemMeta], List[MlemMeta]]:
+) -> Dict[Type[MlemObject], List[MlemObject]]:
     if type_filter is None:
-        type_filter = set(MlemMeta.non_abstract_subtypes().values())
-    if isinstance(type_filter, type) and issubclass(type_filter, MlemMeta):
+        type_filter = set(MlemObject.non_abstract_subtypes().values())
+    if isinstance(type_filter, type) and issubclass(type_filter, MlemObject):
         type_filter = {type_filter}
     type_filter = set(type_filter)
     if len(type_filter) == 0:
@@ -395,7 +397,7 @@ def ls(  # pylint: disable=too-many-locals
                 ]
                 is_auto_link = meta.path == link_name + MLEM_EXT
 
-                obj_type = MlemMeta.__type_map__[meta.link_type]
+                obj_type = MlemObject.__type_map__[meta.link_type]
                 if obj_type not in type_filter:
                     continue
                 if is_auto_link:
@@ -418,7 +420,7 @@ def import_object(
     type_: Optional[str] = None,
     copy_data: bool = True,
     external: bool = None,
-    link: bool = None,
+    index: bool = None,
 ):
     """Try to load an object as MLEM model (or dataset) and return it,
     optionally saving to the specified target location
@@ -439,29 +441,29 @@ def import_object(
             target,
             fs=target_fs,
             repo=target_repo,
-            link=link,
+            index=index,
             external=external,
         )
     return meta
 
 
 def deploy(
-    deploy_meta_or_path: Union[DeployMeta, str],
-    model: Union[ModelMeta, str] = None,
-    env: Union[TargetEnvMeta, str] = None,
+    deploy_meta_or_path: Union[MlemDeploy, str],
+    model: Union[MlemModel, str] = None,
+    env: Union[MlemEnv, str] = None,
     repo: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
     external: bool = None,
-    link: bool = None,
+    index: bool = None,
     **deploy_kwargs,
-) -> DeployMeta:
+) -> MlemDeploy:
     if isinstance(deploy_meta_or_path, str):
         try:
             deploy_meta = load_meta(
                 path=deploy_meta_or_path,
                 repo=repo,
                 fs=fs,
-                force_type=DeployMeta,
+                force_type=MlemDeploy,
             )
         except MlemObjectNotFound as e:
             if model is None or env is None:
@@ -469,7 +471,7 @@ def deploy(
                     "Please provide model and env args for new deployment"
                 ) from e
             model_meta = get_model_meta(model)
-            env_meta = ensure_meta(TargetEnvMeta, env)
+            env_meta = ensure_meta(MlemEnv, env)
             deploy_meta = env_meta.deploy_type(
                 model=model_meta,
                 env=env_meta,
@@ -477,7 +479,7 @@ def deploy(
                 model_link=model_meta.make_link(),
                 **deploy_kwargs,
             )
-            deploy_meta.dump(deploy_meta_or_path, fs, repo, link, external)
+            deploy_meta.dump(deploy_meta_or_path, fs, repo, index, external)
     else:
         deploy_meta = deploy_meta_or_path
 

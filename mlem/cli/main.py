@@ -22,7 +22,7 @@ from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
 from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
@@ -313,10 +313,10 @@ option_method = Option(
     help="Which model method is to be applied",
 )
 option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
-option_link = Option(
+option_index = Option(
     None,
-    "--link/--no-link",
-    help="Whether to create link for output in .mlem directory",
+    "--index/--no-index",
+    help="Whether to index output in .mlem directory",
 )
 option_external = Option(
     None,
@@ -436,7 +436,7 @@ def config_arg(
 ):
     obj: MlemABC
     if load is not None:
-        if issubclass(model, MlemMeta):
+        if issubclass(model, MlemObject):
             obj = load_meta(load, force_type=model)
         else:
             with open(load, "r", encoding="utf8") as of:

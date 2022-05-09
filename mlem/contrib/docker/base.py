@@ -19,7 +19,7 @@ from mlem.contrib.docker.utils import (
 )
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.pack import Packager
 from mlem.runtime.server.base import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_OK, EMOJI_UPLOAD, echo
@@ -305,7 +305,7 @@ class DockerDirPackager(Packager, _DockerPackMixin):
     type: ClassVar[str] = "docker_dir"
     target: str
 
-    def package(self, obj: ModelMeta):
+    def package(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(
             model=obj,
             server=self.server,
@@ -324,7 +324,7 @@ class DockerImagePackager(Packager, _DockerPackMixin):
     force_overwrite: bool = False
     push: bool = True
 
-    def package(self, obj: ModelMeta) -> DockerImage:
+    def package(self, obj: MlemModel) -> DockerImage:
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
                 self.args.prebuild_hook(  # pylint: disable=not-callable # but it is

@@ -14,7 +14,7 @@ from mlem.api import init
 from mlem.constants import MLEM_DIR
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import MlemLink, ModelMeta
+from mlem.core.objects import MlemLink, MlemModel
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -62,8 +62,8 @@ def test_model_saving_without_sample_data(model, tmpdir_factory):
     path = str(
         tmpdir_factory.mktemp("saving-models-without-sample-data") / "model"
     )
-    # link=True would require having .mlem folder somewhere
-    save(model, path, link=False)
+    # index=True would require having .mlem folder somewhere
+    save(model, path, index=False)
 
 
 def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
@@ -71,7 +71,7 @@ def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
     init(repo)
     model_dir = os.path.join(repo, "generated-model")
     model, train, _ = model_train_target
-    save(model, model_dir, tmp_sample_data=train, link=True)
+    save(model, model_dir, sample_data=train, index=True)
 
 
 def test_model_saving(model_path):
@@ -99,7 +99,7 @@ def test_model_loading_remote_dvc(current_test_branch):
 
 
 def test_meta_loading(model_path):
-    model = load_meta(model_path, load_value=True, force_type=ModelMeta)
+    model = load_meta(model_path, load_value=True, force_type=MlemModel)
     assert isinstance(model.model_type.model, DecisionTreeClassifier)
     train, _ = load_iris(return_X_y=True)
     model.model_type.model.predict(train)

@@ -167,7 +167,7 @@ def build_mlem_object(
 
 
 def parse_links(model: Type["BaseModel"], str_conf: List[str]):
-    from mlem.core.objects import MlemLink, MlemMeta
+    from mlem.core.objects import MlemLink, MlemObject
 
     not_links = []
     links = {}
@@ -183,7 +183,7 @@ def parse_links(model: Type["BaseModel"], str_conf: List[str]):
     link_types = {
         name: f.type_
         for name, f in model.__fields__.items()
-        if name in link_mapping and issubclass(f.type_, MlemMeta)
+        if name in link_mapping and issubclass(f.type_, MlemObject)
     }
     for c in str_conf:
         keys, value = smart_split(c, "=")

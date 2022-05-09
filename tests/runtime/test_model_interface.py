@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.interface.base import ModelInterface
 
@@ -29,7 +29,7 @@ def prediction(data):
 
 @pytest.fixture
 def pd_model(data, prediction):
-    return ModelMeta(
+    return MlemModel(
         model_type=SklearnModel.process(
             PandasModel(prediction), sample_data=data
         ),
@@ -37,7 +37,7 @@ def pd_model(data, prediction):
     )
 
 
-def test_interface_types(pd_model: ModelMeta, data, prediction):
+def test_interface_types(pd_model: MlemModel, data, prediction):
     interface = ModelInterface.from_model(pd_model)
     # assert interface.exposed_method_docs('predict') == pd_model.description
     # TODO: https://github.com/iterative/mlem/issues/43
@@ -45,7 +45,7 @@ def test_interface_types(pd_model: ModelMeta, data, prediction):
     assert (pred == prediction).all()
 
 
-def test_with_serde(pd_model: ModelMeta):
+def test_with_serde(pd_model: MlemModel):
     interface = ModelInterface.from_model(pd_model)
 
     obj = {"values": [{"a": 1, "b": 1}]}

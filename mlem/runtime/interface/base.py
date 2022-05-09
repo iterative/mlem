@@ -11,7 +11,7 @@ from mlem.core.dataset_type import DatasetType
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 
 
 class ExecutionError(MlemError):
@@ -170,7 +170,7 @@ class ModelInterface(Interface):
 
     def load(self, uri: str):
         meta = load_meta(uri)
-        if not isinstance(meta, ModelMeta):
+        if not isinstance(meta, MlemModel):
             raise ValueError("Interface can be created only from models")
         if meta.artifacts is None:
             raise ValueError("Cannot load not saved object")
@@ -178,7 +178,7 @@ class ModelInterface(Interface):
         self.model_type.load(meta.artifacts)
 
     @classmethod
-    def from_model(cls, model: ModelMeta):
+    def from_model(cls, model: MlemModel):
         return cls(model_type=model.model_type)
 
     def get_method_signature(self, method_name: str) -> Signature:

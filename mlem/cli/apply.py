@@ -12,8 +12,8 @@ from mlem.cli.main import (
     option_data_rev,
     option_external,
     option_file_conf,
+    option_index,
     option_json,
-    option_link,
     option_load,
     option_method,
     option_repo,
@@ -23,7 +23,7 @@ from mlem.cli.main import (
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import MlemDataset, MlemModel
 from mlem.ext import list_implementations
 from mlem.runtime.client.base import BaseClient
 from mlem.ui import set_echo
@@ -54,7 +54,7 @@ def apply(
         # TODO: change ImportHook to MlemObject to support ext machinery
         help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
     ),
-    link: bool = option_link,
+    index: bool = option_index,
     external: bool = option_external,
     json: bool = option_json,
 ):
@@ -85,16 +85,16 @@ def apply(
                 data_repo,
                 data_rev,
                 load_value=True,
-                force_type=DatasetMeta,
+                force_type=MlemDataset,
             )
-        meta = load_meta(model, repo, rev, force_type=ModelMeta)
+        meta = load_meta(model, repo, rev, force_type=MlemModel)
 
         result = apply(
             meta,
             dataset,
             method=method,
             output=output,
-            link=link,
+            index=index,
             external=external,
         )
     if output is None and json:
@@ -122,7 +122,7 @@ def apply_remote(
     ),
     target_repo: Optional[str] = option_target_repo,
     method: str = option_method,
-    link: bool = option_link,
+    index: bool = option_index,
     json: bool = option_json,
     load: Optional[str] = option_load("client"),
     conf: List[str] = option_conf("client"),
@@ -138,7 +138,7 @@ def apply_remote(
 
     with set_echo(None if json else ...):
         result = run_apply_remote(
-            client, data, repo, rev, link, method, output, target_repo
+            client, data, repo, rev, index, method, output, target_repo
         )
     if output is None and json:
         print(
@@ -151,7 +151,14 @@ def apply_remote(
 
 
 def run_apply_remote(
-    client: BaseClient, data: str, repo, rev, link, method, output, target_repo
+    client: BaseClient,
+    data: str,
+    repo,
+    rev,
+    index,
+    method,
+    output,
+    target_repo,
 ):
     from mlem.api import apply_remote
 
@@ -160,7 +167,7 @@ def run_apply_remote(
         repo,
         rev,
         load_value=True,
-        force_type=DatasetMeta,
+        force_type=MlemDataset,
     )
     result = apply_remote(
         client,
@@ -168,6 +175,6 @@ def run_apply_remote(
         method=method,
         output=output,
         target_repo=target_repo,
-        link=link,
+        index=index,
     )
     return result

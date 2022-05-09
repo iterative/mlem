@@ -47,8 +47,7 @@ from mlem.core.dataset_type import (
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.import_objects import ExtImportHook
 from mlem.core.meta_io import Location
-from mlem.core.metadata import get_object_metadata
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemDataset, MlemObject
 from mlem.core.requirements import LibRequirementsMixin
 
 _PD_EXT_TYPES = {
@@ -620,14 +619,14 @@ class PandasImport(ExtImportHook):
         copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs,
-    ) -> MlemMeta:
+    ) -> MlemObject:
         ext = modifier or posixpath.splitext(obj.path)[1][1:]
         fmt = PANDAS_FORMATS[ext]
         read_args = fmt.read_args or {}
         read_args.update(kwargs)
         with obj.open("rb") as f:
             data = fmt.read_func(f, **read_args)
-        meta = get_object_metadata(data)
+        meta = MlemDataset.from_data(data)
         if not copy_data:
             meta.artifacts = {
                 DatasetWriter.art_name: PlaceholderArtifact(
