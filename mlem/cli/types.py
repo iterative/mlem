@@ -5,7 +5,7 @@ from typer import Argument
 
 from mlem.cli.main import mlem_command
 from mlem.core.base import MlemABC, load_impl_ext
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemObject
 from mlem.ext import list_implementations
 from mlem.ui import EMOJI_BASE, bold, color, echo
 
@@ -14,7 +14,7 @@ def explain_type(cls: Type[BaseModel], prefix="", force_not_req=False):
     for name, field in sorted(
         cls.__fields__.items(), key=lambda x: not x[1].required
     ):
-        if issubclass(cls, MlemMeta) and name in MlemMeta.__fields__:
+        if issubclass(cls, MlemObject) and name in MlemObject.__fields__:
             continue
         if issubclass(cls, MlemABC) and name in cls.__config__.exclude:
             continue
@@ -80,13 +80,13 @@ def list_types(
             echo(
                 f"\tBase class: {at.__module__}.{at.__name__}\n\t{at.__doc__.strip()}"
             )
-    elif abc == MlemMeta.abs_name:
+    elif abc == MlemObject.abs_name:
         if sub_type is None:
-            echo(list(MlemMeta.non_abstract_subtypes().keys()))
+            echo(list(MlemObject.non_abstract_subtypes().keys()))
         else:
             echo(
                 list_implementations(
-                    MlemMeta, MlemMeta.non_abstract_subtypes()[sub_type]
+                    MlemObject, MlemObject.non_abstract_subtypes()[sub_type]
                 )
             )
     else:

@@ -11,8 +11,8 @@ from mlem.cli.main import (
     option_data_repo,
     option_data_rev,
     option_external,
+    option_index,
     option_json,
-    option_link,
     option_method,
     option_repo,
     option_rev,
@@ -22,7 +22,7 @@ from mlem.core.base import parse_string_conf
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DeployMeta
+from mlem.core.objects import MlemDeploy
 from mlem.ui import echo, no_echo, set_echo
 
 deploy = Typer(
@@ -43,7 +43,7 @@ def deploy_create(
     ),
     repo: Optional[str] = option_repo,
     external: bool = option_external,
-    link: bool = option_link,
+    index: bool = option_index,
     conf: Optional[List[str]] = Option(
         None,
         "-c",
@@ -71,7 +71,7 @@ def deploy_create(
         env,
         repo,
         external=external,
-        link=link,
+        index=index,
         **parse_string_conf(conf or []),
     )
 
@@ -86,7 +86,7 @@ def deploy_teardown(
     Examples:
         $ mlem deploy teardown service_name
     """
-    deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+    deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
     deploy_meta.destroy()
 
 
@@ -101,7 +101,7 @@ def deploy_status(
         $ mlem deploy status service_name
     """
     with no_echo():
-        deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+        deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
         status = deploy_meta.get_status()
     echo(status)
 
@@ -119,7 +119,7 @@ def deploy_apply(
     ),
     target_repo: Optional[str] = option_target_repo,
     method: str = option_method,
-    link: bool = option_link,
+    index: bool = option_index,
     json: bool = option_json,
 ):
     """Apply method of deployed service
@@ -130,7 +130,7 @@ def deploy_apply(
 
     with set_echo(None if json else ...):
         deploy_meta = load_meta(
-            path, repo=repo, rev=rev, force_type=DeployMeta
+            path, repo=repo, rev=rev, force_type=MlemDeploy
         )
         if deploy_meta.state is None:
             raise DeploymentError(
@@ -143,7 +143,7 @@ def deploy_apply(
             data,
             data_repo,
             data_rev,
-            link,
+            index,
             method,
             output,
             target_repo,

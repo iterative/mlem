@@ -32,7 +32,7 @@ def test_apply(runner, model_path, data_path):
                 "predict",
                 "-o",
                 path,
-                "--no-link",
+                "--no-index",
             ],
         )
         assert result.exit_code == 0, (result.output, result.exception)
@@ -101,7 +101,7 @@ def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):
                 "predict",
                 "-o",
                 path,
-                "--no-link",
+                "--no-index",
                 "--import",
                 "--it",
                 "pandas[csv]",
@@ -146,7 +146,7 @@ def test_apply_batch_with_import(
 
 def test_apply_no_output(runner, model_path, data_path):
     result = runner.invoke(
-        ["apply", model_path, data_path, "-m", "predict", "--no-link"],
+        ["apply", model_path, data_path, "-m", "predict", "--no-index"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0
@@ -164,7 +164,7 @@ def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
                 "predict",
                 "-o",
                 dir,
-                "--link",
+                "--index",
             ],
         )
         assert result.exit_code == 1, (result.output, result.exception)
@@ -194,7 +194,7 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
             current_test_branch,
             "-o",
             out,
-            "--no-link",
+            "--no-index",
         ],
     )
     assert result.exit_code == 0, (result.output, result.exception)

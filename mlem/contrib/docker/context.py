@@ -13,7 +13,7 @@ from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
 
 import mlem
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements, UnixPackageRequirement
 from mlem.runtime.server.base import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_PACK, echo, no_echo
@@ -112,7 +112,7 @@ class DockerBuildArgs(BaseModel):
 
 
 class DockerModelDirectory(BaseModel):
-    model: ModelMeta
+    model: MlemModel
     server: Server
     docker_args: "DockerBuildArgs"
     debug: bool

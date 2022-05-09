@@ -12,7 +12,7 @@ from mlem.cli.main import (
     option_rev,
 )
 from mlem.core.metadata import load_meta
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.ext import list_implementations
 from mlem.pack import Packager
 
@@ -46,5 +46,5 @@ def pack(
 
     pack(
         config_arg(Packager, load, subtype, conf, file_conf),
-        load_meta(model, repo, rev, force_type=ModelMeta),
+        load_meta(model, repo, rev, force_type=MlemModel),
     )

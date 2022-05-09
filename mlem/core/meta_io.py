@@ -351,7 +351,7 @@ def get_fs(uri: str):
 def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     """Restore full uri from fs and path
 
-    Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
+    Not ideal, but alternative to this is to save uri on MlemObject level and pass it everywhere
     Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
     return UriResolver.find_resolver(path, None, None, fs=fs).get_uri(
         path, None, None, fs=fs
