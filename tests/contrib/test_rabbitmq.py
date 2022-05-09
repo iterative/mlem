@@ -36,7 +36,23 @@ def rmq_instance():
             except (HTTPError, ConnectionError):
                 time.sleep(0.5)
                 times += 1
+        time.sleep(1)
         yield daemon
+
+
+class ServeThread(Thread):
+    def __init__(self, model, server):
+        super().__init__()
+        self.model = model
+        self.server = server
+        self.dead = True
+
+    def run(self) -> None:
+        self.dead = False
+        try:
+            serve(self.model, self.server)
+        finally:
+            self.dead = True
 
 
 @pytest.fixture
@@ -46,9 +62,17 @@ def rmq_server(model_meta_saved_single, rmq_instance):
         port=int(rmq_instance.get_exposed_port(RMQ_PORT)),
         queue_prefix="aaa",
     )
-    t = Thread(target=lambda: serve(model_meta_saved_single, server))
-    t.start()
-    time.sleep(0.1)
+    for _ in range(10):
+
+        t = ServeThread(model_meta_saved_single, server)
+        t.start()
+        time.sleep(0.5)
+        if not t.dead:
+            break
+        t.join()
+    else:
+        raise RuntimeError("could not start rmq serving")
+
     yield server
 
 
