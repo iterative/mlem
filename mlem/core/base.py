@@ -13,20 +13,24 @@ from mlem.utils.path import make_posix
 
 @overload
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: Literal[True] = ...
+    abs_name: str,
+    type_name: Optional[str],
+    raise_on_missing: Literal[True] = ...,
 ) -> Type["MlemABC"]:
     ...
 
 
 @overload
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: Literal[False] = ...
+    abs_name: str,
+    type_name: Optional[str],
+    raise_on_missing: Literal[False] = ...,
 ) -> Optional[Type["MlemABC"]]:
     ...
 
 
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: bool = True
+    abs_name: str, type_name: Optional[str], raise_on_missing: bool = True
 ) -> Optional[Type["MlemABC"]]:
     """Sometimes, we will not have subclass imported when we deserialize.
     In that case, we first try to import the type_name string
@@ -35,7 +39,7 @@ def load_impl_ext(
     """
     from mlem.ext import load_entrypoints  # circular dependencies
 
-    if "." in type_name:
+    if type_name is not None and "." in type_name:
         try:
             obj = import_string(type_name)
             if not issubclass(obj, MlemABC):
