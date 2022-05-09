@@ -56,6 +56,7 @@ def apply(
     *data: Union[str, MlemDataset, Any],
     method: str = None,
     output: str = None,
+    target_repo: str = None,
     index: bool = None,
     external: bool = None,
 ) -> Optional[Any]:
@@ -93,7 +94,9 @@ def apply(
             return res[0]
         return res
     if len(res) == 1:
-        return save(res[0], output, external=external, index=index)
+        return save(
+            res[0], output, repo=target_repo, external=external, index=index
+        )
 
     raise NotImplementedError(
         "Saving several input data objects is not implemented yet"
@@ -105,6 +108,7 @@ def apply_remote(
     *data: Union[str, MlemDataset, Any],
     method: str = None,
     output: str = None,
+    target_repo: str = None,
     index: bool = False,
     **client_kwargs,
 ) -> Optional[Any]:
@@ -141,7 +145,7 @@ def apply_remote(
             return res[0]
         return res
     if len(res) == 1:
-        return save(res[0], output, index=index)
+        return save(res[0], output, repo=target_repo, index=index)
 
     raise NotImplementedError(
         "Saving several input data objects is not implemented yet"

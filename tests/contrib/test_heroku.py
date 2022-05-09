@@ -69,7 +69,7 @@ def heroku_env(tmpdir_factory):
 @pytest.fixture()
 def model(tmpdir_factory):
     # TODO: change after https://github.com/iterative/mlem/issues/158
-    # model = ModelMeta.from_obj(lambda x: x, sample_data=[1, 2])
+    # model = MlemModel.from_obj(lambda x: x, sample_data=[1, 2])
     bulk = load_iris(as_frame=True)
     X, y = bulk.data, bulk.target  # pylint: disable=no-member
     clf = RandomForestClassifier(n_estimators=1)

@@ -35,7 +35,7 @@ def get_model_meta(model: Any) -> MlemModel:
         model.load_value()
         return model
     raise InvalidArgumentError(
-        f"The object {model} is neither ModelMeta nor path to it"
+        f"The object {model} is neither MlemModel nor path to it"
     )
 
 

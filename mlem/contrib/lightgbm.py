@@ -1,7 +1,7 @@
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Optional, Type
+from typing import Any, ClassVar, List, Optional, Tuple, Type
 
 import lightgbm as lgb
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetHook,
+    DatasetReader,
     DatasetSerializer,
     DatasetType,
     DatasetWriter,
@@ -63,7 +64,7 @@ class LightGBMDatasetType(
         )
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        raise NotImplementedError()
+        return LightGBMDatasetWriter(**kwargs)
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DatasetType:
@@ -71,6 +72,47 @@ class LightGBMDatasetType(
 
     def get_model(self) -> Type[BaseModel]:
         return self.inner.get_serializer().get_model()
+
+
+class LightGBMDatasetWriter(DatasetWriter):
+    type: ClassVar[str] = "lightgbm"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        if not isinstance(dataset, LightGBMDatasetType):
+            raise ValueError(
+                f"expected dataset to be of LightGBMDatasetType, got {type(dataset)} instead"
+            )
+        lightgbm_construct = dataset.data.construct()
+        raw_data = lightgbm_construct.get_data()
+        underlying_labels = lightgbm_construct.get_label().tolist()
+        inner_reader, art = dataset.inner.get_writer().write(
+            dataset.inner.copy().bind(raw_data), storage, path
+        )
+        return (
+            LightGBMDatasetReader(
+                dataset_type=dataset,
+                inner=inner_reader,
+                label=underlying_labels,
+            ),
+            art,
+        )
+
+
+class LightGBMDatasetReader(DatasetReader):
+    type: ClassVar[str] = "lightgbm"
+    dataset_type: LightGBMDatasetType
+    inner: DatasetReader
+    label: List
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        inner_dataset_type = self.inner.read(artifacts)
+        return LightGBMDatasetType(inner=inner_dataset_type).bind(
+            lgb.Dataset(
+                inner_dataset_type.data, label=self.label, free_raw_data=False
+            )
+        )
 
 
 class LightGBMModelIO(ModelIO):

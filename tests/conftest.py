@@ -327,6 +327,8 @@ def dataset_write_read_check(
             else:
                 assert new.data == dataset.data
 
+        return artifacts
+
 
 def check_model_type_common_interface(
     model_type: ModelType,

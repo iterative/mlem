@@ -163,6 +163,9 @@ class _PandasDatasetType(
             df = df.set_index(self.index_cols)
         return df
 
+    def align(self, df):
+        return self.align_index(self.align_types(df))
+
     def _validate_columns(self, df: pd.DataFrame, exc_type):
         """Validates that df has correct columns"""
         if set(df.columns) != set(self.columns):
@@ -236,20 +239,29 @@ class SeriesType(_PandasDatasetType):
 
     @classmethod
     def process(cls, obj: pd.Series, **kwargs) -> "_PandasDatasetType":
-        return super().process(
-            pd.DataFrame([obj], index=None).reset_index(drop=True)
-        )
+        return super().process(pd.DataFrame(obj))
 
     def deserialize(self, obj):
-        return super().deserialize({"values": [obj]}).iloc[0]
+        res = super().deserialize({"values": obj}).squeeze()
+        if res.index.name == "":
+            res.index.name = None
+        return res
 
     def serialize(self, instance: pd.Series):
-        return super().serialize(
-            pd.DataFrame([instance]).reset_index(drop=True)
-        )["values"][0]
+        return super().serialize(pd.DataFrame(instance))["values"]
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        raise NotImplementedError
+        fmt = PANDAS_CONFIG.DEFAULT_FORMAT
+        if "format" in kwargs:
+            fmt = kwargs["format"]
+        elif "filename" in kwargs:
+            filename = kwargs["filename"]
+            if filename is not None:
+                _, ext = os.path.splitext(filename)
+                ext = ext.lstrip(".")
+                if ext in PANDAS_SERIES_FORMATS:
+                    fmt = ext
+        return PandasSeriesWriter(format=fmt)
 
 
 def has_index(df: pd.DataFrame):
@@ -298,9 +310,6 @@ class DataFrameType(_PandasDatasetType):
         # TODO: https://github.com/iterative/mlem/issues/33
         return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
-    def align(self, df):
-        return self.align_index(self.align_types(df))
-
     def row_type(self):
         return create_model(
             "DataFrameRow",
@@ -310,7 +319,7 @@ class DataFrameType(_PandasDatasetType):
             },
         )
 
-    def get_writer(self, **kwargs):
+    def get_writer(self, **kwargs) -> "DatasetWriter":
         fmt = PANDAS_CONFIG.DEFAULT_FORMAT
         if "format" in kwargs:
             fmt = kwargs["format"]
@@ -420,8 +429,34 @@ def read_csv_with_unnamed(*args, **kwargs):
     df = pd.read_csv(*args, **kwargs)
     unnamed = {}
     for col in df.columns:
-        if col.startswith("Unnamed: "):
+        if isinstance(col, str) and col.startswith("Unnamed: "):
             unnamed[col] = ""
+        else:
+            unnamed[col] = str(col)
+    if not unnamed:
+        return df
+    return df.rename(unnamed, axis=1)  # pylint: disable=no-member
+
+
+def read_excel_with_unnamed(*args, **kwargs):
+    df = pd.read_excel(*args, **kwargs)
+    unnamed = {}
+    for col in df.columns:
+        if isinstance(col, str) and col.startswith("Unnamed: "):
+            unnamed[col] = ""
+        else:
+            unnamed[col] = str(col)
+    if not unnamed:
+        return df
+    return df.rename(unnamed, axis=1)  # pylint: disable=no-member
+
+
+def read_pickle_with_unnamed(*args, **kwargs):
+    df = pd.read_pickle(*args, **kwargs)
+    unnamed = {}
+    for col in df.columns:
+        if not isinstance(col, str):
+            unnamed[col] = str(col)
     if not unnamed:
         return df
     return df.rename(unnamed, axis=1)  # pylint: disable=no-member
@@ -447,6 +482,7 @@ PANDAS_FORMATS = {
         read_json_reset_index,
         pd.DataFrame.to_json,
         file_name="data.json",
+        read_args={"date_unit": "ns"},
         write_args={"date_format": "iso", "date_unit": "ns"},
     ),
     "html": PandasFormat(
@@ -457,7 +493,7 @@ PANDAS_FORMATS = {
         string_buffer=True,
     ),
     "excel": PandasFormat(
-        pd.read_excel,
+        read_excel_with_unnamed,
         pd.DataFrame.to_excel,
         file_name="data.xlsx",
         write_args={"index": False},
@@ -469,10 +505,20 @@ PANDAS_FORMATS = {
         pd.read_feather, pd.DataFrame.to_feather, file_name="data.feather"
     ),
     "pickle": PandasFormat(  # TODO buffer closed error for some reason
-        pd.read_pickle, pd.DataFrame.to_pickle, file_name="data.pkl"
+        read_pickle_with_unnamed, pd.DataFrame.to_pickle, file_name="data.pkl"
     ),
-    "strata": PandasFormat(  # TODO int32 converts to int64 for some reason
+    "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
         pd.read_stata, pd.DataFrame.to_stata, write_args={"write_index": False}
+    ),
+}
+
+
+PANDAS_SERIES_FORMATS = {
+    "csv": PANDAS_FORMATS["csv"],
+    "json": PANDAS_FORMATS["json"],
+    "excel": PANDAS_FORMATS["excel"],
+    "pickle": PandasFormat(
+        read_pickle_with_unnamed, pd.Series.to_pickle, file_name="data.pkl"
     ),
 }
 
@@ -484,13 +530,49 @@ class _PandasIO(BaseModel):
     def is_valid_format(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
-        if value not in PANDAS_FORMATS:
+        if value not in PANDAS_FORMATS and value not in PANDAS_SERIES_FORMATS:
             raise ValueError(f"format {value} is not supported")
         return value
 
     @property
     def fmt(self):
         return PANDAS_FORMATS[self.format]
+
+    @property
+    def series_fmt(self):
+        return PANDAS_SERIES_FORMATS[self.format]
+
+
+class PandasSeriesReader(_PandasIO, DatasetReader):
+    """DatasetReader for pandas series"""
+
+    type: ClassVar[str] = "pandas_series"
+    dataset_type: SeriesType
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        data = self.dataset_type.align(
+            self.series_fmt.read(artifacts)
+        ).squeeze()
+        if data.index.name == "":
+            data.index.name = None
+        return self.dataset_type.copy().bind(data)
+
+
+class PandasSeriesWriter(DatasetWriter, _PandasIO):
+    """DatasetWriter for pandas series"""
+
+    type: ClassVar[str] = "pandas_series"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        fmt = self.series_fmt
+        art = fmt.write(pd.DataFrame(dataset.data), storage, path)
+        if not isinstance(dataset, SeriesType):
+            raise ValueError("Cannot write non-pandas Dataset")
+        return PandasSeriesReader(dataset_type=dataset, format=self.format), {
+            self.art_name: art
+        }
 
 
 class PandasReader(_PandasIO, DatasetReader):
