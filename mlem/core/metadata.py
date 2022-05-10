@@ -124,7 +124,7 @@ def load(
         follow_links=follow_links,
         load_value=batch_size is None,
     )
-    if isinstance(meta, DatasetMeta) and batch_size:
+    if isinstance(meta, MlemDataset) and batch_size:
         return meta.read_batch(batch_size)
     return meta.get_value()
 

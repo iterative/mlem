@@ -53,14 +53,14 @@ def model_train_batch():
 def model_path_batch(model_train_batch, tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
     model, train = model_train_batch
-    save(model, path, tmp_sample_data=train, link=False)
+    save(model, path, sample_data=train, index=False)
     yield path
 
 
 @pytest.fixture
 def data_path_batch(model_train_batch, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(model_train_batch[1], temp_dir, link=False)
+    save(model_train_batch[1], temp_dir, index=False)
     yield temp_dir
 
 
@@ -76,7 +76,7 @@ def test_apply_batch(runner, model_path_batch, data_path_batch):
                 "predict",
                 "-o",
                 path,
-                "--no-link",
+                "--no-index",
                 "-b",
                 "5",
             ],
@@ -129,7 +129,7 @@ def test_apply_batch_with_import(
                 "predict",
                 "-o",
                 path,
-                "--no-link",
+                "--no-index",
                 "--import",
                 "--it",
                 "pandas[csv]",
