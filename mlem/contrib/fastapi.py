@@ -75,7 +75,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def app_init(self, interface: Interface):
         app = FastAPI()
         _create_schema_route(app, interface)
-        app.add_api_route("/", lambda: RedirectResponse("/docs"), include_in_schema=False)
+        app.add_api_route(
+            "/", lambda: RedirectResponse("/docs"), include_in_schema=False
+        )
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
