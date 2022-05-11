@@ -97,7 +97,7 @@ def test_endpoint(client, interface, train):
 
 
 def test_endpoint_with_primitive():
-    model = ModelMeta.from_obj(lambda x: x, sample_data=[-1, 0, 1])
+    model = MlemModel.from_obj(lambda x: x, sample_data=[-1, 0, 1])
     interface = ModelInterface.from_model(model)
 
     app = FastAPIServer().app_init(interface)
