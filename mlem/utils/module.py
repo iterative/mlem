@@ -396,6 +396,11 @@ def add_closure_inspection(f):
                     )
                 pickler.add_requirement(mod)
 
+            def visit_Import(self, node: ast.Import):  # noqa
+                for name in node.names:
+                    mod = importing.import_module(name.name)
+                    pickler.add_requirement(mod)
+
         # to add from local imports inside user (non PIP package) code
         try:
             tree = ast.parse(lstrip_lines(inspect.getsource(obj)))

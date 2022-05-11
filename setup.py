@@ -43,6 +43,7 @@ tests = [
     "adlfs",
     "gcsfs",
     "testcontainers",
+    "emoji",
 ]
 
 extras = {
