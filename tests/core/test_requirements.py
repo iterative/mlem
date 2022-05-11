@@ -127,7 +127,7 @@ def test_serialize_empty():
     assert new_obj == obj
 
 
-@pytest.mark.parametrize("postfix", ["inside", "outside"])
+@pytest.mark.parametrize("postfix", ["inside", "outside", "shell"])
 def test_req_collection_main(tmpdir, postfix):
     import emoji
     import numpy

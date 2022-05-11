@@ -359,6 +359,35 @@ _SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
 }
 
 
+class ImportFromVisitor(ast.NodeVisitor):
+    def __init__(self, pickler: "RequirementAnalyzer", obj):
+        self.obj = obj
+        self.pickler = pickler
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):  # noqa
+        warnings.warn(
+            f"Detected local import in {self.obj.__module__}.{self.obj.__name__}"
+        )
+        if node.level == 0:
+            # TODO: https://github.com/iterative/mlem/issues/33
+            mod = importing.import_module(node.module)  # type: ignore
+        else:
+            mod = importing.import_module(
+                "." + node.module,  # type: ignore
+                get_object_module(self.obj).__package__,  # type: ignore
+            )
+        self.pickler.add_requirement(mod)
+
+    def visit_Import(self, node: ast.Import):  # noqa
+        for name in node.names:
+            mod = importing.import_module(name.name)
+            self.pickler.add_requirement(mod)
+
+    def visit_Name(self, node: ast.Name):  # noqa
+        if node.id in self.obj.__globals__:
+            self.pickler.add_requirement(self.obj.__globals__[node.id])
+
+
 def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
@@ -382,29 +411,10 @@ def add_closure_inspection(f):
         if is_from_installable_module(obj):
             return f(pickler, obj)
 
-        class ImportFromVisitor(ast.NodeVisitor):
-            def visit_ImportFrom(self, node: ast.ImportFrom):  # noqa
-                warnings.warn(
-                    f"Detected local import in {obj.__module__}.{obj.__name__}"
-                )
-                if node.level == 0:
-                    # TODO: https://github.com/iterative/mlem/issues/33
-                    mod = importing.import_module(node.module)  # type: ignore
-                else:
-                    mod = importing.import_module(
-                        "." + node.module, get_object_module(obj).__package__  # type: ignore
-                    )
-                pickler.add_requirement(mod)
-
-            def visit_Import(self, node: ast.Import):  # noqa
-                for name in node.names:
-                    mod = importing.import_module(name.name)
-                    pickler.add_requirement(mod)
-
         # to add from local imports inside user (non PIP package) code
         try:
             tree = ast.parse(lstrip_lines(inspect.getsource(obj)))
-            ImportFromVisitor().visit(tree)
+            ImportFromVisitor(pickler, obj).visit(tree)
         except OSError:
             logger.debug(
                 "Cannot parse code for %s from %s",
