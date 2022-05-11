@@ -76,7 +76,7 @@ def test_create_handler(signature, executor):
     )
     assert (
         response_model.__name__
-        == f"{PREDICT_METHOD_NAME}{signature.returns.get_serializer().get_model().__name__}"
+        == f"{PREDICT_METHOD_NAME}_response{signature.returns.get_serializer().get_model().__name__}"
     )
     assert isinstance(response_model, ModelMetaclass)
 
