@@ -3,15 +3,11 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from mlem.core.objects import (
-    DeployMeta,
-    DeployState,
-    DeployStatus,
-    TargetEnvMeta,
-)
+from mlem.core.objects import DeployState, DeployStatus, MlemDeploy, MlemEnv
 from mlem.runtime.client.base import BaseClient, HTTPClient
 
 from ...core.errors import DeploymentError
+from ...ui import EMOJI_OK, echo
 from ..docker.base import DockerImage
 from .build import build_heroku_docker
 
@@ -49,7 +45,7 @@ class HerokuState(DeployState):
         )
 
 
-class HerokuDeploy(DeployMeta):
+class HerokuDeploy(MlemDeploy):
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
     app_name: str
@@ -58,7 +54,7 @@ class HerokuDeploy(DeployMeta):
     team: Optional[str] = None
 
 
-class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
+class HerokuEnvMeta(MlemEnv[HerokuDeploy]):
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeploy
     api_key: Optional[str] = None
@@ -89,11 +85,16 @@ class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
             )
             meta.update()
 
+        echo(
+            EMOJI_OK
+            + f"Service {meta.app_name} is up. You can check it out at {meta.state.app.web_url}"
+        )
+
     def destroy(self, meta: HerokuDeploy):
         from .utils import delete_app
 
         self.check_type(meta)
-        if meta.state is None or meta.state.release_state is None:
+        if meta.state is None:
             return
 
         delete_app(meta.state.ensured_app.name, self.api_key)

@@ -62,11 +62,9 @@ class NumpyNumberType(
         return instance.item()
 
     @property
-    def actual_type(self) -> np.dtype:
-        return np_type_from_string(self.dtype)
+    def actual_type(self) -> Type:
+        return np_type_from_string(self.dtype).type
 
-    # def get_writer(self):
-    #     return PickleWriter()
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, np.number)
@@ -76,7 +74,7 @@ class NumpyNumberType(
         return NumpyNumberType(dtype=obj.dtype.name)
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError()
+        return NumpyNumberWriter(**kwargs)
 
     def get_model(self) -> Type[BaseModel]:
         return create_model(
@@ -162,8 +160,33 @@ class NumpyNdarrayType(
         return NumpyArrayWriter()
 
 
-DATA_FILE = "data.npz"
 DATA_KEY = "data"
+
+
+class NumpyNumberWriter(DatasetWriter):
+    type: ClassVar[str] = "numpy_number"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            f.write(str(dataset.data).encode("utf-8"))
+        return NumpyNumberReader(dataset_type=dataset), {self.art_name: art}
+
+
+class NumpyNumberReader(DatasetReader):
+    type: ClassVar[str] = "numpy_number"
+    dataset_type: NumpyNumberType
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        if DatasetWriter.art_name not in artifacts:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
+            )
+        with artifacts[DatasetWriter.art_name].open() as f:
+            res = f.read()
+            data = self.dataset_type.actual_type(res)
+            return self.dataset_type.copy().bind(data)
 
 
 class NumpyArrayWriter(DatasetWriter):
@@ -185,9 +208,9 @@ class NumpyArrayReader(DatasetReader):
     type: ClassVar[str] = "numpy"
 
     def read(self, artifacts: Artifacts) -> DatasetType:
-        if len(artifacts) != 1:
+        if DatasetWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be oe {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
             )
         with artifacts[DatasetWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]

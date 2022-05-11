@@ -3,21 +3,26 @@ from typing import List, Optional
 
 from typer import Argument, Option, Typer
 
+from mlem.cli.apply import run_apply_remote
 from mlem.cli.main import (
     MlemGroupSection,
     app,
     mlem_command,
+    option_data_repo,
+    option_data_rev,
     option_external,
+    option_index,
     option_json,
-    option_link,
     option_method,
     option_repo,
+    option_rev,
+    option_target_repo,
 )
 from mlem.core.base import parse_string_conf
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DatasetMeta, DeployMeta
+from mlem.core.objects import MlemDeploy
 from mlem.ui import echo, no_echo, set_echo
 
 deploy = Typer(
@@ -38,7 +43,7 @@ def deploy_create(
     ),
     repo: Optional[str] = option_repo,
     external: bool = option_external,
-    link: bool = option_link,
+    index: bool = option_index,
     conf: Optional[List[str]] = Option(
         None,
         "-c",
@@ -66,7 +71,7 @@ def deploy_create(
         env,
         repo,
         external=external,
-        link=link,
+        index=index,
         **parse_string_conf(conf or []),
     )
 
@@ -81,7 +86,7 @@ def deploy_teardown(
     Examples:
         $ mlem deploy teardown service_name
     """
-    deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+    deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
     deploy_meta.destroy()
 
 
@@ -96,7 +101,7 @@ def deploy_status(
         $ mlem deploy status service_name
     """
     with no_echo():
-        deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
+        deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
         status = deploy_meta.get_status()
     echo(status)
 
@@ -104,43 +109,44 @@ def deploy_status(
 @mlem_command("apply", parent=deploy)
 def deploy_apply(
     path: str = Argument(..., help="Path to deployment meta"),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
     data: str = Argument(..., help="Path to dataset object"),
+    data_repo: Optional[str] = option_data_repo,
+    data_rev: Optional[str] = option_data_rev,
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
+    target_repo: Optional[str] = option_target_repo,
     method: str = option_method,
-    link: bool = option_link,
+    index: bool = option_index,
     json: bool = option_json,
-    repo: Optional[str] = option_repo,
 ):
     """Apply method of deployed service
 
     Examples:
         $ mlem deploy apply service_name
     """
-    from mlem.api import apply_remote
-
-    deploy_meta = load_meta(path, repo=repo, force_type=DeployMeta)
-    if deploy_meta.state is None:
-        raise DeploymentError(
-            f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
-        )
-    client = deploy_meta.state.get_client()
 
     with set_echo(None if json else ...):
-        dataset = load_meta(
-            data,
-            None,
-            None,
-            load_value=True,
-            force_type=DatasetMeta,
+        deploy_meta = load_meta(
+            path, repo=repo, rev=rev, force_type=MlemDeploy
         )
-        result = apply_remote(
+        if deploy_meta.state is None:
+            raise DeploymentError(
+                f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
+            )
+        client = deploy_meta.state.get_client()
+
+        result = run_apply_remote(
             client,
-            dataset,
-            method=method,
-            output=output,
-            link=link,
+            data,
+            data_repo,
+            data_rev,
+            index,
+            method,
+            output,
+            target_repo,
         )
     if output is None and json:
         print(

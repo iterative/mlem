@@ -8,19 +8,22 @@ from mlem.cli.main import (
     config_arg,
     mlem_command,
     option_conf,
+    option_data_repo,
+    option_data_rev,
     option_external,
     option_file_conf,
+    option_index,
     option_json,
-    option_link,
     option_load,
     option_method,
     option_repo,
     option_rev,
+    option_target_repo,
 )
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import MlemDataset, MlemModel
 from mlem.ext import list_implementations
 from mlem.runtime.client.base import BaseClient
 from mlem.ui import set_echo
@@ -36,17 +39,8 @@ def apply(
         None, "-o", "--output", help="Where to store the outputs."
     ),
     method: str = option_method,
-    data_repo: Optional[str] = Option(
-        None,
-        "--data-repo",
-        "--dr",
-        help="Repo with dataset",
-    ),
-    data_rev: Optional[str] = Option(
-        None,
-        "--data-rev",
-        help="Revision of dataset",
-    ),
+    data_repo: Optional[str] = option_data_repo,
+    data_rev: Optional[str] = option_data_rev,
     import_: bool = Option(
         False,
         "-i",
@@ -60,7 +54,7 @@ def apply(
         # TODO: change ImportHook to MlemObject to support ext machinery
         help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
     ),
-    link: bool = option_link,
+    index: bool = option_index,
     external: bool = option_external,
     json: bool = option_json,
 ):
@@ -91,16 +85,16 @@ def apply(
                 data_repo,
                 data_rev,
                 load_value=True,
-                force_type=DatasetMeta,
+                force_type=MlemDataset,
             )
-        meta = load_meta(model, repo, rev, force_type=ModelMeta)
+        meta = load_meta(model, repo, rev, force_type=MlemModel)
 
         result = apply(
             meta,
             dataset,
             method=method,
             output=output,
-            link=link,
+            index=index,
             external=external,
         )
     if output is None and json:
@@ -121,11 +115,14 @@ def apply_remote(
         show_default=False,
     ),
     data: str = Argument(..., help="Path to dataset object"),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
+    target_repo: Optional[str] = option_target_repo,
     method: str = option_method,
-    link: bool = option_link,
+    index: bool = option_index,
     json: bool = option_json,
     load: Optional[str] = option_load("client"),
     conf: List[str] = option_conf("client"),
@@ -137,25 +134,11 @@ def apply_remote(
         Apply hosted mlem model to local mlem dataset
         $ mlem apply-remote http mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
     """
-    from mlem.api import apply_remote
-
     client = config_arg(BaseClient, load, subtype, conf, file_conf)
 
     with set_echo(None if json else ...):
-        dataset = load_meta(
-            data,
-            None,
-            None,
-            load_value=True,
-            force_type=DatasetMeta,
-        )
-
-        result = apply_remote(
-            client,
-            dataset,
-            method=method,
-            output=output,
-            link=link,
+        result = run_apply_remote(
+            client, data, repo, rev, index, method, output, target_repo
         )
     if output is None and json:
         print(
@@ -165,3 +148,33 @@ def apply_remote(
                 .serialize(result)
             )
         )
+
+
+def run_apply_remote(
+    client: BaseClient,
+    data: str,
+    repo,
+    rev,
+    index,
+    method,
+    output,
+    target_repo,
+):
+    from mlem.api import apply_remote
+
+    dataset = load_meta(
+        data,
+        repo,
+        rev,
+        load_value=True,
+        force_type=MlemDataset,
+    )
+    result = apply_remote(
+        client,
+        dataset,
+        method=method,
+        output=output,
+        target_repo=target_repo,
+        index=index,
+    )
+    return result

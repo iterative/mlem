@@ -2,7 +2,7 @@ import pytest
 from pydantic import parse_obj_as
 
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import (
     CustomRequirement,
     InstallableRequirement,
@@ -113,12 +113,12 @@ def test_resolve_unique_req():
 
 def test_serialize_empty():
     mt = SklearnModel(methods={}, model="")
-    obj = ModelMeta(model_type=mt)
+    obj = MlemModel(model_type=mt)
     payload = obj.dict()
-    obj2 = ModelMeta(model_type=mt)
+    obj2 = MlemModel(model_type=mt)
     obj2.requirements.__root__.append(InstallableRequirement(module="sklearn"))
     assert obj.requirements.__root__ == []
-    new_obj = parse_obj_as(ModelMeta, payload)
+    new_obj = parse_obj_as(MlemModel, payload)
     assert new_obj == obj
 
 

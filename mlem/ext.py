@@ -11,13 +11,13 @@ from dataclasses import dataclass
 from functools import lru_cache
 from inspect import isabstract
 from types import ModuleType
-from typing import Callable, Dict, List, Type, Union
+from typing import Callable, Dict, List, Optional, Type, Union
 
 import entrypoints
 
 from mlem.config import CONFIG
-from mlem.core.base import MlemObject
-from mlem.core.objects import MlemMeta
+from mlem.core.base import MlemABC, load_impl_ext
+from mlem.core.objects import MlemObject
 from mlem.utils.importing import (
     import_module,
     module_importable,
@@ -104,9 +104,10 @@ class ExtensionLoader:
         # Extension('mlem.contrib.imageio', ['imageio']),
         Extension("mlem.contrib.lightgbm", ["lightgbm"], False),
         Extension("mlem.contrib.xgboost", ["xgboost"], False),
-        # Extension("mlem.contrib.docker", ["docker"], False),
+        Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
+        Extension("mlem.contrib.rabbitmq", ["pika"], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
@@ -258,19 +259,21 @@ def load_extensions(*exts: str):
 
 @dataclass
 class Entrypoint:
-    name: str
+    name: Optional[str]
     abs_name: str
     ep: entrypoints.EntryPoint
 
     @classmethod
     def from_entrypoint(cls, ep: entrypoints.EntryPoint):
-        abs_name = ep.name.split(".")[0]
-        name = ep.name[len(abs_name) + 1 :]
+        if "." not in ep.name:
+            return cls(name=None, ep=ep, abs_name=ep.name)
+        abs_name, name = ep.name.split(".", maxsplit=2)
         return cls(name=name, ep=ep, abs_name=abs_name)
 
     @property
     def entry(self):
-        return f"{self.abs_name}.{self.name} = {self.ep.module_name}:{self.ep.object_name}"
+        name = f".{self.name}" if self.name else ""
+        return f"{self.abs_name}{name} = {self.ep.module_name}:{self.ep.object_name}"
 
 
 @lru_cache()
@@ -284,19 +287,24 @@ def load_entrypoints() -> Dict[str, Entrypoint]:
 
 
 def list_implementations(
-    base_class: Union[str, Type[MlemObject]],
-    meta_subtype: Type[MlemMeta] = None,
+    base_class: Union[str, Type[MlemABC]],
+    meta_subtype: Type[MlemObject] = None,
 ) -> List[str]:
-    if isinstance(base_class, type) and issubclass(base_class, MlemObject):
+    if isinstance(base_class, type) and issubclass(base_class, MlemABC):
         abs_name = base_class.abs_name
     if base_class == "meta" and meta_subtype is not None:
         base_class = meta_subtype.object_type
         abs_name = "meta"
     if isinstance(base_class, str):
         abs_name = base_class
-        base_class = MlemObject.abs_types[abs_name]
+        try:
+            base_class = MlemABC.abs_types[abs_name]
+        except KeyError:
+            base_class = load_impl_ext(abs_name, None)
     eps = {
-        e.name for e in load_entrypoints().values() if e.abs_name == abs_name
+        e.name
+        for e in load_entrypoints().values()
+        if e.abs_name == abs_name and e.name is not None
     }
     eps.update(base_class.non_abstract_subtypes())
     return list(eps)
@@ -334,8 +342,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
             if (
                 isinstance(obj, type)
                 and obj.__module__ == module.__name__
-                and issubclass(obj, MlemObject)
-                and not obj.__is_root__
+                and issubclass(obj, MlemABC)
                 and not isabstract(obj)
                 and hasattr(obj, "abs_name")
             ):
@@ -344,6 +351,8 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     return {
         MLEM_ENTRY_POINT: [
             f"{obj.abs_name}.{obj.__get_alias__()} = {name}"
+            if not obj.__is_root__
+            else f"{obj.abs_name} = {name}"
             for obj, name in impls.items()
         ]
     }

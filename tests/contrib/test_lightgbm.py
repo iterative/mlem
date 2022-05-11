@@ -3,7 +3,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mlem.contrib.lightgbm import LightGBMDatasetType, LightGBMModel
+from mlem.contrib.lightgbm import (
+    LightGBMDatasetReader,
+    LightGBMDatasetType,
+    LightGBMDatasetWriter,
+    LightGBMModel,
+)
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
 from mlem.core.artifacts import LOCAL_STORAGE
@@ -11,7 +16,11 @@ from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface, long
+from tests.conftest import (
+    check_model_type_common_interface,
+    dataset_write_read_check,
+    long,
+)
 
 
 @pytest.fixture
@@ -22,7 +31,9 @@ def np_payload():
 @pytest.fixture
 def dataset_np(np_payload):
     return lgb.Dataset(
-        np_payload, label=np_payload.reshape((-1,)), free_raw_data=False
+        np_payload,
+        label=np_payload.reshape((-1,)).tolist(),
+        free_raw_data=False,
     )
 
 
@@ -35,7 +46,7 @@ def df_payload():
 def dataset_df(df_payload):
     return lgb.Dataset(
         df_payload,
-        label=np.linspace(0, 2).reshape((-1, 1)),
+        label=np.array([0, 1]).tolist(),
         free_raw_data=False,
     )
 
@@ -52,12 +63,12 @@ def model(booster, dataset_np) -> ModelType:
 
 @pytest.fixture
 def dtype_np(dataset_np):
-    return DatasetAnalyzer.analyze(dataset_np)
+    return DatasetType.create(obj=dataset_np)
 
 
 @pytest.fixture
 def dtype_df(dataset_df):
-    return DatasetAnalyzer.analyze(dataset_df)
+    return DatasetType.create(obj=dataset_df)
 
 
 def test_hook_np(dtype_np: DatasetType):
@@ -102,6 +113,29 @@ def test_hook_df(dtype_df: DatasetType):
             }
         },
     }
+
+
+@pytest.mark.parametrize(
+    "lgb_dtype, dataset_type",
+    [("dtype_np", NumpyNdarrayType), ("dtype_df", DataFrameType)],
+)
+def test_lightgbm_source(lgb_dtype, dataset_type, request):
+    lgb_dtype = request.getfixturevalue(lgb_dtype)
+    assert isinstance(lgb_dtype, LightGBMDatasetType)
+    assert isinstance(lgb_dtype.inner, dataset_type)
+
+    def custom_assert(x, y):
+        assert hasattr(x, "data")
+        assert hasattr(y, "data")
+        assert all(x.data == y.data)
+        assert all(x.label == y.label)
+
+    dataset_write_read_check(
+        lgb_dtype,
+        writer=LightGBMDatasetWriter(),
+        reader_type=LightGBMDatasetReader,
+        custom_assert=custom_assert,
+    )
 
 
 def test_serialize__np(dtype_np, np_payload):

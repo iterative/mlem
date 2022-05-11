@@ -10,7 +10,7 @@ from mlem.contrib.fastapi import FastAPIServer, rename_recursively
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import Argument, Signature
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.runtime.interface.base import ModelInterface
 
 
@@ -41,7 +41,7 @@ def payload_model(signature):
 
 @pytest.fixture
 def interface(model, train):
-    model = ModelMeta.from_obj(model, sample_data=train)
+    model = MlemModel.from_obj(model, sample_data=train)
     interface = ModelInterface.from_model(model)
     return interface
 

@@ -109,7 +109,7 @@ class DMatrixDatasetType(
         return DMatrixDatasetType.from_dmatrix(obj)
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
+        raise NotImplementedError()
 
     def get_model(self) -> Type[BaseModel]:
         raise NotImplementedError()
