@@ -145,7 +145,11 @@ def is_private_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
-    return mod.__name__.startswith("_")
+    return (
+        mod.__name__.startswith("_")
+        and not is_pseudo_module(mod)
+        and mod.__name__ != "__main__"
+    )
 
 
 def is_pseudo_module(mod: ModuleType):
@@ -155,7 +159,11 @@ def is_pseudo_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
-    return mod.__name__.startswith("__") and mod.__name__.endswith("__")
+    return (
+        mod.__name__.startswith("__")
+        and mod.__name__.endswith("__")
+        and mod.__name__ != "__main__"
+    )
 
 
 def is_extension_module(mod: ModuleType):
