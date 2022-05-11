@@ -5,20 +5,18 @@
 [![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
 [![PyPi](https://img.shields.io/pypi/v/mlem.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/mlem)
 
-MLEM helps you with model deployment. It saves ML models in a standard format that can be used in a variety of downstream deployment scenarios such as real-time serving through a REST API or batch processing. MLEM format is a human-readable text that helps you use GitOps with Git as the single source of truth.
+MLEM helps you with machine learning model deployment. It saves ML models in a standard format that can be used in a variety of downstream deployment scenarios such as real-time serving through a REST API or batch processing.
 
 - **Run your model anywhere you want:** package it as a Python package, a Docker Image or deploy it to Heroku (SageMaker, Kubernetes and more platforms are coming). Switch between formats and deployment platforms with a single command thanks to unified abstraction.
-- **Simple text file to save model metadata:** automatically package Python env requirements and input data specifications into a ready-to-deploy format. Use the same human-readable format for any ML framework.
+- **Simple YAML file to save model metadata:** automatically package Python env requirements and input data specifications into a ready-to-deploy format. Use the same human-readable format for any ML framework.
 - **Stick to your training workflow:** MLEM doesn't ask you to rewrite your training code. To start using packaging or deployment machinery, add just two lines to your python script: one to import the library and one to save the model.
 - **Developer-first experience:** use CLI when you feel like DevOps and API when you feel like a developer.
 
 ## Why MLEM?
 
-The main reason to use MLEM instead of other related solutions is that it works well with **GitOps approach** and helps you manage model lifecycle in Git:
-
-- **Git as a single source of truth:** we use plain text to save metadata for models that can be saved and versioned.
-- **Reuse existing Git and Github/Gitlab infrastructure** for model management instead of installing separate model management software.
-- **Unify model and software deployment.** Deploy models using the same processes and code you use to deploy software.
+- MLEM **automatically detects** ML framework, Python requirements, model methods and input/output data specifications, saving your time and preventing manual errors.
+- MLEM is designed for **Git-centered** ML models development. Use GitOps with Git as the single source of truth. Enable GitFlow and other software engineering best practices.
+- MLEM is made with **Unix philosophy** in mind - one tool solves one problem very well. Plug MLEM into your toolset, easily integrating it with other tools like DVC.
 
 ## Usage
 
@@ -203,7 +201,7 @@ Define the deployment:
 
 ```shell
 $ mlem create deployment heroku myservice -c app_name=mlem-quick-start -c model=rf -c env=staging
-💾 Saving deployment to service_name.mlem
+💾 Saving deployment to myservice.mlem
 ```
 
 Deploy it:
