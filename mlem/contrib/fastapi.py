@@ -50,10 +50,10 @@ class FastAPIServer(Server, LibRequirementsMixin):
             for key, serializer in serializers.items()
         }
         payload_model = create_model("Model", **kwargs)  # type: ignore
-        rename_recursively(payload_model, method_name)
+        rename_recursively(payload_model, method_name + "_request")
         response_serializer = signature.returns.get_serializer()
         response_model = response_serializer.get_model()
-        rename_recursively(response_model, method_name)
+        rename_recursively(response_model, method_name + "_response")
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
         def handler(model: payload_model):  # type: ignore[valid-type]

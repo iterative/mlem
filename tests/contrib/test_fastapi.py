@@ -94,3 +94,26 @@ def test_endpoint(client, interface, train):
     )
     assert response.status_code == 200
     assert response.json() == [0] * 50 + [1] * 50 + [2] * 50
+
+
+def test_endpoint_with_primitive():
+    model = ModelMeta.from_obj(lambda x: x, sample_data=[-1, 0, 1])
+    interface = ModelInterface.from_model(model)
+
+    app = FastAPIServer().app_init(interface)
+    client = TestClient(app)
+
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+    payload = (
+        interface.model_type.methods[PREDICT_METHOD_NAME]
+        .args[0]
+        .type_.get_serializer()
+        .serialize([1, 2, 3])
+    )
+    response = client.post(
+        f"/{PREDICT_METHOD_NAME}",
+        json={"data": payload},
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json() == [1, 2, 3]
