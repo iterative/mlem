@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def rename_recursively(model: Type[BaseModel], prefix: str):
-    model.__name__ = f"{prefix}{model.__name__}"
+    model.__name__ = f"{prefix}_{model.__name__}"
     for field in model.__fields__.values():
         if issubclass(field.type_, BaseModel):
             rename_recursively(field.type_, prefix)
@@ -75,7 +75,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def app_init(self, interface: Interface):
         app = FastAPI()
         _create_schema_route(app, interface)
-        app.add_api_route("/", lambda: RedirectResponse("/docs"))
+        app.add_api_route("/", lambda: RedirectResponse("/docs"), include_in_schema=False)
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
