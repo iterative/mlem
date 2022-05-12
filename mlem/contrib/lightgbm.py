@@ -70,8 +70,8 @@ class LightGBMDatasetType(
     def process(cls, obj: Any, **kwargs) -> DatasetType:
         return LightGBMDatasetType(inner=DatasetAnalyzer.analyze(obj.data))
 
-    def get_model(self) -> Type[BaseModel]:
-        return self.inner.get_serializer().get_model()
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        return self.inner.get_serializer().get_model(prefix)
 
 
 class LightGBMDatasetWriter(DatasetWriter):

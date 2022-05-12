@@ -111,8 +111,8 @@ class DMatrixDatasetType(
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
-    def get_model(self) -> Type[BaseModel]:
-        raise NotImplementedError()
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        raise NotImplementedError
 
 
 class XGBoostModelIO(ModelIO):

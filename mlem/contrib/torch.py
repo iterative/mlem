@@ -66,8 +66,8 @@ class TorchTensorDatasetType(
     def get_writer(self, **kwargs) -> DatasetWriter:
         return TorchTensorWriter(**kwargs)
 
-    def get_model(self):
-        raise NotImplementedError()
+    def get_model(self, prefix: str = ""):
+        raise NotImplementedError
 
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DatasetType:
