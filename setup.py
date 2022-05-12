@@ -58,6 +58,14 @@ extras = {
     "fastapi": ["uvicorn", "fastapi"],
     # "sagemaker": ["boto3==1.19.12", "sagemaker"],
     "torch": ["torch"],
+    "azure": ["adlfs>=2021.10.0", "azure-identity>=1.4.0", "knack"],
+    "gs": ["gcsfs>=2021.11.1"],
+    "hdfs": [
+        "pyarrow>=1",
+        "fsspec[arrow]",
+    ],
+    "s3": ["s3fs[boto3]>=2021.11.1", "aiobotocore[boto3]>2"],
+    "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
 }
 
