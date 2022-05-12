@@ -3,7 +3,7 @@ import os
 from typing import ClassVar, Optional
 
 from mlem.contrib.fastapi import FastAPIServer
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.runtime import Interface
 
 from ...ui import EMOJI_BUILD, echo, set_offset
@@ -43,7 +43,7 @@ class HerokuServer(FastAPIServer):
 
 
 def build_heroku_docker(
-    meta: ModelMeta,
+    meta: MlemModel,
     app_name: str,
     process_type: str = "web",
     api_key: str = None,

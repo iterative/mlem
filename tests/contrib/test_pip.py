@@ -2,10 +2,12 @@ import os
 import subprocess
 
 from mlem.contrib.pip.base import PipPackager, WhlPackager
+from tests.conftest import long
 
 PIP_PACKAGE_NAME = "test_pip_package_name"
 
 
+@long
 def test_pip_package(tmpdir, model_meta_saved_single):
     path = str(tmpdir)
     packager = PipPackager(target=path, package_name=PIP_PACKAGE_NAME)

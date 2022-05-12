@@ -12,11 +12,11 @@ from mlem.cli.main import (
     option_rev,
 )
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MLEM_EXT, MlemLink, MlemMeta
+from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
 from mlem.ui import echo, set_echo
 
 
-def _print_objects_of_type(cls: Type[MlemMeta], objects: List[MlemMeta]):
+def _print_objects_of_type(cls: Type[MlemObject], objects: List[MlemObject]):
     if len(objects) == 0:
         return
 
@@ -41,7 +41,7 @@ TYPE_ALIASES = {
 
 @mlem_command("list", aliases=["ls"], section="common")
 def ls(
-    type_filter: Choices("all", *MlemMeta.non_abstract_subtypes().keys()) = Option(  # type: ignore[valid-type]
+    type_filter: Choices("all", *MlemObject.non_abstract_subtypes().keys()) = Option(  # type: ignore[valid-type]
         "all",
         "-t",
         "--type",
@@ -67,7 +67,7 @@ def ls(
     if type_filter == "all":
         types = None
     else:
-        types = MlemMeta.__type_map__[
+        types = MlemObject.__type_map__[
             TYPE_ALIASES.get(type_filter, type_filter)
         ]
 

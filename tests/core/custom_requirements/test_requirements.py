@@ -6,7 +6,7 @@ import dill
 from pack_1 import TestM
 
 from mlem.core.metadata import get_object_metadata
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.utils.module import get_object_requirements
 
 
@@ -68,7 +68,7 @@ def test_model_custom_requirements(tmpdir):
     )
 
     model = get_object_metadata(TestM(), 1)
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
 
     model.dump(os.path.join(tmpdir, "model"))
     model.requirements.materialize_custom(tmpdir)

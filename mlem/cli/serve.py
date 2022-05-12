@@ -12,7 +12,7 @@ from mlem.cli.main import (
     option_rev,
 )
 from mlem.core.metadata import load_meta
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.ext import list_implementations
 from mlem.runtime.server.base import Server
 
@@ -37,6 +37,6 @@ def serve(
     from mlem.api.commands import serve
 
     serve(
-        load_meta(model, repo, rev, force_type=ModelMeta),
+        load_meta(model, repo, rev, force_type=MlemModel),
         config_arg(Server, load, subtype, conf, file_conf),
     )

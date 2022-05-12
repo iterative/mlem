@@ -23,6 +23,7 @@ install_requires = [
     "python-daemon",
     "distro",
     "gitpython",
+    "flatdict",
 ]
 
 tests = [
@@ -56,6 +57,7 @@ extras = {
     "fastapi": ["uvicorn", "fastapi"],
     # "sagemaker": ["boto3==1.19.12", "sagemaker"],
     "torch": ["torch"],
+    "rmq": ["pika"],
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
@@ -100,6 +102,7 @@ setup_args = dict(  # noqa: C408
         # we should populate them like this as well
         "mlem.contrib": [
             "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
+            "client.rmq = mlem.contrib.rabbitmq:RabbitMQClient",
             "dataset_reader.numpy = mlem.contrib.numpy:NumpyArrayReader",
             "dataset_reader.pandas = mlem.contrib.pandas:PandasReader",
             "dataset_type.dataframe = mlem.contrib.pandas:DataFrameType",
@@ -108,11 +111,20 @@ setup_args = dict(  # noqa: C408
             "dataset_type.ndarray = mlem.contrib.numpy:NumpyNdarrayType",
             "dataset_type.number = mlem.contrib.numpy:NumpyNumberType",
             "dataset_type.xgboost_dmatrix = mlem.contrib.xgboost:DMatrixDatasetType",
+            "dataset_writer.numpy_number = mlem.contrib.numpy:NumpyNumberWriter",
             "dataset_writer.numpy = mlem.contrib.numpy:NumpyArrayWriter",
             "dataset_writer.pandas = mlem.contrib.pandas:PandasWriter",
+            "dataset_writer.pandas_series = mlem.contrib.pandas:PandasSeriesWriter",
+            "dataset_writer.lightgbm = mlem.contrib.lightgbm:LightGBMDatasetWriter",
+            "dataset_reader.pandas_series = mlem.contrib.pandas:PandasSeriesReader",
+            "dataset_writer.torch = mlem.contrib.torch:TorchTensorWriter",
+            "dataset_reader.lightgbm = mlem.contrib.lightgbm:LightGBMDatasetReader",
+            "dataset_reader.numpy_number = mlem.contrib.numpy:NumpyNumberReader",
+            "dataset_reader.torch = mlem.contrib.torch:TorchTensorReader",
             "dataset_type.torch = mlem.contrib.torch:TorchTensorDatasetType",
             "deploy.heroku = mlem.contrib.heroku.meta:HerokuDeploy",
             "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
+            "docker_registry = mlem.contrib.docker.base:DockerRegistry",
             "docker_registry.docker_io = mlem.contrib.docker.base:DockerIORegistry",
             "docker_registry.heroku = mlem.contrib.heroku.build:HerokuRemoteRegistry",
             "docker_registry.remote = mlem.contrib.docker.base:RemoteRegistry",
@@ -135,6 +147,7 @@ setup_args = dict(  # noqa: C408
             "packager.whl = mlem.contrib.pip.base:WhlPackager",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
             "server.heroku = mlem.contrib.heroku.build:HerokuServer",
+            "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
     },

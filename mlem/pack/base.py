@@ -1,10 +1,10 @@
 from abc import abstractmethod
 from typing import ClassVar
 
-from mlem.core.objects import MlemMeta, ModelMeta
+from mlem.core.objects import MlemModel, MlemObject
 
 
-class Packager(MlemMeta):
+class Packager(MlemObject):
     """"""
 
     class Config:
@@ -15,5 +15,5 @@ class Packager(MlemMeta):
     abs_name: ClassVar[str] = "packager"
 
     @abstractmethod
-    def package(self, obj: ModelMeta):  # TODO maybe we can also pack datasets?
+    def package(self, obj: MlemModel):  # TODO maybe we can also pack datasets?
         raise NotImplementedError
