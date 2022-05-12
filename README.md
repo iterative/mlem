@@ -13,11 +13,9 @@ MLEM lets you keep Git as the single source of truth for code and models.
   Wrap models as a Python package or Docker Image, or deploy them to Heroku (SageMaker, Kubernetes, and more platforms coming soon).
   Switch between platforms transparently, with a single command.
 
-
 - **Simple text file to save model metadata:**
   Automatically include Python requirements and input data needs into a deployment-ready format.
   Use the same format on any ML framework.
-  
 
 - **Stick to your training workflow:**
   MLEM doesn't ask you to rewrite model training code.
