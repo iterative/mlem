@@ -1,8 +1,9 @@
 import io
 import json
 import posixpath
+import tempfile
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Union
+from typing import Any, Callable, Dict, Iterator, List, Type, Union
 
 import pandas as pd
 import pytest
@@ -23,13 +24,24 @@ from mlem.contrib.pandas import (
     PandasSeriesWriter,
     PandasWriter,
     SeriesType,
+    get_pandas_batch_formats,
     pd_type_from_string,
     python_type_from_pd_string_repr,
     python_type_from_pd_type,
     string_repr_from_pd_type,
 )
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
-from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.artifacts import LOCAL_STORAGE
+from mlem.core.dataset_type import (
+    DatasetAnalyzer,
+    DatasetReader,
+    DatasetType,
+    DatasetWriter,
+)
+from mlem.core.errors import (
+    DeserializationError,
+    SerializationError,
+    UnsupportedDatasetBatchLoadingType,
+)
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
 from mlem.core.objects import MlemDataset
@@ -133,6 +145,64 @@ def for_all_formats(
     return mark(ex)
 
 
+def dataset_write_read_batch_check(
+    dataset: DatasetType,
+    format: str,
+    reader_type: Type[DatasetReader] = None,
+    custom_eq: Callable[[Any, Any], bool] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        BATCH_SIZE = 2
+        storage = LOCAL_STORAGE
+
+        fmt = get_pandas_batch_formats(BATCH_SIZE)[format]
+        art = fmt.write(dataset.data, storage, posixpath.join(tmpdir, "data"))
+        reader = PandasReader(dataset_type=dataset, format=format)
+        artifacts = {"data": art}
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        df_iterable: Iterator = reader.read_batch(artifacts, BATCH_SIZE)
+        df = None
+        col_types = None
+        while True:
+            try:
+                chunk = next(df_iterable)
+                if df is None:
+                    df = pd.DataFrame(columns=chunk.columns, dtype=col_types)
+                    col_types = dict(zip(chunk.columns, chunk.dtypes))
+                    df = df.astype(dtype=col_types)
+                df = pd.concat([df, chunk.data], ignore_index=True)
+            except StopIteration:
+                break
+
+        assert custom_eq(df, dataset.data)
+
+
+def dataset_write_read_batch_unsupported(
+    dataset: DatasetType,
+    batch: int,
+    writer: DatasetWriter = None,
+    reader_type: Type[DatasetReader] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        writer = writer or dataset.get_writer()
+
+        storage = LOCAL_STORAGE
+        reader, artifacts = writer.write(
+            dataset, storage, posixpath.join(tmpdir, "data")
+        )
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        with pytest.raises(
+            UnsupportedDatasetBatchLoadingType,
+            match="Batch-loading Dataset of type.*",
+        ):
+            iter = reader.read_batch(artifacts, batch)
+            next(iter)
+
+
 @for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_simple_df(data, format):
     writer = PandasWriter(format=format)
@@ -149,6 +219,31 @@ def test_simple_series(series_data, format):
         writer,
         PandasSeriesReader,
         pd.Series.equals,
+    )
+
+
+@pytest.mark.parametrize("format", ["csv", "json", "stata"])
+def test_simple_batch_df(data, format):
+    dataset_write_read_batch_check(
+        DatasetType.create(data),
+        format,
+        PandasReader,
+        pd.DataFrame.equals,
+    )
+
+
+@for_all_formats(
+    valid_formats=PANDAS_FORMATS,
+    exclude=[
+        "csv",
+        "json",
+        "stata",
+    ],
+)
+def test_unsupported_batch_df(data, format):
+    writer = PandasWriter(format=format)
+    dataset_write_read_batch_unsupported(
+        DatasetType.create(data), 2, writer, PandasReader
     )
 
 

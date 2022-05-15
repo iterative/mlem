@@ -9,6 +9,7 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -44,7 +45,11 @@ from mlem.core.dataset_type import (
     DatasetType,
     DatasetWriter,
 )
-from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.errors import (
+    DeserializationError,
+    SerializationError,
+    UnsupportedDatasetBatchLoadingType,
+)
 from mlem.core.import_objects import ExtImportHook
 from mlem.core.meta_io import Location
 from mlem.core.objects import MlemDataset, MlemObject
@@ -523,6 +528,45 @@ PANDAS_SERIES_FORMATS = {
 }
 
 
+def get_pandas_batch_formats(batch_size: int):
+    PANDAS_FORMATS = {
+        "csv": PandasFormat(
+            pd.read_csv,
+            pd.DataFrame.to_csv,
+            file_name="data.csv",
+            write_args={"index": False},
+            read_args={"chunksize": batch_size},
+        ),
+        "json": PandasFormat(
+            pd.read_json,
+            pd.DataFrame.to_json,
+            file_name="data.json",
+            write_args={
+                "date_format": "iso",
+                "date_unit": "ns",
+                "orient": "records",
+                "lines": True,
+            },
+            # Pandas supports batch-reading for JSON only if the JSON file is line-delimited
+            # and orient to be records
+            # https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#line-delimited-json
+            read_args={
+                "chunksize": batch_size,
+                "orient": "records",
+                "lines": True,
+            },
+        ),
+        "stata": PandasFormat(  # TODO int32 converts to int64 for some reason
+            pd.read_stata,
+            pd.DataFrame.to_stata,
+            write_args={"write_index": False},
+            read_args={"chunksize": batch_size},
+        ),
+    }
+
+    return PANDAS_FORMATS
+
+
 class _PandasIO(BaseModel):
     format: str
 
@@ -557,6 +601,11 @@ class PandasSeriesReader(_PandasIO, DatasetReader):
             data.index.name = None
         return self.dataset_type.copy().bind(data)
 
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
 
 class PandasSeriesWriter(DatasetWriter, _PandasIO):
     """DatasetWriter for pandas series"""
@@ -585,6 +634,34 @@ class PandasReader(_PandasIO, DatasetReader):
         return self.dataset_type.copy().bind(
             self.dataset_type.align(self.fmt.read(artifacts))
         )
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        batch_formats = get_pandas_batch_formats(batch_size)
+        if self.format not in batch_formats:
+            raise UnsupportedDatasetBatchLoadingType(self.format)
+        fmt = batch_formats[self.format]
+
+        read_kwargs = {}
+        if fmt.read_args:
+            read_kwargs.update(fmt.read_args)
+        with artifacts[DatasetWriter.art_name].open() as f:
+            iter_df = fmt.read_func(f, **read_kwargs)
+            for df in iter_df:
+                if self.format == "csv":
+                    unnamed = {}
+                    for col in df.columns:
+                        if col.startswith("Unnamed: "):
+                            unnamed[col] = ""
+                    if unnamed:
+                        df = df.rename(unnamed, axis=1)
+                else:
+                    df = df.reset_index(drop=True)
+
+                yield self.dataset_type.copy().bind(
+                    self.dataset_type.align(df)
+                )
 
 
 class PandasWriter(DatasetWriter, _PandasIO):

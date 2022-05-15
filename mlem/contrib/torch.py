@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, Tuple
+from typing import Any, ClassVar, Iterator, Optional, Tuple
 
 import torch
 
@@ -99,6 +99,11 @@ class TorchTensorReader(DatasetReader):
         with artifacts[DatasetWriter.art_name].open() as f:
             data = torch.load(f)
             return self.dataset_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 class TorchModelIO(ModelIO):

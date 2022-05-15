@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -678,6 +679,10 @@ class MlemDataset(_WithArtifacts):
 
     def load_value(self):
         self.dataset = self.reader.read(self.relative_artifacts)
+
+    def read_batch(self, batch_size: int) -> Iterator[DatasetType]:
+        assert isinstance(self.reader, DatasetReader)
+        return self.reader.read_batch(self.relative_artifacts, batch_size)
 
     def get_value(self):
         return self.data

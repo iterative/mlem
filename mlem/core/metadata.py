@@ -102,6 +102,7 @@ def load(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
+    batch_size: Optional[int] = None,
     follow_links: bool = True,
 ) -> Any:
     """Load python object saved by MLEM
@@ -121,8 +122,10 @@ def load(
         repo=repo,
         rev=rev,
         follow_links=follow_links,
-        load_value=True,
+        load_value=batch_size is None,
     )
+    if isinstance(meta, MlemDataset) and batch_size:
+        return meta.read_batch(batch_size)
     return meta.get_value()
 
 

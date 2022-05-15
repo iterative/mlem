@@ -5,6 +5,7 @@ import posixpath
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
+import numpy as np
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
@@ -59,6 +60,7 @@ def apply(
     target_repo: str = None,
     index: bool = None,
     external: bool = None,
+    batch_size: Optional[int] = None,
 ) -> Optional[Any]:
     """Apply provided model against provided data
 
@@ -85,10 +87,19 @@ def apply(
     except WrongMethodError:
         resolved_method = PREDICT_METHOD_NAME
     echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
-    res = [
-        w.call_method(resolved_method, get_dataset_value(part))
-        for part in data
-    ]
+    if batch_size:
+        res: Any = []
+        for part in data:
+            batch_dataset = get_dataset_value(part, batch_size)
+            for chunk in batch_dataset:
+                preds = w.call_method(resolved_method, chunk.data)
+                res += [*preds]
+        res = [np.array(res)]
+    else:
+        res = [
+            w.call_method(resolved_method, get_dataset_value(part))
+            for part in data
+        ]
     if output is None:
         if len(res) == 1:
             return res[0]
