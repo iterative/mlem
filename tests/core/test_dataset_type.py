@@ -16,14 +16,6 @@ from mlem.core.dataset_type import (
 )
 from tests.conftest import dataset_write_read_check
 
-type_schema_map = {
-    int: "integer",
-    str: "string",
-    bool: "boolean",
-    float: "number",
-    type(None): "null",
-}
-
 
 class NotPrimitive:
     pass
@@ -66,11 +58,7 @@ def test_primitives(ptype):
     assert isinstance(dt2, PrimitiveType)
     assert dt2 == dt
     assert dt2.to_type == ptype
-    assert dt.get_model().__name__ == "Primitive"
-    assert dt.get_model().schema() == {
-        "title": "Primitive",
-        "type": type_schema_map[ptype],
-    }
+    assert dt.get_model() is ptype
 
 
 def test_list():
@@ -89,12 +77,9 @@ def test_list():
     assert l_value == dt.deserialize(l_value)
     assert dt.get_model().__name__ == "ListDataset"
     assert dt.get_model().schema() == {
+        "items": {"type": "integer"},
         "title": "ListDataset",
         "type": "array",
-        "items": {"$ref": "#/definitions/Primitive"},
-        "definitions": {
-            "Primitive": {"title": "Primitive", "type": "integer"}
-        },
     }
 
 
@@ -135,7 +120,17 @@ def test_tuple():
     assert t == dt.serialize(t)
     assert t == dt.deserialize(t)
     assert dt.get_model().__name__ == "_TupleLikeDataset"
-    # assert dt.get_model().schema() fails due to KeyError: <class 'pydantic.main.Primitive'>, TODO https://github.com/iterative/mlem/issues/194
+    assert dt.get_model().schema() == {
+        "title": "_TupleLikeDataset",
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": [
+            {"type": "integer"},
+            {"type": "integer"},
+            {"type": "integer"},
+        ],
+    }
 
 
 def test_tuple_source():
@@ -217,7 +212,15 @@ def test_dict():
     assert d == dt.serialize(d)
     assert d == dt.deserialize(d)
     assert dt.get_model().__name__ == "DictDataset"
-    # assert dt.get_model().schema() fails due to KeyError: <class 'pydantic.main.Primitive'>, TODO https://github.com/iterative/mlem/issues/194
+    assert dt.get_model().schema() == {
+        "title": "DictDataset",
+        "type": "object",
+        "properties": {
+            "1": {"title": "1", "type": "integer"},
+            "2": {"title": "2", "type": "string"},
+        },
+        "required": ["1", "2"],
+    }
 
 
 def test_dict_source():

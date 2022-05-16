@@ -14,6 +14,7 @@ from typing import (
     Sized,
     Tuple,
     Type,
+    Union,
 )
 
 import flatdict
@@ -82,7 +83,7 @@ class DatasetSerializer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Union[Type[BaseModel], type]:
         raise NotImplementedError
 
 
@@ -101,7 +102,7 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
 
@@ -186,8 +187,8 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
     def get_requirements(self) -> Requirements:
         return Requirements.new()
 
-    def get_model(self) -> Type[BaseModel]:
-        return create_model("Primitive", __root__=(self.to_type, ...))
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        return self.to_type
 
 
 class PrimitiveWriter(DatasetWriter):
@@ -256,10 +257,11 @@ class ListDatasetType(DatasetType, DatasetSerializer):
     def get_writer(self, **kwargs):
         return ListWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        subname = prefix + "__root__"
         return create_model(
-            "ListDataset",
-            __root__=(List[self.dtype.get_serializer().get_model()], ...),  # type: ignore
+            prefix + "ListDataset",
+            __root__=(List[self.dtype.get_serializer().get_model(subname)], ...),  # type: ignore
         )
 
 
@@ -342,12 +344,16 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
     def get_writer(self, **kwargs) -> "DatasetWriter":
         return _TupleLikeDatasetWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        names = [f"{prefix}{i}_" for i in range(len(self.items))]
         return create_model(
-            "_TupleLikeDataset",
+            prefix + "_TupleLikeDataset",
             __root__=(
                 Tuple[
-                    tuple(t.get_serializer().get_model() for t in self.items)
+                    tuple(
+                        t.get_serializer().get_model(name)
+                        for name, t in zip(names, self.items)
+                    )
                 ],
                 ...,
             ),
@@ -519,12 +525,12 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     def get_writer(self, **kwargs) -> "DatasetWriter":
         return DictWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix="") -> Type[BaseModel]:
         kwargs = {
-            k: (v.get_serializer().get_model(), ...)
+            k: (v.get_serializer().get_model(prefix + k + "_"), ...)
             for k, v in self.item_types.items()
         }
-        return create_model("DictDataset", **kwargs)  # type: ignore
+        return create_model(prefix + "DictDataset", **kwargs)  # type: ignore
 
 
 class DictWriter(DatasetWriter):

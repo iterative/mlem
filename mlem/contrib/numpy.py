@@ -76,11 +76,8 @@ class NumpyNumberType(
     def get_writer(self, **kwargs):
         return NumpyNumberWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
-        return create_model(
-            "NumpyNumber",
-            __root__=(python_type_from_np_string_repr(self.dtype), ...),
-        )
+    def get_model(self, prefix: str = "") -> Type:
+        return python_type_from_np_string_repr(self.dtype)
 
 
 class NumpyNdarrayType(
@@ -134,10 +131,10 @@ class NumpyNdarrayType(
             max_items=subshape[0],
         )
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33
         return create_model(
-            "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
+            prefix + "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
         )
 
     def serialize(self, instance: np.ndarray):

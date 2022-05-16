@@ -229,9 +229,9 @@ class SeriesType(_PandasDatasetType):
 
     type: ClassVar[str] = "series"
 
-    def get_model(self):
-        return create_model(
-            "Series",
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        return create_model(  # type: ignore[call-overload]
+            prefix + "Series",
             **{
                 c: (python_type_from_pd_string_repr(t), ...)
                 for c, t in zip(self.columns, self.dtypes)
@@ -311,9 +311,9 @@ class DataFrameType(_PandasDatasetType):
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, pd.DataFrame)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33
-        return create_model("DataFrame", values=(List[self.row_type()], ...))  # type: ignore
+        return create_model(prefix + "DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
     def row_type(self):
         return create_model(

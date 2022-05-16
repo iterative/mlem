@@ -31,6 +31,7 @@ def test_pip_package(tmpdir, model_meta_saved_single):
         )
 
 
+@long
 def test_whl_package(tmpdir, model_meta_saved_single):
     path = str(tmpdir)
     packager = WhlPackager(
