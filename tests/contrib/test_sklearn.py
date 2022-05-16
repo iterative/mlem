@@ -4,6 +4,9 @@ import lightgbm as lgb
 import numpy as np
 import pytest
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.sklearn import SklearnModel
@@ -38,13 +41,25 @@ def regressor(inp_data, out_data):
     return lr
 
 
+@pytest.fixture()
+def pipeline(inp_data, out_data):
+    pipe = Pipeline([("scaler", StandardScaler()), ("svc", SVC())])
+    pipe.fit(inp_data, out_data)
+    return pipe
+    # save(pipe.predict.__wrapped__, "sklern_pipe", sample_data=X_train)
+    #
+    # pipe = load("sklern_pipe")
+
+
 @pytest.fixture
 def lgbm_model(inp_data, out_data):
     lgbm_regressor = lgb.LGBMRegressor()
     return lgbm_regressor.fit(inp_data, out_data)
 
 
-@pytest.mark.parametrize("model_fixture", ["classifier", "regressor"])
+@pytest.mark.parametrize(
+    "model_fixture", ["classifier", "regressor", "pipeline"]
+)
 def test_hook(model_fixture, inp_data, request):
     model = request.getfixturevalue(model_fixture)
     data_type = DatasetAnalyzer.analyze(inp_data)
@@ -77,7 +92,7 @@ def test_hook_lgb(lgbm_model, inp_data):
     )
 
 
-@pytest.mark.parametrize("model", ["classifier", "regressor"])
+@pytest.mark.parametrize("model", ["classifier", "regressor", "pipeline"])
 def test_model_type__predict(model, inp_data, request):
     model = request.getfixturevalue(model)
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)

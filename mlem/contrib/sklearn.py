@@ -2,6 +2,7 @@ from typing import Any, ClassVar, Optional
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
+from sklearn.pipeline import Pipeline
 
 from mlem.constants import (
     PREDICT_ARG_NAME,
@@ -67,3 +68,22 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
         return super().get_requirements() + InstallableRequirement.from_module(
             sklearn
         )
+
+
+class SklearnPipelineType(SklearnModel):
+    valid_types: ClassVar = (Pipeline,)
+
+    @classmethod
+    def process(
+        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+    ) -> ModelType:
+        mt = SklearnModel(io=SimplePickleIO(), methods={}).bind(obj)
+        sk_predict_sig = Signature.from_method(
+            obj.predict.__wrapped__, auto_infer=True, self=obj, X=sample_data
+        )
+        mt.methods["sklearn_predict"] = sk_predict_sig
+        predict_sig = sk_predict_sig.copy()
+        predict_sig.args[0].name = "data"
+        predict_sig.varkw = None
+        mt.methods[PREDICT_METHOD_NAME] = predict_sig
+        return mt
