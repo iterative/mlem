@@ -253,7 +253,7 @@ class FSSpecStorage(Storage):
 
 class LocalStorage(FSSpecStorage):
     type: ClassVar = "local"
-    fs = LocalFileSystem()
+    fs: AbstractFileSystem = LocalFileSystem()
 
     def get_base_path(self):
         return self.uri
