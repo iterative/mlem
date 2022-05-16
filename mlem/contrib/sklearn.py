@@ -72,14 +72,20 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
 
 class SklearnPipelineType(SklearnModel):
     valid_types: ClassVar = (Pipeline,)
+    type: ClassVar = "sklearn_pipeline"
 
     @classmethod
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
         mt = SklearnModel(io=SimplePickleIO(), methods={}).bind(obj)
+        predict = obj.predict
+        predict_args = {"X": sample_data}
+        if hasattr(predict, "__wrapped__"):
+            predict = predict.__wrapped__
+            predict_args["self"] = obj
         sk_predict_sig = Signature.from_method(
-            obj.predict.__wrapped__, auto_infer=True, self=obj, X=sample_data
+            predict, auto_infer=True, **predict_args
         )
         mt.methods["sklearn_predict"] = sk_predict_sig
         predict_sig = sk_predict_sig.copy()

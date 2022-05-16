@@ -148,6 +148,7 @@ setup_args = dict(  # noqa: C408
             "model_type.catboost = mlem.contrib.catboost:CatBoostModel",
             "model_type.lightgbm = mlem.contrib.lightgbm:LightGBMModel",
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
+            "model_type.sklearn_pipeline = mlem.contrib.sklearn:SklearnPipelineType",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "model_type.torch = mlem.contrib.torch:TorchModel",
             "packager.docker = mlem.contrib.docker.base:DockerImagePackager",
