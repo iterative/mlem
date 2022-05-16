@@ -40,7 +40,7 @@ MLEM requires Python 3.
 $ pyhon -m pip install mlem
 ```
 
-To install the bleeding-edge version, use:
+To install the pre-release version, use:
 
 ```console
 $ pyhon -m pip install git+https://github.com/iterative/mlem
