@@ -29,7 +29,7 @@ from pydantic import ValidationError, parse_obj_as, validator
 from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
-from mlem.config import CONFIG
+from mlem.config import CONFIG, repo_config
 from mlem.core.artifacts import (
     Artifacts,
     FSSpecStorage,
@@ -236,10 +236,7 @@ class MlemObject(MlemABC):
         with location.open("w") as f:
             safe_dump(self.dict(), f)
         if index and location.repo:
-            with no_echo():
-                self.make_link(
-                    self.name, location.fs, repo=location.repo, external=False
-                )
+            repo_config(location.repo, location.fs).index.index(self, location)
 
     def _parse_dump_args(
         self,
@@ -254,7 +251,7 @@ class MlemObject(MlemABC):
             external = CONFIG.DEFAULT_EXTERNAL
         # by default we index only external non-orphan objects
         if index is None:
-            index = external
+            index = True
             ensure_mlem_root = False
         else:
             # if index manually set to True, there should be mlem repo
@@ -268,7 +265,7 @@ class MlemObject(MlemABC):
             external = posixpath.join(MLEM_DIR, "") not in posixpath.dirname(
                 location.fullpath
             )
-        return location, index and external
+        return location, index
 
     def make_link(
         self,

@@ -2,7 +2,6 @@
 MLEM's Python API
 """
 import posixpath
-from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import numpy as np
@@ -16,7 +15,7 @@ from mlem.api.utils import (
     get_model_meta,
     parse_import_type_modifier,
 )
-from mlem.config import CONFIG_FILE_NAME
+from mlem.config import CONFIG_FILE_NAME, repo_config
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
     InvalidArgumentError,
@@ -26,7 +25,7 @@ from mlem.core.errors import (
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, UriResolver, get_fs
+from mlem.core.meta_io import MLEM_DIR, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     MlemDataset,
@@ -47,7 +46,6 @@ from mlem.ui import (
     boxify,
     color,
     echo,
-    no_echo,
 )
 from mlem.utils.root import find_repo_root, mlem_repo_exists
 
@@ -371,53 +369,9 @@ def ls(  # pylint: disable=too-many-locals
     ] = None,
     include_links: bool = True,
 ) -> Dict[Type[MlemObject], List[MlemObject]]:
-    if type_filter is None:
-        type_filter = set(MlemObject.non_abstract_subtypes().values())
-    if isinstance(type_filter, type) and issubclass(type_filter, MlemObject):
-        type_filter = {type_filter}
-    type_filter = set(type_filter)
-    if len(type_filter) == 0:
-        return {}
-    if MlemLink not in type_filter:
-        type_filter.add(MlemLink)
     loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
     _validate_ls_repo(loc, repo)
-    res = defaultdict(list)
-    root_path = posixpath.join(loc.repo or "", MLEM_DIR)
-    files = loc.fs.glob(
-        posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
-    )
-    for cls in type_filter:
-        type_path = posixpath.join(root_path, cls.object_type)
-        for file in files:
-            if not file.startswith(type_path):
-                continue
-            with no_echo():
-                meta = load_meta(
-                    posixpath.relpath(file, loc.repo),
-                    repo=loc.repo,
-                    rev=rev,
-                    follow_links=False,
-                    fs=loc.fs,
-                    load_value=False,
-                )
-            obj_type = cls
-            if isinstance(meta, MlemLink):
-                link_name = posixpath.relpath(file, type_path)[
-                    : -len(MLEM_EXT)
-                ]
-                is_auto_link = meta.path == link_name + MLEM_EXT
-
-                obj_type = MlemObject.__type_map__[meta.link_type]
-                if obj_type not in type_filter:
-                    continue
-                if is_auto_link:
-                    with no_echo():
-                        meta = meta.load_link()
-                elif not include_links:
-                    continue
-            res[obj_type].append(meta)
-    return res
+    return repo_config(repo, fs).index.list(loc, type_filter, include_links)
 
 
 def import_object(
