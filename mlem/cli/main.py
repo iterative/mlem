@@ -16,7 +16,7 @@ from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
-from mlem import version
+from mlem import CONFIG, version
 from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
 from mlem.core.base import MlemABC, build_mlem_object
@@ -226,7 +226,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback}
+    ctx.obj = {"traceback": traceback or CONFIG.DEBUG}
 
 
 def _extract_examples(
