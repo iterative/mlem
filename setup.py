@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 install_requires = [
     "dill",
     "requests",
-    "isort>=5",
+    "isort>=5.10",
     "docker",
     "pydantic>=1.9.0,<2",
     "typer",
