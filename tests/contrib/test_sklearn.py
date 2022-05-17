@@ -46,9 +46,6 @@ def pipeline(inp_data, out_data):
     pipe = Pipeline([("scaler", StandardScaler()), ("svc", SVC())])
     pipe.fit(inp_data, out_data)
     return pipe
-    # save(pipe.predict.__wrapped__, "sklern_pipe", sample_data=X_train)
-    #
-    # pipe = load("sklern_pipe")
 
 
 @pytest.fixture
