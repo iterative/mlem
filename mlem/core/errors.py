@@ -130,3 +130,10 @@ class WrongRequirementsError(MlemError):
         super().__init__(
             f"Wrong requirements: {self.wrong} {self.missing}\nTo fix it, run `{fix}`"
         )
+
+
+class UnknownImplementation(MlemError):
+    def __init__(self, type_name: str, abs_name: str):
+        self.abs_name = abs_name
+        self.type_name = type_name
+        super().__init__(f"Unknown {abs_name} implementation: {type_name}")

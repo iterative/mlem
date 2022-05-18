@@ -394,9 +394,7 @@ def import_object(
     echo(EMOJI_LOAD + f"Importing object from {loc.uri_repr}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
-        if type_ not in ImportHook.__type_map__:
-            raise ValueError(f"Unknown import type {type_}")
-        meta = ImportHook.__type_map__[type_].process(
+        meta = ImportHook.load_type(type_).process(
             loc, copy_data=copy_data, modifier=modifier
         )
     else:

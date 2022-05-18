@@ -6,6 +6,7 @@ from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Literal
 from yaml import safe_load
 
+from mlem.core.errors import UnknownImplementation
 from mlem.polydantic import PolyModel
 from mlem.utils.importing import import_string
 from mlem.utils.path import make_posix
@@ -101,6 +102,13 @@ class MlemABC(PolyModel):
             or v.__is_root__
             and v is not cls
         }
+
+    @classmethod
+    def load_type(cls, type_name: str):
+        try:
+            return cls.__resolve_subtype__(type_name)
+        except ValueError as e:
+            raise UnknownImplementation(type_name, cls.abs_name) from e
 
 
 def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):
