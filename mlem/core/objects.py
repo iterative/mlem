@@ -76,7 +76,7 @@ class MlemObject(MlemABC):
     location: Optional[Location] = None
     description: Optional[str] = None
     params: Dict[str, str] = {}
-    tags: List[str] = []
+    labels: List[str] = []
 
     @property
     def loc(self) -> Location:
@@ -583,7 +583,7 @@ class MlemModel(_WithArtifacts):
         model: Any,
         sample_data: Any = None,
         description: str = None,
-        tags: List[str] = None,
+        labels: List[str] = None,
         params: Dict[str, str] = None,
     ) -> "MlemModel":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
@@ -592,7 +592,7 @@ class MlemModel(_WithArtifacts):
             model_type=mt,
             requirements=mt.get_requirements().expanded,
             description=description,
-            tags=tags or [],
+            labels=labels or [],
             params=params or {},
         )
 
@@ -646,7 +646,7 @@ class MlemDataset(_WithArtifacts):
         data: Any,
         description: str = None,
         params: Dict[str, str] = None,
-        tags: List[str] = None,
+        labels: List[str] = None,
     ) -> "MlemDataset":
         dataset = DatasetType.create(
             data,
@@ -655,7 +655,7 @@ class MlemDataset(_WithArtifacts):
             requirements=dataset.get_requirements().expanded,
             description=description,
             params=params or {},
-            tags=tags or [],
+            labels=labels or [],
         )
         meta.dataset = dataset
         return meta

@@ -27,12 +27,12 @@ def get_object_metadata(
     sample_data=None,
     description: str = None,
     params: Dict[str, str] = None,
-    tags: List[str] = None,
+    labels: List[str] = None,
 ) -> Union[MlemDataset, MlemModel]:
     """Convert given object to appropriate MlemObject subclass"""
     try:
         return MlemDataset.from_data(
-            obj, description=description, params=params, tags=tags
+            obj, description=description, params=params, labels=labels
         )
     except HookNotFound:
         return MlemModel.from_obj(
@@ -40,7 +40,7 @@ def get_object_metadata(
             sample_data=sample_data,
             description=description,
             params=params,
-            tags=tags,
+            labels=labels,
         )
 
 
@@ -54,7 +54,7 @@ def save(
     external: Optional[bool] = None,
     description: str = None,
     params: Dict[str, str] = None,
-    tags: List[str] = None,
+    labels: List[str] = None,
     update: bool = False,
 ) -> MlemObject:
     """Saves given object to a given path
@@ -72,18 +72,18 @@ def save(
         external: if obj is saved to repo, whether to put it outside of .mlem dir
         description: description for object
         params: arbitrary params for object
-        tags: tags for object
-        update: whether to keep old description/tags/params if new values were not provided
+        labels: labels for object
+        update: whether to keep old description/labels/params if new values were not provided
 
     Returns:
         None
     """
-    if update and (description is None or params is None or tags is None):
+    if update and (description is None or params is None or labels is None):
         try:
             old_meta = load_meta(path, repo=repo, fs=fs, load_value=False)
             description = description or old_meta.description
             params = params or old_meta.params
-            tags = tags or old_meta.tags
+            labels = labels or old_meta.labels
         except MlemObjectNotFound:
             logger.warning(
                 "Saving with update=True, but no existing object found at %s %s %s",
@@ -92,7 +92,7 @@ def save(
                 fs,
             )
     meta = get_object_metadata(
-        obj, sample_data, description=description, params=params, tags=tags
+        obj, sample_data, description=description, params=params, labels=labels
     )
     meta.dump(path, fs=fs, repo=repo, index=index, external=external)
     return meta
