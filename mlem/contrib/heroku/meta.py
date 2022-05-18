@@ -54,7 +54,7 @@ class HerokuDeploy(MlemDeploy):
     team: Optional[str] = None
 
 
-class HerokuEnvMeta(MlemEnv[HerokuDeploy]):
+class HerokuEnv(MlemEnv[HerokuDeploy]):
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeploy
     api_key: Optional[str] = None
@@ -72,12 +72,15 @@ class HerokuEnvMeta(MlemEnv[HerokuDeploy]):
             meta.state.app = create_app(meta, api_key=self.api_key)
             meta.update()
 
-        if meta.state.image is None:
+        redeploy = False
+        if meta.state.image is None or meta.model_changed():
             meta.state.image = build_heroku_docker(
                 meta.get_model(), meta.state.app.name, api_key=self.api_key
             )
+            meta.update_model_hash()
             meta.update()
-        if meta.state.release_state is None:
+            redeploy = True
+        if meta.state.release_state is None or redeploy:
             meta.state.release_state = release_docker_app(
                 meta.state.app.name,
                 meta.state.image.image_id,

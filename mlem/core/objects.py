@@ -1,6 +1,7 @@
 """
 Base classes for meta objects in MLEM
 """
+import hashlib
 import os
 import posixpath
 import time
@@ -340,6 +341,9 @@ class MlemObject(MlemABC):
         )
         with no_echo():
             self._write_meta(self.location, False)
+
+    def meta_hash(self):
+        return hashlib.md5(safe_dump(self.dict()).encode("utf8")).hexdigest()
 
 
 class MlemLink(MlemObject):
@@ -693,6 +697,8 @@ class DeployState(MlemABC):
 
     abs_name: ClassVar[str] = "deploy_state"
 
+    model_hash: Optional[str] = None
+
     @abstractmethod
     def get_client(self):
         raise NotImplementedError
@@ -823,6 +829,21 @@ class MlemDeploy(MlemObject):
                 f"Deployment status is still {current} after {times * timeout} seconds"
             )
         return False
+
+    def model_changed(self):
+        if self.state is None or self.state.model_hash is None:
+            return True
+        return self.get_model().meta_hash() != self.state.model_hash
+
+    def update_model_hash(self, model: Optional[MlemModel] = None):
+        model = model or self.get_model()
+        if self.state is None:
+            return
+        self.state.model_hash = model.meta_hash()
+
+    def replace_model(self, model: MlemModel):
+        self.model = model
+        self.model_link = self.model.make_link()
 
 
 def find_object(
