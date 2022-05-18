@@ -4,6 +4,7 @@ import os
 import re
 import time
 from contextlib import contextmanager
+from functools import wraps
 from threading import Lock
 from typing import Any, Iterator, Tuple, Union
 
@@ -12,6 +13,8 @@ import requests
 from docker.errors import BuildError, DockerException
 from docker.models.images import Image
 from docker.utils.json_stream import json_stream
+
+from mlem.core.errors import MlemError
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +125,17 @@ def repository_tags_at_dockerhub(repo):
     if resp.status_code != 200:
         return {}
     return {tag["name"] for tag in resp.json()}
+
+
+def wrap_docker_error(f):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except DockerException as e:
+            raise MlemError(f"Error calling docker: {e}") from e
+
+    return inner
 
 
 # Copyright 2019 Zyfra

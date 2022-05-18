@@ -16,6 +16,7 @@ from mlem.contrib.docker.utils import (
     create_docker_client,
     image_exists_at_dockerhub,
     print_docker_logs,
+    wrap_docker_error,
 )
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
@@ -336,6 +337,7 @@ class DockerImagePackager(Packager, _DockerPackMixin):
 
             return self.build(tempdir)
 
+    @wrap_docker_error
     def build(self, context_dir: str) -> DockerImage:
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
