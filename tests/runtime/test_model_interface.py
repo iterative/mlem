@@ -5,7 +5,7 @@ import pytest
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements
-from mlem.runtime.interface.base import ModelInterface
+from mlem.runtime.interface import ModelInterface
 
 
 class PandasModel:

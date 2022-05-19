@@ -14,7 +14,7 @@ from mlem.cli.main import (
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
 from mlem.ext import list_implementations
-from mlem.runtime.server.base import Server
+from mlem.runtime.server import Server
 
 
 @mlem_command("serve", section="runtime")

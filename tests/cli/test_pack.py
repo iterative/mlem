@@ -1,13 +1,12 @@
 import os.path
 from typing import ClassVar
 
-from mlem.core.objects import MlemModel
-from mlem.pack import Packager
+from mlem.core.objects import MlemModel, MlemPackager
 from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
 
 
-class PackagerMock(Packager):
+class PackagerMock(MlemPackager):
     type: ClassVar = "mock"
     target: str
 

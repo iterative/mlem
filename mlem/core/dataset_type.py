@@ -31,7 +31,7 @@ from mlem.utils.module import get_object_requirements
 
 class DatasetType(ABC, MlemABC, WithRequirements):
     """
-    Base class for dataset type metadata.
+    Base class for dataset metadata
     """
 
     class Config:
@@ -50,7 +50,6 @@ class DatasetType(ABC, MlemABC, WithRequirements):
 
     @abstractmethod
     def get_requirements(self) -> Requirements:
-        """"""  # TODO: https://github.com/iterative/mlem/issues/16 docs
         return get_object_requirements(self)
 
     @abstractmethod
@@ -74,6 +73,8 @@ class DatasetType(ABC, MlemABC, WithRequirements):
 
 
 class DatasetSerializer(ABC):
+    """Base class for dataset-to-dict serialization logic"""
+
     @abstractmethod
     def serialize(self, instance: Any) -> dict:
         raise NotImplementedError
@@ -88,6 +89,8 @@ class DatasetSerializer(ABC):
 
 
 class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
+    """Special dataset type for cases when it's not provided"""
+
     type: ClassVar = "unspecified"
 
     def serialize(self, instance: object) -> dict:
@@ -107,15 +110,17 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
 
 
 class DatasetHook(Hook[DatasetType], ABC):
-    pass
+    """Base class for hooks to analyze dataset objects"""
 
 
 class DatasetAnalyzer(Analyzer):
+    """Analyzer for dataset objects"""
+
     base_hook_class = DatasetHook
 
 
 class DatasetReader(MlemABC, ABC):
-    """"""
+    """Base class for defining logic to read datasets from a set of `Artifact`s"""
 
     class Config:
         type_root = True
@@ -135,7 +140,8 @@ class DatasetReader(MlemABC, ABC):
 
 
 class DatasetWriter(MlemABC):
-    """"""
+    """Base class for defining logic to write datasets. Should produce a set of
+    `Artifact`s and a corresponding reader"""
 
     class Config:
         type_root = True
@@ -229,19 +235,12 @@ class PrimitiveReader(DatasetReader):
 
 class ListDatasetType(DatasetType, DatasetSerializer):
     """
-    DatasetType for list type
-    for a list of elements with same types such as [1, 2, 3, 4, 5]
+    DatasetType for lists with elements of the same type such as [1, 2, 3, 4, 5]
     """
 
     type: ClassVar[str] = "list"
     dtype: DatasetType
     size: Optional[int]
-
-    def is_list(self):
-        return True
-
-    def list_size(self):
-        return self.size
 
     def get_requirements(self) -> Requirements:
         return self.dtype.get_requirements()
@@ -419,8 +418,8 @@ class _TupleLikeDatasetReader(DatasetReader):
 
 class TupleLikeListDatasetType(_TupleLikeDatasetType):
     """
-    DatasetType for tuple-like list type
-    can be a list of elements with different types such as [1, False, 3.2, "mlem", None]
+    DatasetType for list with separate type for each element
+    such as [1, False, 3.2, "mlem", None]
     """
 
     actual_type: ClassVar = list
@@ -473,7 +472,7 @@ class OrderedCollectionHookDelegator(DatasetHook):
 
 class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     """
-    DatasetType for dict type
+    DatasetType for dict
     """
 
     type: ClassVar[str] = "dict"

@@ -10,7 +10,7 @@ import warnings
 from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import dill
 import requests
@@ -33,20 +33,6 @@ logger = logging.getLogger(__name__)
 PYTHON_BASE = os.path.dirname(threading.__file__)
 #  pylint: disable=no-member,protected-access
 IGNORE_TYPES_REQ = (type(Requirements._abc_impl),)  # type: ignore
-
-
-def analyze_module_imports(module_path):
-    module = importing.import_module(module_path)
-    requirements = set()
-    for _name, obj in module.__dict__.items():
-        if isinstance(obj, ModuleType):
-            mod = obj
-        else:
-            mod = get_object_base_module(obj)
-        if is_installable_module(mod) and not is_private_module(mod):
-            requirements.add(get_module_repr(mod))
-
-    return requirements
 
 
 def check_pypi_module(
@@ -317,17 +303,18 @@ def get_module_as_requirement(
     return InstallableRequirement(module=mod.__name__, version=mod_version)
 
 
-def get_local_module_reqs(mod):
+def get_local_module_reqs(mod) -> List[ModuleType]:
+    """Parses module AST to find all import statements"""
     tree = ast.parse(inspect.getsource(mod))
-    imports = []
+    imports: List[Tuple[str, Optional[str]]] = []
     for statement in tree.body:
         if isinstance(statement, ast.Import):
             imports += [(n.name, None) for n in statement.names]
         elif isinstance(statement, ast.ImportFrom):
             if statement.level == 0:
-                imp = (statement.module, None)
+                imp = (statement.module or "", None)
             else:
-                imp = ("." + statement.module, mod.__package__)
+                imp = ("." + (statement.module or ""), mod.__package__)
             imports.append(imp)
 
     result = [importing.import_module(i, p) for i, p in imports]
@@ -360,6 +347,8 @@ _SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
 
 
 class ImportFromVisitor(ast.NodeVisitor):
+    """Visitor implementation to find requirements"""
+
     def __init__(self, pickler: "RequirementAnalyzer", obj):
         self.obj = obj
         self.pickler = pickler
@@ -389,6 +378,9 @@ class ImportFromVisitor(ast.NodeVisitor):
 
 
 def add_closure_inspection(f):
+    """Adds inspection logic for function-like objects to get requierments
+    from closure vars"""
+
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
         base_module = get_object_base_module(obj)
@@ -433,6 +425,7 @@ def add_closure_inspection(f):
 
 
 def save_type_with_classvars(pickler: "RequirementAnalyzer", obj):
+    """Add requirement inspection for classvars"""
     for name, attr in obj.__dict__.items():
         if name.startswith("__") and name.endswith("__"):
             continue
@@ -448,6 +441,9 @@ def save_type_with_classvars(pickler: "RequirementAnalyzer", obj):
 
 
 class RequirementAnalyzer(dill.Pickler):
+    """Special pickler implementation that collects requirements while pickling
+    (and not pickling actualy)"""
+
     ignoring = (
         "dill",
         "mlem",

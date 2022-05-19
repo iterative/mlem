@@ -8,7 +8,7 @@ from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import WrongMethodError
 from mlem.core.model import Argument, Signature
-from mlem.runtime.client.base import HTTPClient
+from mlem.runtime.client import HTTPClient
 
 
 @pytest.fixture

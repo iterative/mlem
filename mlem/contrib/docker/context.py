@@ -15,7 +15,7 @@ from pydantic import BaseModel
 import mlem
 from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements, UnixPackageRequirement
-from mlem.runtime.server.base import Server
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel

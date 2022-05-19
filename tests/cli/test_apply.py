@@ -10,7 +10,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
 from mlem.core.errors import MlemRootNotFound
-from mlem.runtime.client.base import HTTPClient
+from mlem.runtime.client import HTTPClient
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 

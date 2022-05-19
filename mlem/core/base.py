@@ -69,7 +69,7 @@ MT = TypeVar("MT", bound="MlemABC")
 class MlemABC(PolyModel):
     """
     Base class for all MLEM Python objects
-    which should be serialized and deserialized
+    that should be serializable and polymorphic
     """
 
     abs_types: ClassVar[Dict[str, Type["MlemABC"]]] = {}

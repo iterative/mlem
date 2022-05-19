@@ -1,3 +1,3 @@
-from .interface.base import Interface, Signature
+from .interface import Interface, Signature
 
 __all__ = ["Interface", "Signature"]

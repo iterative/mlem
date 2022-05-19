@@ -24,7 +24,10 @@ class InterfaceDescriptor(BaseModel):
 
 
 class Interface(ABC, MlemABC):
-    """"""
+    """Base class for runtime interfaces.
+    Describes a set of methods togerher with their signatures (arguments
+    and return type) and executors - actual python callables to be run
+    when the method is invoked. Used to setup `Server`"""
 
     class Config:
         type_root = True
@@ -129,6 +132,9 @@ def expose(f):
 
 
 class SimpleInterface(Interface):
+    """Interface that exposes its own methods that marked with `expose`
+    decorator"""
+
     type: ClassVar[str] = "simple"
     methods: InterfaceDescriptor = InterfaceDescriptor()
 
@@ -162,6 +168,8 @@ class SimpleInterface(Interface):
 
 
 class ModelInterface(Interface):
+    """Interface that descibes model methods"""
+
     class Config:
         exclude = {"model_type"}
 

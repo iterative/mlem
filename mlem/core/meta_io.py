@@ -80,6 +80,9 @@ class Location(BaseModel):
 
 
 class UriResolver(ABC):
+    """Base class for resolving location. Turns (path, repo, rev, fs) tuple
+    into a normalized `Location` instance"""
+
     impls: List[Type["UriResolver"]] = []
     versioning_support: bool = False
 
@@ -210,6 +213,8 @@ class UriResolver(ABC):
 
 
 class GithubResolver(UriResolver):
+    """Resolve https://github.com URLs"""
+
     PROTOCOL = "github://"
     GITHUB_COM = "https://github.com"
 
@@ -307,6 +312,8 @@ class GithubResolver(UriResolver):
 
 
 class FSSpecResolver(UriResolver):
+    """Resolve different fsspec URIs"""
+
     @classmethod
     def check(
         cls,

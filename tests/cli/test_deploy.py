@@ -14,7 +14,7 @@ from mlem.core.objects import (
     MlemEnv,
     MlemLink,
 )
-from mlem.runtime.client.base import BaseClient, HTTPClient
+from mlem.runtime.client import Client, HTTPClient
 from tests.cli.conftest import Runner
 
 
@@ -27,7 +27,7 @@ def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
 
 
 class DeployStateMock(DeployState):
-    def get_client(self) -> BaseClient:
+    def get_client(self) -> Client:
         pass
 
 
