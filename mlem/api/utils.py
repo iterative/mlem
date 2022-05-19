@@ -2,7 +2,7 @@ import re
 from typing import Any, Optional, Tuple, Type, TypeVar, Union
 
 from mlem.core.base import MlemABC, build_mlem_object
-from mlem.core.errors import InvalidArgumentError, WrongMetaType
+from mlem.core.errors import InvalidArgumentError
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemDataset, MlemModel, MlemObject
 
@@ -25,15 +25,13 @@ def get_dataset_value(dataset: Any, batch_size: Optional[int] = None) -> Any:
     return dataset
 
 
-def get_model_meta(model: Any) -> MlemModel:
+def get_model_meta(model: Union[str, MlemModel]) -> MlemModel:
     if isinstance(model, MlemModel):
         if model.get_value() is None:
             model.load_value()
         return model
     if isinstance(model, str):
-        model = load_meta(model)
-        if not isinstance(model, MlemModel):
-            raise WrongMetaType(model, MlemModel)
+        model = load_meta(model, force_type=MlemModel)
         model.load_value()
         return model
     raise InvalidArgumentError(

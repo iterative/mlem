@@ -445,6 +445,8 @@ def deploy(
             deploy_meta.dump(deploy_meta_or_path, fs, repo, index, external)
     else:
         deploy_meta = deploy_meta_or_path
+        if model is not None:
+            deploy_meta.replace_model(get_model_meta(model))
 
     # ensuring links are working
     deploy_meta.get_env()
