@@ -131,7 +131,6 @@ def test_apply_batch_with_import(
         path = posixpath.join(dir, "data")
         result = runner.invoke(
             [
-                "--tb",
                 "apply",
                 model_meta_saved_single.loc.uri,
                 data_path,
