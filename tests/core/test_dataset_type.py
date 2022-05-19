@@ -92,9 +92,7 @@ def test_list_source():
         reader_type=ListReader,
     )
 
-    assert list(artifacts.keys()) == list(
-        map(lambda x: str(x) + "/data", range(len(l_value)))
-    )
+    assert list(artifacts.keys()) == [f"{x}/data" for x in range(len(l_value))]
     assert artifacts["0"]["data"].uri.endswith("data/0")
     assert artifacts["1"]["data"].uri.endswith("data/1")
     assert artifacts["2"]["data"].uri.endswith("data/2")
@@ -152,9 +150,9 @@ def test_tuple_source():
         "4/data",
         "5/data",
     ]
-    assert list(artifacts["1"].keys()) == list(
-        map(lambda x: str(x) + "/data", range(len(t_value[1])))
-    )
+    assert list(artifacts["1"].keys()) == [
+        f"{x}/data" for x in range(len(t_value[1]))
+    ]
     assert artifacts["0"]["data"].uri.endswith("data/0")
     assert artifacts["1"]["0"]["data"].uri.endswith("data/1/0")
     assert artifacts["1"]["1"]["data"].uri.endswith("data/1/1")
@@ -183,9 +181,9 @@ def test_mixed_list_source():
         "4/data",
         "5/data",
     ]
-    assert list(artifacts["1"].keys()) == list(
-        map(lambda x: str(x) + "/data", range(len(t_value[1])))
-    )
+    assert list(artifacts["1"].keys()) == [
+        f"{x}/data" for x in range(len(t_value[1]))
+    ]
     assert artifacts["0"]["data"].uri.endswith("data/0")
     assert artifacts["1"]["0"]["data"].uri.endswith("data/1/0")
     assert artifacts["1"]["1"]["data"].uri.endswith("data/1/1")

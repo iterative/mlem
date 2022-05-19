@@ -4,7 +4,6 @@ MLEM's Python API
 import posixpath
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
-import numpy as np
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
@@ -91,8 +90,7 @@ def apply(
             batch_dataset = get_dataset_value(part, batch_size)
             for chunk in batch_dataset:
                 preds = w.call_method(resolved_method, chunk.data)
-                res += [*preds]
-        res = [np.array(res)]
+                res += [*preds]  # TODO: merge results
     else:
         res = [
             w.call_method(resolved_method, get_dataset_value(part))
