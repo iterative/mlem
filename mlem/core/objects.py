@@ -690,7 +690,10 @@ class MlemDataset(_WithArtifacts):
         self.dataset = self.reader.read(self.relative_artifacts)
 
     def read_batch(self, batch_size: int) -> Iterator[DatasetType]:
-        assert isinstance(self.reader, DatasetReader)
+        if self.reader is None:
+            raise MlemObjectNotSavedError(
+                "Cannot read batch from not saved dataset"
+            )
         return self.reader.read_batch(self.relative_artifacts, batch_size)
 
     def get_value(self):

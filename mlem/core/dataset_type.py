@@ -285,9 +285,9 @@ class ListWriter(DatasetWriter):
             res[str(i)] = art
             readers.append(elem_reader)
 
-        return ListReader(
-            dataset_type=dataset, readers=readers
-        ), flatdict.FlatterDict(res, delimiter="/")
+        return ListReader(dataset_type=dataset, readers=readers), dict(
+            flatdict.FlatterDict(res, delimiter="/")
+        )
 
 
 class ListReader(DatasetReader):
@@ -392,7 +392,7 @@ class _TupleLikeDatasetWriter(DatasetWriter):
 
         return (
             _TupleLikeDatasetReader(dataset_type=dataset, readers=readers),
-            flatdict.FlatterDict(res, delimiter="/"),
+            dict(flatdict.FlatterDict(res, delimiter="/")),
         )
 
 
@@ -460,9 +460,12 @@ class OrderedCollectionHookDelegator(DatasetHook):
         if not py_types.intersection(
             PrimitiveType.PRIMITIVES
         ):  # py_types is guaranteed to be singleton set here
-            return TupleLikeListDatasetType(
-                items=[DatasetAnalyzer.analyze(o) for o in obj]
-            )
+            items_types = [DatasetAnalyzer.analyze(o) for o in obj]
+            first, *others = items_types
+            for other in others:
+                if first != other:
+                    return TupleLikeListDatasetType(items=items_types)
+            return ListDatasetType(dtype=first, size=len(obj))
 
         # optimization for large lists of same primitive type elements
         return ListDatasetType(
@@ -552,9 +555,9 @@ class DictWriter(DatasetWriter):
             )
             res[key] = art
             readers[key] = dtype_reader
-        return DictReader(
-            dataset_type=dataset, item_readers=readers
-        ), flatdict.FlatterDict(res, delimiter="/")
+        return DictReader(dataset_type=dataset, item_readers=readers), dict(
+            flatdict.FlatterDict(res, delimiter="/")
+        )
 
 
 class DictReader(DatasetReader):

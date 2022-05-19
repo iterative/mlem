@@ -101,13 +101,8 @@ def apply(
             return res[0]
         return res
     if len(res) == 1:
-        return save(
-            res[0], output, repo=target_repo, external=external, index=index
-        )
-
-    raise NotImplementedError(
-        "Saving several input data objects is not implemented yet"
-    )
+        res = res[0]
+    return save(res, output, repo=target_repo, external=external, index=index)
 
 
 def apply_remote(
@@ -152,11 +147,8 @@ def apply_remote(
             return res[0]
         return res
     if len(res) == 1:
-        return save(res[0], output, repo=target_repo, index=index)
-
-    raise NotImplementedError(
-        "Saving several input data objects is not implemented yet"
-    )
+        res = res[0]
+    return save(res, output, repo=target_repo, index=index)
 
 
 def clone(

@@ -3,6 +3,7 @@ from pydantic import parse_obj_as
 
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
+    DatasetReader,
     DatasetType,
     DictDatasetType,
     DictReader,
@@ -11,6 +12,7 @@ from mlem.core.dataset_type import (
     PrimitiveReader,
     PrimitiveType,
     TupleDatasetType,
+    TupleLikeListDatasetType,
     _TupleLikeDatasetReader,
     _TupleLikeDatasetWriter,
 )
@@ -93,11 +95,11 @@ def test_list_source():
     )
 
     assert list(artifacts.keys()) == [f"{x}/data" for x in range(len(l_value))]
-    assert artifacts["0"]["data"].uri.endswith("data/0")
-    assert artifacts["1"]["data"].uri.endswith("data/1")
-    assert artifacts["2"]["data"].uri.endswith("data/2")
-    assert artifacts["3"]["data"].uri.endswith("data/3")
-    assert artifacts["4"]["data"].uri.endswith("data/4")
+    assert artifacts["0/data"].uri.endswith("data/0")
+    assert artifacts["1/data"].uri.endswith("data/1")
+    assert artifacts["2/data"].uri.endswith("data/2")
+    assert artifacts["3/data"].uri.endswith("data/3")
+    assert artifacts["4/data"].uri.endswith("data/4")
 
 
 def test_tuple():
@@ -150,16 +152,22 @@ def test_tuple_source():
         "4/data",
         "5/data",
     ]
-    assert list(artifacts["1"].keys()) == [
-        f"{x}/data" for x in range(len(t_value[1]))
-    ]
-    assert artifacts["0"]["data"].uri.endswith("data/0")
-    assert artifacts["1"]["0"]["data"].uri.endswith("data/1/0")
-    assert artifacts["1"]["1"]["data"].uri.endswith("data/1/1")
-    assert artifacts["2"]["data"].uri.endswith("data/2")
-    assert artifacts["3"]["data"].uri.endswith("data/3")
-    assert artifacts["4"]["data"].uri.endswith("data/4")
-    assert artifacts["5"]["data"].uri.endswith("data/5")
+    assert artifacts["0/data"].uri.endswith("data/0")
+    assert artifacts["1/0/data"].uri.endswith("data/1/0")
+    assert artifacts["1/1/data"].uri.endswith("data/1/1")
+    assert artifacts["2/data"].uri.endswith("data/2")
+    assert artifacts["3/data"].uri.endswith("data/3")
+    assert artifacts["4/data"].uri.endswith("data/4")
+    assert artifacts["5/data"].uri.endswith("data/5")
+
+
+def test_tuple_reader():
+    dataset_type = TupleLikeListDatasetType(items=[])
+    assert dataset_type.dict()["type"] == "tuple_like_list"
+    reader = _TupleLikeDatasetReader(dataset_type=dataset_type, readers=[])
+    new_reader = parse_obj_as(DatasetReader, reader.dict())
+    res = new_reader.read({})
+    assert res.data == []
 
 
 def test_mixed_list_source():
@@ -181,16 +189,13 @@ def test_mixed_list_source():
         "4/data",
         "5/data",
     ]
-    assert list(artifacts["1"].keys()) == [
-        f"{x}/data" for x in range(len(t_value[1]))
-    ]
-    assert artifacts["0"]["data"].uri.endswith("data/0")
-    assert artifacts["1"]["0"]["data"].uri.endswith("data/1/0")
-    assert artifacts["1"]["1"]["data"].uri.endswith("data/1/1")
-    assert artifacts["2"]["data"].uri.endswith("data/2")
-    assert artifacts["3"]["data"].uri.endswith("data/3")
-    assert artifacts["4"]["data"].uri.endswith("data/4")
-    assert artifacts["5"]["data"].uri.endswith("data/5")
+    assert artifacts["0/data"].uri.endswith("data/0")
+    assert artifacts["1/0/data"].uri.endswith("data/1/0")
+    assert artifacts["1/1/data"].uri.endswith("data/1/1")
+    assert artifacts["2/data"].uri.endswith("data/2")
+    assert artifacts["3/data"].uri.endswith("data/3")
+    assert artifacts["4/data"].uri.endswith("data/4")
+    assert artifacts["5/data"].uri.endswith("data/5")
 
 
 def test_dict():
@@ -238,7 +243,6 @@ def test_dict_source():
     )
 
     assert list(artifacts.keys()) == ["1/data", "2/data", "3/1/data"]
-    assert list(artifacts["3"].keys()) == ["1/data"]
-    assert artifacts["1"]["data"].uri.endswith("data/1")
-    assert artifacts["2"]["data"].uri.endswith("data/2")
-    assert artifacts["3"]["1"]["data"].uri.endswith("data/3/1")
+    assert artifacts["1/data"].uri.endswith("data/1")
+    assert artifacts["2/data"].uri.endswith("data/2")
+    assert artifacts["3/1/data"].uri.endswith("data/3/1")

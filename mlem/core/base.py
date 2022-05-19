@@ -163,12 +163,13 @@ def build_mlem_object(
     **kwargs,
 ):
     not_links, links = parse_links(model, str_conf or [])
+    if model.__is_root__:
+        kwargs[model.__config__.type_field] = subtype
     return build_model(
         model,
         str_conf=not_links,
         file_conf=file_conf,
         conf=conf,
-        **{model.__config__.type_field: subtype},
         **kwargs,
         **links,
     )
