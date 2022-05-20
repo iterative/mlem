@@ -20,9 +20,8 @@ from mlem.contrib.docker.utils import (
 )
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
-from mlem.core.objects import MlemModel
-from mlem.pack import Packager
-from mlem.runtime.server.base import Server
+from mlem.core.objects import MlemModel, MlemPackager
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_OK, EMOJI_UPLOAD, echo
 
 logger = logging.getLogger(__name__)
@@ -302,7 +301,7 @@ class _DockerPackMixin(BaseModel):
     args: DockerBuildArgs = DockerBuildArgs()
 
 
-class DockerDirPackager(Packager, _DockerPackMixin):
+class DockerDirPackager(MlemPackager, _DockerPackMixin):
     type: ClassVar[str] = "docker_dir"
     target: str
 
@@ -318,7 +317,7 @@ class DockerDirPackager(Packager, _DockerPackMixin):
         return docker_dir
 
 
-class DockerImagePackager(Packager, _DockerPackMixin):
+class DockerImagePackager(MlemPackager, _DockerPackMixin):
     type: ClassVar[str] = "docker"
     image: DockerImage
     env: DockerEnv = DockerEnv()

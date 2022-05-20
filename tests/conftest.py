@@ -26,7 +26,7 @@ from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemDataset, MlemModel
 from mlem.core.requirements import Requirements
-from mlem.runtime.interface.base import ModelInterface
+from mlem.runtime.interface import ModelInterface
 from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
@@ -161,7 +161,7 @@ def request_get_mock(mocker, client):
         return client.get(url, params=params, **kwargs)
 
     return mocker.patch(
-        "mlem.runtime.client.base.requests.get",
+        "mlem.runtime.client.requests.get",
         side_effect=patched_get,
     )
 
@@ -178,7 +178,7 @@ def request_post_mock(mocker, client):
         return client.post(url, data=data, json=json, **kwargs)
 
     return mocker.patch(
-        "mlem.runtime.client.base.requests.post",
+        "mlem.runtime.client.requests.post",
         side_effect=patched_post,
     )
 

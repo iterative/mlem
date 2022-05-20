@@ -11,8 +11,8 @@ from pydantic import BaseModel, create_model, parse_obj_as
 
 from mlem.core.model import Signature
 from mlem.core.requirements import LibRequirementsMixin
-from mlem.runtime.interface.base import Interface
-from mlem.runtime.server.base import Server
+from mlem.runtime.interface import Interface
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 
 logger = logging.getLogger(__name__)

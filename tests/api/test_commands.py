@@ -17,7 +17,7 @@ from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
 from mlem.core.objects import MlemDataset, MlemLink, MlemModel
-from mlem.runtime.client.base import HTTPClient
+from mlem.runtime.client import HTTPClient
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 

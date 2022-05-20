@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel
 
 from mlem.core.objects import DeployState, DeployStatus, MlemDeploy, MlemEnv
-from mlem.runtime.client.base import BaseClient, HTTPClient
+from mlem.runtime.client import Client, HTTPClient
 
 from ...core.errors import DeploymentError
 from ...ui import EMOJI_OK, echo
@@ -39,7 +39,7 @@ class HerokuState(DeployState):
             raise ValueError("App is not created yet")
         return self.app
 
-    def get_client(self) -> BaseClient:
+    def get_client(self) -> Client:
         return HTTPClient(
             host=urlparse(self.ensured_app.web_url).netloc, port=80
         )

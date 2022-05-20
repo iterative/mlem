@@ -9,7 +9,7 @@ from mlem.core.objects import MlemDataset, MlemModel, MlemObject
 
 def get_dataset_value(dataset: Any, batch_size: Optional[int] = None) -> Any:
     if isinstance(dataset, str):
-        return load(dataset)
+        return load(dataset, batch_size=batch_size)
     if isinstance(dataset, MlemDataset):
         # TODO: https://github.com/iterative/mlem/issues/29
         #  fix discrepancies between model and data meta objects

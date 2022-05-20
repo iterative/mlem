@@ -18,6 +18,8 @@ TypeFilter = Union[Type[MlemObject], Iterable[Type[MlemObject]], None]
 
 
 class Index(MlemABC):
+    """Base class for mlem object indexing logic"""
+
     class Config:
         type_root = True
 
@@ -52,6 +54,9 @@ class Index(MlemABC):
 
 
 class LinkIndex(Index):
+    """Indexing base on contents of MLEM_DIR - either objects or links to them
+    should be there"""
+
     type: ClassVar = "link"
 
     def index(self, obj: MlemObject, location: Location):
@@ -117,6 +122,8 @@ FileIndexSchema = Dict[str, List[str]]
 
 
 class FileIndex(Index):
+    """Index as a single file"""
+
     type: ClassVar = "file"
     filename = "index.yaml"
 

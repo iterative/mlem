@@ -52,6 +52,8 @@ def mlem_config_settings_source(section: Optional[str]):
 
 
 class MlemConfigBase(BaseSettings):
+    """Special base for mlem settings to be able to read them from files"""
+
     config_path: str = ""
     config_fs: Optional[AbstractFileSystem] = None
 
@@ -78,6 +80,8 @@ class MlemConfigBase(BaseSettings):
 
 
 class MlemConfig(MlemConfigBase):
+    """Base Mlem Config"""
+
     GITHUB_USERNAME: Optional[str] = Field(default=None, env="GITHUB_USERNAME")
     GITHUB_TOKEN: Optional[str] = Field(default=None, env="GITHUB_TOKEN")
     ADDITIONAL_EXTENSIONS_RAW: str = Field(

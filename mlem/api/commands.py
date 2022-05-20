@@ -4,7 +4,6 @@ MLEM's Python API
 import posixpath
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
-import numpy as np
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
@@ -34,10 +33,10 @@ from mlem.core.objects import (
     MlemLink,
     MlemModel,
     MlemObject,
+    MlemPackager,
 )
-from mlem.pack import Packager
-from mlem.runtime.client.base import BaseClient
-from mlem.runtime.server.base import Server
+from mlem.runtime.client import Client
+from mlem.runtime.server import Server
 from mlem.ui import (
     EMOJI_APPLY,
     EMOJI_COPY,
@@ -91,8 +90,7 @@ def apply(
             batch_dataset = get_dataset_value(part, batch_size)
             for chunk in batch_dataset:
                 preds = w.call_method(resolved_method, chunk.data)
-                res += [*preds]
-        res = [np.array(res)]
+                res += [*preds]  # TODO: merge results
     else:
         res = [
             w.call_method(resolved_method, get_dataset_value(part))
@@ -103,17 +101,12 @@ def apply(
             return res[0]
         return res
     if len(res) == 1:
-        return save(
-            res[0], output, repo=target_repo, external=external, index=index
-        )
-
-    raise NotImplementedError(
-        "Saving several input data objects is not implemented yet"
-    )
+        res = res[0]
+    return save(res, output, repo=target_repo, external=external, index=index)
 
 
 def apply_remote(
-    client: Union[str, BaseClient],
+    client: Union[str, Client],
     *data: Union[str, MlemDataset, Any],
     method: str = None,
     output: str = None,
@@ -124,7 +117,7 @@ def apply_remote(
     """Apply provided model against provided data
 
     Args:
-        client (BaseClient): The client to access methods of deployed model.
+        client (Client): The client to access methods of deployed model.
         data (Any): Input to the model.
         method (str, optional): Which model method to use.
             If None, use the only method model has.
@@ -138,7 +131,7 @@ def apply_remote(
             Otherwise returns None.
 
     """
-    client = ensure_mlem_object(BaseClient, client, **client_kwargs)
+    client = ensure_mlem_object(Client, client, **client_kwargs)
     if method is not None:
         try:
             resolved_method = getattr(client, method)
@@ -154,11 +147,8 @@ def apply_remote(
             return res[0]
         return res
     if len(res) == 1:
-        return save(res[0], output, repo=target_repo, index=index)
-
-    raise NotImplementedError(
-        "Saving several input data objects is not implemented yet"
-    )
+        res = res[0]
+    return save(res, output, repo=target_repo, index=index)
 
 
 def clone(
@@ -317,21 +307,21 @@ def link(
 
 
 def pack(
-    packager: Union[str, Packager],
+    packager: Union[str, MlemPackager],
     model: Union[str, MlemModel],
     **packager_kwargs,
 ):
     """Pack model in docker-build-ready folder or directly build a docker image.
 
     Args:
-        packager (Union[str, Packager]): Packager to use.
+        packager (Union[str, MlemPackager]): Packager to use.
             Out-of-the-box supported string values are "docker_dir" and "docker".
         model (Union[str, MlemModel]): The model to pack.
     """
     model = get_model_meta(model)
-    return ensure_mlem_object(Packager, packager, **packager_kwargs).package(
-        model
-    )
+    return ensure_mlem_object(
+        MlemPackager, packager, **packager_kwargs
+    ).package(model)
 
 
 def serve(model: MlemModel, server: Union[Server, str], **server_kwargs):
@@ -341,7 +331,7 @@ def serve(model: MlemModel, server: Union[Server, str], **server_kwargs):
         model (MlemModel): The model to serve.
         server (Union[Server, str]): Out-of-the-box supported one is "fastapi".
     """
-    from mlem.runtime.interface.base import ModelInterface
+    from mlem.runtime.interface import ModelInterface
 
     model.load_value()
     interface = ModelInterface(model_type=model.model_type)

@@ -26,7 +26,7 @@ from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemDataset, MlemModel
 from mlem.ext import list_implementations
-from mlem.runtime.client.base import BaseClient
+from mlem.runtime.client import Client
 from mlem.ui import set_echo
 
 
@@ -123,7 +123,7 @@ def apply(
 def apply_remote(
     subtype: str = Argument(
         "",
-        help=f"Type of client. Choices: {list_implementations(BaseClient)}",
+        help=f"Type of client. Choices: {list_implementations(Client)}",
         show_default=False,
     ),
     data: str = Argument(..., help="Path to dataset object"),
@@ -146,7 +146,7 @@ def apply_remote(
         Apply hosted mlem model to local mlem dataset
         $ mlem apply-remote http mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
     """
-    client = config_arg(BaseClient, load, subtype, conf, file_conf)
+    client = config_arg(Client, load, subtype, conf, file_conf)
 
     with set_echo(None if json else ...):
         result = run_apply_remote(
@@ -163,7 +163,7 @@ def apply_remote(
 
 
 def run_apply_remote(
-    client: BaseClient,
+    client: Client,
     data: str,
     repo,
     rev,

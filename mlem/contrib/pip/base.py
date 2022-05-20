@@ -11,9 +11,8 @@ from fsspec.implementations.local import LocalFileSystem
 
 import mlem
 from mlem.core.meta_io import get_fs, get_uri
-from mlem.core.objects import MlemModel
+from mlem.core.objects import MlemModel, MlemPackager
 from mlem.core.requirements import InstallableRequirement
-from mlem.pack import Packager
 from mlem.ui import EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
@@ -77,7 +76,7 @@ class PipMixin(SetupTemplate):
         )
 
 
-class PipPackager(Packager, PipMixin):
+class PipPackager(MlemPackager, PipMixin):
     type: ClassVar = "pip"
     target: str
 
@@ -86,7 +85,7 @@ class PipPackager(Packager, PipMixin):
         self.make_distr(obj, root, fs)
 
 
-class WhlPackager(Packager, PipMixin):
+class WhlPackager(MlemPackager, PipMixin):
     type: ClassVar = "whl"
     target: str
 

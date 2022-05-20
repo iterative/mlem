@@ -13,6 +13,7 @@ from mlem.core.errors import MlemRootNotFound
 def mlem_repo_exists(
     path: str, fs: AbstractFileSystem, raise_on_missing: bool = False
 ):
+    """Check is mlem repo exists at path"""
     try:
         exists = fs.exists(posixpath.join(path, MLEM_DIR))
     except ValueError:

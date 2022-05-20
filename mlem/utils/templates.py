@@ -7,6 +7,8 @@ from pydantic import BaseModel
 
 
 class TemplateModel(BaseModel):
+    """Base class to render jinja templates from pydantic models"""
+
     TEMPLATE_FILE: ClassVar[str]
     TEMPLATE_DIR: ClassVar[str]
 

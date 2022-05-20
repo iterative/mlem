@@ -10,9 +10,9 @@ from pydantic import BaseModel, parse_obj_as
 from mlem.core.errors import MlemError
 from mlem.core.model import Signature
 from mlem.runtime import Interface
-from mlem.runtime.client.base import BaseClient
-from mlem.runtime.interface.base import InterfaceDescriptor
-from mlem.runtime.server.base import Server
+from mlem.runtime.client import Client
+from mlem.runtime.interface import InterfaceDescriptor
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 
 REQUEST = "_request"
@@ -95,7 +95,7 @@ class RabbitMQServer(Server, RabbitMQMixin):
         self.channel.start_consuming()
 
 
-class RabbitMQClient(BaseClient, RabbitMQMixin):
+class RabbitMQClient(Client, RabbitMQMixin):
     type: ClassVar = "rmq"
     timeout: float = 0
 

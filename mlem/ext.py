@@ -99,8 +99,6 @@ class ExtensionLoader:
         Extension("mlem.contrib.catboost", ["catboost"], False),
         # Extension('mlem.contrib.aiohttp', ['aiohttp', 'aiohttp_swagger']),
         # Extension('mlem.contrib.flask', ['flask', 'flasgger'], False),
-        # Extension('mlem.contrib.sqlalchemy', ['sqlalchemy']),
-        # Extension('mlem.contrib.s3', ['boto3']),
         # Extension('mlem.contrib.imageio', ['imageio']),
         Extension("mlem.contrib.lightgbm", ["lightgbm"], False),
         Extension("mlem.contrib.xgboost", ["xgboost"], False),

@@ -13,7 +13,10 @@ from mlem.core.objects import MlemObject
 
 
 class ImportHook(Hook[MlemObject], MlemABC, ABC):
-    """"""
+    """Base class for defining import hooks.
+    On every import attemt all available hooks are checked if the imported path
+    represented by `Location` instance if valid for them. Then process method is
+    called on a hook that first passed the check"""
 
     type: ClassVar[str]
     abs_name: ClassVar = "import"
@@ -51,6 +54,8 @@ class ImportAnalyzer(Analyzer[MlemObject]):
 
 
 class ExtImportHook(ImportHook, ABC):
+    """Base class for import hooks that target particular file extensions"""
+
     EXTS: ClassVar[Tuple[str, ...]]
 
     @classmethod
@@ -59,6 +64,8 @@ class ExtImportHook(ImportHook, ABC):
 
 
 class PickleImportHook(ExtImportHook):
+    """Import hook for pickle files"""
+
     EXTS: ClassVar = (".pkl", ".pickle")
     type: ClassVar = "pickle"
 

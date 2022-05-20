@@ -64,7 +64,10 @@ T = TypeVar("T", bound="MlemObject")
 
 
 class MlemObject(MlemABC):
-    """"""
+    """Base class for MLEM objects.
+    MLEM objects contain metadata about different types of objects and are saved
+    in a form of `.mlem` files.
+    """
 
     class Config:
         exclude = {"location"}
@@ -347,6 +350,9 @@ class MlemObject(MlemABC):
 
 
 class MlemLink(MlemObject):
+    """Link is a special MlemObject that represents a MlemObject in a different
+    location"""
+
     path: str
     repo: Optional[str] = None
     rev: Optional[str] = None
@@ -433,6 +439,8 @@ class MlemLink(MlemObject):
 
 
 class _WithArtifacts(ABC, MlemObject):
+    """Special subtype of MlemObject that can have files (artifacts) attached"""
+
     __abstract__: ClassVar[bool] = True
     artifacts: Optional[Artifacts] = None
     requirements: Requirements = Requirements.new()
@@ -574,6 +582,8 @@ class _WithArtifacts(ABC, MlemObject):
 
 
 class MlemModel(_WithArtifacts):
+    """MlemObject representing a ML model"""
+
     object_type: ClassVar = "model"
     model_type_cache: Any
     model_type: ModelType
@@ -625,6 +635,8 @@ class MlemModel(_WithArtifacts):
 
 
 class MlemDataset(_WithArtifacts):
+    """MlemObject representing a dataset"""
+
     class Config:
         exclude = {"dataset"}
 
@@ -682,15 +694,34 @@ class MlemDataset(_WithArtifacts):
         self.dataset = self.reader.read(self.relative_artifacts)
 
     def read_batch(self, batch_size: int) -> Iterator[DatasetType]:
-        assert isinstance(self.reader, DatasetReader)
+        if self.reader is None:
+            raise MlemObjectNotSavedError(
+                "Cannot read batch from not saved dataset"
+            )
         return self.reader.read_batch(self.relative_artifacts, batch_size)
 
     def get_value(self):
         return self.data
 
 
+class MlemPackager(MlemObject):
+    """Packager is base class to define different ways of packaging models
+    into different formats"""
+
+    class Config:
+        type_root = True
+        type_field = "type"
+
+    object_type: ClassVar = "packager"
+    abs_name: ClassVar[str] = "packager"
+
+    @abstractmethod
+    def package(self, obj: MlemModel):  # TODO maybe we can also pack datasets?
+        raise NotImplementedError
+
+
 class DeployState(MlemABC):
-    """"""
+    """Base class for deployment state metadata"""
 
     class Config:
         type_root = True
@@ -708,7 +739,7 @@ DT = TypeVar("DT", bound="MlemDeploy")
 
 
 class MlemEnv(MlemObject, Generic[DT]):
-    """"""
+    """Base class for target environment metadata"""
 
     class Config:
         type_root = True
@@ -721,12 +752,10 @@ class MlemEnv(MlemObject, Generic[DT]):
 
     @abstractmethod
     def deploy(self, meta: DT):
-        """"""
         raise NotImplementedError
 
     @abstractmethod
     def destroy(self, meta: DT):
-        """"""
         raise NotImplementedError
 
     @abstractmethod
@@ -741,6 +770,8 @@ class MlemEnv(MlemObject, Generic[DT]):
 
 
 class DeployStatus(str, Enum):
+    """Enum with deployment statuses"""
+
     UNKNOWN = "unknown"
     NOT_DEPLOYED = "not_deployed"
     STARTING = "starting"
@@ -750,7 +781,7 @@ class DeployStatus(str, Enum):
 
 
 class MlemDeploy(MlemObject):
-    """"""
+    """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
 
@@ -849,7 +880,8 @@ class MlemDeploy(MlemObject):
 def find_object(
     path: str, fs: AbstractFileSystem, repo: str = None
 ) -> Tuple[str, str]:
-    """assumes .mlem/ content is valid"""
+    """Extract object_type and path from path.
+    assumes .mlem/ content is valid"""
     if repo is None:
         repo = find_repo_root(path, fs)
     if repo is not None and path.startswith(repo):

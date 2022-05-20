@@ -11,7 +11,7 @@ from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
-from mlem.runtime.interface.base import ModelInterface
+from mlem.runtime.interface import ModelInterface
 
 
 @pytest.fixture
