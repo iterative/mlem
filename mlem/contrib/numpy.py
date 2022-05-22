@@ -101,6 +101,12 @@ class NumpyNdarrayType(
     def _abstract_shape(shape):
         return (None,) + shape[1:]
 
+    @staticmethod
+    def combine(original: np.ndarray, new: np.ndarray):
+        if original is None:
+            return new
+        return np.concatenate((original, new))
+
     @classmethod
     def process(cls, obj, **kwargs) -> DatasetType:
         return NumpyNdarrayType(

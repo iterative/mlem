@@ -48,6 +48,10 @@ class DatasetType(ABC, MlemABC, WithRequirements):
                 f"given dataset is of type: {type(obj)}, expected: {exp_type}"
             )
 
+    @staticmethod
+    def combine(original: Any, new: Any):
+        raise NotImplementedError
+
     @abstractmethod
     def get_requirements(self) -> Requirements:
         return get_object_requirements(self)

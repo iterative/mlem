@@ -16,6 +16,7 @@ from mlem.api.utils import (
 )
 from mlem.config import CONFIG_FILE_NAME, repo_config
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.core.dataset_type import DatasetAnalyzer
 from mlem.core.errors import (
     InvalidArgumentError,
     MlemObjectNotFound,
@@ -85,12 +86,13 @@ def apply(
         resolved_method = PREDICT_METHOD_NAME
     echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
     if batch_size:
-        res: Any = []
+        res: Any = None
         for part in data:
             batch_dataset = get_dataset_value(part, batch_size)
             for chunk in batch_dataset:
                 preds = w.call_method(resolved_method, chunk.data)
-                res += [*preds]  # TODO: merge results
+                dt = DatasetAnalyzer.analyze(preds)
+                res = dt.combine(res, preds)
     else:
         res = [
             w.call_method(resolved_method, get_dataset_value(part))
