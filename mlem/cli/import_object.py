@@ -11,7 +11,7 @@ from mlem.cli.main import (
     option_target_repo,
 )
 from mlem.core.import_objects import ImportHook
-from mlem.ext import list_implementations
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("import", section="object")

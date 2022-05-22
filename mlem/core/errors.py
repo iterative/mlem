@@ -137,3 +137,9 @@ class UnknownImplementation(MlemError):
         self.abs_name = abs_name
         self.type_name = type_name
         super().__init__(f"Unknown {abs_name} implementation: {type_name}")
+
+
+class UnknownConfigSection(MlemError):
+    def __init__(self, section: str):
+        self.section = section
+        super().__init__(f'Unknown config section "{section}"')

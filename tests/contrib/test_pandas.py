@@ -522,7 +522,7 @@ def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
 def test_default_format(set_mlem_repo_root, df_type):
     set_mlem_repo_root("pandas", __file__)
     config = PandasConfig()
-    assert config.DEFAULT_FORMAT == "json"
+    assert config.default_format == "json"
 
 
 def test_dataframe():

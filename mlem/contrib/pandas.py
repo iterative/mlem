@@ -111,7 +111,7 @@ def need_string_value(dtype):
 
 
 class PandasConfig(MlemConfigBase):
-    DEFAULT_FORMAT: str = "csv"
+    default_format: str = "csv"
 
     class Config:
         section = "pandas"
@@ -256,7 +256,7 @@ class SeriesType(_PandasDatasetType):
         return super().serialize(pd.DataFrame(instance))["values"]
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        fmt = PANDAS_CONFIG.DEFAULT_FORMAT
+        fmt = PANDAS_CONFIG.default_format
         if "format" in kwargs:
             fmt = kwargs["format"]
         elif "filename" in kwargs:
@@ -325,7 +325,7 @@ class DataFrameType(_PandasDatasetType):
         )
 
     def get_writer(self, **kwargs) -> "DatasetWriter":
-        fmt = PANDAS_CONFIG.DEFAULT_FORMAT
+        fmt = PANDAS_CONFIG.default_format
         if "format" in kwargs:
             fmt = kwargs["format"]
         elif "filename" in kwargs:
