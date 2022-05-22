@@ -48,8 +48,8 @@ class DatasetType(ABC, MlemABC, WithRequirements):
                 f"given dataset is of type: {type(obj)}, expected: {exp_type}"
             )
 
-    @staticmethod
-    def combine(original: Any, new: Any):
+    @abstractmethod
+    def combine(self, batched_data: List[List[Any]]):
         raise NotImplementedError
 
     @abstractmethod
@@ -110,6 +110,9 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
         raise NotImplementedError
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        raise NotImplementedError
+
+    def combine(self, batched_data: List[List[Any]]):
         raise NotImplementedError
 
 
@@ -200,6 +203,9 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.to_type
 
+    def combine(self, batched_data: List[List[Any]]):
+        raise NotImplementedError
+
 
 class PrimitiveWriter(DatasetWriter):
     type: ClassVar[str] = "primitive"
@@ -266,6 +272,9 @@ class ListDatasetType(DatasetType, DatasetSerializer):
             prefix + "ListDataset",
             __root__=(List[self.dtype.get_serializer().get_model(subname)], ...),  # type: ignore
         )
+
+    def combine(self, batched_data: List[List[Any]]):
+        raise NotImplementedError
 
 
 class ListWriter(DatasetWriter):
@@ -361,6 +370,9 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
                 ...,
             ),
         )
+
+    def combine(self, batched_data: List[List[Any]]):
+        raise NotImplementedError
 
 
 def _check_type_and_size(obj, dtype, size, exc_type):
@@ -537,6 +549,9 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
             for k, v in self.item_types.items()
         }
         return create_model(prefix + "DictDataset", **kwargs)  # type: ignore
+
+    def combine(self, batched_data: List[List[Any]]):
+        raise NotImplementedError
 
 
 class DictWriter(DatasetWriter):

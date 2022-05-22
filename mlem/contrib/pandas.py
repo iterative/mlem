@@ -220,6 +220,9 @@ class _PandasDatasetType(
 
         return {"values": (instance.to_dict("records"))}
 
+    def combine(self, batched_data: List[List[Any]]):
+        raise NotImplementedError
+
 
 class SeriesType(_PandasDatasetType):
     """

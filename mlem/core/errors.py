@@ -89,6 +89,10 @@ class UnsupportedDatasetBatchLoading(MlemError):
     """Thrown if batch loading of dataset is called for import workflow"""
 
 
+class InvalidDatatypeForBatchLoading(MlemError):
+    """Thrown if batch loading of dataset has incorrect types"""
+
+
 class WrongMethodError(ValueError, MlemError):
     """Thrown if wrong method name for model is provided"""
 

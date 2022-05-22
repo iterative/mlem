@@ -76,6 +76,9 @@ class TorchTensorDatasetType(
             dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
         )
 
+    def combine(self, batched_data: Any):
+        raise NotImplementedError
+
 
 class TorchTensorWriter(DatasetWriter):
     type: ClassVar[str] = "torch"

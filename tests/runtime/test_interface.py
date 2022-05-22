@@ -1,4 +1,4 @@
-from typing import Any, ClassVar
+from typing import Any, ClassVar, List
 
 import pytest
 
@@ -27,6 +27,9 @@ class Container(DatasetType):
 
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
+
+    def combine(self, batched_data: List[List[Any]]):
+        raise NotImplementedError
 
 
 @pytest.fixture
