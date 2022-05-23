@@ -1,6 +1,7 @@
 import contextlib
 import os.path
 import posixpath
+import shutil
 from typing import IO, ClassVar, Iterator, Tuple
 from urllib.parse import unquote_plus
 
@@ -71,11 +72,9 @@ class DVCArtifact(LocalArtifact):
             target_path = posixpath.join(
                 target_path, os.path.basename(self.uri)
             )
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
         with self.open() as fin, open(target_path, "wb") as fout:
-            batch = fin.read(BATCH_SIZE)
-            while batch:
-                fout.write(batch)
-                batch = fin.read(BATCH_SIZE)
+            shutil.copyfileobj(fin, fout, BATCH_SIZE)
         return LocalArtifact(uri=target_path, size=self.size, hash=self.hash)
 
     @contextlib.contextmanager
