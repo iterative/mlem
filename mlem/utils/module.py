@@ -7,6 +7,7 @@ import re
 import sys
 import threading
 import warnings
+from collections import defaultdict
 from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
@@ -454,7 +455,7 @@ class RequirementAnalyzer(dill.Pickler):
 
     add_closure_for = [
         FunctionType,
-        MethodType,
+        MethodType,  # from dill 0.3.5 it is absent, need to dig deeper
         staticmethod,
         classmethod,
         LambdaType,
@@ -463,6 +464,7 @@ class RequirementAnalyzer(dill.Pickler):
         {
             t: add_closure_inspection(dill.Pickler.dispatch[t])
             for t in add_closure_for
+            if t in dill.Pickler.dispatch
         }
     )
     dispatch[TypeType] = save_type_with_classvars
@@ -474,6 +476,7 @@ class RequirementAnalyzer(dill.Pickler):
         self.framer.write = self.skip_write
         self.write = self.skip_write
         self.memoize = self.skip_write
+        self.memo = defaultdict(lambda: None)
         self.seen = set()
         self._modules = set()
 
