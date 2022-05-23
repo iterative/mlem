@@ -61,7 +61,14 @@ def test_set_get_validation(runner: Runner, mlem_repo):
     )
 
     assert result.exit_code == 1
-    assert isinstance(result.exception, MlemError)
+    assert (
+        isinstance(result.exception, MlemError)
+        or "[name] should contain at least one dot" in result.output
+    ), traceback.format_exception(
+        type(result.exception),
+        result.exception,
+        result.exception.__traceback__,
+    )
 
     result = runner.invoke(
         f"config set core.nonexisting json --repo {mlem_repo} --no-validate".split()
