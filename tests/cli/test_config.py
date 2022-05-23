@@ -47,8 +47,9 @@ def test_set_get_validation(runner: Runner, mlem_repo):
     )
 
     assert result.exit_code == 1
-    assert isinstance(
-        result.exception, ValidationError
+    assert (
+        isinstance(result.exception, ValidationError)
+        or "extra fields not permitted" in result.output
     ), traceback.format_exception(
         type(result.exception),
         result.exception,
