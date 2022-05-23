@@ -38,7 +38,9 @@ def load_impl_ext(
     (because default for PolyModel._get_alias() is module_name.class_name).
     If that fails, we try to find implementation from entrypoints
     """
-    from mlem.ext import load_entrypoints  # circular dependencies
+    from mlem.utils.entrypoints import (  # circular dependencies
+        load_entrypoints,
+    )
 
     if type_name is not None and "." in type_name:
         try:

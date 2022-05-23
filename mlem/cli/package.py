@@ -13,7 +13,7 @@ from mlem.cli.main import (
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel, MlemPackager
-from mlem.ext import list_implementations
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("pack", section="runtime")

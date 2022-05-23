@@ -252,7 +252,7 @@ class MlemObject(MlemABC):
     ) -> Tuple[Location, bool]:
         """Parse arguments for .dump and bind meta"""
         if external is None:
-            external = CONFIG.DEFAULT_EXTERNAL
+            external = CONFIG.EXTERNAL
         # by default we index only external non-orphan objects
         if index is None:
             index = True
@@ -562,9 +562,7 @@ class _WithArtifacts(ABC, MlemObject):
         if not self.location.fs or isinstance(
             self.location.fs, LocalFileSystem
         ):
-            return CONFIG.default_storage.relative(
-                self.location.fs, self.dirname
-            )
+            return CONFIG.storage.relative(self.location.fs, self.dirname)
         return FSSpecStorage.from_fs_path(self.location.fs, self.dirname)
 
     def get_artifacts(self):

@@ -25,9 +25,9 @@ from mlem.core.errors import UnsupportedDatasetBatchLoading
 from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemDataset, MlemModel
-from mlem.ext import list_implementations
 from mlem.runtime.client import Client
 from mlem.ui import set_echo
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("apply", section="runtime")

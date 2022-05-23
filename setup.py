@@ -160,6 +160,10 @@ setup_args = dict(  # noqa: C408
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
+        "mlem.config": [
+            "core = mlem.config:MlemConfig",
+            "pandas = mlem.contrib.pandas:PandasConfig",
+        ],
     },
     zip_safe=False,
 )
