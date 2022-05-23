@@ -1,3 +1,5 @@
+import traceback
+
 from pydantic import ValidationError
 
 from mlem.config import repo_config
@@ -45,7 +47,13 @@ def test_set_get_validation(runner: Runner, mlem_repo):
     )
 
     assert result.exit_code == 1
-    assert isinstance(result.exception, ValidationError)
+    assert isinstance(
+        result.exception, ValidationError
+    ), traceback.format_exception(
+        type(result.exception),
+        result.exception,
+        result.exception.__traceback__,
+    )
 
     result = runner.invoke(
         f"config set nonexisting json --repo {mlem_repo}".split()
