@@ -90,8 +90,8 @@ def apply(
             batch_dataset = get_dataset_value(part, batch_size)
             for chunk in batch_dataset:
                 preds = w.call_method(resolved_method, chunk.data)
-                dt = w.methods[resolved_method].returns
                 res.append(preds)
+        dt = w.methods[resolved_method].returns
         res = dt.combine(res)
     else:
         res = [
