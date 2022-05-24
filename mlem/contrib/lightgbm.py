@@ -1,5 +1,4 @@
 import os
-import posixpath
 import tempfile
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type
 
@@ -18,7 +17,13 @@ from mlem.core.dataset_type import (
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.model import (
+    BufferModelIO,
+    ModelHook,
+    ModelIO,
+    ModelType,
+    Signature,
+)
 from mlem.core.requirements import (
     AddRequirementHook,
     InstallableRequirement,
@@ -120,7 +125,7 @@ class LightGBMDatasetReader(DatasetReader):
         raise NotImplementedError
 
 
-class LightGBMModelIO(ModelIO):
+class LightGBMModelIO(BufferModelIO):
     """
     :class:`.ModelIO` implementation for `lightgbm.Booster` type
     """
@@ -128,12 +133,8 @@ class LightGBMModelIO(ModelIO):
     type: ClassVar[str] = "lightgbm_io"
     model_file_name = "model.lgb"
 
-    def dump(self, storage: Storage, path, model) -> Artifacts:
-        with tempfile.TemporaryDirectory(prefix="mlem_lightgbm_dump") as f:
-            model_path = os.path.join(f, self.model_file_name)
-            model.save_model(model_path)
-            fs_path = posixpath.join(path, self.model_file_name)
-            return {self.art_name: storage.upload(model_path, fs_path)}
+    def save_model(self, model: Any, path: str):
+        model.save_model(path)
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:

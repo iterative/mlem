@@ -2,7 +2,9 @@
 Base classes to work with ML models in MLEM
 """
 import inspect
+import os
 import pickle
+import tempfile
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -52,6 +54,18 @@ class ModelIO(MlemABC):
         :return: model object
         """
         raise NotImplementedError
+
+
+class BufferModelIO(ModelIO, ABC):
+    @abstractmethod
+    def save_model(self, model: Any, path: str):
+        raise NotImplementedError
+
+    def dump(self, storage: Storage, path, model) -> Artifacts:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_path = os.path.join(tmpdir, "model")
+            self.save_model(model, model_path)
+            return {self.art_name: storage.upload(model_path, path)}
 
 
 class SimplePickleIO(ModelIO):
