@@ -3,11 +3,11 @@ from typing import List, Optional
 from typer import Argument, Option
 
 from ..core.base import build_mlem_object
-from ..core.objects import MlemMeta
+from ..core.objects import MlemObject
 from .main import (
     mlem_command,
     option_external,
-    option_link,
+    option_index,
     option_repo,
     wrap_build_error,
 )
@@ -26,7 +26,7 @@ def create(
     path: str = Argument(..., help="Where to save object"),
     repo: str = option_repo,
     external: bool = option_external,
-    link: bool = option_link,
+    index: bool = option_index,
 ):
     """Creates new mlem object metafile from conf args and config files
 
@@ -34,7 +34,7 @@ def create(
         Create heroku deployment
         $ mlem create env heroku production -c api_key=<...>
     """
-    cls = MlemMeta.__type_map__[object_type]
+    cls = MlemObject.__type_map__[object_type]
     with wrap_build_error(subtype, cls):
         meta = build_mlem_object(cls, subtype, conf, [])
-    meta.dump(path, repo=repo, link=link, external=external)
+    meta.dump(path, repo=repo, index=index, external=external)

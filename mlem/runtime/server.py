@@ -4,11 +4,13 @@ from typing import ClassVar, Dict, List, Optional
 
 from mlem.core.base import MlemABC
 from mlem.core.requirements import WithRequirements
-from mlem.runtime.interface.base import Interface
+from mlem.runtime.interface import Interface
 
 
 class Server(MlemABC, ABC, WithRequirements):
-    """"""
+    """Base class for defining serving logic. Server's serve method accepts
+    an instance of `Interface` and should expose all of it's methods via some
+    protocol"""
 
     class Config:
         type_root = True
@@ -20,7 +22,7 @@ class Server(MlemABC, ABC, WithRequirements):
 
     @abstractmethod
     def serve(self, interface: Interface):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_env_vars(self) -> Dict[str, str]:
         return self.env_vars or {}

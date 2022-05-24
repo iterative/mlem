@@ -28,7 +28,8 @@ class ArtifactInfo(TypedDict):
 
 
 class Artifact(MlemABC, ABC):
-    """"""
+    """Artifact represent a file in some storage. It can be opened for reading,
+    downloaded to local fs or removed."""
 
     class Config:
         type_root = True
@@ -95,6 +96,8 @@ class Artifact(MlemABC, ABC):
 
 
 class FSSpecArtifact(Artifact):
+    """Represents a file stored in an fsspec filesystem"""
+
     type: ClassVar = "fsspec"
     uri: str
 
@@ -161,7 +164,8 @@ class PlaceholderArtifact(Artifact):
 
 
 class Storage(MlemABC, ABC):
-    """"""
+    """Storage represents a place where `Artifact`s can be stored. Storage can be
+    used to upload local file or open a path in this storage for writing"""
 
     class Config:
         type_root = True
@@ -186,6 +190,8 @@ class Storage(MlemABC, ABC):
 
 
 class FSSpecStorage(Storage):
+    """Represents an fsspec filesystem"""
+
     class Config:
         exclude = {"fs", "base_path"}
         arbitrary_types_allowed = True
@@ -252,8 +258,10 @@ class FSSpecStorage(Storage):
 
 
 class LocalStorage(FSSpecStorage):
+    """Special case for local filesystem"""
+
     type: ClassVar = "local"
-    fs = LocalFileSystem()
+    fs: AbstractFileSystem = LocalFileSystem()
 
     def get_base_path(self):
         return self.uri
@@ -285,6 +293,8 @@ class LocalStorage(FSSpecStorage):
 
 
 class LocalArtifact(FSSpecArtifact):
+    """Special case for local file"""
+
     type: ClassVar = "local"
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "FSSpecArtifact":

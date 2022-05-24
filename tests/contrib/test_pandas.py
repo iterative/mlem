@@ -1,8 +1,9 @@
 import io
 import json
 import posixpath
+import tempfile
 from datetime import datetime, timezone
-from typing import Callable, List, Union
+from typing import Any, Callable, Dict, Iterator, List, Type, Union
 
 import pandas as pd
 import pytest
@@ -14,21 +15,36 @@ from sklearn.model_selection import train_test_split
 from mlem.api.commands import import_object
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
+    PANDAS_SERIES_FORMATS,
     DataFrameType,
     PandasConfig,
+    PandasFormat,
     PandasReader,
+    PandasSeriesReader,
+    PandasSeriesWriter,
     PandasWriter,
     SeriesType,
+    get_pandas_batch_formats,
     pd_type_from_string,
     python_type_from_pd_string_repr,
     python_type_from_pd_type,
     string_repr_from_pd_type,
 )
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
-from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.artifacts import LOCAL_STORAGE
+from mlem.core.dataset_type import (
+    DatasetAnalyzer,
+    DatasetReader,
+    DatasetType,
+    DatasetWriter,
+)
+from mlem.core.errors import (
+    DeserializationError,
+    SerializationError,
+    UnsupportedDatasetBatchLoadingType,
+)
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
-from mlem.core.objects import DatasetMeta
+from mlem.core.objects import MlemDataset
 from tests.conftest import dataset_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
@@ -94,8 +110,10 @@ def df_type2(data2):
 
 
 @pytest.fixture
-def series_data(data2):
-    return data2.iloc[0]
+def series_data(data):
+    res = data.iloc[0]
+    res.name = str(res.name)
+    return res
 
 
 @pytest.fixture
@@ -103,16 +121,89 @@ def series_df_type(series_data):
     return DatasetAnalyzer.analyze(series_data)
 
 
-def for_all_formats(exclude: Union[List[str], Callable] = None):
+@pytest.fixture
+def series_data2(data2):
+    res = data2.iloc[0]
+    res.name = str(res.name)
+    return res
+
+
+@pytest.fixture
+def series_df_type2(series_data2):
+    return DatasetAnalyzer.analyze(series_data2)
+
+
+def for_all_formats(
+    valid_formats: Dict[str, PandasFormat],
+    exclude: Union[List[str], Callable] = None,
+):
     ex = exclude if isinstance(exclude, list) else []
-    formats = [name for name in PANDAS_FORMATS if name not in ex]
+    formats = [name for name in valid_formats if name not in ex]
     mark = pytest.mark.parametrize("format", formats)
     if isinstance(exclude, list):
         return mark
-    return mark(exclude)
+    return mark(ex)
 
 
-@for_all_formats
+def dataset_write_read_batch_check(
+    dataset: DatasetType,
+    format: str,
+    reader_type: Type[DatasetReader] = None,
+    custom_eq: Callable[[Any, Any], bool] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        BATCH_SIZE = 2
+        storage = LOCAL_STORAGE
+
+        fmt = get_pandas_batch_formats(BATCH_SIZE)[format]
+        art = fmt.write(dataset.data, storage, posixpath.join(tmpdir, "data"))
+        reader = PandasReader(dataset_type=dataset, format=format)
+        artifacts = {"data": art}
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        df_iterable: Iterator = reader.read_batch(artifacts, BATCH_SIZE)
+        df = None
+        col_types = None
+        while True:
+            try:
+                chunk = next(df_iterable)
+                if df is None:
+                    df = pd.DataFrame(columns=chunk.columns, dtype=col_types)
+                    col_types = dict(zip(chunk.columns, chunk.dtypes))
+                    df = df.astype(dtype=col_types)
+                df = pd.concat([df, chunk.data], ignore_index=True)
+            except StopIteration:
+                break
+
+        assert custom_eq(df, dataset.data)
+
+
+def dataset_write_read_batch_unsupported(
+    dataset: DatasetType,
+    batch: int,
+    writer: DatasetWriter = None,
+    reader_type: Type[DatasetReader] = None,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        writer = writer or dataset.get_writer()
+
+        storage = LOCAL_STORAGE
+        reader, artifacts = writer.write(
+            dataset, storage, posixpath.join(tmpdir, "data")
+        )
+        if reader_type is not None:
+            assert isinstance(reader, reader_type)
+
+        with pytest.raises(
+            UnsupportedDatasetBatchLoadingType,
+            match="Batch-loading Dataset of type.*",
+        ):
+            iter = reader.read_batch(artifacts, batch)
+            next(iter)
+
+
+@for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_simple_df(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
@@ -120,7 +211,43 @@ def test_simple_df(data, format):
     )
 
 
-@for_all_formats
+@for_all_formats(valid_formats=PANDAS_SERIES_FORMATS)
+def test_simple_series(series_data, format):
+    writer = PandasSeriesWriter(format=format)
+    dataset_write_read_check(
+        DatasetType.create(series_data),
+        writer,
+        PandasSeriesReader,
+        pd.Series.equals,
+    )
+
+
+@pytest.mark.parametrize("format", ["csv", "json", "stata"])
+def test_simple_batch_df(data, format):
+    dataset_write_read_batch_check(
+        DatasetType.create(data),
+        format,
+        PandasReader,
+        pd.DataFrame.equals,
+    )
+
+
+@for_all_formats(
+    valid_formats=PANDAS_FORMATS,
+    exclude=[
+        "csv",
+        "json",
+        "stata",
+    ],
+)
+def test_unsupported_batch_df(data, format):
+    writer = PandasWriter(format=format)
+    dataset_write_read_batch_unsupported(
+        DatasetType.create(data), 2, writer, PandasReader
+    )
+
+
+@for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_with_index(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
@@ -131,7 +258,19 @@ def test_with_index(data, format):
     )
 
 
-@for_all_formats
+@for_all_formats(valid_formats=PANDAS_SERIES_FORMATS)
+def test_series_with_multiindex(format):
+    data = pd.Series([1, 3, 5], index=[["a", "a", "b"], ["1", "2", "2"]])
+    writer = PandasSeriesWriter(format=format)
+    dataset_write_read_check(
+        DatasetType.create(data),
+        writer,
+        PandasSeriesReader,
+        custom_assert=pd.Series.equals,
+    )
+
+
+@for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_with_multiindex(data, format):
     writer = PandasWriter(format=format)
     dataset_write_read_check(
@@ -143,11 +282,12 @@ def test_with_multiindex(data, format):
 
 
 @for_all_formats(
+    valid_formats=PANDAS_FORMATS,
     exclude=[
         "excel",  # Excel does not support datetimes with timezones
         "parquet",  # Casting from timestamp[ns] to timestamp[ms] would lose data
-        "strata",  # Data type datetime64[ns, UTC] not supported.
-    ]
+        "stata",  # Data type datetime64[ns, UTC] not supported.
+    ],
 )
 @pytest.mark.parametrize(
     "data", [PD_DATA_FRAME, PD_DATA_FRAME_INDEX, PD_DATA_FRAME_MULTIINDEX]
@@ -198,6 +338,19 @@ def test_df_type(df_type_fx, request):
     assert df_type == new_df_type
 
 
+@pytest.mark.parametrize(
+    "series_df_type_fx", ["series_df_type2", "series_df_type"]
+)
+def test_series_df_type(series_df_type_fx, request):
+    series_df_type = request.getfixturevalue(series_df_type_fx)
+    assert isinstance(series_df_type, SeriesType)
+
+    obj = series_df_type.dict()
+    new_df_type = parse_obj_as(DatasetType, obj)
+
+    assert series_df_type == new_df_type
+
+
 def test_dataframe_type(df_type: DataFrameType, data):
     assert df_type.get_requirements().modules == ["pandas"]
 
@@ -207,6 +360,17 @@ def test_dataframe_type(df_type: DataFrameType, data):
     data2 = df_type.deserialize(loaded)
 
     assert data.equals(data2)
+
+
+def test_series_type(series_df_type: SeriesType, series_data):
+    assert series_df_type.get_requirements().modules == ["pandas"]
+
+    obj = series_df_type.serialize(series_data)
+    payload = json.dumps(obj)
+    loaded = json.loads(payload)
+    data2 = series_df_type.deserialize(loaded)
+
+    assert series_data.equals(data2)
 
 
 @pytest.mark.parametrize(
@@ -300,7 +464,7 @@ def iris_data():
 
 def test_save_load(iris_data, tmpdir):
     tmpdir = str(tmpdir / "data")
-    save(iris_data, tmpdir, link=False)
+    save(iris_data, tmpdir, index=False)
     data2 = load(tmpdir)
 
     pandas_assert(data2, iris_data)
@@ -318,7 +482,7 @@ def write_csv():
 
 def _check_data(meta, out_path, fs=None):
     fs = fs or LocalFileSystem()
-    assert isinstance(meta, DatasetMeta)
+    assert isinstance(meta, MlemDataset)
     dt = meta.dataset
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a", "b"]
@@ -358,7 +522,7 @@ def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
 def test_default_format(set_mlem_repo_root, df_type):
     set_mlem_repo_root("pandas", __file__)
     config = PandasConfig()
-    assert config.DEFAULT_FORMAT == "json"
+    assert config.default_format == "json"
 
 
 def test_dataframe():
@@ -405,28 +569,27 @@ def test_infer_format(tmpdir):
     path = str(tmpdir / "mydata.parquet")
     value = pd.DataFrame([{"a": 1}])
     meta = save(value, path)
-    assert isinstance(meta, DatasetMeta)
+    assert isinstance(meta, MlemDataset)
     assert isinstance(meta.reader, PandasReader)
     assert meta.reader.format == "parquet"
 
 
-def test_series(series_data: pd.Series, series_df_type, df_type2):
-    assert isinstance(series_df_type, SeriesType)
-    assert series_df_type.dtypes == df_type2.dtypes
+def test_series(series_data2: pd.Series, series_df_type2, df_type2):
+    assert isinstance(series_df_type2, SeriesType)
+    assert all(df_type2.columns == series_data2.index)
 
-    obj = series_df_type.serialize(series_data)
+    obj = series_df_type2.serialize(series_data2)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data = series_df_type.deserialize(loaded)
+    data = series_df_type2.deserialize(loaded)
 
     assert isinstance(data, pd.Series)
-    assert data is not series_data
-    assert list(data.index) == list(series_data.index), "different index"
-    assert data.shape == series_data.shape, "different shapes"
+    assert data is not series_data2
+    assert list(data.index) == list(series_data2.index), "different index"
+    assert data.shape == series_data2.shape, "different shapes"
     assert df_to_str(data) == df_to_str(
-        series_data
+        series_data2
     ), "different str representation"
-    assert data.equals(series_data), "contents are not equal"
 
 
 # Copyright 2019 Zyfra

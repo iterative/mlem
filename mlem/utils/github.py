@@ -52,6 +52,7 @@ def get_github_envs() -> Dict:
 
 
 def ls_branches(repo_url: str) -> Dict[str, str]:
+    """List branches in remote git repo"""
     import git
 
     git.cmd.Git().ls_remote(repo_url)
@@ -65,14 +66,17 @@ def ls_branches(repo_url: str) -> Dict[str, str]:
 
 
 def ls_github_branches(org: str, repo: str):
+    """List branches in github repo"""
     return _ls_github_refs(org, repo, "branches")
 
 
 def ls_github_tags(org: str, repo: str):
+    """List tags in github repo"""
     return _ls_github_refs(org, repo, "tags")
 
 
 def github_check_rev(org: str, repo: str, rev: str):
+    """Check that rev exists in a github repo"""
     res = requests.head(
         f"https://api.github.com/repos/{org}/{repo}/commits/{rev}",
         auth=(CONFIG.GITHUB_USERNAME, CONFIG.GITHUB_TOKEN),  # type: ignore

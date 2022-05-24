@@ -1,13 +1,11 @@
 from typing import ClassVar
 
 import numpy
-import pydantic
 import pytest
 from pydantic import BaseModel
 
 from mlem.utils.importing import import_from_path, import_module
 from mlem.utils.module import (
-    analyze_module_imports,
     check_pypi_module,
     get_module_repr,
     get_module_version,
@@ -26,15 +24,6 @@ from tests.conftest import long
 
 class Obj:
     pass
-
-
-def test_analyze_module_imports():
-    reqs = analyze_module_imports("tests.utils.test_module_tools")
-    assert reqs == {
-        get_module_repr(pytest),
-        get_module_repr(numpy),
-        get_module_repr(pydantic),
-    }
 
 
 @pytest.fixture()

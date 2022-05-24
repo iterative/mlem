@@ -5,7 +5,7 @@ import pytest
 from pydantic import parse_obj_as
 
 from mlem.core.meta_io import MLEM_EXT
-from mlem.core.objects import MlemLink, MlemMeta, ModelMeta
+from mlem.core.objects import MlemLink, MlemModel, MlemObject
 from tests.conftest import MLEM_TEST_REPO, long
 
 LOCAL_LS_EXPECTED_RESULT = """Models:
@@ -33,10 +33,10 @@ def test_ls(runner, filled_mlem_repo, obj_type):
     assert "model" in data
     models = data["model"]
     assert len(models) == 2
-    model, link = [parse_obj_as(MlemMeta, m) for m in models]
+    model, link = [parse_obj_as(MlemObject, m) for m in models]
     if isinstance(model, MlemLink):
         model, link = link, model
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
     assert isinstance(link, MlemLink)
 
 
@@ -74,8 +74,8 @@ def test_pretty_print(runner, model_path_mlem_repo):
         ["pprint", model_path + MLEM_EXT, "--json"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
-    meta = parse_obj_as(MlemMeta, json.loads(result.output))
-    assert isinstance(meta, ModelMeta)
+    meta = parse_obj_as(MlemObject, json.loads(result.output))
+    assert isinstance(meta, MlemModel)
 
 
 @long

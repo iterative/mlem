@@ -109,10 +109,10 @@ class DMatrixDatasetType(
         return DMatrixDatasetType.from_dmatrix(obj)
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        raise NotImplementedError()  # TODO: https://github.com/iterative/mlem/issues/35
-
-    def get_model(self) -> Type[BaseModel]:
         raise NotImplementedError()
+
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        raise NotImplementedError
 
 
 class XGBoostModelIO(ModelIO):

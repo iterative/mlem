@@ -1,7 +1,7 @@
 from typing import ClassVar
 
 from mlem.runtime import Interface
-from mlem.runtime.server.base import Server
+from mlem.runtime.server import Server
 from mlem.ui import echo
 from tests.cli.conftest import Runner
 

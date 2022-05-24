@@ -11,9 +11,8 @@ from fsspec.implementations.local import LocalFileSystem
 
 import mlem
 from mlem.core.meta_io import get_fs, get_uri
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel, MlemPackager
 from mlem.core.requirements import InstallableRequirement
-from mlem.pack import Packager
 from mlem.ui import EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
@@ -47,7 +46,7 @@ class PipMixin(SetupTemplate):
         self.python_version = self.python_version or get_python_version()
         return SetupTemplate.dict(self, include=set(SetupTemplate.__fields__))
 
-    def make_distr(self, obj: ModelMeta, root: str, fs: AbstractFileSystem):
+    def make_distr(self, obj: MlemModel, root: str, fs: AbstractFileSystem):
         path = posixpath.join(root, self.package_name)
         fs.makedirs(path, exist_ok=True)
         self.write(posixpath.join(root, "setup.py"), fs)
@@ -58,7 +57,7 @@ class PipMixin(SetupTemplate):
         )
         with no_echo():
             obj.clone(
-                posixpath.join(path, "model"), fs, external=True, link=False
+                posixpath.join(path, "model"), fs, external=True, index=False
             )
         with fs.open(posixpath.join(root, "requirements.txt"), "w") as f:
             f.write(
@@ -77,16 +76,16 @@ class PipMixin(SetupTemplate):
         )
 
 
-class PipPackager(Packager, PipMixin):
+class PipPackager(MlemPackager, PipMixin):
     type: ClassVar = "pip"
     target: str
 
-    def package(self, obj: ModelMeta):
+    def package(self, obj: MlemModel):
         fs, root = get_fs(self.target)
         self.make_distr(obj, root, fs)
 
 
-class WhlPackager(Packager, PipMixin):
+class WhlPackager(MlemPackager, PipMixin):
     type: ClassVar = "whl"
     target: str
 
@@ -102,7 +101,7 @@ class WhlPackager(Packager, PipMixin):
 
             target_fs.upload(whl_path, posixpath.join(target, whl_name))
 
-    def package(self, obj: ModelMeta):
+    def package(self, obj: MlemModel):
         fs, path = get_fs(self.target)
         with tempfile.TemporaryDirectory() as tmpdir:
             self.make_distr(obj, str(tmpdir), LocalFileSystem())

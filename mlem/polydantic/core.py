@@ -67,7 +67,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
         """Polymorphic magic goes here"""
         if isinstance(value, cls):
             return value
-        if not cls.__is_root__:
+        if not cls.__is_root__ and cls.__config__.type_field not in value:
             return super().validate(value)
         if isinstance(value, str):
             value = {cls.__config__.type_field: value}

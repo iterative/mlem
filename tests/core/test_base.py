@@ -3,15 +3,14 @@ from typing import ClassVar, Optional
 from mlem.contrib.docker import DockerImagePackager
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.base import MlemABC, build_mlem_object, parse_links, smart_split
-from mlem.core.objects import MlemLink, MlemMeta, ModelMeta
-from mlem.pack import Packager
-from mlem.runtime.server.base import Server
+from mlem.core.objects import MlemLink, MlemModel, MlemObject, MlemPackager
+from mlem.runtime.server import Server
 from tests.conftest import resource_path
 
 
 def test_build_model():
     res = build_mlem_object(
-        Packager,
+        MlemPackager,
         "docker",
         ["image.name=kek"],
         [f"server={resource_path(__file__, 'server.yaml')}"],
@@ -29,9 +28,9 @@ def test_smart_split():
 
 
 def test_parse_links():
-    class ModelWithLink(MlemMeta):
+    class ModelWithLink(MlemObject):
         field_link: MlemLink
-        field: Optional[ModelMeta]
+        field: Optional[MlemModel]
 
     assert parse_links(ModelWithLink, ["field=somepath"]) == (
         [],

@@ -3,13 +3,8 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from mlem.core.objects import (
-    DeployMeta,
-    DeployState,
-    DeployStatus,
-    TargetEnvMeta,
-)
-from mlem.runtime.client.base import BaseClient, HTTPClient
+from mlem.core.objects import DeployState, DeployStatus, MlemDeploy, MlemEnv
+from mlem.runtime.client import Client, HTTPClient
 
 from ...core.errors import DeploymentError
 from ...ui import EMOJI_OK, echo
@@ -44,13 +39,13 @@ class HerokuState(DeployState):
             raise ValueError("App is not created yet")
         return self.app
 
-    def get_client(self) -> BaseClient:
+    def get_client(self) -> Client:
         return HTTPClient(
             host=urlparse(self.ensured_app.web_url).netloc, port=80
         )
 
 
-class HerokuDeploy(DeployMeta):
+class HerokuDeploy(MlemDeploy):
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
     app_name: str
@@ -59,7 +54,7 @@ class HerokuDeploy(DeployMeta):
     team: Optional[str] = None
 
 
-class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
+class HerokuEnv(MlemEnv[HerokuDeploy]):
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeploy
     api_key: Optional[str] = None
@@ -77,12 +72,15 @@ class HerokuEnvMeta(TargetEnvMeta[HerokuDeploy]):
             meta.state.app = create_app(meta, api_key=self.api_key)
             meta.update()
 
-        if meta.state.image is None:
+        redeploy = False
+        if meta.state.image is None or meta.model_changed():
             meta.state.image = build_heroku_docker(
                 meta.get_model(), meta.state.app.name, api_key=self.api_key
             )
+            meta.update_model_hash()
             meta.update()
-        if meta.state.release_state is None:
+            redeploy = True
+        if meta.state.release_state is None or redeploy:
             meta.state.release_state = release_docker_app(
                 meta.state.app.name,
                 meta.state.image.image_id,

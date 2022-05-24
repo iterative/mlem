@@ -1,12 +1,12 @@
-from mlem.core.objects import ModelMeta
-from mlem.runtime.server.base import Server
+from mlem.core.objects import MlemModel
+from mlem.runtime.server import Server
 
 from . import DockerImagePackager
 from .base import DockerBuildArgs, DockerEnv, DockerImage
 
 
 def build_model_image(
-    model: ModelMeta,
+    model: MlemModel,
     name: str,
     server: Server = None,
     env: DockerEnv = None,

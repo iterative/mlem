@@ -4,6 +4,7 @@ from importlib import import_module
 
 
 def import_from_path(name: str, path: str):
+    """Import module from local path"""
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None:
         raise ImportError(f"Cannot import spec from {path}")
@@ -14,6 +15,7 @@ def import_from_path(name: str, path: str):
 
 
 def import_string(path):
+    """Import object from dotted path (<package>.<module>.<object name>)"""
     split = path.split(".")
     module_name, object_name = ".".join(split[:-1]), split[-1]
     mod = import_module(module_name)
@@ -26,6 +28,7 @@ def import_string(path):
 
 
 def module_importable(module_name):
+    """Check if module is importable (by importing it xD)"""
     try:
         import_module(module_name)
         return True

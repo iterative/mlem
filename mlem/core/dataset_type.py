@@ -2,9 +2,22 @@
 Base classes for working with datasets in MLEM
 """
 import builtins
+import posixpath
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Optional, Sized, Tuple, Type
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sized,
+    Tuple,
+    Type,
+    Union,
+)
 
+import flatdict
 from pydantic import BaseModel
 from pydantic.main import create_model
 
@@ -18,7 +31,7 @@ from mlem.utils.module import get_object_requirements
 
 class DatasetType(ABC, MlemABC, WithRequirements):
     """
-    Base class for dataset type metadata.
+    Base class for dataset metadata
     """
 
     class Config:
@@ -37,7 +50,6 @@ class DatasetType(ABC, MlemABC, WithRequirements):
 
     @abstractmethod
     def get_requirements(self) -> Requirements:
-        """"""  # TODO: https://github.com/iterative/mlem/issues/16 docs
         return get_object_requirements(self)
 
     @abstractmethod
@@ -61,6 +73,8 @@ class DatasetType(ABC, MlemABC, WithRequirements):
 
 
 class DatasetSerializer(ABC):
+    """Base class for dataset-to-dict serialization logic"""
+
     @abstractmethod
     def serialize(self, instance: Any) -> dict:
         raise NotImplementedError
@@ -70,11 +84,15 @@ class DatasetSerializer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Union[Type[BaseModel], type]:
         raise NotImplementedError
 
 
 class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
+    """Special dataset type for cases when it's not provided"""
+
+    type: ClassVar = "unspecified"
+
     def serialize(self, instance: object) -> dict:
         return instance  # type: ignore
 
@@ -87,16 +105,55 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
     def get_writer(self, **kwargs) -> "DatasetWriter":
         raise NotImplementedError
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
 
 class DatasetHook(Hook[DatasetType], ABC):
-    pass
+    """Base class for hooks to analyze dataset objects"""
 
 
 class DatasetAnalyzer(Analyzer):
+    """Analyzer for dataset objects"""
+
     base_hook_class = DatasetHook
+
+
+class DatasetReader(MlemABC, ABC):
+    """Base class for defining logic to read datasets from a set of `Artifact`s"""
+
+    class Config:
+        type_root = True
+
+    dataset_type: DatasetType
+    abs_name: ClassVar[str] = "dataset_reader"
+
+    @abstractmethod
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
+
+class DatasetWriter(MlemABC):
+    """Base class for defining logic to write datasets. Should produce a set of
+    `Artifact`s and a corresponding reader"""
+
+    class Config:
+        type_root = True
+
+    abs_name: ClassVar[str] = "dataset_writer"
+    art_name: ClassVar[str] = "data"
+
+    @abstractmethod
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        raise NotImplementedError
 
 
 class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
@@ -131,46 +188,59 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
         return instance
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError  # TODO: https://github.com/iterative/mlem/issues/35
+        return PrimitiveWriter(**kwargs)
 
     def get_requirements(self) -> Requirements:
         return Requirements.new()
 
-    def get_model(self) -> Type[BaseModel]:
-        return create_model("Primitive", __root__=(self.to_type, ...))
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        return self.to_type
 
 
-class ListTypeWithSpec(DatasetType):
+class PrimitiveWriter(DatasetWriter):
+    type: ClassVar[str] = "primitive"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            f.write(str(dataset.data).encode("utf-8"))
+        return PrimitiveReader(dataset_type=dataset), {self.art_name: art}
+
+
+class PrimitiveReader(DatasetReader):
+    type: ClassVar[str] = "primitive"
+    dataset_type: PrimitiveType
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        if DatasetWriter.art_name not in artifacts:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
+            )
+        with artifacts[DatasetWriter.art_name].open() as f:
+            res = f.read().decode("utf-8")
+            if res == "None":
+                data = None
+            elif res == "False":
+                data = False
+            else:
+                data = self.dataset_type.to_type(res)
+            return self.dataset_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
+
+class ListDatasetType(DatasetType, DatasetSerializer):
     """
-    Abstract base class for `list`-like types providing its OpenAPI schema definition
-    """
-
-    def is_list(self):
-        return True
-
-    @abstractmethod
-    def list_size(self):
-        raise NotImplementedError  # pragma: no cover
-
-
-class SizedTypedListType(ListTypeWithSpec):
-    """
-    Subclass of :class:`ListTypeWithSpec` which specifies size of internal `list`
-    """
-
-    dtype: DatasetType
-    size: Optional[int]
-
-    def list_size(self):
-        return self.size
-
-
-class ListDatasetType(SizedTypedListType, DatasetSerializer):
-    """
-    DatasetType for list type
+    DatasetType for lists with elements of the same type such as [1, 2, 3, 4, 5]
     """
 
     type: ClassVar[str] = "list"
+    dtype: DatasetType
+    size: Optional[int]
 
     def get_requirements(self) -> Requirements:
         return self.dtype.get_requirements()
@@ -184,13 +254,59 @@ class ListDatasetType(SizedTypedListType, DatasetSerializer):
         return [self.dtype.get_serializer().serialize(o) for o in instance]
 
     def get_writer(self, **kwargs):
-        raise NotImplementedError
+        return ListWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        subname = prefix + "__root__"
         return create_model(
-            "ListDataset",
-            __root__=(List[self.dtype.get_serializer().get_model()], ...),  # type: ignore
+            prefix + "ListDataset",
+            __root__=(List[self.dtype.get_serializer().get_model(subname)], ...),  # type: ignore
         )
+
+
+class ListWriter(DatasetWriter):
+    type: ClassVar[str] = "list"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        if not isinstance(dataset, ListDatasetType):
+            raise ValueError(
+                f"expected dataset to be of ListDatasetType, got {type(dataset)} instead"
+            )
+        res = {}
+        readers = []
+        for i, elem in enumerate(dataset.data):
+            elem_reader, art = dataset.dtype.get_writer().write(
+                dataset.dtype.copy().bind(elem),
+                storage,
+                posixpath.join(path, str(i)),
+            )
+            res[str(i)] = art
+            readers.append(elem_reader)
+
+        return ListReader(dataset_type=dataset, readers=readers), dict(
+            flatdict.FlatterDict(res, delimiter="/")
+        )
+
+
+class ListReader(DatasetReader):
+    type: ClassVar[str] = "list"
+    dataset_type: ListDatasetType
+    readers: List[DatasetReader]
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
+        data_list = []
+        for i, reader in enumerate(self.readers):
+            elem_dtype = reader.read(artifacts[str(i)])  # type: ignore
+            data_list.append(elem_dtype.data)
+        return self.dataset_type.copy().bind(data_list)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
@@ -224,15 +340,19 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
             [i.get_requirements() for i in self.items], Requirements.new()
         )
 
-    def get_writer(self, **kwargs):
-        raise NotImplementedError
+    def get_writer(self, **kwargs) -> "DatasetWriter":
+        return _TupleLikeDatasetWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        names = [f"{prefix}{i}_" for i in range(len(self.items))]
         return create_model(
-            "_TupleLikeDataset",
+            prefix + "_TupleLikeDataset",
             __root__=(
                 Tuple[
-                    tuple(t.get_serializer().get_model() for t in self.items)
+                    tuple(
+                        t.get_serializer().get_model(name)
+                        for name, t in zip(names, self.items)
+                    )
                 ],
                 ...,
             ),
@@ -247,9 +367,59 @@ def _check_type_and_size(obj, dtype, size, exc_type):
         )
 
 
+class _TupleLikeDatasetWriter(DatasetWriter):
+    type: ClassVar[str] = "tuple_like"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        if not isinstance(dataset, _TupleLikeDatasetType):
+            raise ValueError(
+                f"expected dataset to be of _TupleLikeDatasetType, got {type(dataset)} instead"
+            )
+        res = {}
+        readers = []
+        for i, (elem_dtype, elem) in enumerate(
+            zip(dataset.items, dataset.data)
+        ):
+            elem_reader, art = elem_dtype.get_writer().write(
+                elem_dtype.copy().bind(elem),
+                storage,
+                posixpath.join(path, str(i)),
+            )
+            res[str(i)] = art
+            readers.append(elem_reader)
+
+        return (
+            _TupleLikeDatasetReader(dataset_type=dataset, readers=readers),
+            dict(flatdict.FlatterDict(res, delimiter="/")),
+        )
+
+
+class _TupleLikeDatasetReader(DatasetReader):
+    type: ClassVar[str] = "tuple_like"
+    dataset_type: _TupleLikeDatasetType
+    readers: List[DatasetReader]
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
+        data_list = []
+        for i, elem_reader in enumerate(self.readers):
+            elem_dtype = elem_reader.read(artifacts[str(i)])  # type: ignore
+            data_list.append(elem_dtype.data)
+        data_list = self.dataset_type.actual_type(data_list)
+        return self.dataset_type.copy().bind(data_list)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
+
+
 class TupleLikeListDatasetType(_TupleLikeDatasetType):
     """
-    DatasetType for tuple-like list type
+    DatasetType for list with separate type for each element
+    such as [1, False, 3.2, "mlem", None]
     """
 
     actual_type: ClassVar = list
@@ -290,9 +460,12 @@ class OrderedCollectionHookDelegator(DatasetHook):
         if not py_types.intersection(
             PrimitiveType.PRIMITIVES
         ):  # py_types is guaranteed to be singleton set here
-            return TupleLikeListDatasetType(
-                items=[DatasetAnalyzer.analyze(o) for o in obj]
-            )
+            items_types = [DatasetAnalyzer.analyze(o) for o in obj]
+            first, *others = items_types
+            for other in others:
+                if first != other:
+                    return TupleLikeListDatasetType(items=items_types)
+            return ListDatasetType(dtype=first, size=len(obj))
 
         # optimization for large lists of same primitive type elements
         return ListDatasetType(
@@ -302,7 +475,7 @@ class OrderedCollectionHookDelegator(DatasetHook):
 
 class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
     """
-    DatasetType for dict type
+    DatasetType for dict
     """
 
     type: ClassVar[str] = "dict"
@@ -351,15 +524,59 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
             Requirements.new(),
         )
 
-    def get_writer(self, **kwargs):
-        raise NotImplementedError
+    def get_writer(self, **kwargs) -> "DatasetWriter":
+        return DictWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix="") -> Type[BaseModel]:
         kwargs = {
-            k: (v.get_serializer().get_model(), ...)
+            k: (v.get_serializer().get_model(prefix + k + "_"), ...)
             for k, v in self.item_types.items()
         }
-        return create_model("DictDataset", **kwargs)  # type: ignore
+        return create_model(prefix + "DictDataset", **kwargs)  # type: ignore
+
+
+class DictWriter(DatasetWriter):
+    type: ClassVar[str] = "dict"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        if not isinstance(dataset, DictDatasetType):
+            raise ValueError(
+                f"expected dataset to be of DictDatasetType, got {type(dataset)} instead"
+            )
+        res = {}
+        readers = {}
+        for (key, dtype) in dataset.item_types.items():
+            dtype_reader, art = dtype.get_writer().write(
+                dtype.copy().bind(dataset.data[key]),
+                storage,
+                posixpath.join(path, key),
+            )
+            res[key] = art
+            readers[key] = dtype_reader
+        return DictReader(dataset_type=dataset, item_readers=readers), dict(
+            flatdict.FlatterDict(res, delimiter="/")
+        )
+
+
+class DictReader(DatasetReader):
+    type: ClassVar[str] = "dict"
+    dataset_type: DictDatasetType
+    item_readers: Dict[str, DatasetReader]
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
+        data_dict = {}
+        for (key, dtype_reader) in self.item_readers.items():
+            v_dataset_type = dtype_reader.read(artifacts[key])  # type: ignore
+            data_dict[key] = v_dataset_type.data
+        return self.dataset_type.copy().bind(data_dict)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 #
@@ -389,33 +606,3 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
 #
 #     def get_writer(self):
 #         return PickleWriter()
-
-
-class DatasetReader(MlemABC, ABC):
-    """"""
-
-    class Config:
-        type_root = True
-
-    dataset_type: DatasetType
-    abs_name: ClassVar[str] = "dataset_reader"
-
-    @abstractmethod
-    def read(self, artifacts: Artifacts) -> DatasetType:
-        raise NotImplementedError
-
-
-class DatasetWriter(MlemABC):
-    """"""
-
-    class Config:
-        type_root = True
-
-    abs_name: ClassVar[str] = "dataset_writer"
-    art_name: ClassVar[str] = "data"
-
-    @abstractmethod
-    def write(
-        self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
-        raise NotImplementedError

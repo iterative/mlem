@@ -85,6 +85,9 @@ class Location(BaseModel):
 
 
 class UriResolver(ABC):
+    """Base class for resolving location. Turns (path, repo, rev, fs) tuple
+    into a normalized `Location` instance"""
+
     impls: List[Type["UriResolver"]] = []
     versioning_support: bool = False
 
@@ -215,6 +218,8 @@ class UriResolver(ABC):
 
 
 class GithubResolver(UriResolver):
+    """Resolve https://github.com URLs"""
+
     PROTOCOL = "github://"
     GITHUB_COM = "https://github.com"
 
@@ -411,6 +416,8 @@ class GitlabResolver(UriResolver):
 
 
 class FSSpecResolver(UriResolver):
+    """Resolve different fsspec URIs"""
+
     @classmethod
     def check(
         cls,
@@ -455,7 +462,7 @@ def get_fs(uri: str) -> Tuple[AbstractFileSystem, str]:
 def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     """Restore full uri from fs and path
 
-    Not ideal, but alternative to this is to save uri on MlemMeta level and pass it everywhere
+    Not ideal, but alternative to this is to save uri on MlemObject level and pass it everywhere
     Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
     return UriResolver.find_resolver(path, None, None, fs=fs).get_uri(
         path, None, None, fs=fs

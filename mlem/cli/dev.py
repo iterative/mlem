@@ -1,8 +1,12 @@
 from typer import Argument, Typer
 
 from mlem.cli.main import MlemGroupSection, app, mlem_command
-from mlem.ext import MLEM_ENTRY_POINT, find_implementations, load_entrypoints
 from mlem.ui import echo
+from mlem.utils.entrypoints import (
+    MLEM_ENTRY_POINT,
+    find_implementations,
+    load_entrypoints,
+)
 
 dev = Typer(name="dev", cls=MlemGroupSection("common"), hidden=True)
 app.add_typer(dev)

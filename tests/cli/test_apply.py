@@ -4,11 +4,16 @@ import tempfile
 
 import pytest
 from numpy import ndarray
+from pandas import DataFrame
 from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier
 
-from mlem.api import load
+from mlem.api import load, save
+from mlem.core.dataset_type import ListDatasetType
 from mlem.core.errors import MlemRootNotFound
-from mlem.runtime.client.base import HTTPClient
+from mlem.core.metadata import load_meta
+from mlem.core.objects import MlemDataset
+from mlem.runtime.client import HTTPClient
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 
@@ -30,7 +35,7 @@ def test_apply(runner, model_path, data_path):
                 "predict",
                 "-o",
                 path,
-                "--no-link",
+                "--no-index",
             ],
         )
         assert result.exit_code == 0, (result.output, result.exception)
@@ -38,7 +43,87 @@ def test_apply(runner, model_path, data_path):
         assert isinstance(predictions, ndarray)
 
 
+@pytest.fixture
+def model_train_batch():
+    train, target = load_iris(return_X_y=True)
+    train = DataFrame(train)
+    train.columns = train.columns.astype(str)
+    model = DecisionTreeClassifier().fit(train, target)
+    return model, train
+
+
+@pytest.fixture
+def model_path_batch(model_train_batch, tmp_path_factory):
+    path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
+    model, train = model_train_batch
+    save(model, path, sample_data=train, index=False)
+    yield path
+
+
+@pytest.fixture
+def data_path_batch(model_train_batch, tmpdir_factory):
+    temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
+    save(model_train_batch[1], temp_dir, index=False)
+    yield temp_dir
+
+
+def test_apply_batch(runner, model_path_batch, data_path_batch):
+    with tempfile.TemporaryDirectory() as dir:
+        path = posixpath.join(dir, "data")
+        result = runner.invoke(
+            [
+                "--tb",
+                "apply",
+                model_path_batch,
+                data_path_batch,
+                "-m",
+                "predict",
+                "-o",
+                path,
+                "--no-index",
+                "-b",
+                "5",
+            ],
+        )
+        assert result.exit_code == 0, (result.output, result.exception)
+        predictions_meta = load_meta(
+            path, load_value=True, force_type=MlemDataset
+        )
+        assert isinstance(predictions_meta.dataset, ListDatasetType)
+        predictions = predictions_meta.get_value()
+        assert isinstance(predictions, list)
+
+
 def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):
+    data_path = os.path.join(tmp_path_factory.getbasetemp(), "import_data")
+    load_iris(return_X_y=True, as_frame=True)[0].to_csv(data_path, index=False)
+
+    with tempfile.TemporaryDirectory() as dir:
+        path = posixpath.join(dir, "data")
+        result = runner.invoke(
+            [
+                "--tb",
+                "apply",
+                model_meta_saved_single.loc.uri,
+                data_path,
+                "-m",
+                "predict",
+                "-o",
+                path,
+                "--no-index",
+                "--import",
+                "--it",
+                "pandas[csv]",
+            ],
+        )
+        assert result.exit_code == 0, (result.output, result.exception)
+        predictions = load(path)
+        assert isinstance(predictions, ndarray)
+
+
+def test_apply_batch_with_import(
+    runner, model_meta_saved_single, tmp_path_factory
+):
     data_path = os.path.join(tmp_path_factory.getbasetemp(), "import_data")
     load_iris(return_X_y=True, as_frame=True)[0].to_csv(data_path, index=False)
 
@@ -53,20 +138,24 @@ def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):
                 "predict",
                 "-o",
                 path,
-                "--no-link",
+                "--no-index",
                 "--import",
                 "--it",
                 "pandas[csv]",
+                "-b",
+                "2",
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
-        predictions = load(path)
-        assert isinstance(predictions, ndarray)
+        assert result.exit_code == 1, (result.output, result.exception)
+        assert (
+            "Batch data loading is currently not supported for loading data on-the-fly"
+            in result.output
+        )
 
 
 def test_apply_no_output(runner, model_path, data_path):
     result = runner.invoke(
-        ["apply", model_path, data_path, "-m", "predict", "--no-link"],
+        ["apply", model_path, data_path, "-m", "predict", "--no-index"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0
@@ -84,7 +173,7 @@ def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
                 "predict",
                 "-o",
                 dir,
-                "--link",
+                "--index",
             ],
         )
         assert result.exit_code == 1, (result.output, result.exception)
@@ -114,7 +203,7 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
             current_test_branch,
             "-o",
             out,
-            "--no-link",
+            "--no-index",
         ],
     )
     assert result.exit_code == 0, (result.output, result.exception)

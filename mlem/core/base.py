@@ -6,6 +6,7 @@ from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Literal
 from yaml import safe_load
 
+from mlem.core.errors import UnknownImplementation
 from mlem.polydantic import PolyModel
 from mlem.utils.importing import import_string
 from mlem.utils.path import make_posix
@@ -13,29 +14,35 @@ from mlem.utils.path import make_posix
 
 @overload
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: Literal[True] = ...
+    abs_name: str,
+    type_name: Optional[str],
+    raise_on_missing: Literal[True] = ...,
 ) -> Type["MlemABC"]:
     ...
 
 
 @overload
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: Literal[False] = ...
+    abs_name: str,
+    type_name: Optional[str],
+    raise_on_missing: Literal[False] = ...,
 ) -> Optional[Type["MlemABC"]]:
     ...
 
 
 def load_impl_ext(
-    abs_name: str, type_name: str, raise_on_missing: bool = True
+    abs_name: str, type_name: Optional[str], raise_on_missing: bool = True
 ) -> Optional[Type["MlemABC"]]:
     """Sometimes, we will not have subclass imported when we deserialize.
     In that case, we first try to import the type_name string
     (because default for PolyModel._get_alias() is module_name.class_name).
     If that fails, we try to find implementation from entrypoints
     """
-    from mlem.ext import load_entrypoints  # circular dependencies
+    from mlem.utils.entrypoints import (  # circular dependencies
+        load_entrypoints,
+    )
 
-    if "." in type_name:
+    if type_name is not None and "." in type_name:
         try:
             obj = import_string(type_name)
             if not issubclass(obj, MlemABC):
@@ -64,7 +71,7 @@ MT = TypeVar("MT", bound="MlemABC")
 class MlemABC(PolyModel):
     """
     Base class for all MLEM Python objects
-    which should be serialized and deserialized
+    that should be serializable and polymorphic
     """
 
     abs_types: ClassVar[Dict[str, Type["MlemABC"]]] = {}
@@ -97,6 +104,13 @@ class MlemABC(PolyModel):
             or v.__is_root__
             and v is not cls
         }
+
+    @classmethod
+    def load_type(cls, type_name: str):
+        try:
+            return cls.__resolve_subtype__(type_name)
+        except ValueError as e:
+            raise UnknownImplementation(type_name, cls.abs_name) from e
 
 
 def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):
@@ -151,19 +165,20 @@ def build_mlem_object(
     **kwargs,
 ):
     not_links, links = parse_links(model, str_conf or [])
+    if model.__is_root__:
+        kwargs[model.__config__.type_field] = subtype
     return build_model(
         model,
         str_conf=not_links,
         file_conf=file_conf,
         conf=conf,
-        **{model.__config__.type_field: subtype},
         **kwargs,
         **links,
     )
 
 
 def parse_links(model: Type["BaseModel"], str_conf: List[str]):
-    from mlem.core.objects import MlemLink, MlemMeta
+    from mlem.core.objects import MlemLink, MlemObject
 
     not_links = []
     links = {}
@@ -179,7 +194,7 @@ def parse_links(model: Type["BaseModel"], str_conf: List[str]):
     link_types = {
         name: f.type_
         for name, f in model.__fields__.items()
-        if name in link_mapping and issubclass(f.type_, MlemMeta)
+        if name in link_mapping and issubclass(f.type_, MlemObject)
     }
     for c in str_conf:
         keys, value = smart_split(c, "=")

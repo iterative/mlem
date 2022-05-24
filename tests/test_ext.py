@@ -1,4 +1,8 @@
-from mlem.ext import MLEM_ENTRY_POINT, find_implementations, load_entrypoints
+from mlem.utils.entrypoints import (
+    MLEM_ENTRY_POINT,
+    find_implementations,
+    load_entrypoints,
+)
 
 
 def test_load_entrypoints():
