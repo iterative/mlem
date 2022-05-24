@@ -17,7 +17,7 @@ from mlem.utils.entrypoints import list_implementations
 @mlem_command("import", section="object")
 def import_object(
     uri: str = Argument(..., help="File to import"),
-    target: str = Argument(..., help="Path whare to save MLEM object"),
+    target: str = Argument(..., help="Path to save MLEM object"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     target_repo: Optional[str] = option_target_repo,
