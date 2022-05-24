@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Iterator, Optional, Tuple
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import torch
 
@@ -76,7 +76,9 @@ class TorchTensorDatasetType(
             dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
         )
 
-    def combine(self, batched_data: Any):
+    def combine(
+        self, batched_data: List[List[torch.Tensor]]
+    ) -> List[torch.Tensor]:
         raise NotImplementedError
 
 

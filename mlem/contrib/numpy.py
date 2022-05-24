@@ -83,7 +83,7 @@ class NumpyNumberType(
     def get_model(self, prefix: str = "") -> Type:
         return python_type_from_np_string_repr(self.dtype)
 
-    def combine(self, batched_data: Any):
+    def combine(self, batched_data: List[List[np.number]]) -> List[np.number]:
         raise NotImplementedError
 
 
@@ -108,7 +108,9 @@ class NumpyNdarrayType(
     def _abstract_shape(shape):
         return (None,) + shape[1:]
 
-    def combine(self, batched_data: List[List[np.ndarray]]):
+    def combine(
+        self, batched_data: List[List[np.ndarray]]
+    ) -> List[np.ndarray]:
         is_valid_type = all(
             self.is_object_valid(elem) for elem in batched_data
         )

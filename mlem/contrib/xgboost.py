@@ -114,7 +114,9 @@ class DMatrixDatasetType(
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
-    def combine(self, batched_data: Any):
+    def combine(
+        self, batched_data: List[List[xgboost.DMatrix]]
+    ) -> List[xgboost.DMatrix]:
         raise NotImplementedError
 
 

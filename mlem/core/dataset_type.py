@@ -14,6 +14,7 @@ from typing import (
     Sized,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
@@ -27,6 +28,8 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
+
+T = TypeVar("T")
 
 
 class DatasetType(ABC, MlemABC, WithRequirements):
@@ -49,7 +52,7 @@ class DatasetType(ABC, MlemABC, WithRequirements):
             )
 
     @abstractmethod
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[T]]) -> List[T]:
         raise NotImplementedError
 
     @abstractmethod
@@ -112,7 +115,7 @@ class UnspecifiedDatasetType(DatasetType, DatasetSerializer):
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 
@@ -203,7 +206,7 @@ class PrimitiveType(DatasetType, DatasetHook, DatasetSerializer):
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.to_type
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 
@@ -273,7 +276,7 @@ class ListDatasetType(DatasetType, DatasetSerializer):
             __root__=(List[self.dtype.get_serializer().get_model(subname)], ...),  # type: ignore
         )
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 
@@ -371,7 +374,7 @@ class _TupleLikeDatasetType(DatasetType, DatasetSerializer):
             ),
         )
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 
@@ -550,7 +553,7 @@ class DictDatasetType(DatasetType, DatasetSerializer, DatasetHook):
         }
         return create_model(prefix + "DictDataset", **kwargs)  # type: ignore
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 

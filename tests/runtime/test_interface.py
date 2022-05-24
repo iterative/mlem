@@ -28,7 +28,7 @@ class Container(DatasetType):
     def get_writer(self, **kwargs) -> DatasetWriter:
         raise NotImplementedError()
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 

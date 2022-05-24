@@ -73,7 +73,7 @@ class LightGBMDatasetType(
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.inner.get_serializer().get_model(prefix)
 
-    def combine(self, batched_data: List[List[Any]]):
+    def combine(self, batched_data: List[List[Any]]) -> List[Any]:
         raise NotImplementedError
 
 
