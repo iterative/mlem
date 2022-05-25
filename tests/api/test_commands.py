@@ -156,7 +156,7 @@ def test_ls_remote(current_test_branch):
     assert isinstance(lnk, MlemLink)
 
     assert MlemData in objects
-    assert len(objects[MlemData]) == 3
+    assert len(objects[MlemData]) == 4
 
 
 def test_init(tmpdir):

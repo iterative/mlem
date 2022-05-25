@@ -44,6 +44,7 @@ REMOTE_LS_EXPECTED_RESULT = """Models:
  - data/model
  - latest -> data/model
 Data:
+ - data/pred
  - data/test_x
  - data/test_y
  - data/train

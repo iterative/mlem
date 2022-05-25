@@ -15,12 +15,19 @@ from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
 from mlem.ui import echo, set_echo
 
+OBJECT_TYPE_NAMES = {"data": "Data"}
+
 
 def _print_objects_of_type(cls: Type[MlemObject], objects: List[MlemObject]):
     if len(objects) == 0:
         return
 
-    echo(cls.object_type.capitalize() + "s:")
+    echo(
+        OBJECT_TYPE_NAMES.get(
+            cls.object_type, cls.object_type.capitalize() + "s"
+        )
+        + ":"
+    )
     for meta in objects:
         if (
             isinstance(meta, MlemLink)
