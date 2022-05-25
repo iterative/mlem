@@ -313,7 +313,7 @@ class MlemObject(MlemABC):
                 link.link_type = self.resolved_type
                 link.project = None
             link._write_meta(  # pylint: disable=protected-access
-                location, False
+                location, True
             )
         return link
 
