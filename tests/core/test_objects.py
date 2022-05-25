@@ -16,7 +16,7 @@ from mlem.core.metadata import load, load_meta
 from mlem.core.model import ModelIO
 from mlem.core.objects import (
     DeployState,
-    MlemDeploy,
+    MlemDeployment,
     MlemLink,
     MlemModel,
     MlemObject,
@@ -48,7 +48,7 @@ class MyDeployState(DeployState):
 
 @pytest.fixture()
 def meta():
-    return MlemDeploy(
+    return MlemDeployment(
         env_link=MlemLink(path="", link_type="env"),
         model_link=MlemLink(path="", link_type="model"),
         state=MyDeployState(),
@@ -72,7 +72,7 @@ def test_meta_dump_curdir(meta, mlem_curdir_project, external):
     if not external:
         path = os.path.join(MLEM_DIR, meta.object_type, path)
     assert os.path.isfile(path)
-    assert isinstance(load(DEPLOY_NAME), MlemDeploy)
+    assert isinstance(load(DEPLOY_NAME), MlemDeployment)
 
 
 def test_meta_dump__no_root(meta, tmpdir):
@@ -97,14 +97,17 @@ def test_meta_dump_internal(mlem_project, meta, path_and_root):
     meta.dump(path, project=root, external=False)
     assert meta.name == DEPLOY_NAME
     meta_path = os.path.join(
-        mlem_project, MLEM_DIR, MlemDeploy.object_type, DEPLOY_NAME + MLEM_EXT
+        mlem_project,
+        MLEM_DIR,
+        MlemDeployment.object_type,
+        DEPLOY_NAME + MLEM_EXT,
     )
     assert os.path.isfile(meta_path)
     load_path = load_meta(meta_path)
-    assert isinstance(load_path, MlemDeploy)
+    assert isinstance(load_path, MlemDeployment)
     assert load_path.name == meta.name
     load_root = load_meta(path, project=root)
-    assert isinstance(load_root, MlemDeploy)
+    assert isinstance(load_root, MlemDeployment)
     assert load_root.name == meta.name
 
 
@@ -115,7 +118,7 @@ def test_meta_dump_external(mlem_project, meta, path_and_root):
     meta_path = os.path.join(mlem_project, DEPLOY_NAME + MLEM_EXT)
     assert os.path.isfile(meta_path)
     loaded = load_meta(meta_path)
-    assert isinstance(loaded, MlemDeploy)
+    assert isinstance(loaded, MlemDeployment)
     assert loaded.name == meta.name
     link_path = os.path.join(
         mlem_project, MLEM_DIR, MlemLink.object_type, DEPLOY_NAME + MLEM_EXT

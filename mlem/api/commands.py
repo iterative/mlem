@@ -29,7 +29,7 @@ from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     MlemBuilder,
     MlemData,
-    MlemDeploy,
+    MlemDeployment,
     MlemEnv,
     MlemLink,
     MlemModel,
@@ -411,7 +411,7 @@ def import_object(
 
 
 def deploy(
-    deploy_meta_or_path: Union[MlemDeploy, str],
+    deploy_meta_or_path: Union[MlemDeployment, str],
     model: Union[MlemModel, str] = None,
     env: Union[MlemEnv, str] = None,
     project: Optional[str] = None,
@@ -419,14 +419,14 @@ def deploy(
     external: bool = None,
     index: bool = None,
     **deploy_kwargs,
-) -> MlemDeploy:
+) -> MlemDeployment:
     if isinstance(deploy_meta_or_path, str):
         try:
             deploy_meta = load_meta(
                 path=deploy_meta_or_path,
                 project=project,
                 fs=fs,
-                force_type=MlemDeploy,
+                force_type=MlemDeployment,
             )
         except MlemObjectNotFound as e:
             if model is None or env is None:
@@ -452,5 +452,5 @@ def deploy(
     deploy_meta.get_env()
     deploy_meta.get_model()
 
-    deploy_meta.deploy()
+    deploy_meta.run()
     return deploy_meta

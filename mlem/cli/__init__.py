@@ -7,7 +7,7 @@ from mlem.cli.checkenv import checkenv
 from mlem.cli.clone import clone
 from mlem.cli.config import config
 from mlem.cli.declare import declare
-from mlem.cli.deploy import deploy
+from mlem.cli.deployment import deployment
 from mlem.cli.dev import dev
 from mlem.cli.import_object import import_object
 from mlem.cli.info import ls, pretty_print
@@ -19,7 +19,7 @@ from mlem.cli.types import list_types
 
 __all__ = [
     "apply",
-    "deploy",
+    "deployment",
     "app",
     "init",
     "build",

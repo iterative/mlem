@@ -163,8 +163,15 @@ class MlemGroup(TyperGroup, MlemMixin):
         return None
 
 
-def MlemGroupSection(section, options_metavar="options"):
-    return partial(MlemGroup, section=section, options_metavar=options_metavar)
+def MlemGroupSection(
+    section, options_metavar="options", aliases: Optional[List[str]] = None
+):
+    return partial(
+        MlemGroup,
+        section=section,
+        options_metavar=options_metavar,
+        aliases=aliases,
+    )
 
 
 class ChoicesMeta(EnumMeta):

@@ -741,7 +741,7 @@ class DeployState(MlemABC):
         raise NotImplementedError
 
 
-DT = TypeVar("DT", bound="MlemDeploy")
+DT = TypeVar("DT", bound="MlemDeployment")
 
 
 class MlemEnv(MlemObject, Generic[DT]):
@@ -761,14 +761,14 @@ class MlemEnv(MlemObject, Generic[DT]):
         raise NotImplementedError
 
     @abstractmethod
-    def destroy(self, meta: DT):
+    def remove(self, meta: DT):
         raise NotImplementedError
 
     @abstractmethod
     def get_status(self, meta: DT, raise_on_error=True) -> "DeployStatus":
         raise NotImplementedError
 
-    def check_type(self, deploy: "MlemDeploy"):
+    def check_type(self, deploy: "MlemDeployment"):
         if not isinstance(deploy, self.deploy_type):
             raise ValueError(
                 f"Meta of the {self.type} deployment should be {self.deploy_type}, not {deploy.__class__}"
@@ -786,7 +786,7 @@ class DeployStatus(str, Enum):
     RUNNING = "running"
 
 
-class MlemDeploy(MlemObject):
+class MlemDeployment(MlemObject):
     """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
@@ -797,7 +797,7 @@ class MlemDeploy(MlemObject):
         exclude = {"model", "env"}
         use_enum_values = True
 
-    abs_name: ClassVar = "deploy"
+    abs_name: ClassVar = "deployment"
     type: ClassVar[str]
 
     env_link: MlemLink
@@ -820,11 +820,11 @@ class MlemDeploy(MlemObject):
             )
         return self.model
 
-    def deploy(self):
+    def run(self):
         return self.get_env().deploy(self)
 
-    def destroy(self):
-        self.get_env().destroy(self)
+    def remove(self):
+        self.get_env().remove(self)
 
     def get_status(self, raise_on_error: bool = True) -> DeployStatus:
         return self.get_env().get_status(self, raise_on_error=raise_on_error)
