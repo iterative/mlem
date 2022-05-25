@@ -8,7 +8,7 @@ from mlem.cli.main import (
     option_conf,
     option_file_conf,
     option_load,
-    option_repo,
+    option_project,
     option_rev,
 )
 from mlem.core.metadata import load_meta
@@ -24,7 +24,7 @@ def pack(
         help=f"Type of packing. Choices: {list_implementations(MlemPackager)}",
         show_default=False,
     ),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     load: Optional[str] = option_load("packing"),
     conf: List[str] = option_conf("packing"),
@@ -45,5 +45,5 @@ def pack(
 
     pack(
         config_arg(MlemPackager, load, subtype, conf, file_conf),
-        load_meta(model, repo, rev, force_type=MlemModel),
+        load_meta(model, project, rev, force_type=MlemModel),
     )

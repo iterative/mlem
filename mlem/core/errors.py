@@ -19,7 +19,7 @@ class SerializationError(MlemError):
     pass
 
 
-class MlemRootNotFound(MlemError):
+class MlemProjectNotFound(MlemError):
     _message = "{MLEM_DIR} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
 
     def __init__(self, path, fs=None, rev=None) -> None:

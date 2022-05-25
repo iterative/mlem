@@ -261,14 +261,14 @@ def complex_model_single_path(complex_model_meta_saved_single):
 
 
 @pytest.fixture
-def mlem_repo(tmpdir_factory):
+def mlem_project(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
     return dir
 
 
 @pytest.fixture
-def mlem_curdir_repo(tmpdir_factory):
+def mlem_curdir_project(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     curdir = os.getcwd()
     os.chdir(dir)
@@ -278,19 +278,19 @@ def mlem_curdir_repo(tmpdir_factory):
 
 
 @pytest.fixture
-def filled_mlem_repo(mlem_repo):
+def filled_mlem_project(mlem_project):
     model = MlemModel(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
-    model.dump("model1", repo=mlem_repo, external=True)
+    model.dump("model1", project=mlem_project, external=True)
 
-    model.make_link("latest", repo=mlem_repo)
-    yield mlem_repo
+    model.make_link("latest", project=mlem_project)
+    yield mlem_project
 
 
 @pytest.fixture
-def model_path_mlem_repo(model_train_target, tmpdir_factory):
+def model_path_mlem_project(model_train_target, tmpdir_factory):
     model, train, _ = model_train_target
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
@@ -397,10 +397,10 @@ def s3_storage_fs(s3_storage):
 
 
 @pytest.fixture
-def set_mlem_repo_root(mocker):
+def set_mlem_project_root(mocker):
     def set(path, __file__=__file__):
         mocker.patch(
-            "mlem.utils.root.find_repo_root",
+            "mlem.utils.root.find_project_root",
             return_value=resource_path(__file__, path),
         )
 

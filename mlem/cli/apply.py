@@ -8,7 +8,7 @@ from mlem.cli.main import (
     config_arg,
     mlem_command,
     option_conf,
-    option_data_repo,
+    option_data_project,
     option_data_rev,
     option_external,
     option_file_conf,
@@ -16,9 +16,9 @@ from mlem.cli.main import (
     option_json,
     option_load,
     option_method,
-    option_repo,
+    option_project,
     option_rev,
-    option_target_repo,
+    option_target_project,
 )
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
@@ -34,13 +34,13 @@ from mlem.utils.entrypoints import list_implementations
 def apply(
     model: str = Argument(..., help="Path to model object"),
     data_path: str = Argument(..., metavar="data", help="Path to data object"),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
     method: str = option_method,
-    data_repo: Optional[str] = option_data_repo,
+    data_project: Optional[str] = option_data_project,
     data_rev: Optional[str] = option_data_rev,
     import_: bool = Option(
         False,
@@ -75,8 +75,8 @@ def apply(
         $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
 
         Apply a version of remote model to a version of remote data
-        $ mlem apply models/logreg --repo https://github.com/iterative/example-mlem --rev main
-                     data/test_x --data-repo https://github.com/iterative/example-mlem --data-rev main
+        $ mlem apply models/logreg --project https://github.com/iterative/example-mlem --rev main
+                     data/test_x --data-project https://github.com/iterative/example-mlem --data-rev main
                      --method predict --output myprediction
     """
     from mlem.api import apply
@@ -88,17 +88,20 @@ def apply(
                     "Batch data loading is currently not supported for loading data on-the-fly"
                 )
             data = import_object(
-                data_path, repo=data_repo, rev=data_rev, type_=import_type
+                data_path,
+                project=data_project,
+                rev=data_rev,
+                type_=import_type,
             )
         else:
             data = load_meta(
                 data_path,
-                data_repo,
+                data_project,
                 data_rev,
                 load_value=batch_size is None,
                 force_type=MlemData,
             )
-        meta = load_meta(model, repo, rev, force_type=MlemModel)
+        meta = load_meta(model, project, rev, force_type=MlemModel)
 
         result = apply(
             meta,
@@ -125,12 +128,12 @@ def apply_remote(
         show_default=False,
     ),
     data: str = Argument(..., help="Path to data object"),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
-    target_repo: Optional[str] = option_target_repo,
+    target_project: Optional[str] = option_target_project,
     method: str = option_method,
     index: bool = option_index,
     json: bool = option_json,
@@ -148,7 +151,7 @@ def apply_remote(
 
     with set_echo(None if json else ...):
         result = run_apply_remote(
-            client, data, repo, rev, index, method, output, target_repo
+            client, data, project, rev, index, method, output, target_project
         )
     if output is None and json:
         print(
@@ -161,18 +164,18 @@ def apply_remote(
 def run_apply_remote(
     client: Client,
     data_path: str,
-    repo,
+    project,
     rev,
     index,
     method,
     output,
-    target_repo,
+    target_project,
 ):
     from mlem.api import apply_remote
 
     data = load_meta(
         data_path,
-        repo,
+        project,
         rev,
         load_value=True,
         force_type=MlemData,
@@ -182,7 +185,7 @@ def run_apply_remote(
         data,
         method=method,
         output=output,
-        target_repo=target_repo,
+        target_project=target_project,
         index=index,
     )
     return result

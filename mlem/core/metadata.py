@@ -12,7 +12,7 @@ from typing_extensions import Literal
 from mlem.core.errors import (
     HookNotFound,
     MlemObjectNotFound,
-    MlemRootNotFound,
+    MlemProjectNotFound,
     WrongMetaType,
 )
 from mlem.core.meta_io import Location, UriResolver, get_meta_path
@@ -47,7 +47,7 @@ def get_object_metadata(
 def save(
     obj: Any,
     path: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     sample_data=None,
     fs: Union[str, AbstractFileSystem] = None,
     index: bool = None,
@@ -63,13 +63,13 @@ def save(
         obj: Object to dump
         path: If not located on LocalFileSystem, then should be uri
             or `fs` argument should be provided
-        repo: path to mlem repo (optional)
+        project: path to mlem project (optional)
         sample_data: If the object is a model or function, you can
             provide input data sample, so MLEM will include it's schema
             in the model's metadata
         fs: FileSystem for the `path` argument
-        index: Whether to add object to mlem repo index
-        external: if obj is saved to repo, whether to put it outside of .mlem dir
+        index: Whether to add object to mlem project index
+        external: if obj is saved to project, whether to put it outside of .mlem dir
         description: description for object
         params: arbitrary params for object
         labels: labels for object
@@ -80,27 +80,29 @@ def save(
     """
     if update and (description is None or params is None or labels is None):
         try:
-            old_meta = load_meta(path, repo=repo, fs=fs, load_value=False)
+            old_meta = load_meta(
+                path, project=project, fs=fs, load_value=False
+            )
             description = description or old_meta.description
             params = params or old_meta.params
             labels = labels or old_meta.labels
         except MlemObjectNotFound:
             logger.warning(
                 "Saving with update=True, but no existing object found at %s %s %s",
-                repo,
+                project,
                 path,
                 fs,
             )
     meta = get_object_metadata(
         obj, sample_data, description=description, params=params, labels=labels
     )
-    meta.dump(path, fs=fs, repo=repo, index=index, external=external)
+    meta.dump(path, fs=fs, project=project, index=index, external=external)
     return meta
 
 
 def load(
     path: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     rev: Optional[str] = None,
     batch_size: Optional[int] = None,
     follow_links: bool = True,
@@ -109,7 +111,7 @@ def load(
 
     Args:
         path (str): Path to the object. Could be local path or path inside a git repo.
-        repo (Optional[str], optional): URL to repo if object is located there.
+        project (Optional[str], optional): URL to project if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
         follow_links (bool, optional): If object we read is a MLEM link, whether to load the
             actual object link points to. Defaults to True.
@@ -119,7 +121,7 @@ def load(
     """
     meta = load_meta(
         path,
-        repo=repo,
+        project=project,
         rev=rev,
         follow_links=follow_links,
         load_value=batch_size is None,
@@ -135,7 +137,7 @@ T = TypeVar("T", bound=MlemObject)
 @overload
 def load_meta(
     path: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
@@ -149,7 +151,7 @@ def load_meta(
 @overload
 def load_meta(
     path: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
@@ -162,7 +164,7 @@ def load_meta(
 
 def load_meta(
     path: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
@@ -174,7 +176,7 @@ def load_meta(
 
     Args:
         path (str): Path to the object. Could be local path or path inside a git repo.
-        repo (Optional[str], optional): URL to repo if object is located there.
+        project (Optional[str], optional): URL to project if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
         follow_links (bool, optional): If object we read is a MLEM link, whether to load the
             actual object link points to. Defaults to True.
@@ -186,10 +188,10 @@ def load_meta(
     """
     location = UriResolver.resolve(
         path=make_posix(path),
-        repo=make_posix(repo),
+        project=make_posix(project),
         rev=rev,
         fs=fs,
-        find_repo=True,
+        find_project=True,
     )
     cls = force_type or MlemObject
     meta = cls.read(
@@ -221,13 +223,13 @@ def find_meta_location(location: Location) -> Location:
         # now search for objects in .mlem
         try:
             _, path = find_object(
-                location.path, fs=location.fs, repo=location.repo
+                location.path, fs=location.fs, project=location.project
             )
-        except (ValueError, MlemRootNotFound) as e:
+        except (ValueError, MlemProjectNotFound) as e:
             raise MlemObjectNotFound(
                 f"MLEM object was not found at `{location.uri_repr}`"
             ) from e
-    if location.repo is not None:
-        path = posixpath.relpath(path, location.repo)
+    if location.project is not None:
+        path = posixpath.relpath(path, location.project)
     location.update_path(path)
     return location

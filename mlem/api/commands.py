@@ -14,13 +14,13 @@ from mlem.api.utils import (
     get_model_meta,
     parse_import_type_modifier,
 )
-from mlem.config import CONFIG_FILE_NAME, repo_config
+from mlem.config import CONFIG_FILE_NAME, project_config
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
     InvalidArgumentError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
-    MlemRootNotFound,
+    MlemProjectNotFound,
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
@@ -46,7 +46,7 @@ from mlem.ui import (
     color,
     echo,
 )
-from mlem.utils.root import find_repo_root, mlem_repo_exists
+from mlem.utils.root import find_project_root, mlem_project_exists
 
 
 def apply(
@@ -54,7 +54,7 @@ def apply(
     *data: Union[str, MlemData, Any],
     method: str = None,
     output: str = None,
-    target_repo: str = None,
+    target_project: str = None,
     index: bool = None,
     external: bool = None,
     batch_size: Optional[int] = None,
@@ -102,7 +102,9 @@ def apply(
         return res
     if len(res) == 1:
         res = res[0]
-    return save(res, output, repo=target_repo, external=external, index=index)
+    return save(
+        res, output, project=target_project, external=external, index=index
+    )
 
 
 def apply_remote(
@@ -110,7 +112,7 @@ def apply_remote(
     *data: Union[str, MlemData, Any],
     method: str = None,
     output: str = None,
-    target_repo: str = None,
+    target_project: str = None,
     index: bool = False,
     **client_kwargs,
 ) -> Optional[Any]:
@@ -148,16 +150,16 @@ def apply_remote(
         return res
     if len(res) == 1:
         res = res[0]
-    return save(res, output, repo=target_repo, index=index)
+    return save(res, output, project=target_project, index=index)
 
 
 def clone(
     path: str,
     target: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
-    target_repo: Optional[str] = None,
+    target_project: Optional[str] = None,
     target_fs: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
@@ -170,23 +172,23 @@ def clone(
     Args:
         path (str): Path to the object. Could be local path or path inside a git repo.
         target (str): Path to save the copy of initial object to.
-        repo (Optional[str], optional): URL to repo if object is located there.
+        project (Optional[str], optional): URL to project if object is located there.
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
         fs (Optional[AbstractFileSystem], optional): filesystem to load object from
-        target_repo (Optional[str], optional): path to repo to save cloned object to
+        target_project (Optional[str], optional): path to project to save cloned object to
         target_fs (Optional[AbstractFileSystem], optional): target filesystem
         follow_links (bool, optional): If object we read is a MLEM link, whether to load
             the actual object link points to. Defaults to True.
         load_value (bool, optional): Load actual python object incorporated in MlemObject. Defaults to False.
-        index: whether to index object in target repo
-        external: wheter to put object inside mlem dir in target repo
+        index: whether to index object in target project
+        external: wheter to put object inside mlem dir in target project
 
     Returns:
         MlemObject: Copy of initial object saved to `out`
     """
     meta = load_meta(
         path,
-        repo=repo,
+        project=project,
         rev=rev,
         fs=fs,
         follow_links=follow_links,
@@ -196,7 +198,11 @@ def clone(
     if target in ("", "."):
         target = posixpath.basename(meta.loc.uri)
     return meta.clone(
-        target, fs=target_fs, repo=target_repo, index=index, external=external
+        target,
+        fs=target_fs,
+        project=target_project,
+        index=index,
+        external=external,
     )
 
 
@@ -262,10 +268,10 @@ def init(path: str = ".") -> None:
 
 def link(
     source: Union[str, MlemObject],
-    source_repo: Optional[str] = None,
+    source_project: Optional[str] = None,
     rev: Optional[str] = None,
     target: Optional[str] = None,
-    target_repo: Optional[str] = None,
+    target_project: Optional[str] = None,
     external: Optional[bool] = None,
     follow_links: bool = True,
     absolute: bool = False,
@@ -274,15 +280,15 @@ def link(
 
     Args:
         source (Union[str, MlemObject]): The object to create link from.
-        source_repo (str, optional): Path to mlem repo where to load obj from
+        source_project (str, optional): Path to mlem project where to load obj from
         rev (str, optional): Revision if object is stored in git repo.
         target (str, optional): Where to store the link object.
-        target_repo (str, optional): If provided,
+        target_project (str, optional): If provided,
             treat `target` as link name and dump link in MLEM DIR
         follow_links (bool): Whether to make link to the underlying object
             if `source` is itself a link. Defaults to True.
         external (bool): Whether to save link outside mlem dir
-        absolute (bool): Whether to make link absolute or relative to mlem repo
+        absolute (bool): Whether to make link absolute or relative to mlem project
 
     Returns:
         MlemLink: Link object to the `source`.
@@ -293,14 +299,14 @@ def link(
     else:
         source = load_meta(
             source,
-            repo=source_repo,
+            project=source_project,
             rev=rev,
             follow_links=follow_links,
         )
 
     return source.make_link(
         target,
-        repo=target_repo,
+        project=target_project,
         external=external,
         absolute=absolute,
     )
@@ -341,17 +347,17 @@ def serve(model: MlemModel, server: Union[Server, str], **server_kwargs):
     server_obj.serve(interface)
 
 
-def _validate_ls_repo(loc: Location, repo):
-    if loc.repo is None:
-        raise MlemRootNotFound(repo, loc.fs)
+def _validate_ls_project(loc: Location, project):
+    if loc.project is None:
+        raise MlemProjectNotFound(project, loc.fs)
     if isinstance(loc.fs, LocalFileSystem):
-        loc.repo = find_repo_root(loc.repo, loc.fs)
+        loc.project = find_project_root(loc.project, loc.fs)
     else:
-        mlem_repo_exists(loc.repo, loc.fs, raise_on_missing=True)
+        mlem_project_exists(loc.project, loc.fs, raise_on_missing=True)
 
 
 def ls(  # pylint: disable=too-many-locals
-    repo: str = ".",
+    project: str = ".",
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
     type_filter: Union[
@@ -359,18 +365,22 @@ def ls(  # pylint: disable=too-many-locals
     ] = None,
     include_links: bool = True,
 ) -> Dict[Type[MlemObject], List[MlemObject]]:
-    loc = UriResolver.resolve("", repo=repo, rev=rev, fs=fs, find_repo=True)
-    _validate_ls_repo(loc, repo)
-    return repo_config(repo, fs).index.list(loc, type_filter, include_links)
+    loc = UriResolver.resolve(
+        "", project=project, rev=rev, fs=fs, find_project=True
+    )
+    _validate_ls_project(loc, project)
+    return project_config(project, fs).index.list(
+        loc, type_filter, include_links
+    )
 
 
 def import_object(
     path: str,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
     target: Optional[str] = None,
-    target_repo: Optional[str] = None,
+    target_project: Optional[str] = None,
     target_fs: Optional[AbstractFileSystem] = None,
     type_: Optional[str] = None,
     copy_data: bool = True,
@@ -380,7 +390,7 @@ def import_object(
     """Try to load an object as MLEM model (or data) and return it,
     optionally saving to the specified target location
     """
-    loc = UriResolver.resolve(path, repo, rev, fs)
+    loc = UriResolver.resolve(path, project, rev, fs)
     echo(EMOJI_LOAD + f"Importing object from {loc.uri_repr}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)
@@ -393,7 +403,7 @@ def import_object(
         meta.dump(
             target,
             fs=target_fs,
-            repo=target_repo,
+            project=target_project,
             index=index,
             external=external,
         )
@@ -404,7 +414,7 @@ def deploy(
     deploy_meta_or_path: Union[MlemDeploy, str],
     model: Union[MlemModel, str] = None,
     env: Union[MlemEnv, str] = None,
-    repo: Optional[str] = None,
+    project: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
     external: bool = None,
     index: bool = None,
@@ -414,7 +424,7 @@ def deploy(
         try:
             deploy_meta = load_meta(
                 path=deploy_meta_or_path,
-                repo=repo,
+                project=project,
                 fs=fs,
                 force_type=MlemDeploy,
             )
@@ -432,7 +442,7 @@ def deploy(
                 model_link=model_meta.make_link(),
                 **deploy_kwargs,
             )
-            deploy_meta.dump(deploy_meta_or_path, fs, repo, index, external)
+            deploy_meta.dump(deploy_meta_or_path, fs, project, index, external)
     else:
         deploy_meta = deploy_meta_or_path
         if model is not None:

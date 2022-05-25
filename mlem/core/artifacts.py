@@ -132,7 +132,7 @@ class FSSpecArtifact(Artifact):
 
 class PlaceholderArtifact(Artifact):
     """On dumping this artifact will be replaced with actual artifact that
-    is relative to repo root (if there is a repo)"""
+    is relative to project root (if there is a project)"""
 
     location: Location
 
@@ -150,7 +150,7 @@ class PlaceholderArtifact(Artifact):
         raise NotImplementedError
 
     def relative_to(self, location: Location) -> "Artifact":
-        if location.repo is None:
+        if location.project is None:
             return FSSpecArtifact(uri=self.location.uri, **self.info)
         if self.location.fs == location.fs:
             return LocalArtifact(

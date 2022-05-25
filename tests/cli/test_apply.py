@@ -10,7 +10,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
 from mlem.core.data_type import ArrayType
-from mlem.core.errors import MlemRootNotFound
+from mlem.core.errors import MlemProjectNotFound
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData
 from mlem.runtime.client import HTTPClient
@@ -177,7 +177,7 @@ def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
             ],
         )
         assert result.exit_code == 1, (result.output, result.exception)
-        assert isinstance(result.exception, MlemRootNotFound)
+        assert isinstance(result.exception, MlemProjectNotFound)
 
 
 @long
@@ -190,14 +190,14 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
         [
             "apply",
             model_path,
-            "--repo",
+            "--project",
             MLEM_TEST_REPO,
             "--rev",
             current_test_branch,
             "-m",
             "predict",
             data_path,
-            "--data-repo",
+            "--data-project",
             MLEM_TEST_REPO,
             "--data-rev",
             current_test_branch,

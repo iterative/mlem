@@ -213,7 +213,7 @@ def mlem_callback(
     Examples:
         $ mlem init
         $ mlem list https://github.com/iterative/example-mlem
-        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main logreg
+        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main logreg
         $ mlem link logreg latest
         $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
         $ mlem serve latest fastapi -c port=8001
@@ -303,8 +303,8 @@ def mlem_command(
     return decorator
 
 
-option_repo = Option(
-    None, "-r", "--repo", help="Path to MLEM repo", show_default="none"  # type: ignore
+option_project = Option(
+    None, "-p", "--project", help="Path to MLEM project", show_default="none"  # type: ignore
 )
 option_method = Option(
     PREDICT_METHOD_NAME,
@@ -323,21 +323,21 @@ option_external = Option(
     "--external",
     "-e",
     is_flag=True,
-    help=f"Save result not in {MLEM_DIR}, but directly in repo",
+    help=f"Save result not in {MLEM_DIR}, but directly in project",
 )
-option_target_repo = Option(
+option_target_project = Option(
     None,
-    "--target-repo",
-    "--tr",
-    help="Repo to save target to",
+    "--target-project",
+    "--tp",
+    help="Project to save target to",
     show_default="none",  # type: ignore
 )
 option_json = Option(False, "--json", help="Output as json")
-option_data_repo = Option(
+option_data_project = Option(
     None,
-    "--data-repo",
+    "--data-project",
     "--dr",
-    help="Repo with data",
+    help="Project with data",
 )
 option_data_rev = Option(
     None,

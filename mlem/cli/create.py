@@ -8,7 +8,7 @@ from .main import (
     mlem_command,
     option_external,
     option_index,
-    option_repo,
+    option_project,
     wrap_build_error,
 )
 
@@ -24,7 +24,7 @@ def create(
         help="Values for object fields in format `field.nested.name=value`",
     ),
     path: str = Argument(..., help="Where to save object"),
-    repo: str = option_repo,
+    project: str = option_project,
     external: bool = option_external,
     index: bool = option_index,
 ):
@@ -37,4 +37,4 @@ def create(
     cls = MlemObject.__type_map__[object_type]
     with wrap_build_error(subtype, cls):
         meta = build_mlem_object(cls, subtype, conf, [])
-    meta.dump(path, repo=repo, index=index, external=external)
+    meta.dump(path, project=project, index=index, external=external)

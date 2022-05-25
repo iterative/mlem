@@ -2,8 +2,8 @@ from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
 
 
-def test_checkenv(runner, model_path_mlem_repo):
-    model_path, _ = model_path_mlem_repo
+def test_checkenv(runner, model_path_mlem_project):
+    model_path, _ = model_path_mlem_project
     result = runner.invoke(
         ["checkenv", model_path],
     )

@@ -8,15 +8,15 @@ from mlem.cli.main import (
     MlemGroupSection,
     app,
     mlem_command,
-    option_data_repo,
+    option_data_project,
     option_data_rev,
     option_external,
     option_index,
     option_json,
     option_method,
-    option_repo,
+    option_project,
     option_rev,
-    option_target_repo,
+    option_target_project,
 )
 from mlem.core.base import parse_string_conf
 from mlem.core.data_type import DataAnalyzer
@@ -41,7 +41,7 @@ def deploy_create(
     env: Optional[str] = Option(
         None, "-t", "--env", help="Path to target environment"
     ),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     external: bool = option_external,
     index: bool = option_index,
     conf: Optional[List[str]] = Option(
@@ -69,7 +69,7 @@ def deploy_create(
         path,
         model,
         env,
-        repo,
+        project,
         external=external,
         index=index,
         **parse_string_conf(conf or []),
@@ -79,21 +79,21 @@ def deploy_create(
 @mlem_command("teardown", parent=deploy)
 def deploy_teardown(
     path: str = Argument(..., help="Path to deployment meta"),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
 ):
     """Stop and destroy deployed instance
 
     Examples:
         $ mlem deploy teardown service_name
     """
-    deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
+    deploy_meta = load_meta(path, project=project, force_type=MlemDeploy)
     deploy_meta.destroy()
 
 
 @mlem_command("status", parent=deploy)
 def deploy_status(
     path: str = Argument(..., help="Path to deployment meta"),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
 ):
     """Print status of deployed service
 
@@ -101,7 +101,7 @@ def deploy_status(
         $ mlem deploy status service_name
     """
     with no_echo():
-        deploy_meta = load_meta(path, repo=repo, force_type=MlemDeploy)
+        deploy_meta = load_meta(path, project=project, force_type=MlemDeploy)
         status = deploy_meta.get_status()
     echo(status)
 
@@ -109,15 +109,15 @@ def deploy_status(
 @mlem_command("apply", parent=deploy)
 def deploy_apply(
     path: str = Argument(..., help="Path to deployment meta"),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     data: str = Argument(..., help="Path to data object"),
-    data_repo: Optional[str] = option_data_repo,
+    data_project: Optional[str] = option_data_project,
     data_rev: Optional[str] = option_data_rev,
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
-    target_repo: Optional[str] = option_target_repo,
+    target_project: Optional[str] = option_target_project,
     method: str = option_method,
     index: bool = option_index,
     json: bool = option_json,
@@ -130,7 +130,7 @@ def deploy_apply(
 
     with set_echo(None if json else ...):
         deploy_meta = load_meta(
-            path, repo=repo, rev=rev, force_type=MlemDeploy
+            path, project=project, rev=rev, force_type=MlemDeploy
         )
         if deploy_meta.state is None:
             raise DeploymentError(
@@ -141,12 +141,12 @@ def deploy_apply(
         result = run_apply_remote(
             client,
             data,
-            data_repo,
+            data_project,
             data_rev,
             index,
             method,
             output,
-            target_repo,
+            target_project,
         )
     if output is None and json:
         print(

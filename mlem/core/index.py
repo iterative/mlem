@@ -8,7 +8,7 @@ from yaml import safe_dump, safe_load
 
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemABC
-from mlem.core.errors import MlemRootNotFound
+from mlem.core.errors import MlemProjectNotFound
 from mlem.core.meta_io import MLEM_EXT, Location
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemLink, MlemObject
@@ -67,7 +67,7 @@ class LinkIndex(Index):
             return
         with no_echo():
             obj.make_link(
-                obj.name, location.fs, repo=location.repo, external=False
+                obj.name, location.fs, project=location.project, external=False
             )
 
     def list(
@@ -81,7 +81,7 @@ class LinkIndex(Index):
             return {}
 
         res = defaultdict(list)
-        root_path = posixpath.join(location.repo or "", MLEM_DIR)
+        root_path = posixpath.join(location.project or "", MLEM_DIR)
         files = location.fs.glob(
             posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
         )
@@ -92,8 +92,8 @@ class LinkIndex(Index):
                     continue
                 with no_echo():
                     meta = load_meta(
-                        posixpath.relpath(file, location.repo),
-                        repo=location.repo,
+                        posixpath.relpath(file, location.project),
+                        project=location.project,
                         rev=location.rev,
                         follow_links=False,
                         fs=location.fs,
@@ -128,9 +128,9 @@ class FileIndex(Index):
     filename = "index.yaml"
 
     def _read_index(self, location: Location):
-        if location.repo is None:
-            raise MlemRootNotFound(location.path, location.fs, location.rev)
-        path = posixpath.join(location.repo, MLEM_DIR, self.filename)
+        if location.project is None:
+            raise MlemProjectNotFound(location.path, location.fs, location.rev)
+        path = posixpath.join(location.project, MLEM_DIR, self.filename)
         if not location.fs.exists(path):
             return {}
 
@@ -138,9 +138,9 @@ class FileIndex(Index):
             return parse_obj_as(FileIndexSchema, safe_load(f))
 
     def _write_index(self, location: Location, data: FileIndexSchema):
-        if location.repo is None:
-            raise MlemRootNotFound(location.path, location.fs, location.rev)
-        path = posixpath.join(location.repo, MLEM_DIR, self.filename)
+        if location.project is None:
+            raise MlemProjectNotFound(location.path, location.fs, location.rev)
+        path = posixpath.join(location.project, MLEM_DIR, self.filename)
 
         with location.fs.open(path, "w") as f:
             safe_dump(data, f)
@@ -176,7 +176,7 @@ class FileIndex(Index):
                     [
                         load_meta(
                             path,
-                            location.repo,
+                            location.project,
                             location.rev,
                             load_value=False,
                             fs=location.fs,
