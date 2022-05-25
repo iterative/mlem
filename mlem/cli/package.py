@@ -38,7 +38,7 @@ def pack(
         $ mlem pack mymodel docker -c server.type=fastapi -c image.name=myimage
 
         Create pack docker_dir declaration and build it
-        $ mlem create packager docker_dir -c server=fastapi -c target=build pack_dock
+        $ mlem declare packager docker_dir -c server=fastapi -c target=build pack_dock
         $ mlem pack mymodel --load pack_dock
     """
     from mlem.api.commands import pack

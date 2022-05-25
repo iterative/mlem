@@ -13,8 +13,8 @@ from .main import (
 )
 
 
-@mlem_command("create", section="object")
-def create(
+@mlem_command("declare", section="object")
+def declare(
     object_type: str = Argument(..., help="Type of metafile to create"),
     subtype: str = Argument("", help="Subtype of MLEM object"),
     conf: Optional[List[str]] = Option(
@@ -32,7 +32,7 @@ def create(
 
     Examples:
         Create heroku deployment
-        $ mlem create env heroku production -c api_key=<...>
+        $ mlem declare env heroku production -c api_key=<...>
     """
     cls = MlemObject.__type_map__[object_type]
     with wrap_build_error(subtype, cls):

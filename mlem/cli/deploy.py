@@ -55,12 +55,12 @@ def deploy_create(
 
     Examples:
         Create new deployment
-        $ mlem create env heroku staging -c api_key=...
+        $ mlem declare env heroku staging -c api_key=...
         $ mlem deploy create service_name -m model -t staging -c name=my_service
 
         Deploy existing meta
-        $ mlem create env heroku staging -c api_key=...
-        $ mlem create deployment heroku service_name -c app_name=my_service -c model=model -c env=staging
+        $ mlem declare env heroku staging -c api_key=...
+        $ mlem declare deployment heroku service_name -c app_name=my_service -c model=model -c env=staging
         $ mlem deploy create service_name
     """
     from mlem.api.commands import deploy

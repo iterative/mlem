@@ -5,7 +5,7 @@ from mlem.cli.apply import apply
 from mlem.cli.checkenv import checkenv
 from mlem.cli.clone import clone
 from mlem.cli.config import config
-from mlem.cli.create import create
+from mlem.cli.declare import declare
 from mlem.cli.deploy import deploy
 from mlem.cli.dev import dev
 from mlem.cli.import_object import import_object
@@ -29,7 +29,7 @@ __all__ = [
     "clone",
     "serve",
     "config",
-    "create",
+    "declare",
     "import_object",
     "list_types",
     "dev",
