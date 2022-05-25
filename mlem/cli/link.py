@@ -54,6 +54,6 @@ def link(
         target=target,
         target_project=target_project,
         follow_links=follow_links,
-        external=external,
+        external=external or False,
         absolute=absolute,
     )
