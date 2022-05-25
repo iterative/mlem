@@ -20,11 +20,11 @@ from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
-from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
+from mlem.core.data_type import DataReader, DataType, DataWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import MlemDataset, MlemModel
+from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.interface import ModelInterface
 from mlem.utils.github import ls_github_branches
@@ -184,8 +184,8 @@ def request_post_mock(mocker, client):
 
 
 @pytest.fixture
-def dataset_meta(train):
-    return MlemDataset.from_data(train)
+def data_meta(train):
+    return MlemData.from_data(train)
 
 
 @pytest.fixture
@@ -211,7 +211,7 @@ def data_path(train, tmpdir_factory):
 
 
 @pytest.fixture
-def dataset_meta_saved(data_path):
+def data_meta_saved(data_path):
     return load_meta(data_path)
 
 
@@ -299,41 +299,41 @@ def model_path_mlem_repo(model_train_target, tmpdir_factory):
     yield model_dir, dir
 
 
-def dataset_write_read_check(
-    dataset: DatasetType,
-    writer: DatasetWriter = None,
-    reader_type: Type[DatasetReader] = None,
+def data_write_read_check(
+    data: DataType,
+    writer: DataWriter = None,
+    reader_type: Type[DataReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
     custom_assert: Callable[[Any, Any], Any] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
-        writer = writer or dataset.get_writer()
+        writer = writer or data.get_writer()
 
         storage = LOCAL_STORAGE
         reader, artifacts = writer.write(
-            dataset, storage, posixpath.join(tmpdir, "data")
+            data, storage, posixpath.join(tmpdir, "data")
         )
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
         new = reader.read(artifacts)
 
-        assert dataset == new
+        assert data == new
         if custom_assert is not None:
-            custom_assert(new.data, dataset.data)
+            custom_assert(new.data, data.data)
         else:
             if custom_eq is not None:
-                assert custom_eq(new.data, dataset.data)
+                assert custom_eq(new.data, data.data)
             else:
-                assert new.data == dataset.data
+                assert new.data == data.data
 
         return artifacts
 
 
 def check_model_type_common_interface(
     model_type: ModelType,
-    data_type: DatasetType,
-    returns_type: DatasetType,
+    data_type: DataType,
+    returns_type: DataType,
     **kwargs,
 ):
     assert PREDICT_METHOD_NAME in model_type.methods

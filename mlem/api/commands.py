@@ -10,7 +10,7 @@ from fsspec.implementations.local import LocalFileSystem
 from mlem.api.utils import (
     ensure_meta,
     ensure_mlem_object,
-    get_dataset_value,
+    get_data_value,
     get_model_meta,
     parse_import_type_modifier,
 )
@@ -27,7 +27,7 @@ from mlem.core.import_objects import ImportAnalyzer, ImportHook
 from mlem.core.meta_io import MLEM_DIR, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
-    MlemDataset,
+    MlemData,
     MlemDeploy,
     MlemEnv,
     MlemLink,
@@ -51,7 +51,7 @@ from mlem.utils.root import find_repo_root, mlem_repo_exists
 
 def apply(
     model: Union[str, MlemModel],
-    *data: Union[str, MlemDataset, Any],
+    *data: Union[str, MlemData, Any],
     method: str = None,
     output: str = None,
     target_repo: str = None,
@@ -87,13 +87,13 @@ def apply(
     if batch_size:
         res: Any = []
         for part in data:
-            batch_dataset = get_dataset_value(part, batch_size)
-            for chunk in batch_dataset:
-                preds = w.call_method(resolved_method, chunk.data)
+            batch_data = get_data_value(part, batch_size)
+            for batch in batch_data:
+                preds = w.call_method(resolved_method, batch.data)
                 res += [*preds]  # TODO: merge results
     else:
         res = [
-            w.call_method(resolved_method, get_dataset_value(part))
+            w.call_method(resolved_method, get_data_value(part))
             for part in data
         ]
     if output is None:
@@ -107,7 +107,7 @@ def apply(
 
 def apply_remote(
     client: Union[str, Client],
-    *data: Union[str, MlemDataset, Any],
+    *data: Union[str, MlemData, Any],
     method: str = None,
     output: str = None,
     target_repo: str = None,
@@ -141,7 +141,7 @@ def apply_remote(
         raise InvalidArgumentError("method cannot be None")
 
     echo(EMOJI_APPLY + f"Applying `{resolved_method.method.name}` method...")
-    res = [resolved_method(get_dataset_value(part)) for part in data]
+    res = [resolved_method(get_data_value(part)) for part in data]
     if output is None:
         if len(res) == 1:
             return res[0]
@@ -377,7 +377,7 @@ def import_object(
     external: bool = None,
     index: bool = None,
 ):
-    """Try to load an object as MLEM model (or dataset) and return it,
+    """Try to load an object as MLEM model (or data) and return it,
     optionally saving to the specified target location
     """
     loc = UriResolver.resolve(path, repo, rev, fs)

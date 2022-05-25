@@ -38,7 +38,7 @@ from mlem.core.artifacts import (
     PlaceholderArtifact,
 )
 from mlem.core.base import MlemABC
-from mlem.core.dataset_type import DatasetReader, DatasetType
+from mlem.core.data_type import DataReader, DataType
 from mlem.core.errors import (
     DeploymentError,
     MlemObjectNotFound,
@@ -632,27 +632,27 @@ class MlemModel(_WithArtifacts):
         return partial(self.model_type.call_method, item)
 
 
-class MlemDataset(_WithArtifacts):
-    """MlemObject representing a dataset"""
+class MlemData(_WithArtifacts):
+    """MlemObject representing data"""
 
     class Config:
-        exclude = {"dataset"}
+        exclude = {"data"}
 
-    object_type: ClassVar = "dataset"
+    object_type: ClassVar = "data"
     reader_cache: Optional[Dict]
-    reader: Optional[DatasetReader]
+    reader: Optional[DataReader]
     reader, reader_raw, reader_cache = lazy_field(
-        DatasetReader,
+        DataReader,
         "reader",
         "reader_cache",
-        parse_as_type=Optional[DatasetReader],
+        parse_as_type=Optional[DataReader],
         default=None,
     )
-    dataset: Optional[DatasetType] = None
+    data_type: Optional[DataType] = None
 
     @property
     def data(self):
-        return self.dataset.data
+        return self.data_type.data
 
     @classmethod
     def from_data(
@@ -661,26 +661,26 @@ class MlemDataset(_WithArtifacts):
         description: str = None,
         params: Dict[str, str] = None,
         labels: List[str] = None,
-    ) -> "MlemDataset":
-        dataset = DatasetType.create(
+    ) -> "MlemData":
+        data_type = DataType.create(
             data,
         )
-        meta = MlemDataset(
-            requirements=dataset.get_requirements().expanded,
+        meta = MlemData(
+            requirements=data_type.get_requirements().expanded,
             description=description,
             params=params or {},
             labels=labels or [],
         )
-        meta.dataset = dataset
+        meta.data_type = data_type
         return meta
 
     def write_value(self) -> Artifacts:
-        if self.dataset is not None:
+        if self.data_type is not None:
             filename = os.path.basename(self.name)
-            reader, artifacts = self.dataset.get_writer(
+            reader, artifacts = self.data_type.get_writer(
                 filename=filename
             ).write(
-                self.dataset,
+                self.data_type,
                 self.storage,
                 filename,
             )
@@ -689,12 +689,12 @@ class MlemDataset(_WithArtifacts):
         raise ValueError("Meta is not binded to actual data")
 
     def load_value(self):
-        self.dataset = self.reader.read(self.relative_artifacts)
+        self.data_type = self.reader.read(self.relative_artifacts)
 
-    def read_batch(self, batch_size: int) -> Iterator[DatasetType]:
+    def read_batch(self, batch_size: int) -> Iterator[DataType]:
         if self.reader is None:
             raise MlemObjectNotSavedError(
-                "Cannot read batch from not saved dataset"
+                "Cannot read batch from not saved data"
             )
         return self.reader.read_batch(self.relative_artifacts, batch_size)
 

@@ -397,6 +397,6 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
         return uri
     if fs.exists(uri):
         raise MlemObjectNotFound(
-            f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or dataset"
+            f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or data"
         )
     raise FileNotFoundError(uri)

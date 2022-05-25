@@ -43,7 +43,7 @@ def test_ls(runner, filled_mlem_repo, obj_type):
 REMOTE_LS_EXPECTED_RESULT = """Models:
  - data/model
  - latest -> data/model
-Datasets:
+Data:
  - data/test_x
  - data/test_y
  - data/train

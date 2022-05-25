@@ -337,12 +337,12 @@ option_data_repo = Option(
     None,
     "--data-repo",
     "--dr",
-    help="Repo with dataset",
+    help="Repo with data",
 )
 option_data_rev = Option(
     None,
     "--data-rev",
-    help="Revision of dataset",
+    help="Revision of data",
 )
 
 

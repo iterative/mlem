@@ -8,7 +8,7 @@ from pydantic.main import ModelMetaclass
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer, rename_recursively
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
 from mlem.runtime.interface import ModelInterface
@@ -16,7 +16,7 @@ from mlem.runtime.interface import ModelInterface
 
 @pytest.fixture
 def signature(train):
-    data_type = DatasetAnalyzer.analyze(train)
+    data_type = DataAnalyzer.analyze(train)
     returns_type = NumpyNdarrayType(shape=(None,), dtype="float64")
     kwargs = {"varkw": "kwargs"}
     return Signature(

@@ -29,10 +29,10 @@ def import_object(
     index: bool = option_index,
     external: bool = option_external,
 ):
-    """Create MLEM model or dataset metadata from file/dir
+    """Create MLEM model or data metadata from file/dir
 
     Examples:
-        Create MLEM dataset from local csv
+        Create MLEM data from local csv
         $ mlem import data/data.csv data/imported_data --type pandas[csv]
 
         Create MLEM model from local pickle file

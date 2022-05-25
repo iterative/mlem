@@ -16,7 +16,7 @@ from mlem.core.errors import MlemRootNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemDataset, MlemLink, MlemModel
+from mlem.core.objects import MlemData, MlemLink, MlemModel
 from mlem.runtime.client import HTTPClient
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -35,11 +35,11 @@ def mlem_client(request_get_mock, request_post_mock):
     [
         (
             lazy_fixture("model_meta"),
-            lazy_fixture("dataset_meta"),
+            lazy_fixture("data_meta"),
         ),
         (
             lazy_fixture("model_meta_saved"),
-            lazy_fixture("dataset_meta_saved"),
+            lazy_fixture("data_meta_saved"),
         ),
         (
             lazy_fixture("model_meta_saved"),
@@ -155,8 +155,8 @@ def test_ls_remote(current_test_branch):
     assert isinstance(model, MlemModel)
     assert isinstance(lnk, MlemLink)
 
-    assert MlemDataset in objects
-    assert len(objects[MlemDataset]) == 3
+    assert MlemData in objects
+    assert len(objects[MlemData]) == 3
 
 
 def test_init(tmpdir):

@@ -34,8 +34,6 @@ def _print_objects_of_type(cls: Type[MlemObject], objects: List[MlemObject]):
 
 TYPE_ALIASES = {
     "models": "model",
-    "data": "dataset",
-    "datasets": "dataset",
 }
 
 

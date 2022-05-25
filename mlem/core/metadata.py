@@ -16,7 +16,7 @@ from mlem.core.errors import (
     WrongMetaType,
 )
 from mlem.core.meta_io import Location, UriResolver, get_meta_path
-from mlem.core.objects import MlemDataset, MlemModel, MlemObject, find_object
+from mlem.core.objects import MlemData, MlemModel, MlemObject, find_object
 from mlem.utils.path import make_posix
 
 logger = logging.getLogger(__name__)
@@ -28,10 +28,10 @@ def get_object_metadata(
     description: str = None,
     params: Dict[str, str] = None,
     labels: List[str] = None,
-) -> Union[MlemDataset, MlemModel]:
+) -> Union[MlemData, MlemModel]:
     """Convert given object to appropriate MlemObject subclass"""
     try:
-        return MlemDataset.from_data(
+        return MlemData.from_data(
             obj, description=description, params=params, labels=labels
         )
     except HookNotFound:
@@ -124,7 +124,7 @@ def load(
         follow_links=follow_links,
         load_value=batch_size is None,
     )
-    if isinstance(meta, MlemDataset) and batch_size:
+    if isinstance(meta, MlemData) and batch_size:
         return meta.read_batch(batch_size)
     return meta.get_value()
 

@@ -9,10 +9,10 @@ from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
-from mlem.core.dataset_type import ListDatasetType
+from mlem.core.data_type import ArrayType
 from mlem.core.errors import MlemRootNotFound
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemDataset
+from mlem.core.objects import MlemData
 from mlem.runtime.client import HTTPClient
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
@@ -87,9 +87,9 @@ def test_apply_batch(runner, model_path_batch, data_path_batch):
         )
         assert result.exit_code == 0, (result.output, result.exception)
         predictions_meta = load_meta(
-            path, load_value=True, force_type=MlemDataset
+            path, load_value=True, force_type=MlemData
         )
-        assert isinstance(predictions_meta.dataset, ListDatasetType)
+        assert isinstance(predictions_meta.data_type, ArrayType)
         predictions = predictions_meta.get_value()
         assert isinstance(predictions, list)
 

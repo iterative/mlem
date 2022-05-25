@@ -19,7 +19,7 @@ from mlem.cli.main import (
     option_target_repo,
 )
 from mlem.core.base import parse_string_conf
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemDeploy
@@ -111,7 +111,7 @@ def deploy_apply(
     path: str = Argument(..., help="Path to deployment meta"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
-    data: str = Argument(..., help="Path to dataset object"),
+    data: str = Argument(..., help="Path to data object"),
     data_repo: Optional[str] = option_data_repo,
     data_rev: Optional[str] = option_data_rev,
     output: Optional[str] = Option(
@@ -151,8 +151,6 @@ def deploy_apply(
     if output is None and json:
         print(
             dumps(
-                DatasetAnalyzer.analyze(result)
-                .get_serializer()
-                .serialize(result)
+                DataAnalyzer.analyze(result).get_serializer().serialize(result)
             )
         )

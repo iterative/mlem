@@ -5,7 +5,7 @@ from catboost import CatBoostClassifier, CatBoostRegressor
 from mlem.constants import PREDICT_METHOD_NAME, PREDICT_PROBA_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import ModelAnalyzer
 from tests.conftest import check_model_type_common_interface, long
 
@@ -34,7 +34,7 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
 
     cbmw = ModelAnalyzer.analyze(catboost_model, sample_data=pandas_data)
 
-    data_type = DatasetAnalyzer.analyze(pandas_data)
+    data_type = DataAnalyzer.analyze(pandas_data)
 
     assert "catboost_predict" in cbmw.methods
     check_model_type_common_interface(

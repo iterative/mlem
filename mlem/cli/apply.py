@@ -20,11 +20,11 @@ from mlem.cli.main import (
     option_rev,
     option_target_repo,
 )
-from mlem.core.dataset_type import DatasetAnalyzer
-from mlem.core.errors import UnsupportedDatasetBatchLoading
+from mlem.core.data_type import DataAnalyzer
+from mlem.core.errors import UnsupportedDataBatchLoading
 from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemDataset, MlemModel
+from mlem.core.objects import MlemData, MlemModel
 from mlem.runtime.client import Client
 from mlem.ui import set_echo
 from mlem.utils.entrypoints import list_implementations
@@ -33,7 +33,7 @@ from mlem.utils.entrypoints import list_implementations
 @mlem_command("apply", section="runtime")
 def apply(
     model: str = Argument(..., help="Path to model object"),
-    data: str = Argument(..., help="Path to dataset object"),
+    data_path: str = Argument(..., metavar="data", help="Path to data object"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
@@ -65,16 +65,16 @@ def apply(
     external: bool = option_external,
     json: bool = option_json,
 ):
-    """Apply a model to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+    """Apply a model to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
     Examples:
-        Apply local mlem model to local mlem dataset
-        $ mlem apply mymodel mydataset --method predict --output myprediction
+        Apply local mlem model to local mlem data
+        $ mlem apply mymodel mydata --method predict --output myprediction
 
         Apply local mlem model to local data file
         $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
 
-        Apply a version of remote model to a version of remote dataset
+        Apply a version of remote model to a version of remote data
         $ mlem apply models/logreg --repo https://github.com/iterative/example-mlem --rev main
                      data/test_x --data-repo https://github.com/iterative/example-mlem --data-rev main
                      --method predict --output myprediction
@@ -84,25 +84,25 @@ def apply(
     with set_echo(None if json else ...):
         if import_:
             if batch_size:
-                raise UnsupportedDatasetBatchLoading(
+                raise UnsupportedDataBatchLoading(
                     "Batch data loading is currently not supported for loading data on-the-fly"
                 )
-            dataset = import_object(
-                data, repo=data_repo, rev=data_rev, type_=import_type
+            data = import_object(
+                data_path, repo=data_repo, rev=data_rev, type_=import_type
             )
         else:
-            dataset = load_meta(
-                data,
+            data = load_meta(
+                data_path,
                 data_repo,
                 data_rev,
                 load_value=batch_size is None,
-                force_type=MlemDataset,
+                force_type=MlemData,
             )
         meta = load_meta(model, repo, rev, force_type=MlemModel)
 
         result = apply(
             meta,
-            dataset,
+            data,
             method=method,
             output=output,
             index=index,
@@ -112,9 +112,7 @@ def apply(
     if output is None and json:
         print(
             dumps(
-                DatasetAnalyzer.analyze(result)
-                .get_serializer()
-                .serialize(result)
+                DataAnalyzer.analyze(result).get_serializer().serialize(result)
             )
         )
 
@@ -126,7 +124,7 @@ def apply_remote(
         help=f"Type of client. Choices: {list_implementations(Client)}",
         show_default=False,
     ),
-    data: str = Argument(..., help="Path to dataset object"),
+    data: str = Argument(..., help="Path to data object"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
@@ -140,11 +138,11 @@ def apply_remote(
     conf: List[str] = option_conf("client"),
     file_conf: List[str] = option_file_conf("client"),
 ):
-    """Apply a model (deployed somewhere remotely) to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+    """Apply a model (deployed somewhere remotely) to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
     Examples:
-        Apply hosted mlem model to local mlem dataset
-        $ mlem apply-remote http mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
+        Apply hosted mlem model to local mlem data
+        $ mlem apply-remote http mydata -c host="0.0.0.0" -c port=8080 --output myprediction
     """
     client = config_arg(Client, load, subtype, conf, file_conf)
 
@@ -155,16 +153,14 @@ def apply_remote(
     if output is None and json:
         print(
             dumps(
-                DatasetAnalyzer.analyze(result)
-                .get_serializer()
-                .serialize(result)
+                DataAnalyzer.analyze(result).get_serializer().serialize(result)
             )
         )
 
 
 def run_apply_remote(
     client: Client,
-    data: str,
+    data_path: str,
     repo,
     rev,
     index,
@@ -174,16 +170,16 @@ def run_apply_remote(
 ):
     from mlem.api import apply_remote
 
-    dataset = load_meta(
-        data,
+    data = load_meta(
+        data_path,
         repo,
         rev,
         load_value=True,
-        force_type=MlemDataset,
+        force_type=MlemData,
     )
     result = apply_remote(
         client,
-        dataset,
+        data,
         method=method,
         output=output,
         target_repo=target_repo,

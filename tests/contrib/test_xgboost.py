@@ -4,9 +4,9 @@ import pytest
 import xgboost
 
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.contrib.xgboost import DMatrixDatasetType, XGBoostModel
+from mlem.contrib.xgboost import DMatrixDataType, XGBoostModel
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
@@ -47,22 +47,22 @@ def model(booster, np_payload) -> ModelType:
 
 @pytest.fixture
 def dtype_np(dmatrix_np):
-    return DatasetAnalyzer.analyze(dmatrix_np)
+    return DataAnalyzer.analyze(dmatrix_np)
 
 
 @pytest.fixture
 def dtype_df(dmatrix_df):
-    return DatasetAnalyzer.analyze(dmatrix_df)
+    return DataAnalyzer.analyze(dmatrix_df)
 
 
 def test_hook_np(dtype_np):
-    assert isinstance(dtype_np, DMatrixDatasetType)
+    assert isinstance(dtype_np, DMatrixDataType)
     assert dtype_np.get_requirements().modules == ["xgboost"]
     assert dtype_np.is_from_list
 
 
 def test_hook_df(dtype_df):
-    assert isinstance(dtype_df, DMatrixDatasetType)
+    assert isinstance(dtype_df, DMatrixDataType)
     assert dtype_df.get_requirements().modules == ["xgboost"]
     assert not dtype_df.is_from_list
     assert dtype_df.feature_names == ["a"]
@@ -110,7 +110,7 @@ def test_hook(model, booster, np_payload):
     assert isinstance(model, XGBoostModel)
     assert model.model == booster
 
-    data_type = DatasetAnalyzer.analyze(np_payload)
+    data_type = DataAnalyzer.analyze(np_payload)
     assert "xgboost_predict" in model.methods
     check_model_type_common_interface(
         model, data_type, NumpyNdarrayType(shape=(None,), dtype="float32")

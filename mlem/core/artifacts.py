@@ -1,5 +1,5 @@
 """
-Artifacts which come with models and datasets,
+Artifacts which come with models and data,
 such as model binaries or .csv files
 """
 import contextlib

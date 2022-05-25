@@ -4,7 +4,7 @@ from typer import Argument
 
 from mlem.cli.main import mlem_command, option_repo, option_rev
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemDataset, MlemModel
+from mlem.core.objects import MlemData, MlemModel
 from mlem.ui import EMOJI_OK, echo
 
 
@@ -24,6 +24,6 @@ def checkenv(
         $ mlem checkenv https://github.com/iterative/example-mlem/models/logreg
     """
     meta = load_meta(path, repo, rev, follow_links=True, load_value=False)
-    if isinstance(meta, (MlemModel, MlemDataset)):
+    if isinstance(meta, (MlemModel, MlemData)):
         meta.checkenv()
     echo(EMOJI_OK + "Requirements are satisfied!")
