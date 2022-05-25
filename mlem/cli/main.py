@@ -217,7 +217,7 @@ def mlem_callback(
         $ mlem link logreg latest
         $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
         $ mlem serve latest fastapi -c port=8001
-        $ mlem pack latest docker_dir -c target=build/ -c server.type=fastapi
+        $ mlem build latest docker_dir -c target=build/ -c server.type=fastapi
     """
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():

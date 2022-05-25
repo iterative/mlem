@@ -710,19 +710,19 @@ class MlemData(_WithArtifacts):
         return self.data
 
 
-class MlemPackager(MlemObject):
-    """Packager is base class to define different ways of packaging models
+class MlemBuilder(MlemObject):
+    """Base class to define different ways of building/exporting models
     into different formats"""
 
     class Config:
         type_root = True
         type_field = "type"
 
-    object_type: ClassVar = "packager"
-    abs_name: ClassVar[str] = "packager"
+    object_type: ClassVar = "builder"
+    abs_name: ClassVar[str] = "builder"
 
     @abstractmethod
-    def package(self, obj: MlemModel):  # TODO maybe we can also pack datasets?
+    def build(self, obj: MlemModel):  # TODO maybe we can also pack datasets?
         raise NotImplementedError
 
 

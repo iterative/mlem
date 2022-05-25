@@ -27,13 +27,13 @@ from mlem.core.import_objects import ImportAnalyzer, ImportHook
 from mlem.core.meta_io import MLEM_DIR, Location, UriResolver, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
+    MlemBuilder,
     MlemData,
     MlemDeploy,
     MlemEnv,
     MlemLink,
     MlemModel,
     MlemObject,
-    MlemPackager,
 )
 from mlem.runtime.client import Client
 from mlem.runtime.server import Server
@@ -312,22 +312,22 @@ def link(
     )
 
 
-def pack(
-    packager: Union[str, MlemPackager],
+def build(
+    builder: Union[str, MlemBuilder],
     model: Union[str, MlemModel],
-    **packager_kwargs,
+    **builder_kwargs,
 ):
     """Pack model in docker-build-ready folder or directly build a docker image.
 
     Args:
-        packager (Union[str, MlemPackager]): Packager to use.
+        builder (Union[str, MlemBuilder]): Packager to use.
             Out-of-the-box supported string values are "docker_dir" and "docker".
-        model (Union[str, MlemModel]): The model to pack.
+        model (Union[str, MlemModel]): The model to build.
     """
     model = get_model_meta(model)
-    return ensure_mlem_object(
-        MlemPackager, packager, **packager_kwargs
-    ).package(model)
+    return ensure_mlem_object(MlemBuilder, builder, **builder_kwargs).build(
+        model
+    )
 
 
 def serve(model: MlemModel, server: Union[Server, str], **server_kwargs):
