@@ -17,12 +17,12 @@ from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
 from mlem import version
-from mlem.analytics import send_cli_call
 from mlem.constants import MLEM_DIR
 from mlem.core.base import MlemObject, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemMeta
+from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
@@ -296,7 +296,7 @@ def mlem_command(
                     )
                 raise typer.Exit(1)
             finally:
-                send_cli_call(cmd_name, error_msg=error, **res)
+                telemetry.send_cli_call(cmd_name, error=error, **res)
 
         return inner
 

@@ -18,11 +18,8 @@ install_requires = [
     "pyparsing<3",  # legacy resolver problem
     "cached-property",
     "entrypoints",
-    "filelock",
-    "appdirs",
-    "python-daemon",
-    "distro",
     "gitpython",
+    "iterative-telemetry",
 ]
 
 tests = [
