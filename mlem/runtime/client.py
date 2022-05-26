@@ -5,15 +5,24 @@ from typing import Callable, ClassVar, Optional
 import requests
 from pydantic import BaseModel, parse_obj_as
 
-from mlem.core.base import MlemObject
-from mlem.core.errors import WrongMethodError
+from mlem.core.base import MlemABC
+from mlem.core.errors import MlemError, WrongMethodError
 from mlem.core.model import Signature
-from mlem.runtime.interface.base import ExecutionError, InterfaceDescriptor
+from mlem.runtime.interface import ExecutionError, InterfaceDescriptor
 
 logger = logging.getLogger(__name__)
 
 
-class BaseClient(MlemObject, ABC):
+class Client(MlemABC, ABC):
+    """Client is a way to invoke methods on running `Server` instance.
+    `Client`s dynamically define python methods based on interfaces
+    exposed by `Server`"""
+
+    class Config:
+        type_root = True
+        type_field = "type"
+
+    type: ClassVar[str]
     abs_name: ClassVar[str] = "client"
 
     @property
@@ -36,14 +45,12 @@ class BaseClient(MlemObject, ABC):
         if name not in self.methods:
             raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
-            base_url=self.base_url,
             method=self.methods[name],
             call_method=self._call_method,
         )
 
 
 class _MethodCall(BaseModel):
-    base_url: str
     method: Signature
     call_method: Callable
 
@@ -81,18 +88,32 @@ class _MethodCall(BaseModel):
         return self.method.returns.get_serializer().deserialize(out)
 
 
-class HTTPClient(BaseClient):
+class HTTPClient(Client):
+    type: ClassVar[str] = "http"
     host: str = "0.0.0.0"
     port: Optional[int] = 8080
 
     @property
     def base_url(self):
+        prefix = (
+            "http://"
+            if not self.host.startswith("http://")
+            and not self.host.startswith("https://")
+            else ""
+        )
         if self.port:
-            return f"http://{self.host}:{self.port}"
-        return f"http://{self.host}"
+            return f"{prefix}{self.host}:{self.port}"
+        return f"{prefix}{self.host}"
 
     def _interface_factory(self) -> InterfaceDescriptor:
         resp = requests.get(f"{self.base_url}/interface.json")
+        if resp.status_code != 200:
+            try:
+                resp.raise_for_status()
+            except Exception as e:
+                raise MlemError(
+                    f"Cannot create client for {self.base_url}"
+                ) from e
         return parse_obj_as(InterfaceDescriptor, resp.json())
 
     def _call_method(self, name, args):  # pylint: disable=R1710

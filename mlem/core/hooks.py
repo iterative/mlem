@@ -23,7 +23,8 @@ T = TypeVar("T")
 
 class Hook(ABC, Generic[T]):
     """
-    Base class for Hooks
+    Base class for Hooks.
+    Hooks are used by corresponding `Analyzer` to analyze and process objects
     """
 
     priority = 0
@@ -80,71 +81,11 @@ class IsInstanceHookMixin(Hook, ABC):
         return isinstance(obj, cls.valid_types)
 
 
-# # noinspection PyAbstractClass
-# class CanIsAMustHookMixin(Hook):
-#     """
-#     Mixin for cases when can_process equals to must_process
-#     """
-#
-#     def can_process(self, obj) -> bool:
-#         """Returns same as :meth:`Hook.must_process`"""
-#         return self.must_process(obj)
-#
-#
-# # noinspection PyAbstractClass
-# class TypeHookMixin(CanIsAMustHookMixin):
-#     """
-#     Mixin for cases when hook must process objects of certain types
-#     """
-#     valid_types: List[Type] = None
-#
-#     def must_process(self, obj) -> bool:
-#         """Returns True if obj is instance of one of valid types"""
-#         return any(isinstance(obj, t) for t in self.valid_types)
-#
-#
-# class BaseModuleHookMixin(CanIsAMustHookMixin, Hook):
-#     """
-#     Mixin for cases when hook must process all objects with certain base modules
-#     """
-#
-#     @abstractmethod
-#     def is_valid_base_module_name(self, module_name: str) -> bool:
-#         """
-#         Must return True if module_name is valid for this hook
-#
-#         :param module_name: module name
-#         :return: True or False
-#         """
-#         pass  # pragma: no cover
-#
-#     def is_valid_base_module(self, base_module: ModuleType) -> bool:
-#         """
-#         Returns True if module is valid
-#
-#         :param base_module: module object
-#         :return: True or False
-#         """
-#         if base_module is None:
-#             return False
-#         return self.is_valid_base_module_name(base_module.__name__)
-#
-#     def must_process(self, obj):
-#         """Returns True if obj has valid base module"""
-#         return self.is_valid_base_module(get_object_base_module(obj))
-#
-#
-# class LibHookMixin(BaseModuleHookMixin):
-#     """
-#     Mixin for cases when hook must process all objects with certain base module
-#     """
-#     base_module_name = None
-#
-#     def is_valid_base_module_name(self, base_module: str) -> bool:
-#         return base_module == self.base_module_name
-
-
 class Analyzer(Generic[T]):
+    """Base class for analyzers.
+    Analyzers hold list of corresponding hooks. The `analyze` method goes through
+    all the hook to find valid one and uses it to `process` the object"""
+
     base_hook_class: Type[Hook[T]]
 
     hooks: List[Type[Hook[T]]]

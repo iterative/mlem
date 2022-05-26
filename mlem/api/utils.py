@@ -1,19 +1,21 @@
 import re
 from typing import Any, Optional, Tuple, Type, TypeVar, Union
 
-from mlem.core.base import MlemObject, build_mlem_object
-from mlem.core.errors import InvalidArgumentError, WrongMetaType
+from mlem.core.base import MlemABC, build_mlem_object
+from mlem.core.errors import InvalidArgumentError
 from mlem.core.metadata import load, load_meta
-from mlem.core.objects import DatasetMeta, MlemMeta, ModelMeta
+from mlem.core.objects import MlemDataset, MlemModel, MlemObject
 
 
-def get_dataset_value(dataset: Any) -> Any:
+def get_dataset_value(dataset: Any, batch_size: Optional[int] = None) -> Any:
     if isinstance(dataset, str):
-        return load(dataset)
-    if isinstance(dataset, DatasetMeta):
+        return load(dataset, batch_size=batch_size)
+    if isinstance(dataset, MlemDataset):
         # TODO: https://github.com/iterative/mlem/issues/29
         #  fix discrepancies between model and data meta objects
         if not hasattr(dataset.dataset, "data"):
+            if batch_size:
+                return dataset.read_batch(batch_size)
             dataset.load_value()
         return dataset.data
 
@@ -23,23 +25,21 @@ def get_dataset_value(dataset: Any) -> Any:
     return dataset
 
 
-def get_model_meta(model: Any) -> ModelMeta:
-    if isinstance(model, ModelMeta):
+def get_model_meta(model: Union[str, MlemModel]) -> MlemModel:
+    if isinstance(model, MlemModel):
         if model.get_value() is None:
             model.load_value()
         return model
     if isinstance(model, str):
-        model = load_meta(model)
-        if not isinstance(model, ModelMeta):
-            raise WrongMetaType(model, ModelMeta)
+        model = load_meta(model, force_type=MlemModel)
         model.load_value()
         return model
     raise InvalidArgumentError(
-        f"The object {model} is neither ModelMeta nor path to it"
+        f"The object {model} is neither MlemModel nor path to it"
     )
 
 
-MM = TypeVar("MM", bound=MlemMeta)
+MM = TypeVar("MM", bound=MlemObject)
 
 
 def ensure_meta(as_class: Type[MM], obj_or_path: Union[str, MM]) -> MM:
@@ -50,7 +50,7 @@ def ensure_meta(as_class: Type[MM], obj_or_path: Union[str, MM]) -> MM:
     raise ValueError(f"Cannot get {as_class} from '{obj_or_path}'")
 
 
-MO = TypeVar("MO", bound=MlemObject)
+MO = TypeVar("MO", bound=MlemABC)
 
 
 def ensure_mlem_object(

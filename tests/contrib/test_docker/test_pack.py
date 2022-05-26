@@ -9,11 +9,13 @@ from mlem.contrib.docker import DockerDirPackager, DockerImagePackager
 from mlem.contrib.docker.base import DockerImage
 from mlem.contrib.docker.context import DockerModelDirectory
 from mlem.contrib.fastapi import FastAPIServer
+from tests.conftest import long
 from tests.contrib.test_docker.conftest import docker_test
 
 SERVER_PORT = 8080
 
 
+@long
 def test_pack_dir(tmpdir, model_meta_saved):
     packed = pack(
         DockerDirPackager(server=FastAPIServer(), target=str(tmpdir)),

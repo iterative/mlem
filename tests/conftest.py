@@ -7,6 +7,7 @@ from typing import Any, Callable, Type
 import git
 import pandas as pd
 import pytest
+from fastapi.testclient import TestClient
 from fsspec.implementations.local import LocalFileSystem
 from git import GitCommandError, Repo
 from requests import ConnectionError, HTTPError
@@ -16,19 +17,16 @@ from sklearn.tree import DecisionTreeClassifier
 from mlem import CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
+from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
-from mlem.core.dataset_type import (
-    Dataset,
-    DatasetReader,
-    DatasetType,
-    DatasetWriter,
-)
+from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import MlemDataset, MlemModel
 from mlem.core.requirements import Requirements
+from mlem.runtime.interface import ModelInterface
 from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
@@ -139,29 +137,76 @@ def model(model_train_target):
 
 
 @pytest.fixture
+def interface(model, train):
+    model = MlemModel.from_obj(model, sample_data=train)
+    interface = ModelInterface.from_model(model)
+    return interface
+
+
+@pytest.fixture
+def client(interface):
+    app = FastAPIServer().app_init(interface)
+    return TestClient(app)
+
+
+@pytest.fixture
+def request_get_mock(mocker, client):
+    """
+    mocks requests.get method so as to use
+    FastAPI's TestClient's get() method beneath
+    """
+
+    def patched_get(url, params=None, **kwargs):
+        url = url[len("http://") :]
+        return client.get(url, params=params, **kwargs)
+
+    return mocker.patch(
+        "mlem.runtime.client.requests.get",
+        side_effect=patched_get,
+    )
+
+
+@pytest.fixture
+def request_post_mock(mocker, client):
+    """
+    mocks requests.post method so as to use
+    FastAPI's TestClient's post() method beneath
+    """
+
+    def patched_post(url, data=None, json=None, **kwargs):
+        url = url[len("http://") :]
+        return client.post(url, data=data, json=json, **kwargs)
+
+    return mocker.patch(
+        "mlem.runtime.client.requests.post",
+        side_effect=patched_post,
+    )
+
+
+@pytest.fixture
 def dataset_meta(train):
-    return DatasetMeta.from_data(train)
+    return MlemDataset.from_data(train)
 
 
 @pytest.fixture
 def model_meta(model):
-    return ModelMeta.from_obj(model)
+    return MlemModel.from_obj(model)
 
 
 @pytest.fixture
 def model_path(model_train_target, tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
     model, train, _ = model_train_target
-    # because of link=False we test reading by path here
+    # because of index=False we test reading by path here
     # reading by link name is not tested
-    save(model, path, tmp_sample_data=train, link=False)
+    save(model, path, sample_data=train, index=False)
     yield path
 
 
 @pytest.fixture
 def data_path(train, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(train, temp_dir, link=False)
+    save(train, temp_dir, index=False)
     yield temp_dir
 
 
@@ -180,7 +225,7 @@ def model_meta_saved_single(tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model-single")
     train, target = load_iris(return_X_y=True)
     model = DecisionTreeClassifier().fit(train, target)
-    return save(model, path, tmp_sample_data=train)
+    return save(model, path, sample_data=train)
 
 
 @pytest.fixture
@@ -196,7 +241,7 @@ def complex_model_meta_saved_single(tmp_path_factory):
     p.mkdir(exist_ok=True)
     (p / "file1").write_text("data1", encoding="utf8")
     (p / "file2").write_text("data2", encoding="utf8")
-    model = ModelMeta(
+    model = MlemModel(
         artifacts={
             "file1": LocalArtifact(
                 uri=posixpath.join(name, "file1"), size=1, hash=""
@@ -234,7 +279,7 @@ def mlem_curdir_repo(tmpdir_factory):
 
 @pytest.fixture
 def filled_mlem_repo(mlem_repo):
-    model = ModelMeta(
+    model = MlemModel(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
@@ -250,19 +295,19 @@ def model_path_mlem_repo(model_train_target, tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, tmp_sample_data=train, link=True, external=True)
+    save(model, model_dir, sample_data=train, index=True, external=True)
     yield model_dir, dir
 
 
 def dataset_write_read_check(
-    dataset: Dataset,
+    dataset: DatasetType,
     writer: DatasetWriter = None,
     reader_type: Type[DatasetReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
     custom_assert: Callable[[Any, Any], Any] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
-        writer = writer or dataset.dataset_type.get_writer()
+        writer = writer or dataset.get_writer()
 
         storage = LOCAL_STORAGE
         reader, artifacts = writer.write(
@@ -273,7 +318,7 @@ def dataset_write_read_check(
 
         new = reader.read(artifacts)
 
-        assert dataset.dataset_type == new.dataset_type
+        assert dataset == new
         if custom_assert is not None:
             custom_assert(new.data, dataset.data)
         else:
@@ -281,6 +326,8 @@ def dataset_write_read_check(
                 assert custom_eq(new.data, dataset.data)
             else:
                 assert new.data == dataset.data
+
+        return artifacts
 
 
 def check_model_type_common_interface(

@@ -16,12 +16,12 @@ from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
-from mlem import version
-from mlem.constants import MLEM_DIR
-from mlem.core.base import MlemObject, build_mlem_object
+from mlem import CONFIG, version
+from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
+from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemObject
 from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
@@ -226,7 +226,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback}
+    ctx.obj = {"traceback": traceback or CONFIG.DEBUG}
 
 
 def _extract_examples(
@@ -306,11 +306,17 @@ def mlem_command(
 option_repo = Option(
     None, "-r", "--repo", help="Path to MLEM repo", show_default="none"  # type: ignore
 )
+option_method = Option(
+    PREDICT_METHOD_NAME,
+    "-m",
+    "--method",
+    help="Which model method is to be applied",
+)
 option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
-option_link = Option(
+option_index = Option(
     None,
-    "--link/--no-link",
-    help="Whether to create link for output in .mlem directory",
+    "--index/--no-index",
+    help="Whether to index output in .mlem directory",
 )
 option_external = Option(
     None,
@@ -327,6 +333,17 @@ option_target_repo = Option(
     show_default="none",  # type: ignore
 )
 option_json = Option(False, "--json", help="Output as json")
+option_data_repo = Option(
+    None,
+    "--data-repo",
+    "--dr",
+    help="Repo with dataset",
+)
+option_data_rev = Option(
+    None,
+    "--data-rev",
+    help="Revision of dataset",
+)
 
 
 def option_load(type_: str = None):
@@ -400,7 +417,7 @@ def _format_validation_error(error: ValidationError) -> List[str]:
 
 
 @contextlib.contextmanager
-def wrap_build_error(subtype, model: Type[MlemObject]):
+def wrap_build_error(subtype, model: Type[MlemABC]):
     try:
         yield
     except ValidationError as e:
@@ -411,15 +428,15 @@ def wrap_build_error(subtype, model: Type[MlemObject]):
 
 
 def config_arg(
-    model: Type[MlemObject],
+    model: Type[MlemABC],
     load: Optional[str],
     subtype: str,
     conf: Optional[List[str]],
     file_conf: Optional[List[str]],
 ):
-    obj: MlemObject
+    obj: MlemABC
     if load is not None:
-        if issubclass(model, MlemMeta):
+        if issubclass(model, MlemObject):
             obj = load_meta(load, force_type=model)
         else:
             with open(load, "r", encoding="utf8") as of:

@@ -13,7 +13,13 @@ from mlem.core.errors import MlemRootNotFound
 def mlem_repo_exists(
     path: str, fs: AbstractFileSystem, raise_on_missing: bool = False
 ):
-    exists = fs.exists(posixpath.join(path, MLEM_DIR))
+    """Check is mlem repo exists at path"""
+    try:
+        exists = fs.exists(posixpath.join(path, MLEM_DIR))
+    except ValueError:
+        # some fsspec implementations throw ValueError because of
+        # wrong bucket/container names containing "."
+        exists = False
     if not exists and raise_on_missing:
         raise MlemRootNotFound(path, fs)
     return exists

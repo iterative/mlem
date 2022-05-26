@@ -19,7 +19,7 @@ from typing import (
 from pydantic import BaseModel
 
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.dataset_type import (
     DatasetAnalyzer,
     DatasetType,
@@ -31,10 +31,8 @@ from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
 
 
-class ModelIO(MlemObject):
-    """
-    IO base class for models
-    """
+class ModelIO(MlemABC):
+    """Base class for model IO. Represents a way to save and load model files"""
 
     class Config:
         type_root = True
@@ -45,7 +43,7 @@ class ModelIO(MlemObject):
     @abstractmethod
     def dump(self, storage: Storage, path, model) -> Artifacts:
         """ """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def load(self, artifacts: Artifacts):
@@ -53,10 +51,12 @@ class ModelIO(MlemObject):
         Must load and return model
         :return: model object
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class SimplePickleIO(ModelIO):
+    """IO with simple pickling of python model object"""
+
     type: ClassVar[str] = "simple_pickle"
 
     def dump(self, storage: Storage, path: str, model) -> Artifacts:
@@ -72,6 +72,8 @@ class SimplePickleIO(ModelIO):
 
 
 class Argument(BaseModel):
+    """Function argument descriptor"""
+
     name: str
     type_: DatasetType
     required: bool = True
@@ -114,7 +116,8 @@ def compose_args(
     skip_first: bool = False,
     auto_infer: bool = False,
     **call_kwargs,
-):
+) -> List[Argument]:
+    """Create a list of `Argument`s from argspec"""
     args_defaults = dict(
         zip(
             reversed(argspec.args or ()),
@@ -142,6 +145,8 @@ def compose_args(
 
 
 class Signature(BaseModel, WithRequirements):
+    """Function signature descriptor"""
+
     name: str
     args: List[Argument]
     returns: DatasetType
@@ -190,9 +195,9 @@ class Signature(BaseModel, WithRequirements):
 T = TypeVar("T", bound="ModelType")
 
 
-class ModelType(ABC, MlemObject, WithRequirements):
+class ModelType(ABC, MlemABC, WithRequirements):
     """
-    Base class for dataset type metadata.
+    Base class for model metadata.
     """
 
     class Config:
@@ -272,6 +277,8 @@ class ModelType(ABC, MlemObject, WithRequirements):
 
 
 class ModelHook(Hook[ModelType], ABC):
+    """Base class for hooks to analyze model objects"""
+
     valid_types: ClassVar[Optional[Tuple[Type, ...]]] = None
 
     @classmethod
@@ -283,6 +290,8 @@ class ModelHook(Hook[ModelType], ABC):
 
 
 class ModelAnalyzer(Analyzer[ModelType]):
+    """Analyzer for model objects"""
+
     base_hook_class = ModelHook
     hooks: List[Type[ModelHook]]  # type: ignore
 

@@ -1,22 +1,33 @@
 from json import dumps
-from typing import Optional
+from typing import List, Optional
 
 from typer import Argument, Option
 
 from mlem.api import import_object
 from mlem.cli.main import (
+    config_arg,
     mlem_command,
+    option_conf,
+    option_data_repo,
+    option_data_rev,
     option_external,
+    option_file_conf,
+    option_index,
     option_json,
-    option_link,
+    option_load,
+    option_method,
     option_repo,
     option_rev,
+    option_target_repo,
 )
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.errors import UnsupportedDatasetBatchLoading
+from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import MlemDataset, MlemModel
+from mlem.runtime.client import Client
 from mlem.ui import set_echo
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("apply", section="runtime")
@@ -28,23 +39,9 @@ def apply(
     output: Optional[str] = Option(
         None, "-o", "--output", help="Where to store the outputs."
     ),
-    method: str = Option(
-        PREDICT_METHOD_NAME,
-        "-m",
-        "--method",
-        help="Which model method is to apply",
-    ),
-    data_repo: Optional[str] = Option(
-        None,
-        "--data-repo",
-        "--dr",
-        help="Repo with dataset",
-    ),
-    data_rev: Optional[str] = Option(
-        None,
-        "--data-rev",
-        help="Revision of dataset",
-    ),
+    method: str = option_method,
+    data_repo: Optional[str] = option_data_repo,
+    data_rev: Optional[str] = option_data_rev,
     import_: bool = Option(
         False,
         "-i",
@@ -56,9 +53,15 @@ def apply(
         "--import-type",
         "--it",
         # TODO: change ImportHook to MlemObject to support ext machinery
-        help="Specify how to read data file for import",  # f"Available types: {list_implementations(ImportHook)}"
+        help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
     ),
-    link: bool = option_link,
+    batch_size: Optional[int] = Option(
+        None,
+        "-b",
+        "--batch_size",
+        help="Batch size for reading data in batches.",
+    ),
+    index: bool = option_index,
     external: bool = option_external,
     json: bool = option_json,
 ):
@@ -66,7 +69,7 @@ def apply(
 
     Examples:
         Apply local mlem model to local mlem dataset
-        $ mlem apply mymodel mydatset --method predict --output myprediction
+        $ mlem apply mymodel mydataset --method predict --output myprediction
 
         Apply local mlem model to local data file
         $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
@@ -80,6 +83,10 @@ def apply(
 
     with set_echo(None if json else ...):
         if import_:
+            if batch_size:
+                raise UnsupportedDatasetBatchLoading(
+                    "Batch data loading is currently not supported for loading data on-the-fly"
+                )
             dataset = import_object(
                 data, repo=data_repo, rev=data_rev, type_=import_type
             )
@@ -88,18 +95,19 @@ def apply(
                 data,
                 data_repo,
                 data_rev,
-                load_value=True,
-                force_type=DatasetMeta,
+                load_value=batch_size is None,
+                force_type=MlemDataset,
             )
-        meta = load_meta(model, repo, rev, force_type=ModelMeta)
+        meta = load_meta(model, repo, rev, force_type=MlemModel)
 
         result = apply(
             meta,
             dataset,
             method=method,
             output=output,
-            link=link,
+            index=index,
             external=external,
+            batch_size=batch_size,
         )
     if output is None and json:
         print(
@@ -109,3 +117,76 @@ def apply(
                 .serialize(result)
             )
         )
+
+
+@mlem_command("apply-remote", section="runtime")
+def apply_remote(
+    subtype: str = Argument(
+        "",
+        help=f"Type of client. Choices: {list_implementations(Client)}",
+        show_default=False,
+    ),
+    data: str = Argument(..., help="Path to dataset object"),
+    repo: Optional[str] = option_repo,
+    rev: Optional[str] = option_rev,
+    output: Optional[str] = Option(
+        None, "-o", "--output", help="Where to store the outputs."
+    ),
+    target_repo: Optional[str] = option_target_repo,
+    method: str = option_method,
+    index: bool = option_index,
+    json: bool = option_json,
+    load: Optional[str] = option_load("client"),
+    conf: List[str] = option_conf("client"),
+    file_conf: List[str] = option_file_conf("client"),
+):
+    """Apply a model (deployed somewhere remotely) to a dataset. Resulting dataset will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+
+    Examples:
+        Apply hosted mlem model to local mlem dataset
+        $ mlem apply-remote http mydataset -c host="0.0.0.0" -c port=8080 --output myprediction
+    """
+    client = config_arg(Client, load, subtype, conf, file_conf)
+
+    with set_echo(None if json else ...):
+        result = run_apply_remote(
+            client, data, repo, rev, index, method, output, target_repo
+        )
+    if output is None and json:
+        print(
+            dumps(
+                DatasetAnalyzer.analyze(result)
+                .get_serializer()
+                .serialize(result)
+            )
+        )
+
+
+def run_apply_remote(
+    client: Client,
+    data: str,
+    repo,
+    rev,
+    index,
+    method,
+    output,
+    target_repo,
+):
+    from mlem.api import apply_remote
+
+    dataset = load_meta(
+        data,
+        repo,
+        rev,
+        load_value=True,
+        force_type=MlemDataset,
+    )
+    result = apply_remote(
+        client,
+        dataset,
+        method=method,
+        output=output,
+        target_repo=target_repo,
+        index=index,
+    )
+    return result

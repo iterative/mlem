@@ -7,7 +7,7 @@ from mlem.core.dataset_type import DatasetType, DatasetWriter
 from mlem.core.model import Argument, Signature
 from mlem.core.requirements import Requirements
 from mlem.runtime import Interface
-from mlem.runtime.interface.base import SimpleInterface, expose
+from mlem.runtime.interface import SimpleInterface, expose
 
 
 class Container(DatasetType):

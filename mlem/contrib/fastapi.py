@@ -6,19 +6,20 @@ from typing import ClassVar, List, Type
 import fastapi
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
 
 from mlem.core.model import Signature
 from mlem.core.requirements import LibRequirementsMixin
-from mlem.runtime.interface.base import Interface
-from mlem.runtime.server.base import Server
+from mlem.runtime.interface import Interface
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 
 logger = logging.getLogger(__name__)
 
 
 def rename_recursively(model: Type[BaseModel], prefix: str):
-    model.__name__ = f"{prefix}{model.__name__}"
+    model.__name__ = f"{prefix}_{model.__name__}"
     for field in model.__fields__.values():
         if issubclass(field.type_, BaseModel):
             rename_recursively(field.type_, prefix)
@@ -49,10 +50,10 @@ class FastAPIServer(Server, LibRequirementsMixin):
             for key, serializer in serializers.items()
         }
         payload_model = create_model("Model", **kwargs)  # type: ignore
-        rename_recursively(payload_model, method_name)
+        rename_recursively(payload_model, method_name + "_request")
         response_serializer = signature.returns.get_serializer()
         response_model = response_serializer.get_model()
-        rename_recursively(response_model, method_name)
+        rename_recursively(response_model, method_name + "_response")
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
         def handler(model: payload_model):  # type: ignore[valid-type]
@@ -74,6 +75,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def app_init(self, interface: Interface):
         app = FastAPI()
         _create_schema_route(app, interface)
+        app.add_api_route(
+            "/", lambda: RedirectResponse("/docs"), include_in_schema=False
+        )
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)

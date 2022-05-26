@@ -1,18 +1,28 @@
 import pickle
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Tuple, Type
+from typing import ClassVar, Optional, Tuple
 
 from mlem.core.artifacts import PlaceholderArtifact, get_file_info
+from mlem.core.base import MlemABC
 from mlem.core.errors import FileNotFoundOnImportError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.meta_io import Location
 from mlem.core.metadata import get_object_metadata
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemMeta
+from mlem.core.objects import MlemObject
 
 
-class ImportHook(Hook[MlemMeta], ABC):
-    type_: str
+class ImportHook(Hook[MlemObject], MlemABC, ABC):
+    """Base class for defining import hooks.
+    On every import attemt all available hooks are checked if the imported path
+    represented by `Location` instance if valid for them. Then process method is
+    called on a hook that first passed the check"""
+
+    type: ClassVar[str]
+    abs_name: ClassVar = "import"
+
+    class Config:
+        type_root = True
 
     @classmethod
     @abstractmethod
@@ -27,30 +37,26 @@ class ImportHook(Hook[MlemMeta], ABC):
         copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs,
-    ) -> MlemMeta:
+    ) -> MlemObject:
         raise NotImplementedError
 
-    def __init_subclass__(cls, *args, **kwargs):
-        super().__init_subclass__(*args, **kwargs)
-        if "type_" in cls.__dict__:
-            ImportAnalyzer.types[cls.type_] = cls
 
-
-class ImportAnalyzer(Analyzer[MlemMeta]):
-    base_hook_class = ImportHook
-    types: Dict[str, Type[ImportHook]] = {}
+class ImportAnalyzer(Analyzer[MlemObject]):
+    base_hook_class: ClassVar = ImportHook
 
     @classmethod
     def analyze(  # pylint: disable=arguments-differ # so what
         cls, obj: Location, copy_data: bool = True, **kwargs
-    ) -> MlemMeta:
+    ) -> MlemObject:
         if not obj.exists():
             raise FileNotFoundOnImportError(f"Nothing found at {obj.uri}")
         return super().analyze(obj, copy_data=copy_data, **kwargs)
 
 
 class ExtImportHook(ImportHook, ABC):
-    EXTS: Tuple[str, ...]
+    """Base class for import hooks that target particular file extensions"""
+
+    EXTS: ClassVar[Tuple[str, ...]]
 
     @classmethod
     def is_object_valid(cls, obj: Location) -> bool:
@@ -58,8 +64,10 @@ class ExtImportHook(ImportHook, ABC):
 
 
 class PickleImportHook(ExtImportHook):
-    EXTS = (".pkl", ".pickle")
-    type_ = "pickle"
+    """Import hook for pickle files"""
+
+    EXTS: ClassVar = (".pkl", ".pickle")
+    type: ClassVar = "pickle"
 
     @classmethod
     def process(
@@ -68,7 +76,7 @@ class PickleImportHook(ExtImportHook):
         copy_data: bool = True,
         modifier: Optional[str] = None,
         **kwargs,
-    ) -> MlemMeta:
+    ) -> MlemObject:
         with obj.open("rb") as f:
             data = pickle.load(f)
         meta = get_object_metadata(data, **kwargs)

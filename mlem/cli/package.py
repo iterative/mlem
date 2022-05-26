@@ -12,8 +12,8 @@ from mlem.cli.main import (
     option_rev,
 )
 from mlem.core.metadata import load_meta
-from mlem.ext import list_implementations
-from mlem.pack import Packager
+from mlem.core.objects import MlemModel, MlemPackager
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("pack", section="runtime")
@@ -21,7 +21,7 @@ def pack(
     model: str = Argument(..., help="Path to model"),
     subtype: str = Argument(
         "",
-        help=f"Type of packing. Choices: {list_implementations(Packager)}",
+        help=f"Type of packing. Choices: {list_implementations(MlemPackager)}",
         show_default=False,
     ),
     repo: Optional[str] = option_repo,
@@ -44,6 +44,6 @@ def pack(
     from mlem.api.commands import pack
 
     pack(
-        config_arg(Packager, load, subtype, conf, file_conf),
-        load_meta(model, repo, rev),
+        config_arg(MlemPackager, load, subtype, conf, file_conf),
+        load_meta(model, repo, rev, force_type=MlemModel),
     )

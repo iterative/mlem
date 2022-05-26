@@ -77,7 +77,7 @@ jobs:
     - run: pre-commit run pylint -a -v --show-diff-on-failure
       if: matrix.python != '3.7'
     - name: Run tests
-      timeout-minutes: 30
+      timeout-minutes: 40
       run: pytest
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}

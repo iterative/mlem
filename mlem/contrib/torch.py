@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, Tuple
+from typing import Any, ClassVar, Iterator, Optional, Tuple
 
 import torch
 
@@ -6,6 +6,7 @@ from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.dataset_type import (
     DatasetHook,
+    DatasetReader,
     DatasetSerializer,
     DatasetType,
     DatasetWriter,
@@ -63,10 +64,10 @@ class TorchTensorDatasetType(
         return Requirements.new([InstallableRequirement.from_module(torch)])
 
     def get_writer(self, **kwargs) -> DatasetWriter:
-        raise NotImplementedError()
+        return TorchTensorWriter(**kwargs)
 
-    def get_model(self):
-        raise NotImplementedError()
+    def get_model(self, prefix: str = ""):
+        raise NotImplementedError
 
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DatasetType:
@@ -74,6 +75,35 @@ class TorchTensorDatasetType(
             shape=(None,) + obj.shape[1:],
             dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
         )
+
+
+class TorchTensorWriter(DatasetWriter):
+    type: ClassVar[str] = "torch"
+
+    def write(
+        self, dataset: DatasetType, storage: Storage, path: str
+    ) -> Tuple[DatasetReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            torch.save(dataset.data, f)
+        return TorchTensorReader(dataset_type=dataset), {self.art_name: art}
+
+
+class TorchTensorReader(DatasetReader):
+    type: ClassVar[str] = "torch"
+
+    def read(self, artifacts: Artifacts) -> DatasetType:
+        if DatasetWriter.art_name not in artifacts:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
+            )
+        with artifacts[DatasetWriter.art_name].open() as f:
+            data = torch.load(f)
+            return self.dataset_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DatasetType]:
+        raise NotImplementedError
 
 
 class TorchModelIO(ModelIO):

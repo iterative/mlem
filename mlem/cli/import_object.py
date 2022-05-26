@@ -5,17 +5,19 @@ from typer import Argument, Option
 from mlem.cli.main import (
     mlem_command,
     option_external,
-    option_link,
+    option_index,
     option_repo,
     option_rev,
     option_target_repo,
 )
+from mlem.core.import_objects import ImportHook
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("import", section="object")
 def import_object(
     uri: str = Argument(..., help="File to import"),
-    target: str = Argument(..., help="Path whare to save MLEM object"),
+    target: str = Argument(..., help="Path to save MLEM object"),
     repo: Optional[str] = option_repo,
     rev: Optional[str] = option_rev,
     target_repo: Optional[str] = option_target_repo,
@@ -23,8 +25,8 @@ def import_object(
         True,
         help="Whether to create a copy of file in target location or just link existing file",
     ),
-    type_: Optional[str] = Option(None, "--type", help="Specify how to read file", show_default="auto infer"),  # type: ignore
-    link: bool = option_link,
+    type_: Optional[str] = Option(None, "--type", help=f"Specify how to read file Available types: {list_implementations(ImportHook)}", show_default="auto infer"),  # type: ignore
+    index: bool = option_index,
     external: bool = option_external,
 ):
     """Create MLEM model or dataset metadata from file/dir
@@ -50,5 +52,5 @@ def import_object(
         copy_data=copy,
         type_=type_,
         external=external,
-        link=link,
+        index=index,
     )

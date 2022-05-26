@@ -26,11 +26,6 @@ class Obj:
     pass
 
 
-# def test_analyze_module_imports(): #TODO: https://github.com/iterative/mlem/issues/44
-#     reqs = analyze_module_imports('tests.utils.test_module_tools')
-#     assert reqs == {get_module_repr(pytest)}
-
-
 @pytest.fixture()
 def external_local_module(tmp_path_factory):
     path = tmp_path_factory.mktemp("external") / "external.py"

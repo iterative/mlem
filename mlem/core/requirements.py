@@ -26,10 +26,10 @@ from typing import (
 
 from pydantic import BaseModel
 
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 
 # I dont know how to do this better
-from mlem.core.errors import HookNotFound
+from mlem.core.errors import HookNotFound, WrongRequirementsError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
 from mlem.utils.path import make_posix
@@ -42,9 +42,9 @@ MODULE_PACKAGE_MAPPING = {
 PACKAGE_MODULE_MAPPING = {v: k for k, v in MODULE_PACKAGE_MAPPING.items()}
 
 
-class Requirement(MlemObject):
+class Requirement(MlemABC):
     """
-    Base class for python requirement
+    Base class for requirement
     """
 
     class Config:
@@ -264,6 +264,8 @@ class CustomRequirement(PythonRequirement):
 
 
 class FileRequirement(CustomRequirement):
+    """Represents an additional file"""
+
     type: ClassVar[str] = "file"
     is_package: bool = False
     module: str = ""
@@ -285,6 +287,8 @@ class FileRequirement(CustomRequirement):
 
 
 class UnixPackageRequirement(Requirement):
+    """Represents a unix package that needs to be installed"""
+
     type: ClassVar[str] = "unix"
     package_name: str
 
@@ -439,6 +443,33 @@ class Requirements(BaseModel):
             yield
             sys.path.remove(dirname)
 
+    def check(self):
+        from mlem.utils.module import get_module_version
+
+        wrong = []
+        versions = []
+        missing = []
+        for req in self.installable:
+            try:
+                mod = import_module(req.module)
+                ver = get_module_version(mod)
+                if ver != req.version:
+                    wrong.append(req)
+                    versions.append(ver)
+            except ImportError:
+                missing.append(req)
+
+        if wrong or missing:
+            raise WrongRequirementsError(
+                "\n".join(
+                    f"{mod.module} has version {ver}, but {mod.version} is required"
+                    for mod, ver in zip(wrong, versions)
+                ),
+                Requirements.new(missing).to_pip(),
+                "pip install "
+                + " ".join(Requirements.new(wrong + missing).to_pip()),
+            )
+
 
 def resolve_requirements(other: "AnyRequirements") -> Requirements:
     """
@@ -491,6 +522,8 @@ AnyRequirements = Union[
 
 
 class WithRequirements:
+    """A mixing for objects that should provide their requirements"""
+
     def get_requirements(self) -> Requirements:
         from mlem.utils.module import get_object_requirements
 
@@ -499,7 +532,7 @@ class WithRequirements:
 
 class LibRequirementsMixin(WithRequirements):
     """
-    :class:`.DatasetType` mixin which provides requirements list consisting of
+    Mixin which provides requirements list consisting of
     PIP packages represented by module objects in `libraries` field.
     """
 
@@ -512,6 +545,8 @@ class LibRequirementsMixin(WithRequirements):
 
 
 class RequirementsHook(Hook[Requirements], ABC):
+    """Hook for enriching requirements list"""
+
     @classmethod
     @abstractmethod
     def is_object_valid(cls, obj: Requirement) -> bool:
@@ -524,6 +559,8 @@ class RequirementsHook(Hook[Requirements], ABC):
 
 
 class AddRequirementHook(RequirementsHook, ABC):
+    """Abstract hook to add new requirements"""
+
     to_add: AnyRequirements = []
 
     @classmethod
@@ -532,6 +569,8 @@ class AddRequirementHook(RequirementsHook, ABC):
 
 
 class RequirementsAnalyzer(Analyzer[Requirements]):
+    """Analyzer to enrich requirements"""
+
     base_hook_class = RequirementsHook
 
 

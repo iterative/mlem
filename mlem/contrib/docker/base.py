@@ -16,19 +16,22 @@ from mlem.contrib.docker.utils import (
     create_docker_client,
     image_exists_at_dockerhub,
     print_docker_logs,
+    wrap_docker_error,
 )
-from mlem.core.base import MlemObject
+from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
-from mlem.core.objects import ModelMeta
-from mlem.pack import Packager
-from mlem.runtime.server.base import Server
-from mlem.ui import echo
+from mlem.core.objects import MlemModel, MlemPackager
+from mlem.runtime.server import Server
+from mlem.ui import EMOJI_BUILD, EMOJI_OK, EMOJI_UPLOAD, echo
 
 logger = logging.getLogger(__name__)
 
 
-class DockerRegistry(MlemObject):
+class DockerRegistry(MlemABC):
     """Registry for docker images. This is the default implementation that represents registry of the docker daemon"""
+
+    abs_name: ClassVar = "docker_registry"
+    type: ClassVar = "local"
 
     class Config:
         type_root = True
@@ -87,12 +90,14 @@ class DockerRegistry(MlemObject):
 class DockerIORegistry(DockerRegistry):
     """The class represents docker.io registry."""
 
+    type: ClassVar = "docker_io"
+
     def get_host(self) -> Optional[str]:
         return "https://index.docker.io/v1/"
 
     def push(self, client, tag):
         client.images.push(tag)
-        logger.info("Pushed image %s to docker.io", tag)
+        echo(EMOJI_UPLOAD + f"Pushed image {tag} to docker.io")
 
     def image_exists(self, client, image: "DockerImage"):
         return image_exists_at_dockerhub(image.uri)
@@ -108,6 +113,7 @@ class RemoteRegistry(DockerRegistry):
 
     :param host: adress of the registry"""
 
+    type: ClassVar = "remote"
     host: Optional[
         str
     ] = None  # TODO: https://github.com/iterative/mlem/issues/38 credentials
@@ -132,7 +138,7 @@ class RemoteRegistry(DockerRegistry):
 
         if username and password:
             self._login(self.host, client, username, password)
-            logger.info("Logged in to remote registry at host %s", self.host)
+            logger.debug("Logged in to remote registry at host %s", self.host)
         else:
             logger.warning(
                 "Skipped logging in to remote registry at host %s because no credentials given. "
@@ -154,6 +160,7 @@ class RemoteRegistry(DockerRegistry):
         return self.host
 
     def push(self, client, tag):
+        echo(EMOJI_UPLOAD + f"Pushing image {tag} to {self.get_host()}")
         res = client.images.push(tag)
         for line in res.splitlines():
             status = json.loads(line)
@@ -165,9 +172,7 @@ class RemoteRegistry(DockerRegistry):
                 raise DeploymentError(
                     f"Cannot push docker image: {error_msg} {auth}"
                 )
-        logger.info(
-            "Pushed image %s to remote registry at host %s", tag, self.host
-        )
+        echo(EMOJI_OK + f"Pushed image {tag} to {self.host}")
 
     def uri(self, image: str):
         return f"{self.host}/{image}"
@@ -208,7 +213,7 @@ class RemoteRegistry(DockerRegistry):
         requests.delete(f"http://{self.host}/v2/{name}/manifests/{digest}")
 
 
-class DockerDaemon(MlemObject):
+class DockerDaemon(MlemABC):
     """Class that represents docker daemon
 
     :param host: adress of the docker daemon (empty string for local)"""
@@ -296,11 +301,11 @@ class _DockerPackMixin(BaseModel):
     args: DockerBuildArgs = DockerBuildArgs()
 
 
-class DockerDirPackager(Packager, _DockerPackMixin):
+class DockerDirPackager(MlemPackager, _DockerPackMixin):
     type: ClassVar[str] = "docker_dir"
     target: str
 
-    def package(self, obj: ModelMeta):
+    def package(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(
             model=obj,
             server=self.server,
@@ -312,14 +317,14 @@ class DockerDirPackager(Packager, _DockerPackMixin):
         return docker_dir
 
 
-class DockerImagePackager(Packager, _DockerPackMixin):
+class DockerImagePackager(MlemPackager, _DockerPackMixin):
     type: ClassVar[str] = "docker"
     image: DockerImage
     env: DockerEnv = DockerEnv()
     force_overwrite: bool = False
     push: bool = True
 
-    def package(self, obj: ModelMeta) -> DockerImage:
+    def package(self, obj: MlemModel) -> DockerImage:
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
                 self.args.prebuild_hook(  # pylint: disable=not-callable # but it is
@@ -331,10 +336,11 @@ class DockerImagePackager(Packager, _DockerPackMixin):
 
             return self.build(tempdir)
 
+    @wrap_docker_error
     def build(self, context_dir: str) -> DockerImage:
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
-        echo(f"Building docker image {tag}...")
+        echo(EMOJI_BUILD + f"Building docker image {tag}...")
         with self.env.daemon.client() as client:
             if self.push:
                 self.image.registry.login(client)
@@ -356,7 +362,7 @@ class DockerImagePackager(Packager, _DockerPackMixin):
                     platform=self.args.platform,
                 )
                 self.image.image_id = image.id
-                logger.info("Built docker image %s", tag)
+                echo(EMOJI_OK + f"Built docker image {tag}")
 
                 if self.push:
                     self.image.registry.push(client, tag)

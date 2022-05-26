@@ -2,15 +2,17 @@
 Configuration management for MLEM
 """
 import posixpath
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 
 import yaml
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import BaseSettings, Extra, Field, parse_obj_as
+from pydantic import BaseSettings, Field, parse_obj_as, root_validator
 from pydantic.env_settings import InitSettingsSource
 
 from mlem.constants import MLEM_DIR
+from mlem.core.errors import UnknownConfigSection
+from mlem.utils.entrypoints import MLEM_CONFIG_ENTRY_POINT, load_entrypoints
 
 CONFIG_FILE_NAME = "config.yaml"
 
@@ -52,6 +54,8 @@ def mlem_config_settings_source(section: Optional[str]):
 
 
 class MlemConfigBase(BaseSettings):
+    """Special base for mlem settings to be able to read them from files"""
+
     config_path: str = ""
     config_fs: Optional[AbstractFileSystem] = None
 
@@ -59,7 +63,6 @@ class MlemConfigBase(BaseSettings):
         env_prefix = "mlem_"
         env_file_encoding = "utf-8"
         section: Optional[str] = None
-        extra = Extra.allow
 
         @classmethod
         def customise_sources(
@@ -76,49 +79,113 @@ class MlemConfigBase(BaseSettings):
                 file_secret_settings,
             )
 
+    @root_validator(pre=True)
+    def ignore_case(
+        cls, value: Any
+    ):  # pylint: disable=no-self-argument  # noqa: B902
+        new_value = {}
+        if isinstance(value, dict):
+            for key, val in value.items():
+                if key.upper() in cls.__fields__:
+                    key = key.upper()
+                if key.lower() in cls.__fields__:
+                    key = key.lower()
+                new_value[key] = val
+        return new_value
+
 
 class MlemConfig(MlemConfigBase):
+    """Base Mlem Config"""
+
+    class Config:
+        section = "core"
+
     GITHUB_USERNAME: Optional[str] = Field(default=None, env="GITHUB_USERNAME")
     GITHUB_TOKEN: Optional[str] = Field(default=None, env="GITHUB_TOKEN")
-    ADDITIONAL_EXTENSIONS_RAW: str = Field(
-        default="", env="MLEM_ADDITIONAL_EXTENSIONS"
-    )
+    ADDITIONAL_EXTENSIONS: str = Field(default="")
     AUTOLOAD_EXTS: bool = True
-    DEFAULT_BRANCH: str = "main"
     LOG_LEVEL: str = "INFO"
     DEBUG: bool = False
     NO_ANALYTICS: bool = False
     TESTS: bool = False
-    DEFAULT_STORAGE: Dict = {}
-    DEFAULT_EXTERNAL: bool = False
+    STORAGE: Dict = {}
+    INDEX: Dict = {}
+    EXTERNAL: bool = False
     EMOJIS: bool = True
 
     @property
-    def default_storage(self):
+    def storage(self):
         from mlem.core.artifacts import LOCAL_STORAGE, Storage
 
-        if not self.DEFAULT_STORAGE:
+        if not self.STORAGE:
             return LOCAL_STORAGE
-        s = parse_obj_as(Storage, self.DEFAULT_STORAGE)
+        s = parse_obj_as(Storage, self.STORAGE)
         return s
 
     @property
-    def ADDITIONAL_EXTENSIONS(self) -> List[str]:
-        if self.ADDITIONAL_EXTENSIONS_RAW == "":
+    def index(self):
+        from mlem.core.index import Index, LinkIndex
+
+        if not self.INDEX:
+            return LinkIndex()
+        return parse_obj_as(Index, self.INDEX)
+
+    @property
+    def additional_extensions(self) -> List[str]:
+        if self.ADDITIONAL_EXTENSIONS == "":
             return []
-        return (
-            self.ADDITIONAL_EXTENSIONS_RAW.split(  # pylint: disable=no-member
-                ","
-            )
+        return self.ADDITIONAL_EXTENSIONS.split(  # pylint: disable=no-member
+            ","
         )
 
 
 CONFIG = MlemConfig()
 
 
+def get_config_cls(section: str) -> Type[MlemConfigBase]:
+    try:
+        return load_entrypoints(MLEM_CONFIG_ENTRY_POINT)[section].ep.load()
+    except KeyError as e:
+        raise UnknownConfigSection(section) from e
+
+
+T = TypeVar("T", bound=MlemConfigBase)
+
+
+@overload
 def repo_config(
-    repo: str, fs: Optional[AbstractFileSystem] = None
+    repo: str,
+    fs: Optional[AbstractFileSystem] = None,
+    section: Type[MlemConfig] = MlemConfig,
 ) -> MlemConfig:
+    ...
+
+
+@overload
+def repo_config(
+    repo: str, fs: Optional[AbstractFileSystem] = None, section: str = ...
+) -> MlemConfigBase:
+    ...
+
+
+@overload
+def repo_config(
+    repo: str,
+    fs: Optional[AbstractFileSystem] = None,
+    section: Type[T] = ...,
+) -> T:
+    ...
+
+
+def repo_config(
+    repo: str,
+    fs: Optional[AbstractFileSystem] = None,
+    section: Union[Type[MlemConfigBase], str] = MlemConfig,
+) -> MlemConfigBase:
+    if isinstance(section, str):
+        cls = get_config_cls(section)
+    else:
+        cls = section
     if fs is None:
         fs = LocalFileSystem()
-    return MlemConfig(config_path=repo, config_fs=fs)
+    return cls(config_path=repo, config_fs=fs)

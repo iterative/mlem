@@ -46,6 +46,7 @@ repos:
           - types-PyYAML
           - pydantic
           - types-filelock
+          - types-emoji
   - repo: local
     hooks:
       - id: pylint
