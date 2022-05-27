@@ -98,12 +98,68 @@ def save(
     return meta
 
 
+T = TypeVar("T", bound=MlemObject)
+
+
+@overload
 def load(
     path: str,
     repo: Optional[str] = None,
     rev: Optional[str] = None,
-    batch_size: Optional[int] = None,
     follow_links: bool = True,
+    fs: AbstractFileSystem = None,
+    batch_size: Optional[int] = None,
+    as_meta: Literal[False] = False,
+    load_value: bool = False,
+    *,
+    force_type: Type[MlemObject] = None,
+) -> Any:
+    ...
+
+
+@overload
+def load(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    follow_links: bool = True,
+    fs: AbstractFileSystem = None,
+    batch_size: Optional[int] = None,
+    as_meta: Literal[True] = ...,
+    load_value: bool = False,
+    *,
+    force_type: Literal[None] = None,
+) -> MlemObject:
+    ...
+
+
+@overload
+def load(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    follow_links: bool = True,
+    fs: AbstractFileSystem = None,
+    batch_size: Optional[int] = None,
+    as_meta: Literal[True] = ...,
+    load_value: bool = False,
+    *,
+    force_type: Optional[Type[T]] = None,
+) -> T:
+    ...
+
+
+def load(
+    path: str,
+    repo: Optional[str] = None,
+    rev: Optional[str] = None,
+    follow_links: bool = True,
+    fs: AbstractFileSystem = None,
+    batch_size: Optional[int] = None,
+    as_meta: bool = False,
+    load_value: bool = False,
+    *,
+    force_type: Type[MlemObject] = None,
 ) -> Any:
     """Load python object saved by MLEM
 
@@ -113,6 +169,10 @@ def load(
         rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
         follow_links (bool, optional): If object we read is a MLEM link, whether to load the
             actual object link points to. Defaults to True.
+        fs: filesystem to load from. If not provided, will be inferred from path
+        force_type: type of meta to be loaded. Defaults to MlemObject (any mlem meta)
+        as_meta: return MlemObject holding the actual object
+        load_value (bool, optional): Load actual object is as_meta=True
 
     Returns:
         Any: Python object saved by MLEM
@@ -122,14 +182,17 @@ def load(
         repo=repo,
         rev=rev,
         follow_links=follow_links,
-        load_value=batch_size is None,
+        load_value=load_value,
+        fs=fs,
+        force_type=force_type,
     )
+    if as_meta:
+        return meta
     if isinstance(meta, MlemDataset) and batch_size:
         return meta.read_batch(batch_size)
+    if not load_value:
+        meta.load_value()
     return meta.get_value()
-
-
-T = TypeVar("T", bound=MlemObject)
 
 
 @overload
