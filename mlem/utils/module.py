@@ -406,7 +406,11 @@ def add_closure_inspection(f):
 
         # to add from local imports inside user (non PIP package) code
         try:
-            tree = ast.parse(lstrip_lines(inspect.getsource(obj)))
+            try:
+                source = dill.source.getsource(obj)
+            except OSError:
+                source = inspect.getsource(obj)
+            tree = ast.parse(lstrip_lines(source))
             ImportFromVisitor(pickler, obj).visit(tree)
         except OSError:
             logger.debug(
