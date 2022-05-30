@@ -14,7 +14,7 @@ from requests import ConnectionError, HTTPError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
-from mlem import CONFIG
+from mlem import LOCAL_CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
@@ -50,7 +50,7 @@ def _check_github_test_repo_ssh_auth():
 
 
 def _check_github_test_repo_auth():
-    if not CONFIG.GITHUB_USERNAME or not CONFIG.GITHUB_TOKEN:
+    if not LOCAL_CONFIG.GITHUB_USERNAME or not LOCAL_CONFIG.GITHUB_TOKEN:
         return False
     try:
         get_fs(MLEM_TEST_REPO)
@@ -91,7 +91,7 @@ def current_test_branch():
 @pytest.fixture(scope="session", autouse=True)
 def add_test_env():
     os.environ["MLEM_TESTS"] = "true"
-    CONFIG.TESTS = True
+    LOCAL_CONFIG.TESTS = True
 
 
 def resource_path(test_file, *paths):

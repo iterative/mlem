@@ -139,7 +139,7 @@ class MlemConfig(MlemConfigBase):
         )
 
 
-CONFIG = MlemConfig()
+LOCAL_CONFIG = MlemConfig()
 
 
 def get_config_cls(section: str) -> Type[MlemConfigBase]:

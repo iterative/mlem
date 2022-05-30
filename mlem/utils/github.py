@@ -5,7 +5,7 @@ from urllib.parse import quote_plus, urlparse
 
 import requests
 
-from mlem.config import CONFIG
+from mlem.config import LOCAL_CONFIG
 
 
 def get_github_kwargs(uri: str):
@@ -45,9 +45,9 @@ def get_github_kwargs(uri: str):
 def get_github_envs() -> Dict:
     """Get authentification envs"""
     kwargs = {}
-    if CONFIG.GITHUB_TOKEN is not None:
-        kwargs["username"] = CONFIG.GITHUB_USERNAME
-        kwargs["token"] = CONFIG.GITHUB_TOKEN
+    if LOCAL_CONFIG.GITHUB_TOKEN is not None:
+        kwargs["username"] = LOCAL_CONFIG.GITHUB_USERNAME
+        kwargs["token"] = LOCAL_CONFIG.GITHUB_TOKEN
     return kwargs
 
 
@@ -79,7 +79,7 @@ def github_check_rev(org: str, repo: str, rev: str):
     """Check that rev exists in a github repo"""
     res = requests.head(
         f"https://api.github.com/repos/{org}/{repo}/commits/{rev}",
-        auth=(CONFIG.GITHUB_USERNAME, CONFIG.GITHUB_TOKEN),  # type: ignore
+        auth=(LOCAL_CONFIG.GITHUB_USERNAME, LOCAL_CONFIG.GITHUB_TOKEN),  # type: ignore
     )
     return res.status_code == 200
 
@@ -87,7 +87,7 @@ def github_check_rev(org: str, repo: str, rev: str):
 def _ls_github_refs(org: str, repo: str, endpoint: str):
     result = requests.get(
         f"https://api.github.com/repos/{org}/{repo}/{endpoint}",
-        auth=(CONFIG.GITHUB_USERNAME, CONFIG.GITHUB_TOKEN),  # type: ignore
+        auth=(LOCAL_CONFIG.GITHUB_USERNAME, LOCAL_CONFIG.GITHUB_TOKEN),  # type: ignore
     )
     if result.status_code == 200:
         return {b["name"]: b["commit"]["sha"] for b in result.json()}
