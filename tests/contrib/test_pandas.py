@@ -1,7 +1,7 @@
 import io
 import json
+import os.path
 import posixpath
-import subprocess
 import tempfile
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterator, List, Type, Union
@@ -14,6 +14,8 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
 from mlem.api.commands import import_object
+from mlem.config import CONFIG_FILE_NAME
+from mlem.constants import MLEM_DIR
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     PANDAS_SERIES_FORMATS,
@@ -593,11 +595,12 @@ def test_series(series_data2: pd.Series, series_df_type2, df_type2):
 
 
 def test_change_format(mlem_project, data):
-    subprocess.check_call(
-        "mlem config set pandas.default_format parquet",
-        shell=True,
-        cwd=mlem_project,
-    )
+    with open(
+        os.path.join(mlem_project, MLEM_DIR, CONFIG_FILE_NAME),
+        "w",
+        encoding="utf8",
+    ) as f:
+        f.write("pandas:\n  default_format: parquet")
     meta = save(data, "data", project=mlem_project)
     assert isinstance(meta, MlemData)
     assert isinstance(meta.data_type, DataFrameType)
