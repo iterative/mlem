@@ -40,7 +40,9 @@ from mlem.core.errors import (
 )
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
+from mlem.core.model import Signature
 from mlem.core.objects import MlemData
+from mlem.utils.module import get_object_requirements
 from tests.conftest import data_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
@@ -604,6 +606,15 @@ def test_change_format(mlem_project, data):
     assert writer.format == "parquet"
     assert isinstance(meta.reader, PandasReader)
     assert meta.reader.format == "parquet"
+
+
+def test_signature_req(data):
+    def f(x):
+        return x
+
+    sig = Signature.from_method(f, auto_infer=True, x=data)
+
+    assert get_object_requirements(sig).modules == ["pandas", "numpy"]
 
 
 # Copyright 2019 Zyfra

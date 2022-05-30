@@ -389,7 +389,10 @@ def add_closure_inspection(f):
         if (
             base_module is not None
             and is_builtin_module(base_module)
-            or base_module is mlem
+            or (
+                base_module is mlem
+                and not obj.__module__.startswith("mlem.contrib")
+            )
         ):
             return f(pickler, obj)
         base_module_name = getattr(base_module, "__name__", "")
