@@ -85,7 +85,7 @@ def test_get_fs_github(uri, rev):
 def test_github_wrong_rev():
     with pytest.raises(RevisionNotFound):
         UriResolver.resolve(
-            MLEM_TEST_REPO, repo=None, rev="__not_exists__kek", fs=None
+            MLEM_TEST_REPO, project=None, rev="__not_exists__kek", fs=None
         )
 
 

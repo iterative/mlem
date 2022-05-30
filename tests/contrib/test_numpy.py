@@ -12,15 +12,15 @@ from mlem.contrib.numpy import (
     python_type_from_np_string_repr,
     python_type_from_np_type,
 )
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
+from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.utils.module import get_object_requirements
-from tests.conftest import dataset_write_read_check
+from tests.conftest import data_write_read_check
 
 
 def test_npnumber_source():
     data = np.float32(1.5)
-    dataset = DatasetType.create(data)
+    data_type = DataType.create(data)
 
     def custom_assert(x, y):
         assert x.dtype == y.dtype
@@ -28,8 +28,8 @@ def test_npnumber_source():
         assert isinstance(y, np.number)
         assert x.dtype.name == data.dtype.name == y.dtype.name
 
-    dataset_write_read_check(
-        dataset,
+    data_write_read_check(
+        data_type,
         custom_eq=np.equal,
         reader_type=NumpyNumberReader,
         custom_assert=custom_assert,
@@ -38,13 +38,13 @@ def test_npnumber_source():
 
 def test_ndarray_source():
     data = np.array([1, 2, 3])
-    dataset = DatasetType.create(data)
-    dataset_write_read_check(dataset, custom_eq=np.array_equal)
+    data_type = DataType.create(data)
+    data_write_read_check(data_type, custom_eq=np.array_equal)
 
 
 @pytest.fixture
 def nat():
-    return DatasetType.create(np.array([[1, 2], [3, 4]]))
+    return DataType.create(np.array([[1, 2], [3, 4]]))
 
 
 def test_python_type_from_np_string_repr():
@@ -68,12 +68,12 @@ def test_np_type_from_string():
 def test_number():
     value = np.float32(0.5)
     assert NumpyNumberType.is_object_valid(value)
-    ndt = DatasetAnalyzer.analyze(value)
+    ndt = DataAnalyzer.analyze(value)
     assert isinstance(ndt, NumpyNumberType)
     assert ndt.dtype == "float32"
     assert ndt.get_requirements().modules == ["numpy"]
     payload = {"dtype": "float32", "type": "number"}
-    ndt2 = parse_obj_as(DatasetType, payload)
+    ndt2 = parse_obj_as(DataType, payload)
     assert ndt == ndt2
     assert ndt.get_model().__name__ == ndt2.get_model().__name__
     assert ndt.get_model() is float
@@ -88,7 +88,7 @@ def test_ndarray(nat):
     assert python_type_from_np_string_repr(nat.dtype) == int
     assert nat.get_requirements().modules == ["numpy"]
     payload = nat.json()
-    nat2 = parse_obj_as(DatasetType, loads(payload))
+    nat2 = parse_obj_as(DataType, loads(payload))
     assert nat == nat2
     assert nat.get_model().__name__ == nat2.get_model().__name__
     assert nat.get_model().schema() == {

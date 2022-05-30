@@ -1,22 +1,22 @@
 import pytest
 from pydantic import parse_obj_as
 
-from mlem.core.dataset_type import (
-    DatasetAnalyzer,
-    DatasetReader,
-    DatasetType,
-    DictDatasetType,
+from mlem.core.data_type import (
+    ArrayReader,
+    ArrayType,
+    DataAnalyzer,
+    DataReader,
+    DataType,
     DictReader,
-    ListDatasetType,
-    ListReader,
+    DictType,
+    ListType,
     PrimitiveReader,
     PrimitiveType,
-    TupleDatasetType,
-    TupleLikeListDatasetType,
-    _TupleLikeDatasetReader,
-    _TupleLikeDatasetWriter,
+    TupleType,
+    _TupleLikeReader,
+    _TupleLikeWriter,
 )
-from tests.conftest import dataset_write_read_check
+from tests.conftest import data_write_read_check
 
 
 class NotPrimitive:
@@ -33,15 +33,15 @@ def test_primitive_source(ptype):
         data = None
     else:
         data = ptype(1.5)
-    dataset = DatasetType.create(data)
+    data_type = DataType.create(data)
 
     def custom_assert(x, y):
         assert x == y
         assert isinstance(x, ptype)
         assert isinstance(y, ptype)
 
-    dataset_write_read_check(
-        dataset,
+    data_write_read_check(
+        data_type,
         reader_type=PrimitiveReader,
         custom_assert=custom_assert,
     )
@@ -51,47 +51,47 @@ def test_primitive_source(ptype):
 def test_primitives(ptype):
     value = ptype()
     assert PrimitiveType.is_object_valid(value)
-    dt = DatasetAnalyzer.analyze(value)
+    dt = DataAnalyzer.analyze(value)
     assert isinstance(dt, PrimitiveType)
     assert dt.ptype == ptype.__name__
     payload = {"ptype": ptype.__name__, "type": "primitive"}
     assert dt.dict() == payload
-    dt2 = parse_obj_as(DatasetType, payload)
+    dt2 = parse_obj_as(DataType, payload)
     assert isinstance(dt2, PrimitiveType)
     assert dt2 == dt
     assert dt2.to_type == ptype
     assert dt.get_model() is ptype
 
 
-def test_list():
+def test_array():
     l_value = [1, 2, 3, 4, 5]
-    dt = DatasetAnalyzer.analyze(l_value)
-    assert isinstance(dt, ListDatasetType)
+    dt = DataAnalyzer.analyze(l_value)
+    assert isinstance(dt, ArrayType)
     payload = {
         "dtype": {"ptype": "int", "type": "primitive"},
         "size": 5,
-        "type": "list",
+        "type": "array",
     }
     assert dt.dict() == payload
-    dt2 = parse_obj_as(ListDatasetType, payload)
+    dt2 = parse_obj_as(ArrayType, payload)
     assert dt2 == dt
     assert l_value == dt.serialize(l_value)
     assert l_value == dt.deserialize(l_value)
-    assert dt.get_model().__name__ == "ListDataset"
+    assert dt.get_model().__name__ == "Array"
     assert dt.get_model().schema() == {
         "items": {"type": "integer"},
-        "title": "ListDataset",
+        "title": "Array",
         "type": "array",
     }
 
 
 def test_list_source():
     l_value = [1, 2, 3, 4, 5]
-    dt = DatasetType.create(l_value)
+    dt = DataType.create(l_value)
 
-    artifacts = dataset_write_read_check(
+    artifacts = data_write_read_check(
         dt,
-        reader_type=ListReader,
+        reader_type=ArrayReader,
     )
 
     assert list(artifacts.keys()) == [f"{x}/data" for x in range(len(l_value))]
@@ -104,8 +104,8 @@ def test_list_source():
 
 def test_tuple():
     t = (1, 2, 3)
-    dt = DatasetAnalyzer.analyze(t)
-    assert isinstance(dt, TupleDatasetType)
+    dt = DataAnalyzer.analyze(t)
+    assert isinstance(dt, TupleType)
     payload = {
         "items": [
             {"ptype": "int", "type": "primitive"},
@@ -115,13 +115,13 @@ def test_tuple():
         "type": "tuple",
     }
     assert dt.dict() == payload
-    dt2 = parse_obj_as(TupleDatasetType, payload)
+    dt2 = parse_obj_as(TupleType, payload)
     assert dt2 == dt
     assert t == dt.serialize(t)
     assert t == dt.deserialize(t)
-    assert dt.get_model().__name__ == "_TupleLikeDataset"
+    assert dt.get_model().__name__ == "_TupleLikeType"
     assert dt.get_model().schema() == {
-        "title": "_TupleLikeDataset",
+        "title": "_TupleLikeType",
         "type": "array",
         "minItems": 3,
         "maxItems": 3,
@@ -135,12 +135,12 @@ def test_tuple():
 
 def test_tuple_source():
     t_value = (1, [3, 7], False, 3.2, "mlem", None)
-    dt = DatasetType.create(t_value)
+    dt = DataType.create(t_value)
 
-    artifacts = dataset_write_read_check(
+    artifacts = data_write_read_check(
         dt,
-        reader_type=_TupleLikeDatasetReader,
-        writer=_TupleLikeDatasetWriter(),
+        reader_type=_TupleLikeReader,
+        writer=_TupleLikeWriter(),
     )
 
     assert list(artifacts.keys()) == [
@@ -161,23 +161,23 @@ def test_tuple_source():
     assert artifacts["5/data"].uri.endswith("data/5")
 
 
-def test_tuple_reader():
-    dataset_type = TupleLikeListDatasetType(items=[])
-    assert dataset_type.dict()["type"] == "tuple_like_list"
-    reader = _TupleLikeDatasetReader(dataset_type=dataset_type, readers=[])
-    new_reader = parse_obj_as(DatasetReader, reader.dict())
+def test_list_reader():
+    data_type = ListType(items=[])
+    assert data_type.dict()["type"] == "list"
+    reader = _TupleLikeReader(data_type=data_type, readers=[])
+    new_reader = parse_obj_as(DataReader, reader.dict())
     res = new_reader.read({})
     assert res.data == []
 
 
 def test_mixed_list_source():
     t_value = [1, [3, 7], False, 3.2, "mlem", None]
-    dt = DatasetType.create(t_value)
+    dt = DataType.create(t_value)
 
-    artifacts = dataset_write_read_check(
+    artifacts = data_write_read_check(
         dt,
-        reader_type=_TupleLikeDatasetReader,
-        writer=_TupleLikeDatasetWriter(),
+        reader_type=_TupleLikeReader,
+        writer=_TupleLikeWriter(),
     )
 
     assert list(artifacts.keys()) == [
@@ -200,8 +200,8 @@ def test_mixed_list_source():
 
 def test_dict():
     d = {"1": 1, "2": "a"}
-    dt = DatasetAnalyzer.analyze(d)
-    assert isinstance(dt, DictDatasetType)
+    dt = DataAnalyzer.analyze(d)
+    assert isinstance(dt, DictType)
     payload = {
         "item_types": {
             "1": {"ptype": "int", "type": "primitive"},
@@ -210,13 +210,13 @@ def test_dict():
         "type": "dict",
     }
     assert dt.dict() == payload
-    dt2 = parse_obj_as(DictDatasetType, payload)
+    dt2 = parse_obj_as(DictType, payload)
     assert dt2 == dt
     assert d == dt.serialize(d)
     assert d == dt.deserialize(d)
-    assert dt.get_model().__name__ == "DictDataset"
+    assert dt.get_model().__name__ == "DictType"
     assert dt.get_model().schema() == {
-        "title": "DictDataset",
+        "title": "DictType",
         "type": "object",
         "properties": {
             "1": {"title": "1", "type": "integer"},
@@ -228,7 +228,7 @@ def test_dict():
 
 def test_dict_source():
     d_value = {"1": 1.5, "2": "a", "3": {"1": False}}
-    dataset = DatasetType.create(d_value)
+    data_type = DataType.create(d_value)
 
     def custom_assert(x, y):
         assert x == y
@@ -236,8 +236,8 @@ def test_dict_source():
         assert isinstance(x, dict)
         assert isinstance(y, dict)
 
-    artifacts = dataset_write_read_check(
-        dataset,
+    artifacts = data_write_read_check(
+        data_type,
         reader_type=DictReader,
         custom_assert=custom_assert,
     )

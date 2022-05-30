@@ -9,12 +9,7 @@ from pydantic import BaseModel
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.dataset_type import (
-    DatasetHook,
-    DatasetSerializer,
-    DatasetType,
-    DatasetWriter,
-)
+from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
@@ -38,15 +33,15 @@ class XGBoostRequirement(WithRequirements):
         )
 
 
-class DMatrixDatasetType(
+class DMatrixDataType(
     XGBoostRequirement,
-    DatasetType,
-    DatasetSerializer,
-    DatasetHook,
+    DataType,
+    DataSerializer,
+    DataHook,
     IsInstanceHookMixin,
 ):
     """
-    :class:`~.DatasetType` implementation for xgboost.DMatrix type
+    :class:`~.DataType` implementation for xgboost.DMatrix type
 
     :param is_from_list: whether DMatrix can be constructed from list
     :param feature_type_names: string representation of feature types
@@ -90,25 +85,25 @@ class DMatrixDatasetType(
     @classmethod
     def from_dmatrix(cls, dmatrix: xgboost.DMatrix):
         """
-        Factory method to extract :class:`~.DatasetType` from actual xgboost.DMatrix
+        Factory method to extract :class:`~.DataType` from actual xgboost.DMatrix
 
-        :param dmatrix: obj to create :class:`~.DatasetType` from
-        :return: :class:`DMatrixDatasetType`
+        :param dmatrix: obj to create :class:`~.DataType` from
+        :return: :class:`DMatrixDataType`
         """
         is_from_list = (
             dmatrix.feature_names is None
         )  # (dmatrix.feature_names == [f'f{i}' for i in range(dmatrix.num_col())])
-        return DMatrixDatasetType(
+        return DMatrixDataType(
             is_from_list=is_from_list,
             feature_type_names=dmatrix.feature_types,
             feature_names=dmatrix.feature_names,
         )
 
     @classmethod
-    def process(cls, obj: xgboost.DMatrix, **kwargs) -> DatasetType:
-        return DMatrixDatasetType.from_dmatrix(obj)
+    def process(cls, obj: xgboost.DMatrix, **kwargs) -> DataType:
+        return DMatrixDataType.from_dmatrix(obj)
 
-    def get_writer(self, **kwargs) -> DatasetWriter:
+    def get_writer(self, **kwargs) -> DataWriter:
         raise NotImplementedError()
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:

@@ -7,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.callable import CallableModelType
 from mlem.core.artifacts import LOCAL_STORAGE, Artifacts, Storage
-from mlem.core.dataset_type import PrimitiveType
+from mlem.core.data_type import PrimitiveType
 from mlem.core.model import (
     ModelAnalyzer,
     ModelHook,

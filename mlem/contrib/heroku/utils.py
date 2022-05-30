@@ -6,7 +6,7 @@ from requests import HTTPError
 from ...core.errors import DeploymentError
 from ...ui import EMOJI_BASE, EMOJI_BUILD, EMOJI_STOP, echo
 from .config import HEROKU_CONFIG
-from .meta import HerokuAppMeta, HerokuDeploy
+from .meta import HerokuAppMeta, HerokuDeployment
 
 
 def heroku_api_request(
@@ -36,7 +36,7 @@ def heroku_api_request(
     return r.json()
 
 
-def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
+def create_app(params: HerokuDeployment, api_key: str = None) -> HerokuAppMeta:
     data = {
         "name": params.app_name,
         "region": params.region,
