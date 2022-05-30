@@ -73,7 +73,7 @@ rf.mlem
 $ cat rf.mlem
 ```
 <details>
-  <summary>Click to show `cat` output</summary>
+  <summary>> Click to show `cat` output</summary>
 
 ```yaml
 artifacts:
@@ -244,9 +244,8 @@ $ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
 
 ## Contributing
 
-Contributions are welcome! Please see our
-[Contributing Guide](https://mlem.ai/doc/contributing/core)for more details.
-Thanks to all our contributors!
+Contributions are welcome! Please see our [Contributing Guide](https://mlem.ai/doc/contributing/core)
+for more details. Thanks to all our contributors!
 
 ## Copyright
 
