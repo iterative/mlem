@@ -2,10 +2,10 @@
 
 
 [![Check, test and release](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml/badge.svg)](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml)
-[![Maintainability](https://codeclimate.com/github/iterative/mlem/badges/gpa.svg)](https://codeclimate.com/github/iterative/mlem)
 [![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
 [![PyPi](https://img.shields.io/pypi/v/mlem.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/mlem)
 [![License: Apache 2.0](https://img.shields.io/github/license/iterative/mlem)](https://github.com/iterative/mlem/blob/master/LICENSE)
+<!-- [![Maintainability](https://codeclimate.com/github/iterative/mlem/badges/gpa.svg)](https://codeclimate.com/github/iterative/mlem) -->
 
 MLEM helps you with machine learning model deployment. It saves ML models in a standard format that can be used in a variety of downstream deployment scenarios such as real-time serving through a REST API or batch processing.
 
