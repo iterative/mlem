@@ -7,7 +7,7 @@ from sklearn.naive_bayes import GaussianNB
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.dataset_type import UnspecifiedDatasetType
+from mlem.core.data_type import UnspecifiedDataType
 from mlem.core.model import ModelAnalyzer, Signature
 
 
@@ -40,11 +40,11 @@ def test_sklearn_model(mtype):
 def test_infer_signatire_unspecified(model):
     signature = Signature.from_method(model.predict)
     assert signature.name == "predict"
-    assert signature.returns == UnspecifiedDatasetType()
+    assert signature.returns == UnspecifiedDataType()
     assert len(signature.args) == 2
     arg = signature.args[0]
     assert arg.name == "X"
-    assert arg.type_ == UnspecifiedDatasetType()
+    assert arg.type_ == UnspecifiedDataType()
 
 
 def test_infer_signatire(model, train):

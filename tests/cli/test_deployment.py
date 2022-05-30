@@ -10,7 +10,7 @@ from mlem.core.metadata import load_meta
 from mlem.core.objects import (
     DeployState,
     DeployStatus,
-    MlemDeploy,
+    MlemDeployment,
     MlemEnv,
     MlemLink,
 )
@@ -21,7 +21,7 @@ from tests.cli.conftest import Runner
 @pytest.fixture
 def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
     return mocker.patch(
-        "tests.cli.test_deploy.DeployStateMock.get_client",
+        "tests.cli.test_deployment.DeployStateMock.get_client",
         return_value=HTTPClient(host="", port=None),
     )
 
@@ -31,7 +31,7 @@ class DeployStateMock(DeployState):
         pass
 
 
-class MlemDeployMock(MlemDeploy):
+class MlemDeploymentMock(MlemDeployment):
     class Config:
         use_enum_values = True
 
@@ -43,18 +43,18 @@ class MlemDeployMock(MlemDeploy):
 
 class MlemEnvMock(MlemEnv):
     type: ClassVar = "mock"
-    deploy_type: ClassVar = MlemDeployMock
+    deploy_type: ClassVar = MlemDeploymentMock
 
-    def deploy(self, meta: MlemDeployMock):
+    def deploy(self, meta: MlemDeploymentMock):
         meta.status = DeployStatus.RUNNING
         meta.update()
 
-    def destroy(self, meta: MlemDeployMock):
+    def remove(self, meta: MlemDeploymentMock):
         meta.status = DeployStatus.STOPPED
         meta.update()
 
     def get_status(
-        self, meta: MlemDeployMock, raise_on_error=True
+        self, meta: MlemDeploymentMock, raise_on_error=True
     ) -> "DeployStatus":
         return meta.status
 
@@ -69,7 +69,7 @@ def mock_env_path(tmp_path_factory):
 @pytest.fixture()
 def mock_deploy_path(tmp_path, mock_env_path, model_meta_saved_single):
     path = os.path.join(tmp_path, "deployname")
-    MlemDeployMock(
+    MlemDeploymentMock(
         param="bbb",
         model_link=model_meta_saved_single.make_link(),
         env_link=MlemLink(path=mock_env_path, link_type="env"),
@@ -82,21 +82,21 @@ def test_deploy_create_new(
 ):
     path = os.path.join(tmp_path, "deployname")
     result = runner.invoke(
-        f"deploy create {path} -m {model_meta_saved_single.loc.uri} -t {mock_env_path} -c param=aaa".split()
+        f"deploy run {path} -m {model_meta_saved_single.loc.uri} -t {mock_env_path} -c param=aaa".split()
     )
     assert result.exit_code == 0, result.output
     assert os.path.isfile(path + MLEM_EXT)
     meta = load_meta(path)
-    assert isinstance(meta, MlemDeployMock)
+    assert isinstance(meta, MlemDeploymentMock)
     assert meta.param == "aaa"
     assert meta.status == DeployStatus.RUNNING
 
 
 def test_deploy_create_existing(runner: Runner, mock_deploy_path):
-    result = runner.invoke(f"deploy create {mock_deploy_path}".split())
+    result = runner.invoke(f"deploy run {mock_deploy_path}".split())
     assert result.exit_code == 0, result.output
     meta = load_meta(mock_deploy_path)
-    assert isinstance(meta, MlemDeployMock)
+    assert isinstance(meta, MlemDeploymentMock)
     assert meta.param == "bbb"
     assert meta.status == DeployStatus.RUNNING
 
@@ -107,11 +107,11 @@ def test_deploy_status(runner: Runner, mock_deploy_path):
     assert result.output.strip() == DeployStatus.NOT_DEPLOYED.value
 
 
-def test_deploy_destroy(runner: Runner, mock_deploy_path):
-    result = runner.invoke(f"deploy teardown {mock_deploy_path}".split())
+def test_deploy_remove(runner: Runner, mock_deploy_path):
+    result = runner.invoke(f"deploy remove {mock_deploy_path}".split())
     assert result.exit_code == 0, result.output
     meta = load_meta(mock_deploy_path)
-    assert isinstance(meta, MlemDeployMock)
+    assert isinstance(meta, MlemDeploymentMock)
     assert meta.status == DeployStatus.STOPPED
 
 
@@ -128,7 +128,7 @@ def test_deploy_apply(
     )
     assert result.exit_code == 0, result.output
     meta = load_meta(mock_deploy_path)
-    assert isinstance(meta, MlemDeployMock)
+    assert isinstance(meta, MlemDeploymentMock)
     assert meta.status == DeployStatus.NOT_DEPLOYED
     predictions = load(path)
     assert isinstance(predictions, ndarray)

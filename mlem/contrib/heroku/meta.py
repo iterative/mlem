@@ -3,7 +3,12 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from mlem.core.objects import DeployState, DeployStatus, MlemDeploy, MlemEnv
+from mlem.core.objects import (
+    DeployState,
+    DeployStatus,
+    MlemDeployment,
+    MlemEnv,
+)
 from mlem.runtime.client import Client, HTTPClient
 
 from ...core.errors import DeploymentError
@@ -45,7 +50,7 @@ class HerokuState(DeployState):
         )
 
 
-class HerokuDeploy(MlemDeploy):
+class HerokuDeployment(MlemDeployment):
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
     app_name: str
@@ -54,12 +59,12 @@ class HerokuDeploy(MlemDeploy):
     team: Optional[str] = None
 
 
-class HerokuEnv(MlemEnv[HerokuDeploy]):
+class HerokuEnv(MlemEnv[HerokuDeployment]):
     type: ClassVar = "heroku"
-    deploy_type: ClassVar = HerokuDeploy
+    deploy_type: ClassVar = HerokuDeployment
     api_key: Optional[str] = None
 
-    def deploy(self, meta: HerokuDeploy):
+    def deploy(self, meta: HerokuDeployment):
         from .utils import create_app, release_docker_app
 
         if meta.state is None:
@@ -93,7 +98,7 @@ class HerokuEnv(MlemEnv[HerokuDeploy]):
             + f"Service {meta.app_name} is up. You can check it out at {meta.state.app.web_url}"
         )
 
-    def destroy(self, meta: HerokuDeploy):
+    def remove(self, meta: HerokuDeployment):
         from .utils import delete_app
 
         self.check_type(meta)
@@ -105,7 +110,7 @@ class HerokuEnv(MlemEnv[HerokuDeploy]):
         meta.update()
 
     def get_status(
-        self, meta: "HerokuDeploy", raise_on_error=True
+        self, meta: "HerokuDeployment", raise_on_error=True
     ) -> DeployStatus:
         from .utils import list_dynos
 

@@ -6,10 +6,10 @@ import torch
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.torch import TorchModelIO, TorchTensorReader
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
+from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
-from tests.conftest import dataset_write_read_check
+from tests.conftest import data_write_read_check
 
 
 @pytest.fixture
@@ -25,20 +25,20 @@ def second_tensor():
 @pytest.fixture
 def tdt_list(first_tensor, second_tensor):
     tensor_list = [first_tensor, second_tensor]
-    return DatasetAnalyzer.analyze(tensor_list)
+    return DataAnalyzer.analyze(tensor_list)
 
 
 def test_torch_source():
     data = torch.rand(2, 3)
-    dataset = DatasetType.create(data)
+    data = DataType.create(data)
 
     def custom_assert(x, y):
         assert x.dtype == y.dtype
         assert isinstance(x, torch.Tensor)
         assert isinstance(y, torch.Tensor)
 
-    dataset_write_read_check(
-        dataset,
+    data_write_read_check(
+        data,
         custom_eq=torch.equal,
         reader_type=TorchTensorReader,
         custom_assert=custom_assert,
@@ -46,7 +46,7 @@ def test_torch_source():
 
 
 def test_torch_single_tensor(first_tensor):
-    tdt = DatasetAnalyzer.analyze(first_tensor)
+    tdt = DataAnalyzer.analyze(first_tensor)
 
     assert tdt.get_requirements().modules == ["torch"]
     assert tdt.shape == (None, 5)
