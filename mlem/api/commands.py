@@ -215,7 +215,7 @@ def init(path: str = ".") -> None:
             f"{posixpath.abspath(path)} already exists, no need to run `mlem init` again"
         )
     else:
-        from mlem import analytics
+        from mlem.telemetry import telemetry
 
         echo(
             color("███╗   ███╗", "#13ADC7")
@@ -243,7 +243,7 @@ def init(path: str = ".") -> None:
             + color("╚══════╝", "#F46737")
             + color("╚═╝     ╚═╝\n", "#7B61FF")
         )
-        if analytics.is_enabled():
+        if telemetry.is_enabled():
             echo(
                 boxify(
                     "MLEM has enabled anonymous aggregate usage analytics.\n"
