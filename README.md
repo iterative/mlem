@@ -30,7 +30,7 @@ Install MLEM with pip:
 $ pip install mlem
 ```
 
-To install the development version, run:
+To install the pre-release version, run:
 
 ```
 $ pip install git+https://github.com/iterative/mlem
@@ -55,8 +55,8 @@ def main():
     save(
         rf,
         "rf",
-        tmp_sample_data=data,
-        tags=["random-forest", "classifier"],
+        sample_data=data,
+        labels=["random-forest", "classifier"],
         description="Random Forest Classifier",
     )
 
@@ -82,6 +82,9 @@ artifacts:
     size: 163651
     uri: rf
 description: Random Forest Classifier
+labels:
+- random-forest
+- classifier
 model_type:
   methods:
     predict:
@@ -183,32 +186,26 @@ requirements:
   version: 1.4.1
 - module: numpy
   version: 1.22.3
-tags:
-- random-forest
-- classifier
 ```
 </details>
 
-
 ### Deploy it
 
-Create an environment to deploy your model:
+If you want to follow this Quick Start, you'll need to sign up on https://heroku.com,
+create a API_KEY and populate `HEROKU_API_KEY` env var.
+
+First, create an environment to deploy your model:
 
 ```shell
-$ mlem create env heroku staging
+$ mlem declare env heroku staging
 💾 Saving env to staging.mlem
 ```
 
-Define the deployment:
+Now we can [deploy the model with `mlem deploy`](https://mlem.ai/doc/get-started/deploying)
+(you need to use different `app_name`, since it's going to be published on https://herokuapp.com):
 
 ```shell
-$ mlem create deployment heroku myservice -c app_name=mlem-quick-start -c model=rf -c env=staging
-💾 Saving deployment to myservice.mlem
-```
-
-Deploy it:
-```shell
-$ mlem deploy create myservice
+$ mlem deployment run mydeploy -m rf -t staging -c app_name=mlem-quick-start
 ⏳️ Loading deployment from .mlem/deployment/myservice.mlem
 🔗 Loading link to .mlem/env/staging.mlem
 🔗 Loading link to .mlem/model/rf.mlem
@@ -229,48 +226,18 @@ $ mlem deploy create myservice
 ✅  Service example-mlem-get-started is up. You can check it out at https://mlem-quick-start.herokuapp.com/
 ```
 
-### Check the deployment
+## Build model package
 
-https://mlem-quick-start.herokuapp.com
-
-Let's save some data first:
-```python
-# save_data.py
-from mlem.api import save
-from sklearn.datasets import load_iris
-
-def main():
-    data, y = load_iris(return_X_y=True, as_frame=True)
-    save(
-        data,
-        "train.csv",
-        description="Training data for Random Forest Classifier",
-    )
-
-if __name__ == "__main__":
-    main()
-```
+You could easily [export model to a different format using `mlem build`](https://mlem.ai/doc/get-started/building):
 
 ```
-$ mlem apply-remote http train.csv -c host=https://mlem-quick-start.herokuapp.com -c port=80 --json
-```
-
-### Stop the deployment
-
-```
-$ mlem deploy status myservice.mlem
-running
-```
-
-```
-$ mlem deploy teardown myservice.mlem
-⏳️ Loading deployment from myservice.mlem
-🔗 Loading link to file://staging.mlem
-🔻 Deleting mlem-quick-start heroku app
-💾 Updating deployment at myservice.mlem
-```
-
-```
-$ mlem deploy status myservice.mlem
-not_deployed
+$ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
+⏳️ Loading model from rf.mlem
+🛠 Building MLEM wheel file...
+💼 Adding model files...
+🛠 Generating dockerfile...
+💼 Adding sources...
+💼 Generating requirements file...
+🛠 Building docker image sklearn-model:latest...
+✅  Built docker image sklearn-model:latest
 ```
