@@ -220,6 +220,9 @@ def find_meta_location(location: Location) -> Location:
         # this allows to find the object not listed in .mlem/
         path = get_meta_path(uri=location.fullpath, fs=location.fs)
     except FileNotFoundError:
+        path = None
+
+    if path is None:
         # now search for objects in .mlem
         try:
             _, path = find_object(
