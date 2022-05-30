@@ -22,7 +22,8 @@ MLEM helps you with machine learning model deployment. It saves ML models in a s
 
 ## Usage
 
-This a quick walkthrough, showcasing deployment and export functionality of MLEM.
+This a quick walkthrough showcasing deployment and export functionality of MLEM.
+
 Please read [Get Started guide](https://mlem.ai/doc/get-started) for a full version.
 
 ### Installation
