@@ -22,6 +22,9 @@ MLEM helps you with machine learning model deployment. It saves ML models in a s
 
 ## Usage
 
+This a quick walkthrough, showcasing deployment and export functionality of MLEM.
+Please read [Get Started guide](https://mlem.ai/doc/get-started) for a full version.
+
 ### Installation
 
 Install MLEM with pip:
@@ -192,7 +195,7 @@ requirements:
 ### Deploying the model
 
 If you want to follow this Quick Start, you'll need to sign up on https://heroku.com,
-create a API_KEY and populate `HEROKU_API_KEY` env var.
+create an API_KEY and populate `HEROKU_API_KEY` env var.
 
 First, create an environment to deploy your model:
 
