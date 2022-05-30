@@ -36,7 +36,7 @@ To install the pre-release version, run:
 $ pip install git+https://github.com/iterative/mlem
 ```
 
-### Save your model
+### Saving the model
 
 ```python
 # train.py
@@ -189,7 +189,7 @@ requirements:
 ```
 </details>
 
-### Deploy it
+### Deploying the model
 
 If you want to follow this Quick Start, you'll need to sign up on https://heroku.com,
 create a API_KEY and populate `HEROKU_API_KEY` env var.
@@ -226,9 +226,9 @@ $ mlem deployment run mydeploy -m rf -t staging -c app_name=mlem-quick-start
 ✅  Service example-mlem-get-started is up. You can check it out at https://mlem-quick-start.herokuapp.com/
 ```
 
-## Build model package
+### Exporting the model
 
-You could easily [export model to a different format using `mlem build`](https://mlem.ai/doc/get-started/building):
+You could easily [export the model to a different format using `mlem build`](https://mlem.ai/doc/get-started/building):
 
 ```
 $ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
@@ -241,3 +241,15 @@ $ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
 🛠 Building docker image sklearn-model:latest...
 ✅  Built docker image sklearn-model:latest
 ```
+
+## Contributing
+
+Contributions are welcome! Please see our
+[Contributing Guide](https://mlem.ai/doc/contributing/core)for more details.
+Thanks to all our contributors!
+
+## Copyright
+
+This project is distributed under the Apache license version 2.0 (see the LICENSE file in the project root).
+
+By submitting a pull request to this project, you agree to license your contribution under the Apache license version 2.0 to this project.
