@@ -1,5 +1,5 @@
 """
-Base classes to work with requirements which come with ML models and datasets
+Base classes to work with requirements which come with ML models and data
 """
 import base64
 import contextlib

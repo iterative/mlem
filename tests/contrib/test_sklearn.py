@@ -11,7 +11,7 @@ from sklearn.svm import SVC
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import ModelAnalyzer
 from mlem.core.requirements import UnixPackageRequirement
 from tests.conftest import check_model_type_common_interface, long
@@ -59,7 +59,7 @@ def lgbm_model(inp_data, out_data):
 )
 def test_hook(model_fixture, inp_data, request):
     model = request.getfixturevalue(model_fixture)
-    data_type = DatasetAnalyzer.analyze(inp_data)
+    data_type = DataAnalyzer.analyze(inp_data)
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)
@@ -74,7 +74,7 @@ def test_hook(model_fixture, inp_data, request):
 
 
 def test_hook_lgb(lgbm_model, inp_data):
-    data_type = DatasetAnalyzer.analyze(inp_data)
+    data_type = DataAnalyzer.analyze(inp_data)
     model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)

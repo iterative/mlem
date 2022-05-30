@@ -3,14 +3,14 @@ from typing import Any, ClassVar
 import pytest
 
 import mlem
-from mlem.core.dataset_type import DatasetType, DatasetWriter
+from mlem.core.data_type import DataType, DataWriter
 from mlem.core.model import Argument, Signature
 from mlem.core.requirements import Requirements
 from mlem.runtime import Interface
 from mlem.runtime.interface import SimpleInterface, expose
 
 
-class Container(DatasetType):
+class Container(DataType):
     type: ClassVar[str] = "test_container"
     field: int
 
@@ -25,7 +25,7 @@ class Container(DatasetType):
     def get_requirements(self) -> Requirements:
         return Requirements.new([])
 
-    def get_writer(self, **kwargs) -> DatasetWriter:
+    def get_writer(self, **kwargs) -> DataWriter:
         raise NotImplementedError()
 
 
