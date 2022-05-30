@@ -25,8 +25,10 @@ class Container(DataType):
     def get_requirements(self) -> Requirements:
         return Requirements.new([])
 
-    def get_writer(self, **kwargs) -> DataWriter:
-        raise NotImplementedError()
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> DataWriter:
+        raise NotImplementedError
 
 
 @pytest.fixture

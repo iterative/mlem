@@ -29,7 +29,7 @@ from pandas.core.dtypes.dtypes import (
 )
 from pydantic import BaseModel, create_model, validator
 
-from mlem.config import MlemConfigBase
+from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
 from mlem.core.artifacts import (
     Artifact,
@@ -115,9 +115,6 @@ class PandasConfig(MlemConfigBase):
 
     class Config:
         section = "pandas"
-
-
-PANDAS_CONFIG = PandasConfig()
 
 
 class _PandasDataType(
@@ -255,17 +252,17 @@ class SeriesType(_PandasDataType):
     def serialize(self, instance: pd.Series):
         return super().serialize(pd.DataFrame(instance))["values"]
 
-    def get_writer(self, **kwargs) -> "DataWriter":
-        fmt = PANDAS_CONFIG.default_format
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
+        fmt = project_config(project, section=PandasConfig).default_format
         if "format" in kwargs:
             fmt = kwargs["format"]
-        elif "filename" in kwargs:
-            filename = kwargs["filename"]
-            if filename is not None:
-                _, ext = os.path.splitext(filename)
-                ext = ext.lstrip(".")
-                if ext in PANDAS_SERIES_FORMATS:
-                    fmt = ext
+        elif filename is not None:
+            _, ext = os.path.splitext(filename)
+            ext = ext.lstrip(".")
+            if ext in PANDAS_SERIES_FORMATS:
+                fmt = ext
         return PandasSeriesWriter(format=fmt)
 
 
@@ -324,17 +321,17 @@ class DataFrameType(_PandasDataType):
             },
         )
 
-    def get_writer(self, **kwargs) -> "DataWriter":
-        fmt = PANDAS_CONFIG.default_format
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
+        fmt = project_config(project, section=PandasConfig).default_format
         if "format" in kwargs:
             fmt = kwargs["format"]
-        elif "filename" in kwargs:
-            filename = kwargs["filename"]
-            if filename is not None:
-                _, ext = os.path.splitext(filename)
-                ext = ext.lstrip(".")
-                if ext in PANDAS_FORMATS:
-                    fmt = ext
+        elif filename is not None:
+            _, ext = os.path.splitext(filename)
+            ext = ext.lstrip(".")
+            if ext in PANDAS_FORMATS:
+                fmt = ext
         return PandasWriter(format=fmt)
 
 

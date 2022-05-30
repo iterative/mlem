@@ -154,7 +154,7 @@ T = TypeVar("T", bound=MlemConfigBase)
 
 @overload
 def project_config(
-    project: str,
+    project: Optional[str],
     fs: Optional[AbstractFileSystem] = None,
     section: Type[MlemConfig] = MlemConfig,
 ) -> MlemConfig:
@@ -163,14 +163,16 @@ def project_config(
 
 @overload
 def project_config(
-    project: str, fs: Optional[AbstractFileSystem] = None, section: str = ...
+    project: Optional[str],
+    fs: Optional[AbstractFileSystem] = None,
+    section: str = ...,
 ) -> MlemConfigBase:
     ...
 
 
 @overload
 def project_config(
-    project: str,
+    project: Optional[str],
     fs: Optional[AbstractFileSystem] = None,
     section: Type[T] = ...,
 ) -> T:
@@ -178,7 +180,7 @@ def project_config(
 
 
 def project_config(
-    project: str,
+    project: Optional[str],
     fs: Optional[AbstractFileSystem] = None,
     section: Union[Type[MlemConfigBase], str] = MlemConfig,
 ) -> MlemConfigBase:
@@ -188,4 +190,4 @@ def project_config(
         cls = section
     if fs is None:
         fs = LocalFileSystem()
-    return cls(config_path=project, config_fs=fs)
+    return cls(config_path=project or "", config_fs=fs)

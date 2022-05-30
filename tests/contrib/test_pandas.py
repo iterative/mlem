@@ -1,6 +1,7 @@
 import io
 import json
 import posixpath
+import subprocess
 import tempfile
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterator, List, Type, Union
@@ -587,6 +588,22 @@ def test_series(series_data2: pd.Series, series_df_type2, df_type2):
     assert df_to_str(data) == df_to_str(
         series_data2
     ), "different str representation"
+
+
+def test_change_format(mlem_project, data):
+    subprocess.check_call(
+        "mlem config set pandas.default_format parquet",
+        shell=True,
+        cwd=mlem_project,
+    )
+    meta = save(data, "data", project=mlem_project)
+    assert isinstance(meta, MlemData)
+    assert isinstance(meta.data_type, DataFrameType)
+    writer = meta.data_type.get_writer(project=mlem_project)
+    assert isinstance(writer, PandasWriter)
+    assert writer.format == "parquet"
+    assert isinstance(meta.reader, PandasReader)
+    assert meta.reader.format == "parquet"
 
 
 # Copyright 2019 Zyfra

@@ -103,7 +103,9 @@ class DMatrixDataType(
     def process(cls, obj: xgboost.DMatrix, **kwargs) -> DataType:
         return DMatrixDataType.from_dmatrix(obj)
 
-    def get_writer(self, **kwargs) -> DataWriter:
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> DataWriter:
         raise NotImplementedError()
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:

@@ -73,7 +73,7 @@ class NumpyNumberType(
     def process(cls, obj: np.number, **kwargs) -> "NumpyNumberType":
         return NumpyNumberType(dtype=obj.dtype.name)
 
-    def get_writer(self, **kwargs):
+    def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyNumberWriter(**kwargs)
 
     def get_model(self, prefix: str = "") -> Type:
@@ -153,7 +153,7 @@ class NumpyNdarrayType(
                 f"given array is of shape: {(None,) + tuple(array.shape)[1:]}, expected: {self.shape}"
             )
 
-    def get_writer(self, **kwargs):
+    def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyArrayWriter()
 
 

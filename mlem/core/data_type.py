@@ -53,7 +53,9 @@ class DataType(ABC, MlemABC, WithRequirements):
         return get_object_requirements(self)
 
     @abstractmethod
-    def get_writer(self, **kwargs) -> "DataWriter":
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
         raise NotImplementedError
 
     def get_serializer(
@@ -102,7 +104,9 @@ class UnspecifiedDataType(DataType, DataSerializer):
     def get_requirements(self) -> Requirements:
         return Requirements()
 
-    def get_writer(self, **kwargs) -> "DataWriter":
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
         raise NotImplementedError
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
@@ -187,7 +191,7 @@ class PrimitiveType(DataType, DataHook, DataSerializer):
         self.check_type(instance, self.to_type, ValueError)
         return instance
 
-    def get_writer(self, **kwargs):
+    def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return PrimitiveWriter(**kwargs)
 
     def get_requirements(self) -> Requirements:
@@ -253,7 +257,7 @@ class ArrayType(DataType, DataSerializer):
         _check_type_and_size(instance, list, self.size, SerializationError)
         return [self.dtype.get_serializer().serialize(o) for o in instance]
 
-    def get_writer(self, **kwargs):
+    def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return ArrayWriter(**kwargs)
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
@@ -340,7 +344,9 @@ class _TupleLikeType(DataType, DataSerializer):
             [i.get_requirements() for i in self.items], Requirements.new()
         )
 
-    def get_writer(self, **kwargs) -> "DataWriter":
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
         return _TupleLikeWriter(**kwargs)
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
@@ -514,7 +520,9 @@ class DictType(DataType, DataSerializer, DataHook):
             Requirements.new(),
         )
 
-    def get_writer(self, **kwargs) -> "DataWriter":
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
         return DictWriter(**kwargs)
 
     def get_model(self, prefix="") -> Type[BaseModel]:

@@ -686,7 +686,7 @@ class MlemData(_WithArtifacts):
         if self.data_type is not None:
             filename = os.path.basename(self.name)
             reader, artifacts = self.data_type.get_writer(
-                filename=filename
+                project=self.loc.project, filename=filename
             ).write(
                 self.data_type,
                 self.storage,
