@@ -3,10 +3,10 @@ Loggers used in other parts of MLEM
 """
 import logging.config
 
-from mlem.config import CONFIG
+from mlem.config import LOCAL_CONFIG
 
-LOG_LEVEL = CONFIG.LOG_LEVEL
-if CONFIG.DEBUG:
+LOG_LEVEL = LOCAL_CONFIG.LOG_LEVEL
+if LOCAL_CONFIG.DEBUG:
     LOG_LEVEL = logging.getLevelName(logging.DEBUG)
 
 logging_config = {

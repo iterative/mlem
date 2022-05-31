@@ -30,7 +30,7 @@ from pydantic import ValidationError, parse_obj_as, validator
 from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
-from mlem.config import CONFIG, project_config
+from mlem.config import project_config
 from mlem.core.artifacts import (
     Artifacts,
     FSSpecStorage,
@@ -256,7 +256,7 @@ class MlemObject(MlemABC):
     ) -> Tuple[Location, bool]:
         """Parse arguments for .dump and bind meta"""
         if external is None:
-            external = CONFIG.EXTERNAL
+            external = project_config(project, fs=fs).EXTERNAL
         # by default we index only external non-orphan objects
         if index is None:
             index = True
@@ -570,7 +570,9 @@ class _WithArtifacts(ABC, MlemObject):
         if not self.location.fs or isinstance(
             self.location.fs, LocalFileSystem
         ):
-            return CONFIG.storage.relative(self.location.fs, self.dirname)
+            return project_config(
+                self.loc.project, self.loc.fs
+            ).storage.relative(self.location.fs, self.dirname)
         return FSSpecStorage.from_fs_path(self.location.fs, self.dirname)
 
     def get_artifacts(self):
@@ -686,7 +688,7 @@ class MlemData(_WithArtifacts):
         if self.data_type is not None:
             filename = os.path.basename(self.name)
             reader, artifacts = self.data_type.get_writer(
-                filename=filename
+                project=self.loc.project, filename=filename
             ).write(
                 self.data_type,
                 self.storage,

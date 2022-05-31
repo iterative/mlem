@@ -20,6 +20,7 @@ from isort.deprecated.finders import FindersManager
 from isort.settings import Config
 from pydantic.main import ModelMetaclass
 
+import mlem
 from mlem.core.requirements import (
     MODULE_PACKAGE_MAPPING,
     CustomRequirement,
@@ -385,7 +386,14 @@ def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
         base_module = get_object_base_module(obj)
-        if base_module is not None and is_builtin_module(base_module):
+        if (
+            base_module is not None
+            and is_builtin_module(base_module)
+            or (
+                base_module is mlem
+                and not obj.__module__.startswith("mlem.contrib")
+            )
+        ):
             return f(pickler, obj)
         base_module_name = getattr(base_module, "__name__", "")
 

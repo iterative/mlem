@@ -63,7 +63,9 @@ class LightGBMDataType(
             + LGB_REQUIREMENT
         )
 
-    def get_writer(self, **kwargs) -> DataWriter:
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> DataWriter:
         return LightGBMDataWriter(**kwargs)
 
     @classmethod

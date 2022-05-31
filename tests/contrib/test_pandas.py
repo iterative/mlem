@@ -1,5 +1,6 @@
 import io
 import json
+import os.path
 import posixpath
 import tempfile
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
 from mlem.api.commands import import_object
+from mlem.config import CONFIG_FILE_NAME
+from mlem.constants import MLEM_DIR
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     PANDAS_SERIES_FORMATS,
@@ -39,7 +42,9 @@ from mlem.core.errors import (
 )
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
+from mlem.core.model import Signature
 from mlem.core.objects import MlemData
+from mlem.utils.module import get_object_requirements
 from tests.conftest import data_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
@@ -587,6 +592,32 @@ def test_series(series_data2: pd.Series, series_df_type2, df_type2):
     assert df_to_str(data) == df_to_str(
         series_data2
     ), "different str representation"
+
+
+def test_change_format(mlem_project, data):
+    with open(
+        os.path.join(mlem_project, MLEM_DIR, CONFIG_FILE_NAME),
+        "w",
+        encoding="utf8",
+    ) as f:
+        f.write("pandas:\n  default_format: parquet")
+    meta = save(data, "data", project=mlem_project)
+    assert isinstance(meta, MlemData)
+    assert isinstance(meta.data_type, DataFrameType)
+    writer = meta.data_type.get_writer(project=mlem_project)
+    assert isinstance(writer, PandasWriter)
+    assert writer.format == "parquet"
+    assert isinstance(meta.reader, PandasReader)
+    assert meta.reader.format == "parquet"
+
+
+def test_signature_req(data):
+    def f(x):
+        return x
+
+    sig = Signature.from_method(f, auto_infer=True, x=data)
+
+    assert get_object_requirements(sig).modules == ["pandas", "numpy"]
 
 
 # Copyright 2019 Zyfra

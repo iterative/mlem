@@ -9,7 +9,7 @@ from fsspec.implementations.local import LocalFileSystem
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
-from mlem import CONFIG
+from mlem import LOCAL_CONFIG
 from mlem.core.errors import RevisionNotFound
 from mlem.core.meta_io import UriResolver, get_fs, get_path_by_fs_path, read
 from tests.conftest import (
@@ -123,8 +123,8 @@ def test_get_path_by_fs_path_github():
         org=MLEM_TEST_REPO_ORG,
         repo=MLEM_TEST_REPO_NAME,
         sha="main",
-        username=CONFIG.GITHUB_USERNAME,
-        token=CONFIG.GITHUB_TOKEN,
+        username=LOCAL_CONFIG.GITHUB_USERNAME,
+        token=LOCAL_CONFIG.GITHUB_TOKEN,
     )
     uri = get_path_by_fs_path(fs, "path")
     fs2, path = get_fs(uri)
