@@ -18,6 +18,7 @@ from mlem.config import CONFIG_FILE_NAME, project_config
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import (
     InvalidArgumentError,
+    MlemError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemProjectNotFound,
@@ -420,34 +421,41 @@ def deploy(
     index: bool = None,
     **deploy_kwargs,
 ) -> MlemDeployment:
+    deploy_path = None
     if isinstance(deploy_meta_or_path, str):
+        deploy_path = deploy_meta_or_path
         try:
             deploy_meta = load_meta(
-                path=deploy_meta_or_path,
+                path=deploy_path,
                 project=project,
                 fs=fs,
                 force_type=MlemDeployment,
             )
-        except MlemObjectNotFound as e:
-            if model is None or env is None:
-                raise ValueError(
-                    "Please provide model and env args for new deployment"
-                ) from e
-            model_meta = get_model_meta(model)
-            env_meta = ensure_meta(MlemEnv, env)
-            deploy_meta = env_meta.deploy_type(
-                model=model_meta,
-                env=env_meta,
-                env_link=env_meta.make_link(),
-                model_link=model_meta.make_link(),
-                **deploy_kwargs,
-            )
-            deploy_meta.dump(deploy_meta_or_path, fs, project, index, external)
+        except MlemObjectNotFound:
+            deploy_meta = None
+
     else:
         deploy_meta = deploy_meta_or_path
         if model is not None:
             deploy_meta.replace_model(get_model_meta(model))
 
+    if deploy_meta is None:
+        if model is None or env is None:
+            raise MlemError(
+                "Please provide model and env args for new deployment"
+            )
+        if not deploy_path:
+            raise MlemError("deploy_path cannot be empty")
+        model_meta = get_model_meta(model)
+        env_meta = ensure_meta(MlemEnv, env)
+        deploy_meta = env_meta.deploy_type(
+            model=model_meta,
+            env=env_meta,
+            env_link=env_meta.make_link(),
+            model_link=model_meta.make_link(),
+            **deploy_kwargs,
+        )
+        deploy_meta.dump(deploy_path, fs, project, index, external)
     # ensuring links are working
     deploy_meta.get_env()
     deploy_meta.get_model()
