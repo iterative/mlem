@@ -10,6 +10,7 @@ from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
 from tests.conftest import data_write_read_check
+from mlem.api import save
 
 
 @pytest.fixture
@@ -150,6 +151,8 @@ def check_model(net, input_data, tmpdir):
     prediction2 = tmw.call_method("predict", input_data)
     assert torch.equal(prediction, prediction2)
     assert set(tmw.get_requirements().modules) == {"torch"}
+
+    save(net, "torch-net", sample_data=input_data)
 
 
 # Copyright 2019 Zyfra
