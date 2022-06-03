@@ -3,6 +3,7 @@ import os
 import pytest
 import torch
 
+from mlem.api import save
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.torch import TorchModelIO, TorchTensorReader
 from mlem.core.artifacts import LOCAL_STORAGE
@@ -103,13 +104,11 @@ def test_torch__deserialize_failure(tdt_list, obj):
 class MyNet(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.layers = [torch.nn.Linear(5, 1), torch.nn.Linear(10, 1)]
+        self.l1 = torch.nn.Linear(10, 5)
+        self.l2 = torch.nn.Linear(5, 1)
 
-    def forward(self, *inputs):
-        results = torch.cat(
-            [layer(input) for layer, input in zip(self.layers, inputs)], dim=1
-        )
-        return results.sum(dim=1)
+    def forward(self, x):
+        return self.l2(self.l1(x))
 
 
 def test_torch_empty_artifact_load_should_fail():
@@ -125,8 +124,8 @@ def test_torch_builtin_net(net, first_tensor, tmpdir):
     check_model(net, first_tensor.float(), tmpdir)
 
 
-def test_torch_custom_net(first_tensor, second_tensor, tmpdir):
-    check_model(MyNet(), [first_tensor.float(), second_tensor], tmpdir)
+def test_torch_custom_net(second_tensor, tmpdir):
+    check_model(MyNet(), second_tensor, tmpdir)
 
 
 def check_model(net, input_data, tmpdir):
@@ -150,6 +149,8 @@ def check_model(net, input_data, tmpdir):
     prediction2 = tmw.call_method("predict", input_data)
     assert torch.equal(prediction, prediction2)
     assert set(tmw.get_requirements().modules) == {"torch"}
+
+    save(net, str(tmpdir / "torch-net"), sample_data=input_data)
 
 
 # Copyright 2019 Zyfra

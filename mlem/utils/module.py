@@ -230,7 +230,7 @@ def is_from_installable_module(obj: object):
     return is_installable_module(mod)
 
 
-def get_module_version(mod: ModuleType):
+def get_module_version(mod: ModuleType) -> Optional[str]:
     """
     Determines version of given module object.
 
@@ -239,7 +239,7 @@ def get_module_version(mod: ModuleType):
     """
     for attr in "__version__", "VERSION":
         if hasattr(mod, attr):
-            return getattr(mod, attr)
+            return str(getattr(mod, attr))
     if mod.__file__ is None:
         return None
     for name in os.listdir(os.path.dirname(mod.__file__)):

@@ -109,9 +109,10 @@ class Argument(BaseModel):
 
 def compose_args(
     argspec: inspect.FullArgSpec,
+    call_args: Tuple,
+    call_kwargs: Dict,
     skip_first: bool = False,
     auto_infer: bool = False,
-    **call_kwargs,
 ) -> List[Argument]:
     """Create a list of `Argument`s from argspec"""
     args_defaults = dict(
@@ -123,6 +124,7 @@ def compose_args(
     args = argspec.args
     if skip_first:
         args = args[1:]
+    call_kwargs.update(zip(args, call_args))
     return [
         Argument.from_argspec(
             name, argspec, args_defaults, auto_infer, **call_kwargs
@@ -151,7 +153,11 @@ class Signature(BaseModel, WithRequirements):
 
     @classmethod
     def from_method(
-        cls, method: Callable, auto_infer: bool = False, **call_kwargs
+        cls,
+        method: Callable,
+        *call_args,
+        auto_infer: bool = False,
+        **call_kwargs,
     ):
         # no support for positional-only args, but who uses them anyway
         argspec = inspect.getfullargspec(method)
@@ -160,7 +166,7 @@ class Signature(BaseModel, WithRequirements):
         ):
             returns = argspec.annotations["return"]
         elif auto_infer:
-            result = method(**call_kwargs)
+            result = method(*call_args, **call_kwargs)
             returns = DataAnalyzer.analyze(result)
         else:
             returns = UnspecifiedDataType()
@@ -170,7 +176,8 @@ class Signature(BaseModel, WithRequirements):
                 argspec,
                 skip_first=argspec.args[0] == "self",
                 auto_infer=auto_infer,
-                **call_kwargs,
+                call_args=call_args,
+                call_kwargs=call_kwargs,
             ),
             returns=returns,
             varkw=argspec.varkw,
