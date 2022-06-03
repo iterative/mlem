@@ -1,4 +1,3 @@
-import inspect
 import pickle
 import posixpath
 from collections import defaultdict
@@ -254,12 +253,8 @@ class CallableModelType(ModelType, ModelHook):
     def process(
         cls, obj: Callable, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        if inspect.ismethod(obj):
-            arg_name = inspect.getfullargspec(obj).args[1]
-        else:
-            arg_name = inspect.getfullargspec(obj).args[0]
         s = Signature.from_method(
-            obj, auto_infer=True, **{arg_name: sample_data}
+            obj, sample_data, auto_infer=sample_data is not None
         )
         predict = s.copy()
         predict.name = "predict"

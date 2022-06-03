@@ -154,8 +154,8 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
             ),
             "torch_predict": Signature.from_method(
                 obj.__call__,
+                sample_data,
                 auto_infer=sample_data is not None,
-                input=sample_data,
             ),
         }
         return model

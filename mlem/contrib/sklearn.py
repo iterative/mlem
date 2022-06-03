@@ -35,7 +35,7 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
         sklearn_predict = Signature.from_method(
-            obj.predict, sample_data is not None, X=sample_data
+            obj.predict, auto_infer=sample_data is not None, X=sample_data
         )
         predict = sklearn_predict.copy()
         predict.args = [predict.args[0].copy()]
@@ -46,7 +46,9 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
         }
         if hasattr(obj, "predict_proba"):
             sklearn_predict_proba = Signature.from_method(
-                obj.predict_proba, sample_data is not None, X=sample_data
+                obj.predict_proba,
+                auto_infer=sample_data is not None,
+                X=sample_data,
             )
             predict_proba = sklearn_predict_proba.copy()
             predict_proba.args = [predict_proba.args[0].copy()]
@@ -85,7 +87,7 @@ class SklearnPipelineType(SklearnModel):
             predict = predict.__wrapped__
             predict_args["self"] = obj
         sk_predict_sig = Signature.from_method(
-            predict, auto_infer=True, **predict_args
+            predict, auto_infer=sample_data is not None, **predict_args
         )
         mt.methods["sklearn_predict"] = sk_predict_sig
         predict_sig = sk_predict_sig.copy()
