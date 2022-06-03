@@ -29,7 +29,7 @@ from pandas.core.dtypes.dtypes import (
 )
 from pydantic import BaseModel, create_model, validator
 
-from mlem.config import MlemConfigBase
+from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
 from mlem.core.artifacts import (
     Artifact,
@@ -38,21 +38,21 @@ from mlem.core.artifacts import (
     Storage,
     get_file_info,
 )
-from mlem.core.dataset_type import (
-    DatasetHook,
-    DatasetReader,
-    DatasetSerializer,
-    DatasetType,
-    DatasetWriter,
+from mlem.core.data_type import (
+    DataHook,
+    DataReader,
+    DataSerializer,
+    DataType,
+    DataWriter,
 )
 from mlem.core.errors import (
     DeserializationError,
     SerializationError,
-    UnsupportedDatasetBatchLoadingType,
+    UnsupportedDataBatchLoadingType,
 )
 from mlem.core.import_objects import ExtImportHook
 from mlem.core.meta_io import Location
-from mlem.core.objects import MlemDataset, MlemObject
+from mlem.core.objects import MlemData, MlemObject
 from mlem.core.requirements import LibRequirementsMixin
 
 _PD_EXT_TYPES = {
@@ -117,13 +117,10 @@ class PandasConfig(MlemConfigBase):
         section = "pandas"
 
 
-PANDAS_CONFIG = PandasConfig()
-
-
-class _PandasDatasetType(
-    LibRequirementsMixin, DatasetType, DatasetHook, DatasetSerializer, ABC
+class _PandasDataType(
+    LibRequirementsMixin, DataType, DataHook, DataSerializer, ABC
 ):
-    """Intermidiate class for pandas DatasetType implementations
+    """Intermidiate class for pandas DataType implementations
 
     :param columns: list of column names (including index)
     :param dtypes: list of string representations of pandas dtypes of columns
@@ -135,7 +132,7 @@ class _PandasDatasetType(
     index_cols: List[str]
 
     @classmethod
-    def process(cls, obj: Any, **kwargs) -> "_PandasDatasetType":
+    def process(cls, obj: Any, **kwargs) -> "_PandasDataType":
         if has_index(obj):
             index_cols, obj = _reset_index(obj)
         else:
@@ -221,9 +218,9 @@ class _PandasDatasetType(
         return {"values": (instance.to_dict("records"))}
 
 
-class SeriesType(_PandasDatasetType):
+class SeriesType(_PandasDataType):
     """
-    :class:`.DatasetType` implementation for `pandas.Series` objects which stores them as built-in Python dicts
+    :class:`.DataType` implementation for `pandas.Series` objects which stores them as built-in Python dicts
 
     """
 
@@ -243,7 +240,7 @@ class SeriesType(_PandasDatasetType):
         return isinstance(obj, pd.Series)
 
     @classmethod
-    def process(cls, obj: pd.Series, **kwargs) -> "_PandasDatasetType":
+    def process(cls, obj: pd.Series, **kwargs) -> "_PandasDataType":
         return super().process(pd.DataFrame(obj))
 
     def deserialize(self, obj):
@@ -255,17 +252,17 @@ class SeriesType(_PandasDatasetType):
     def serialize(self, instance: pd.Series):
         return super().serialize(pd.DataFrame(instance))["values"]
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
-        fmt = PANDAS_CONFIG.default_format
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
+        fmt = project_config(project, section=PandasConfig).default_format
         if "format" in kwargs:
             fmt = kwargs["format"]
-        elif "filename" in kwargs:
-            filename = kwargs["filename"]
-            if filename is not None:
-                _, ext = os.path.splitext(filename)
-                ext = ext.lstrip(".")
-                if ext in PANDAS_SERIES_FORMATS:
-                    fmt = ext
+        elif filename is not None:
+            _, ext = os.path.splitext(filename)
+            ext = ext.lstrip(".")
+            if ext in PANDAS_SERIES_FORMATS:
+                fmt = ext
         return PandasSeriesWriter(format=fmt)
 
 
@@ -300,9 +297,9 @@ def reset_index(df: pd.DataFrame, return_copied=False):
     return df
 
 
-class DataFrameType(_PandasDatasetType):
+class DataFrameType(_PandasDataType):
     """
-    :class:`.DatasetType` implementation for `pandas.DataFrame`
+    :class:`.DataType` implementation for `pandas.DataFrame`
     """
 
     type: ClassVar[str] = "dataframe"
@@ -324,17 +321,17 @@ class DataFrameType(_PandasDatasetType):
             },
         )
 
-    def get_writer(self, **kwargs) -> "DatasetWriter":
-        fmt = PANDAS_CONFIG.default_format
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
+        fmt = project_config(project, section=PandasConfig).default_format
         if "format" in kwargs:
             fmt = kwargs["format"]
-        elif "filename" in kwargs:
-            filename = kwargs["filename"]
-            if filename is not None:
-                _, ext = os.path.splitext(filename)
-                ext = ext.lstrip(".")
-                if ext in PANDAS_FORMATS:
-                    fmt = ext
+        elif filename is not None:
+            _, ext = os.path.splitext(filename)
+            ext = ext.lstrip(".")
+            if ext in PANDAS_FORMATS:
+                fmt = ext
         return PandasWriter(format=fmt)
 
 
@@ -409,7 +406,7 @@ class PandasFormat:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {self.file_name} file"
             )
-        with artifacts[DatasetWriter.art_name].open() as f:
+        with artifacts[DataWriter.art_name].open() as f:
             return self.read_func(f, **read_kwargs)
 
     def write(
@@ -587,66 +584,64 @@ class _PandasIO(BaseModel):
         return PANDAS_SERIES_FORMATS[self.format]
 
 
-class PandasSeriesReader(_PandasIO, DatasetReader):
-    """DatasetReader for pandas series"""
+class PandasSeriesReader(_PandasIO, DataReader):
+    """DataReader for pandas series"""
 
     type: ClassVar[str] = "pandas_series"
-    dataset_type: SeriesType
+    data_type: SeriesType
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
-        data = self.dataset_type.align(
-            self.series_fmt.read(artifacts)
-        ).squeeze()
+    def read(self, artifacts: Artifacts) -> DataType:
+        data = self.data_type.align(self.series_fmt.read(artifacts)).squeeze()
         if data.index.name == "":
             data.index.name = None
-        return self.dataset_type.copy().bind(data)
+        return self.data_type.copy().bind(data)
 
     def read_batch(
         self, artifacts: Artifacts, batch_size: int
-    ) -> Iterator[DatasetType]:
+    ) -> Iterator[DataType]:
         raise NotImplementedError
 
 
-class PandasSeriesWriter(DatasetWriter, _PandasIO):
-    """DatasetWriter for pandas series"""
+class PandasSeriesWriter(DataWriter, _PandasIO):
+    """DataWriter for pandas series"""
 
     type: ClassVar[str] = "pandas_series"
 
     def write(
-        self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
         fmt = self.series_fmt
-        art = fmt.write(pd.DataFrame(dataset.data), storage, path)
-        if not isinstance(dataset, SeriesType):
-            raise ValueError("Cannot write non-pandas Dataset")
-        return PandasSeriesReader(dataset_type=dataset, format=self.format), {
+        art = fmt.write(pd.DataFrame(data.data), storage, path)
+        if not isinstance(data, SeriesType):
+            raise ValueError("Cannot write non-pandas data")
+        return PandasSeriesReader(data_type=data, format=self.format), {
             self.art_name: art
         }
 
 
-class PandasReader(_PandasIO, DatasetReader):
-    """DatasetReader for pandas dataframes"""
+class PandasReader(_PandasIO, DataReader):
+    """DataReader for pandas dataframes"""
 
     type: ClassVar[str] = "pandas"
-    dataset_type: DataFrameType
+    data_type: DataFrameType
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
-        return self.dataset_type.copy().bind(
-            self.dataset_type.align(self.fmt.read(artifacts))
+    def read(self, artifacts: Artifacts) -> DataType:
+        return self.data_type.copy().bind(
+            self.data_type.align(self.fmt.read(artifacts))
         )
 
     def read_batch(
         self, artifacts: Artifacts, batch_size: int
-    ) -> Iterator[DatasetType]:
+    ) -> Iterator[DataType]:
         batch_formats = get_pandas_batch_formats(batch_size)
         if self.format not in batch_formats:
-            raise UnsupportedDatasetBatchLoadingType(self.format)
+            raise UnsupportedDataBatchLoadingType(self.format)
         fmt = batch_formats[self.format]
 
         read_kwargs = {}
         if fmt.read_args:
             read_kwargs.update(fmt.read_args)
-        with artifacts[DatasetWriter.art_name].open() as f:
+        with artifacts[DataWriter.art_name].open() as f:
             iter_df = fmt.read_func(f, **read_kwargs)
             for df in iter_df:
                 if self.format == "csv":
@@ -659,24 +654,22 @@ class PandasReader(_PandasIO, DatasetReader):
                 else:
                     df = df.reset_index(drop=True)
 
-                yield self.dataset_type.copy().bind(
-                    self.dataset_type.align(df)
-                )
+                yield self.data_type.copy().bind(self.data_type.align(df))
 
 
-class PandasWriter(DatasetWriter, _PandasIO):
-    """DatasetWriter for pandas dataframes"""
+class PandasWriter(DataWriter, _PandasIO):
+    """DataWriter for pandas dataframes"""
 
     type: ClassVar[str] = "pandas"
 
     def write(
-        self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
         fmt = self.fmt
-        art = fmt.write(dataset.data, storage, path)
-        if not isinstance(dataset, DataFrameType):
-            raise ValueError("Cannot write non-pandas Dataset")
-        return PandasReader(dataset_type=dataset, format=self.format), {
+        art = fmt.write(data.data, storage, path)
+        if not isinstance(data, DataFrameType):
+            raise ValueError("Cannot write non-pandas data")
+        return PandasReader(data_type=data, format=self.format), {
             self.art_name: art
         }
 
@@ -703,10 +696,10 @@ class PandasImport(ExtImportHook):
         read_args.update(kwargs)
         with obj.open("rb") as f:
             data = fmt.read_func(f, **read_args)
-        meta = MlemDataset.from_data(data)
+        meta = MlemData.from_data(data)
         if not copy_data:
             meta.artifacts = {
-                DatasetWriter.art_name: PlaceholderArtifact(
+                DataWriter.art_name: PlaceholderArtifact(
                     location=obj,
                     uri=obj.uri,
                     **get_file_info(obj.fullpath, obj.fs),

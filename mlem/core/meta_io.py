@@ -29,17 +29,17 @@ from mlem.utils.gitlabfs import (
     get_gitlab_kwargs,
     gitlab_check_rev,
 )
-from mlem.utils.root import MLEM_DIR, find_repo_root
+from mlem.utils.root import MLEM_DIR, find_project_root
 
 MLEM_EXT = ".mlem"
 
 
 class Location(BaseModel):
     path: str
-    repo: Optional[str]
+    project: Optional[str]
     rev: Optional[str]
     uri: str
-    repo_uri: Optional[str]
+    project_uri: Optional[str]
     fs: AbstractFileSystem
 
     class Config:
@@ -47,11 +47,11 @@ class Location(BaseModel):
 
     @property
     def fullpath(self):
-        return posixpath.join(self.repo or "", self.path)
+        return posixpath.join(self.project or "", self.path)
 
     @property
-    def path_in_repo(self):
-        return posixpath.relpath(self.fullpath, self.repo)
+    def path_in_project(self):
+        return posixpath.relpath(self.fullpath, self.project)
 
     @contextlib.contextmanager
     def open(self, mode="r", **kwargs):
@@ -60,7 +60,9 @@ class Location(BaseModel):
 
     @classmethod
     def abs(cls, path: str, fs: AbstractFileSystem):
-        return Location(path=path, repo=None, fs=fs, uri=path, repo_uri=None)
+        return Location(
+            path=path, project=None, fs=fs, uri=path, project_uri=None
+        )
 
     def update_path(self, path):
         if not self.uri.endswith(self.path):
@@ -71,8 +73,8 @@ class Location(BaseModel):
     def exists(self):
         return self.fs.exists(self.fullpath)
 
-    def is_same_repo(self, other: "Location"):
-        return other.fs == self.fs and other.repo == self.repo
+    def is_same_project(self, other: "Location"):
+        return other.fs == self.fs and other.project == self.project
 
     @property
     def uri_repr(self):
@@ -85,7 +87,7 @@ class Location(BaseModel):
 
 
 class UriResolver(ABC):
-    """Base class for resolving location. Turns (path, repo, rev, fs) tuple
+    """Base class for resolving location. Turns (path, project, rev, fs) tuple
     into a normalized `Location` instance"""
 
     impls: List[Type["UriResolver"]] = []
@@ -100,25 +102,25 @@ class UriResolver(ABC):
     def resolve(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
-        find_repo: bool = False,
+        find_project: bool = False,
     ) -> Location:
-        return cls.find_resolver(path, repo, rev, fs).process(
-            path, repo, rev, fs, find_repo
+        return cls.find_resolver(path, project, rev, fs).process(
+            path, project, rev, fs, find_project
         )
 
     @classmethod
     def find_resolver(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> Type["UriResolver"]:
         for i in cls.impls:
-            if i.check(path, repo, rev, fs):
+            if i.check(path, project, rev, fs):
                 return i
         raise HookNotFound("No valid UriResolver implementation found")
 
@@ -127,7 +129,7 @@ class UriResolver(ABC):
     def check(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> bool:
@@ -144,31 +146,31 @@ class UriResolver(ABC):
     def process(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
-        find_repo: bool,
+        find_project: bool,
     ) -> Location:
-        path, repo, rev, fs = cls.pre_process(path, repo, rev, fs)
+        path, project, rev, fs = cls.pre_process(path, project, rev, fs)
         if rev is not None and not cls.versioning_support:
             raise InvalidArgumentError(
                 f"Rev `{rev}` was provided, but {cls.__name__} does not support versioning"
             )
         if fs is None:
-            if repo is not None:
-                fs, repo = cls.get_fs(repo, rev)
+            if project is not None:
+                fs, project = cls.get_fs(project, rev)
             else:
                 fs, path = cls.get_fs(path, rev)
-        if repo is None and find_repo:
-            path, repo = cls.get_repo(path, fs)
-        uri = cls.get_uri(path, repo, rev, fs)
+        if project is None and find_project:
+            path, project = cls.get_project(path, fs)
+        uri = cls.get_uri(path, project, rev, fs)
         return Location(
             path=path,
-            repo=repo,
+            project=project,
             rev=rev,
             uri=uri,
             fs=fs,
-            repo_uri=cls.get_repo_uri(path, repo, rev, fs, uri),
+            project_uri=cls.get_project_uri(path, project, rev, fs, uri),
         )
 
     @classmethod
@@ -176,7 +178,7 @@ class UriResolver(ABC):
     def get_uri(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: AbstractFileSystem,
     ):
@@ -186,33 +188,33 @@ class UriResolver(ABC):
     def pre_process(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> Tuple[
         str, Optional[str], Optional[str], Optional[AbstractFileSystem]
     ]:
-        return path, repo, rev, fs
+        return path, project, rev, fs
 
     @classmethod
-    def get_repo(
+    def get_project(
         cls, path: str, fs: AbstractFileSystem
     ) -> Tuple[str, Optional[str]]:
-        repo = find_repo_root(path, fs, raise_on_missing=False)
-        if repo is not None:
-            path = posixpath.relpath(path, repo)
-        return path, repo
+        project = find_project_root(path, fs, raise_on_missing=False)
+        if project is not None:
+            path = posixpath.relpath(path, project)
+        return path, project
 
     @classmethod
-    def get_repo_uri(  # pylint: disable=unused-argument
+    def get_project_uri(  # pylint: disable=unused-argument
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: AbstractFileSystem,
         uri: str,
     ):
-        if repo is None:
+        if project is None:
             return None
         return uri[: -len(path)]
 
@@ -231,11 +233,11 @@ class GithubResolver(UriResolver):
     def check(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> bool:
-        fullpath = posixpath.join(repo or "", path)
+        fullpath = posixpath.join(project or "", path)
         return isinstance(fs, GithubFileSystem) or any(
             fullpath.startswith(h) for h in cls.PREFIXES
         )
@@ -259,7 +261,7 @@ class GithubResolver(UriResolver):
             fs, _, (path,) = get_fs_token_paths(
                 path, protocol="github", storage_options=options
             )
-        except FileNotFoundError as e:  # TODO catch HTTPError for wrong org/repo
+        except FileNotFoundError as e:  # TODO catch HTTPError for wrong orgrepo
             if options["sha"] is not None and not github_check_rev(
                 options["org"], options["repo"], options["sha"]
             ):
@@ -273,11 +275,11 @@ class GithubResolver(UriResolver):
     def get_uri(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: GithubFileSystem,
     ):
-        fullpath = posixpath.join(repo or "", path)
+        fullpath = posixpath.join(project or "", path)
         return (
             f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{fullpath}"
         )
@@ -286,13 +288,13 @@ class GithubResolver(UriResolver):
     def pre_process(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ):
         if fs is not None and not isinstance(fs, GithubFileSystem):
             raise TypeError(
-                f"{path, repo, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
+                f"{path, project, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
             )
         if (
             isinstance(fs, GithubFileSystem)
@@ -302,18 +304,18 @@ class GithubResolver(UriResolver):
             fs.root = rev
             fs.invalidate_cache()
 
-        return path, repo, rev, fs
+        return path, project, rev, fs
 
     @classmethod
-    def get_repo_uri(
+    def get_project_uri(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: GithubFileSystem,
         uri: str,
     ):
-        return f"https://github.com/{fs.org}/{fs.repo}/{repo or ''}"
+        return f"https://github.com/{fs.org}/{fs.repo}/{project or ''}"
 
 
 class GitlabResolver(UriResolver):
@@ -328,11 +330,11 @@ class GitlabResolver(UriResolver):
     def check(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> bool:
-        fullpath = posixpath.join(repo or "", path)
+        fullpath = posixpath.join(project or "", path)
         return isinstance(fs, GitlabFileSystem) or any(
             fullpath.startswith(h) for h in cls.PREFIXES
         )
@@ -370,11 +372,11 @@ class GitlabResolver(UriResolver):
     def get_uri(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: GitlabFileSystem,
     ):
-        fullpath = posixpath.join(repo or "", path)
+        fullpath = posixpath.join(project or "", path)
         return (
             f"https://gitlab.com/{fs.project_id}/-/blob/{fs.root}/{fullpath}"
         )
@@ -383,13 +385,13 @@ class GitlabResolver(UriResolver):
     def pre_process(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ):
         if fs is not None and not isinstance(fs, GitlabFileSystem):
             raise TypeError(
-                f"{path, repo, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
+                f"{path, project, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
             )
         if (
             isinstance(fs, GitlabFileSystem)
@@ -399,20 +401,18 @@ class GitlabResolver(UriResolver):
             fs.root = rev
             fs.invalidate_cache()
 
-        return path, repo, rev, fs
+        return path, project, rev, fs
 
     @classmethod
-    def get_repo_uri(
+    def get_project_uri(  # pylint: disable=unused-argument
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: GitlabFileSystem,
         uri: str,
     ):
-        return (
-            f"https://gitlab.com/{fs.project_id}/-/tree/{fs.root}/{repo or ''}"
-        )
+        return f"https://gitlab.com/{fs.project_id}/-/tree/{fs.root}/{project or ''}"
 
 
 class FSSpecResolver(UriResolver):
@@ -422,7 +422,7 @@ class FSSpecResolver(UriResolver):
     def check(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> bool:
@@ -439,11 +439,11 @@ class FSSpecResolver(UriResolver):
     def get_uri(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         rev: Optional[str],
         fs: AbstractFileSystem,
     ):
-        fullpath = posixpath.join(repo or "", path)
+        fullpath = posixpath.join(project or "", path)
         protocol = fs.protocol
         if isinstance(protocol, (tuple, list)):
             if any(fullpath.startswith(p) for p in protocol):
@@ -455,7 +455,7 @@ class FSSpecResolver(UriResolver):
 
 
 def get_fs(uri: str) -> Tuple[AbstractFileSystem, str]:
-    location = UriResolver.resolve(path=uri, repo=None, rev=None, fs=None)
+    location = UriResolver.resolve(path=uri, project=None, rev=None, fs=None)
     return location.fs, location.fullpath
 
 
@@ -501,6 +501,6 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
         return uri
     if fs.exists(uri):
         raise MlemObjectNotFound(
-            f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or dataset"
+            f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or data"
         )
     raise FileNotFoundError(uri)

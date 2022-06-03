@@ -33,15 +33,15 @@ def mlem_config_settings_source(section: Optional[str]):
     """
 
     def inner(settings: BaseSettings) -> Dict[str, Any]:
-        from mlem.utils.root import find_repo_root
+        from mlem.utils.root import find_project_root
 
         encoding = settings.__config__.env_file_encoding
         fs = getattr(settings, "config_fs", LocalFileSystem())
         config_path = getattr(settings, "config_path", "")
-        repo = find_repo_root(config_path, fs=fs, raise_on_missing=False)
-        if repo is None:
+        project = find_project_root(config_path, fs=fs, raise_on_missing=False)
+        if project is None:
             return {}
-        config_file = posixpath.join(repo, MLEM_DIR, CONFIG_FILE_NAME)
+        config_file = posixpath.join(project, MLEM_DIR, CONFIG_FILE_NAME)
         if not fs.exists(config_file):
             return {}
         with fs.open(config_file, encoding=encoding) as f:
@@ -139,7 +139,7 @@ class MlemConfig(MlemConfigBase):
         )
 
 
-CONFIG = MlemConfig()
+LOCAL_CONFIG = MlemConfig()
 
 
 def get_config_cls(section: str) -> Type[MlemConfigBase]:
@@ -153,8 +153,8 @@ T = TypeVar("T", bound=MlemConfigBase)
 
 
 @overload
-def repo_config(
-    repo: str,
+def project_config(
+    project: Optional[str],
     fs: Optional[AbstractFileSystem] = None,
     section: Type[MlemConfig] = MlemConfig,
 ) -> MlemConfig:
@@ -162,23 +162,25 @@ def repo_config(
 
 
 @overload
-def repo_config(
-    repo: str, fs: Optional[AbstractFileSystem] = None, section: str = ...
+def project_config(
+    project: Optional[str],
+    fs: Optional[AbstractFileSystem] = None,
+    section: str = ...,
 ) -> MlemConfigBase:
     ...
 
 
 @overload
-def repo_config(
-    repo: str,
+def project_config(
+    project: Optional[str],
     fs: Optional[AbstractFileSystem] = None,
     section: Type[T] = ...,
 ) -> T:
     ...
 
 
-def repo_config(
-    repo: str,
+def project_config(
+    project: Optional[str],
     fs: Optional[AbstractFileSystem] = None,
     section: Union[Type[MlemConfigBase], str] = MlemConfig,
 ) -> MlemConfigBase:
@@ -188,4 +190,4 @@ def repo_config(
         cls = section
     if fs is None:
         fs = LocalFileSystem()
-    return cls(config_path=repo, config_fs=fs)
+    return cls(config_path=project or "", config_fs=fs)

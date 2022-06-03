@@ -15,8 +15,8 @@ LOCAL_LS_EXPECTED_RESULT = """Models:
 
 
 @pytest.mark.parametrize("obj_type", [None, "all", "model"])
-def test_ls(runner, filled_mlem_repo, obj_type):
-    os.chdir(filled_mlem_repo)
+def test_ls(runner, filled_mlem_project, obj_type):
+    os.chdir(filled_mlem_project)
     result = runner.invoke(
         ["list", "-t", obj_type] if obj_type else ["list"],
     )
@@ -43,7 +43,8 @@ def test_ls(runner, filled_mlem_repo, obj_type):
 REMOTE_LS_EXPECTED_RESULT = """Models:
  - data/model
  - latest -> data/model
-Datasets:
+Data:
+ - data/pred
  - data/test_x
  - data/test_y
  - data/train
@@ -63,8 +64,8 @@ def test_ls_remote(runner, current_test_branch):
     assert result.output == REMOTE_LS_EXPECTED_RESULT
 
 
-def test_pretty_print(runner, model_path_mlem_repo):
-    model_path, _ = model_path_mlem_repo
+def test_pretty_print(runner, model_path_mlem_project):
+    model_path, _ = model_path_mlem_project
     result = runner.invoke(
         ["pprint", model_path + MLEM_EXT],
     )

@@ -1,5 +1,6 @@
 import io
 import json
+import os.path
 import posixpath
 import tempfile
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
 from mlem.api.commands import import_object
+from mlem.config import CONFIG_FILE_NAME
+from mlem.constants import MLEM_DIR
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     PANDAS_SERIES_FORMATS,
@@ -31,21 +34,18 @@ from mlem.contrib.pandas import (
     string_repr_from_pd_type,
 )
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import (
-    DatasetAnalyzer,
-    DatasetReader,
-    DatasetType,
-    DatasetWriter,
-)
+from mlem.core.data_type import DataAnalyzer, DataReader, DataType, DataWriter
 from mlem.core.errors import (
     DeserializationError,
     SerializationError,
-    UnsupportedDatasetBatchLoadingType,
+    UnsupportedDataBatchLoadingType,
 )
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, save
-from mlem.core.objects import MlemDataset
-from tests.conftest import dataset_write_read_check, long
+from mlem.core.model import Signature
+from mlem.core.objects import MlemData
+from mlem.utils.module import get_object_requirements
+from tests.conftest import data_write_read_check, long
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -101,12 +101,12 @@ def data2():
 
 @pytest.fixture
 def df_type(data):
-    return DatasetAnalyzer.analyze(data)
+    return DataAnalyzer.analyze(data)
 
 
 @pytest.fixture
 def df_type2(data2):
-    return DatasetAnalyzer.analyze(data2)
+    return DataAnalyzer.analyze(data2)
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def series_data(data):
 
 @pytest.fixture
 def series_df_type(series_data):
-    return DatasetAnalyzer.analyze(series_data)
+    return DataAnalyzer.analyze(series_data)
 
 
 @pytest.fixture
@@ -130,7 +130,7 @@ def series_data2(data2):
 
 @pytest.fixture
 def series_df_type2(series_data2):
-    return DatasetAnalyzer.analyze(series_data2)
+    return DataAnalyzer.analyze(series_data2)
 
 
 def for_all_formats(
@@ -145,10 +145,10 @@ def for_all_formats(
     return mark(ex)
 
 
-def dataset_write_read_batch_check(
-    dataset: DatasetType,
+def data_write_read_batch_check(
+    data_type: DataType,
     format: str,
-    reader_type: Type[DatasetReader] = None,
+    reader_type: Type[DataReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -156,8 +156,10 @@ def dataset_write_read_batch_check(
         storage = LOCAL_STORAGE
 
         fmt = get_pandas_batch_formats(BATCH_SIZE)[format]
-        art = fmt.write(dataset.data, storage, posixpath.join(tmpdir, "data"))
-        reader = PandasReader(dataset_type=dataset, format=format)
+        art = fmt.write(
+            data_type.data, storage, posixpath.join(tmpdir, "data")
+        )
+        reader = PandasReader(data_type=data_type, format=format)
         artifacts = {"data": art}
         if reader_type is not None:
             assert isinstance(reader, reader_type)
@@ -176,28 +178,28 @@ def dataset_write_read_batch_check(
             except StopIteration:
                 break
 
-        assert custom_eq(df, dataset.data)
+        assert custom_eq(df, data_type.data)
 
 
-def dataset_write_read_batch_unsupported(
-    dataset: DatasetType,
+def data_write_read_batch_unsupported(
+    data_type: DataType,
     batch: int,
-    writer: DatasetWriter = None,
-    reader_type: Type[DatasetReader] = None,
+    writer: DataWriter = None,
+    reader_type: Type[DataReader] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
-        writer = writer or dataset.get_writer()
+        writer = writer or data_type.get_writer()
 
         storage = LOCAL_STORAGE
         reader, artifacts = writer.write(
-            dataset, storage, posixpath.join(tmpdir, "data")
+            data_type, storage, posixpath.join(tmpdir, "data")
         )
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
         with pytest.raises(
-            UnsupportedDatasetBatchLoadingType,
-            match="Batch-loading Dataset of type.*",
+            UnsupportedDataBatchLoadingType,
+            match="Batch-loading data of type.*",
         ):
             iter = reader.read_batch(artifacts, batch)
             next(iter)
@@ -206,16 +208,16 @@ def dataset_write_read_batch_unsupported(
 @for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_simple_df(data, format):
     writer = PandasWriter(format=format)
-    dataset_write_read_check(
-        DatasetType.create(data), writer, PandasReader, pd.DataFrame.equals
+    data_write_read_check(
+        DataType.create(data), writer, PandasReader, pd.DataFrame.equals
     )
 
 
 @for_all_formats(valid_formats=PANDAS_SERIES_FORMATS)
 def test_simple_series(series_data, format):
     writer = PandasSeriesWriter(format=format)
-    dataset_write_read_check(
-        DatasetType.create(series_data),
+    data_write_read_check(
+        DataType.create(series_data),
         writer,
         PandasSeriesReader,
         pd.Series.equals,
@@ -224,8 +226,8 @@ def test_simple_series(series_data, format):
 
 @pytest.mark.parametrize("format", ["csv", "json", "stata"])
 def test_simple_batch_df(data, format):
-    dataset_write_read_batch_check(
-        DatasetType.create(data),
+    data_write_read_batch_check(
+        DataType.create(data),
         format,
         PandasReader,
         pd.DataFrame.equals,
@@ -242,16 +244,16 @@ def test_simple_batch_df(data, format):
 )
 def test_unsupported_batch_df(data, format):
     writer = PandasWriter(format=format)
-    dataset_write_read_batch_unsupported(
-        DatasetType.create(data), 2, writer, PandasReader
+    data_write_read_batch_unsupported(
+        DataType.create(data), 2, writer, PandasReader
     )
 
 
 @for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_with_index(data, format):
     writer = PandasWriter(format=format)
-    dataset_write_read_check(
-        DatasetType.create(data.set_index("a")),
+    data_write_read_check(
+        DataType.create(data.set_index("a")),
         writer,
         PandasReader,
         custom_assert=pandas_assert,
@@ -262,8 +264,8 @@ def test_with_index(data, format):
 def test_series_with_multiindex(format):
     data = pd.Series([1, 3, 5], index=[["a", "a", "b"], ["1", "2", "2"]])
     writer = PandasSeriesWriter(format=format)
-    dataset_write_read_check(
-        DatasetType.create(data),
+    data_write_read_check(
+        DataType.create(data),
         writer,
         PandasSeriesReader,
         custom_assert=pd.Series.equals,
@@ -273,8 +275,8 @@ def test_series_with_multiindex(format):
 @for_all_formats(valid_formats=PANDAS_FORMATS)
 def test_with_multiindex(data, format):
     writer = PandasWriter(format=format)
-    dataset_write_read_check(
-        DatasetType.create(data.set_index(["a", "b"])),
+    data_write_read_check(
+        DataType.create(data.set_index(["a", "b"])),
         writer,
         PandasReader,
         custom_assert=pandas_assert,
@@ -294,8 +296,8 @@ def test_with_multiindex(data, format):
 )
 def test_with_index_complex(data, format):
     writer = PandasWriter(format=format)
-    dataset_write_read_check(
-        DatasetType.create(data),
+    data_write_read_check(
+        DataType.create(data),
         writer,
         PandasReader,
         custom_assert=pandas_assert,
@@ -333,7 +335,7 @@ def test_df_type(df_type_fx, request):
     assert isinstance(df_type, DataFrameType)
 
     obj = df_type.dict()
-    new_df_type = parse_obj_as(DatasetType, obj)
+    new_df_type = parse_obj_as(DataType, obj)
 
     assert df_type == new_df_type
 
@@ -346,7 +348,7 @@ def test_series_df_type(series_df_type_fx, request):
     assert isinstance(series_df_type, SeriesType)
 
     obj = series_df_type.dict()
-    new_df_type = parse_obj_as(DatasetType, obj)
+    new_df_type = parse_obj_as(DataType, obj)
 
     assert series_df_type == new_df_type
 
@@ -411,7 +413,7 @@ def test_datetime():
     data = pd.DataFrame(
         [{"a": 1, "b": datetime.now()}, {"a": 2, "b": datetime.now()}]
     )
-    df_type = DatasetAnalyzer.analyze(data)
+    df_type = DataAnalyzer.analyze(data)
     assert isinstance(df_type, DataFrameType)
 
     obj = df_type.serialize(data)
@@ -427,7 +429,7 @@ def test_datetime():
     "df", [PD_DATA_FRAME, PD_DATA_FRAME_INDEX, PD_DATA_FRAME_MULTIINDEX]
 )
 def test_all(df):
-    df_type: DataFrameType = DatasetAnalyzer.analyze(df)
+    df_type: DataFrameType = DataAnalyzer.analyze(df)
 
     obj = df_type.serialize(df)
     payload = json.dumps(obj)
@@ -443,7 +445,7 @@ def test_all(df):
 )
 def test_all_filtered(df):
     df = df[~df["bool"]]
-    df_type: DataFrameType = DatasetAnalyzer.analyze(df)
+    df_type: DataFrameType = DataAnalyzer.analyze(df)
 
     obj = df_type.serialize(df)
     payload = json.dumps(obj)
@@ -482,8 +484,8 @@ def write_csv():
 
 def _check_data(meta, out_path, fs=None):
     fs = fs or LocalFileSystem()
-    assert isinstance(meta, MlemDataset)
-    dt = meta.dataset
+    assert isinstance(meta, MlemData)
+    dt = meta.data_type
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a", "b"]
     assert dt.dtypes == ["int64", "int64"]
@@ -511,16 +513,16 @@ def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
 
 @long
 def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
-    repo_path = s3_tmp_path("test_csv_import")
-    path = posixpath.join(repo_path, "data.csv")
+    project_path = s3_tmp_path("test_csv_import")
+    path = posixpath.join(project_path, "data.csv")
     write_csv(b"a,b\n1,2", path, s3_storage_fs)
-    target_path = posixpath.join(repo_path, "imported_data")
+    target_path = posixpath.join(project_path, "imported_data")
     meta = import_object(path, target=target_path)
     _check_data(meta, target_path, s3_storage_fs)
 
 
-def test_default_format(set_mlem_repo_root, df_type):
-    set_mlem_repo_root("pandas", __file__)
+def test_default_format(set_mlem_project_root, df_type):
+    set_mlem_project_root("pandas", __file__)
     config = PandasConfig()
     assert config.default_format == "json"
 
@@ -528,7 +530,7 @@ def test_default_format(set_mlem_repo_root, df_type):
 def test_dataframe():
     value = pd.DataFrame([{"a": 1}])
     assert DataFrameType.is_object_valid(value)
-    dt = DatasetAnalyzer.analyze(value)
+    dt = DataAnalyzer.analyze(value)
     assert isinstance(dt, DataFrameType)
     assert dt.columns == ["a"]
     assert dt.dtypes == ["int64"]
@@ -540,7 +542,7 @@ def test_dataframe():
         "index_cols": [],
     }
     assert dt.dict() == payload
-    dt2 = parse_obj_as(DatasetType, payload)
+    dt2 = parse_obj_as(DataType, payload)
     assert dt2 == dt
     assert dt.get_model().__name__ == "DataFrame"
     assert dt.get_model().schema() == {
@@ -569,7 +571,7 @@ def test_infer_format(tmpdir):
     path = str(tmpdir / "mydata.parquet")
     value = pd.DataFrame([{"a": 1}])
     meta = save(value, path)
-    assert isinstance(meta, MlemDataset)
+    assert isinstance(meta, MlemData)
     assert isinstance(meta.reader, PandasReader)
     assert meta.reader.format == "parquet"
 
@@ -590,6 +592,32 @@ def test_series(series_data2: pd.Series, series_df_type2, df_type2):
     assert df_to_str(data) == df_to_str(
         series_data2
     ), "different str representation"
+
+
+def test_change_format(mlem_project, data):
+    with open(
+        os.path.join(mlem_project, MLEM_DIR, CONFIG_FILE_NAME),
+        "w",
+        encoding="utf8",
+    ) as f:
+        f.write("pandas:\n  default_format: parquet")
+    meta = save(data, "data", project=mlem_project)
+    assert isinstance(meta, MlemData)
+    assert isinstance(meta.data_type, DataFrameType)
+    writer = meta.data_type.get_writer(project=mlem_project)
+    assert isinstance(writer, PandasWriter)
+    assert writer.format == "parquet"
+    assert isinstance(meta.reader, PandasReader)
+    assert meta.reader.format == "parquet"
+
+
+def test_signature_req(data):
+    def f(x):
+        return x
+
+    sig = Signature.from_method(f, auto_infer=True, x=data)
+
+    assert get_object_requirements(sig).modules == ["pandas", "numpy"]
 
 
 # Copyright 2019 Zyfra

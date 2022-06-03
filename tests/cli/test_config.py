@@ -2,48 +2,49 @@ import traceback
 
 from pydantic import ValidationError
 
-from mlem.config import repo_config
+from mlem.config import project_config
 from mlem.contrib.pandas import PandasConfig
 from mlem.core.errors import MlemError
 from tests.cli.conftest import Runner
 
 
-def test_set_get(runner: Runner, mlem_repo):
+def test_set_get(runner: Runner, mlem_project):
     result = runner.invoke(
-        f"config set pandas.default_format json --repo {mlem_repo}".split()
+        f"config set pandas.default_format json --project {mlem_project}".split()
     )
 
     assert result.exit_code == 0, result.exception
 
     result = runner.invoke(
-        f"config set core.additional_extensions ext1 --repo {mlem_repo}".split()
+        f"config set core.additional_extensions ext1 --project {mlem_project}".split()
     )
 
     assert result.exit_code == 0, result.exception
 
     result = runner.invoke(
-        f"config get pandas.default_format --repo {mlem_repo}".split()
+        f"config get pandas.default_format --project {mlem_project}".split()
     )
 
     assert result.exit_code == 0, result.exception
     assert result.stdout.strip() == "json"
 
     result = runner.invoke(
-        f"config get core.additional_extensions --repo {mlem_repo}".split()
+        f"config get core.additional_extensions --project {mlem_project}".split()
     )
 
     assert result.exit_code == 0, result.exception
     assert result.stdout.strip() == "ext1"
 
-    assert repo_config(mlem_repo).additional_extensions == ["ext1"]
+    assert project_config(mlem_project).additional_extensions == ["ext1"]
     assert (
-        repo_config(mlem_repo, section=PandasConfig).default_format == "json"
+        project_config(mlem_project, section=PandasConfig).default_format
+        == "json"
     )
 
 
-def test_set_get_validation(runner: Runner, mlem_repo):
+def test_set_get_validation(runner: Runner, mlem_project):
     result = runner.invoke(
-        f"config set core.nonexisting json --repo {mlem_repo}".split()
+        f"config set core.nonexisting json --project {mlem_project}".split()
     )
 
     assert result.exit_code == 1
@@ -57,7 +58,7 @@ def test_set_get_validation(runner: Runner, mlem_repo):
     )
 
     result = runner.invoke(
-        f"config set nonexisting json --repo {mlem_repo}".split()
+        f"config set nonexisting json --project {mlem_project}".split()
     )
 
     assert result.exit_code == 1
@@ -71,7 +72,7 @@ def test_set_get_validation(runner: Runner, mlem_repo):
     )
 
     result = runner.invoke(
-        f"config set core.nonexisting json --repo {mlem_repo} --no-validate".split()
+        f"config set core.nonexisting json --project {mlem_project} --no-validate".split()
     )
 
     assert result.exit_code == 0

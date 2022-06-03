@@ -20,6 +20,7 @@ from isort.deprecated.finders import FindersManager
 from isort.settings import Config
 from pydantic.main import ModelMetaclass
 
+import mlem
 from mlem.core.requirements import (
     MODULE_PACKAGE_MAPPING,
     CustomRequirement,
@@ -229,7 +230,7 @@ def is_from_installable_module(obj: object):
     return is_installable_module(mod)
 
 
-def get_module_version(mod: ModuleType):
+def get_module_version(mod: ModuleType) -> Optional[str]:
     """
     Determines version of given module object.
 
@@ -238,7 +239,7 @@ def get_module_version(mod: ModuleType):
     """
     for attr in "__version__", "VERSION":
         if hasattr(mod, attr):
-            return getattr(mod, attr)
+            return str(getattr(mod, attr))
     if mod.__file__ is None:
         return None
     for name in os.listdir(os.path.dirname(mod.__file__)):
@@ -385,7 +386,14 @@ def add_closure_inspection(f):
     @wraps(f)
     def wrapper(pickler: "RequirementAnalyzer", obj):
         base_module = get_object_base_module(obj)
-        if base_module is not None and is_builtin_module(base_module):
+        if (
+            base_module is not None
+            and is_builtin_module(base_module)
+            or (
+                base_module is mlem
+                and not obj.__module__.startswith("mlem.contrib")
+            )
+        ):
             return f(pickler, obj)
         base_module_name = getattr(base_module, "__name__", "")
 
@@ -406,7 +414,11 @@ def add_closure_inspection(f):
 
         # to add from local imports inside user (non PIP package) code
         try:
-            tree = ast.parse(lstrip_lines(inspect.getsource(obj)))
+            try:
+                source = dill.source.getsource(obj)
+            except OSError:
+                source = inspect.getsource(obj)
+            tree = ast.parse(lstrip_lines(source))
             ImportFromVisitor(pickler, obj).visit(tree)
         except OSError:
             logger.debug(
