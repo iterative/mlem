@@ -3,6 +3,7 @@ import os
 import pytest
 import torch
 
+from mlem.api import save
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.torch import TorchModelIO, TorchTensorReader
 from mlem.core.artifacts import LOCAL_STORAGE
@@ -10,7 +11,6 @@ from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
 from tests.conftest import data_write_read_check
-from mlem.api import save
 
 
 @pytest.fixture
