@@ -59,7 +59,9 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
         return SklearnModel(io=SimplePickleIO(), methods=methods).bind(obj)
 
     def get_requirements(self) -> Requirements:
-        if get_object_base_module(self.model) is sklearn:
+        if get_object_base_module(self.model) is sklearn and not isinstance(
+            self.model, Pipeline
+        ):
             return Requirements.resolve(
                 InstallableRequirement.from_module(sklearn)
             ) + get_object_requirements(
