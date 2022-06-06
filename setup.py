@@ -19,6 +19,7 @@ install_requires = [
     "cached-property",
     "entrypoints",
     "gitpython",
+    "python-gitlab",
     "flatdict",
     "iterative-telemetry",
 ]
