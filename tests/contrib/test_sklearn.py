@@ -164,7 +164,7 @@ def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     ]
 
 
-def test_pipeline_requiorements(lgbm_model):
+def test_pipeline_requirements(lgbm_model):
     model = Pipeline(steps=[("model", lgbm_model)])
     meta = MlemModel.from_obj(model)
 
