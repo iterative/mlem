@@ -65,7 +65,7 @@ class GitlabFileSystem(AbstractFileSystem):  # pylint: disable=abstract-method
                 raise
             out = [
                 {
-                    "name": posixpath.join(path, f["path"]),
+                    "name": f["path"],
                     "mode": f["mode"],
                     "type": GL_TYPES[f["type"]],
                     "size": f.get("size", 0),
