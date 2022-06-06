@@ -14,19 +14,19 @@ from requests import ConnectionError, HTTPError
 from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
-from mlem import CONFIG
+from mlem import LOCAL_CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
-from mlem.core.dataset_type import DatasetReader, DatasetType, DatasetWriter
+from mlem.core.data_type import DataReader, DataType, DataWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
-from mlem.core.objects import DatasetMeta, ModelMeta
+from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
-from mlem.runtime.interface.base import ModelInterface
+from mlem.runtime.interface import ModelInterface
 from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
@@ -50,7 +50,7 @@ def _check_github_test_repo_ssh_auth():
 
 
 def _check_github_test_repo_auth():
-    if not CONFIG.GITHUB_USERNAME or not CONFIG.GITHUB_TOKEN:
+    if not LOCAL_CONFIG.GITHUB_USERNAME or not LOCAL_CONFIG.GITHUB_TOKEN:
         return False
     try:
         get_fs(MLEM_TEST_REPO)
@@ -91,7 +91,7 @@ def current_test_branch():
 @pytest.fixture(scope="session", autouse=True)
 def add_test_env():
     os.environ["MLEM_TESTS"] = "true"
-    CONFIG.TESTS = True
+    LOCAL_CONFIG.TESTS = True
 
 
 def resource_path(test_file, *paths):
@@ -138,7 +138,7 @@ def model(model_train_target):
 
 @pytest.fixture
 def interface(model, train):
-    model = ModelMeta.from_obj(model, sample_data=train)
+    model = MlemModel.from_obj(model, sample_data=train)
     interface = ModelInterface.from_model(model)
     return interface
 
@@ -161,7 +161,7 @@ def request_get_mock(mocker, client):
         return client.get(url, params=params, **kwargs)
 
     return mocker.patch(
-        "mlem.runtime.client.base.requests.get",
+        "mlem.runtime.client.requests.get",
         side_effect=patched_get,
     )
 
@@ -178,40 +178,40 @@ def request_post_mock(mocker, client):
         return client.post(url, data=data, json=json, **kwargs)
 
     return mocker.patch(
-        "mlem.runtime.client.base.requests.post",
+        "mlem.runtime.client.requests.post",
         side_effect=patched_post,
     )
 
 
 @pytest.fixture
-def dataset_meta(train):
-    return DatasetMeta.from_data(train)
+def data_meta(train):
+    return MlemData.from_data(train)
 
 
 @pytest.fixture
 def model_meta(model):
-    return ModelMeta.from_obj(model)
+    return MlemModel.from_obj(model)
 
 
 @pytest.fixture
 def model_path(model_train_target, tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
     model, train, _ = model_train_target
-    # because of link=False we test reading by path here
+    # because of index=False we test reading by path here
     # reading by link name is not tested
-    save(model, path, tmp_sample_data=train, link=False)
+    save(model, path, sample_data=train, index=False)
     yield path
 
 
 @pytest.fixture
 def data_path(train, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(train, temp_dir, link=False)
+    save(train, temp_dir, index=False)
     yield temp_dir
 
 
 @pytest.fixture
-def dataset_meta_saved(data_path):
+def data_meta_saved(data_path):
     return load_meta(data_path)
 
 
@@ -225,7 +225,7 @@ def model_meta_saved_single(tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model-single")
     train, target = load_iris(return_X_y=True)
     model = DecisionTreeClassifier().fit(train, target)
-    return save(model, path, tmp_sample_data=train)
+    return save(model, path, sample_data=train)
 
 
 @pytest.fixture
@@ -241,7 +241,7 @@ def complex_model_meta_saved_single(tmp_path_factory):
     p.mkdir(exist_ok=True)
     (p / "file1").write_text("data1", encoding="utf8")
     (p / "file2").write_text("data2", encoding="utf8")
-    model = ModelMeta(
+    model = MlemModel(
         artifacts={
             "file1": LocalArtifact(
                 uri=posixpath.join(name, "file1"), size=1, hash=""
@@ -261,14 +261,14 @@ def complex_model_single_path(complex_model_meta_saved_single):
 
 
 @pytest.fixture
-def mlem_repo(tmpdir_factory):
+def mlem_project(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     init(dir)
     return dir
 
 
 @pytest.fixture
-def mlem_curdir_repo(tmpdir_factory):
+def mlem_curdir_project(tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root"))
     curdir = os.getcwd()
     os.chdir(dir)
@@ -278,60 +278,62 @@ def mlem_curdir_repo(tmpdir_factory):
 
 
 @pytest.fixture
-def filled_mlem_repo(mlem_repo):
-    model = ModelMeta(
+def filled_mlem_project(mlem_project):
+    model = MlemModel(
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
-    model.dump("model1", repo=mlem_repo, external=True)
+    model.dump("model1", project=mlem_project, external=True)
 
-    model.make_link("latest", repo=mlem_repo)
-    yield mlem_repo
+    model.make_link("latest", project=mlem_project)
+    yield mlem_project
 
 
 @pytest.fixture
-def model_path_mlem_repo(model_train_target, tmpdir_factory):
+def model_path_mlem_project(model_train_target, tmpdir_factory):
     model, train, _ = model_train_target
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, tmp_sample_data=train, link=True, external=True)
+    save(model, model_dir, sample_data=train, index=True, external=True)
     yield model_dir, dir
 
 
-def dataset_write_read_check(
-    dataset: DatasetType,
-    writer: DatasetWriter = None,
-    reader_type: Type[DatasetReader] = None,
+def data_write_read_check(
+    data: DataType,
+    writer: DataWriter = None,
+    reader_type: Type[DataReader] = None,
     custom_eq: Callable[[Any, Any], bool] = None,
     custom_assert: Callable[[Any, Any], Any] = None,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
-        writer = writer or dataset.get_writer()
+        writer = writer or data.get_writer()
 
         storage = LOCAL_STORAGE
         reader, artifacts = writer.write(
-            dataset, storage, posixpath.join(tmpdir, "data")
+            data, storage, posixpath.join(tmpdir, "data")
         )
         if reader_type is not None:
             assert isinstance(reader, reader_type)
 
         new = reader.read(artifacts)
 
-        assert dataset == new
+        assert data == new
         if custom_assert is not None:
-            custom_assert(new.data, dataset.data)
+            custom_assert(new.data, data.data)
         else:
             if custom_eq is not None:
-                assert custom_eq(new.data, dataset.data)
+                assert custom_eq(new.data, data.data)
             else:
-                assert new.data == dataset.data
+                assert new.data == data.data
+
+        return artifacts
 
 
 def check_model_type_common_interface(
     model_type: ModelType,
-    data_type: DatasetType,
-    returns_type: DatasetType,
+    data_type: DataType,
+    returns_type: DataType,
     **kwargs,
 ):
     assert PREDICT_METHOD_NAME in model_type.methods
@@ -395,10 +397,10 @@ def s3_storage_fs(s3_storage):
 
 
 @pytest.fixture
-def set_mlem_repo_root(mocker):
+def set_mlem_project_root(mocker):
     def set(path, __file__=__file__):
         mocker.patch(
-            "mlem.utils.root.find_repo_root",
+            "mlem.utils.root.find_project_root",
             return_value=resource_path(__file__, path),
         )
 

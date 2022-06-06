@@ -3,15 +3,24 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mlem.contrib.lightgbm import LightGBMDatasetType, LightGBMModel
+from mlem.contrib.lightgbm import (
+    LightGBMDataReader,
+    LightGBMDataType,
+    LightGBMDataWriter,
+    LightGBMModel,
+)
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer, DatasetType
+from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface, long
+from tests.conftest import (
+    check_model_type_common_interface,
+    data_write_read_check,
+    long,
+)
 
 
 @pytest.fixture
@@ -20,9 +29,11 @@ def np_payload():
 
 
 @pytest.fixture
-def dataset_np(np_payload):
+def data_np(np_payload):
     return lgb.Dataset(
-        np_payload, label=np_payload.reshape((-1,)), free_raw_data=False
+        np_payload,
+        label=np_payload.reshape((-1,)).tolist(),
+        free_raw_data=False,
     )
 
 
@@ -32,37 +43,37 @@ def df_payload():
 
 
 @pytest.fixture
-def dataset_df(df_payload):
+def data_df(df_payload):
     return lgb.Dataset(
         df_payload,
-        label=np.linspace(0, 2).reshape((-1, 1)),
+        label=np.array([0, 1]).tolist(),
         free_raw_data=False,
     )
 
 
 @pytest.fixture
-def booster(dataset_np):
-    return lgb.train({}, dataset_np, 1)
+def booster(data_np):
+    return lgb.train({}, data_np, 1)
 
 
 @pytest.fixture
-def model(booster, dataset_np) -> ModelType:
-    return ModelAnalyzer.analyze(booster, sample_data=dataset_np)
+def model(booster, data_np) -> ModelType:
+    return ModelAnalyzer.analyze(booster, sample_data=data_np)
 
 
 @pytest.fixture
-def dtype_np(dataset_np):
-    return DatasetAnalyzer.analyze(dataset_np)
+def dtype_np(data_np):
+    return DataType.create(obj=data_np)
 
 
 @pytest.fixture
-def dtype_df(dataset_df):
-    return DatasetAnalyzer.analyze(dataset_df)
+def dtype_df(data_df):
+    return DataType.create(obj=data_df)
 
 
-def test_hook_np(dtype_np: DatasetType):
+def test_hook_np(dtype_np: DataType):
     assert set(dtype_np.get_requirements().modules) == {"lightgbm", "numpy"}
-    assert isinstance(dtype_np, LightGBMDatasetType)
+    assert isinstance(dtype_np, LightGBMDataType)
     assert isinstance(dtype_np.inner, NumpyNdarrayType)
     assert dtype_np.get_model().__name__ == dtype_np.inner.get_model().__name__
     assert dtype_np.get_model().schema() == {
@@ -77,9 +88,9 @@ def test_hook_np(dtype_np: DatasetType):
     }
 
 
-def test_hook_df(dtype_df: DatasetType):
+def test_hook_df(dtype_df: DataType):
     assert set(dtype_df.get_requirements().modules) == {"lightgbm", "pandas"}
-    assert isinstance(dtype_df, LightGBMDatasetType)
+    assert isinstance(dtype_df, LightGBMDataType)
     assert isinstance(dtype_df.inner, DataFrameType)
     assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
     assert dtype_df.get_model().schema() == {
@@ -102,6 +113,29 @@ def test_hook_df(dtype_df: DatasetType):
             }
         },
     }
+
+
+@pytest.mark.parametrize(
+    "lgb_dtype, data_type",
+    [("dtype_np", NumpyNdarrayType), ("dtype_df", DataFrameType)],
+)
+def test_lightgbm_source(lgb_dtype, data_type, request):
+    lgb_dtype = request.getfixturevalue(lgb_dtype)
+    assert isinstance(lgb_dtype, LightGBMDataType)
+    assert isinstance(lgb_dtype.inner, data_type)
+
+    def custom_assert(x, y):
+        assert hasattr(x, "data")
+        assert hasattr(y, "data")
+        assert all(x.data == y.data)
+        assert all(x.label == y.label)
+
+    data_write_read_check(
+        lgb_dtype,
+        writer=LightGBMDataWriter(),
+        reader_type=LightGBMDataReader,
+        custom_assert=custom_assert,
+    )
 
 
 def test_serialize__np(dtype_np, np_payload):
@@ -134,21 +168,21 @@ def test_deserialize__df(dtype_df, df_payload):
     assert ds.data.equals(df_payload)
 
 
-def test_hook(model, booster, dataset_np):
+def test_hook(model, booster, data_np):
     assert isinstance(model, LightGBMModel)
     assert model.model == booster
     assert "lightgbm_predict" in model.methods
-    data_type = DatasetAnalyzer.analyze(dataset_np)
+    data_type = DataAnalyzer.analyze(data_np)
 
     check_model_type_common_interface(
         model, data_type, NumpyNdarrayType(shape=(None,), dtype="float64")
     )
 
 
-def test_model__predict(model, dataset_np):
-    predict = model.call_method("predict", dataset_np)
+def test_model__predict(model, data_np):
+    predict = model.call_method("predict", data_np)
     assert isinstance(predict, np.ndarray)
-    assert len(predict) == dataset_np.num_data()
+    assert len(predict) == data_np.num_data()
 
 
 def test_model__predict_not_dataset(model):
@@ -159,7 +193,7 @@ def test_model__predict_not_dataset(model):
 
 
 @long
-def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
+def test_model__dump_load(tmpdir, model, data_np, local_fs):
     # pandas is not required, but if it is installed, it is imported by lightgbm
     expected_requirements = {"lightgbm", "numpy", "scipy", "pandas"}
     assert set(model.get_requirements().modules) == expected_requirements
@@ -168,10 +202,10 @@ def test_model__dump_load(tmpdir, model, dataset_np, local_fs):
 
     model.unbind()
     with pytest.raises(ValueError):
-        model.call_method("predict", dataset_np)
+        model.call_method("predict", data_np)
 
     model.load(artifacts)
-    test_model__predict(model, dataset_np)
+    test_model__predict(model, data_np)
 
     assert set(model.get_requirements().modules) == expected_requirements
 

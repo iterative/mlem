@@ -1,16 +1,16 @@
 from types import ModuleType
-from typing import Any, ClassVar, List, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
 
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.dataset_type import (
-    DatasetHook,
-    DatasetReader,
-    DatasetSerializer,
-    DatasetType,
-    DatasetWriter,
+from mlem.core.data_type import (
+    DataHook,
+    DataReader,
+    DataSerializer,
+    DataType,
+    DataWriter,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.requirements import LibRequirementsMixin
@@ -38,10 +38,10 @@ def np_type_from_string(string_repr) -> np.dtype:
 
 
 class NumpyNumberType(
-    LibRequirementsMixin, DatasetType, DatasetSerializer, DatasetHook
+    LibRequirementsMixin, DataType, DataSerializer, DataHook
 ):
     """
-    :class:`.DatasetType` implementation for `numpy.number` objects which
+    :class:`.DataType` implementation for `numpy.number` objects which
     converts them to built-in Python numbers and vice versa.
 
     :param dtype: `numpy.number` data type as string
@@ -62,11 +62,9 @@ class NumpyNumberType(
         return instance.item()
 
     @property
-    def actual_type(self) -> np.dtype:
-        return np_type_from_string(self.dtype)
+    def actual_type(self) -> Type:
+        return np_type_from_string(self.dtype).type
 
-    # def get_writer(self):
-    #     return PickleWriter()
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, np.number)
@@ -75,25 +73,22 @@ class NumpyNumberType(
     def process(cls, obj: np.number, **kwargs) -> "NumpyNumberType":
         return NumpyNumberType(dtype=obj.dtype.name)
 
-    def get_writer(self, **kwargs):
-        raise NotImplementedError()
+    def get_writer(self, project: str = None, filename: str = None, **kwargs):
+        return NumpyNumberWriter(**kwargs)
 
-    def get_model(self) -> Type[BaseModel]:
-        return create_model(
-            "NumpyNumber",
-            __root__=(python_type_from_np_string_repr(self.dtype), ...),
-        )
+    def get_model(self, prefix: str = "") -> Type:
+        return python_type_from_np_string_repr(self.dtype)
 
 
 class NumpyNdarrayType(
-    LibRequirementsMixin, DatasetType, DatasetHook, DatasetSerializer
+    LibRequirementsMixin, DataType, DataHook, DataSerializer
 ):
     """
-    :class:`.DatasetType` implementation for `np.ndarray` objects
+    :class:`.DataType` implementation for `np.ndarray` objects
     which converts them to built-in Python lists and vice versa.
 
-    :param shape: shape of `numpy.ndarray` objects in dataset
-    :param dtype: data type of `numpy.ndarray` objects in dataset
+    :param shape: shape of `numpy.ndarray` objects in data
+    :param dtype: data type of `numpy.ndarray` objects in data
     """
 
     type: ClassVar[str] = "ndarray"
@@ -107,7 +102,7 @@ class NumpyNdarrayType(
         return (None,) + shape[1:]
 
     @classmethod
-    def process(cls, obj, **kwargs) -> DatasetType:
+    def process(cls, obj, **kwargs) -> DataType:
         return NumpyNdarrayType(
             shape=cls._abstract_shape(obj.shape), dtype=obj.dtype.name
         )
@@ -136,10 +131,10 @@ class NumpyNdarrayType(
             max_items=subshape[0],
         )
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33
         return create_model(
-            "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
+            prefix + "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
         )
 
     def serialize(self, instance: np.ndarray):
@@ -158,37 +153,72 @@ class NumpyNdarrayType(
                 f"given array is of shape: {(None,) + tuple(array.shape)[1:]}, expected: {self.shape}"
             )
 
-    def get_writer(self, **kwargs):
+    def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyArrayWriter()
 
 
-DATA_FILE = "data.npz"
 DATA_KEY = "data"
 
 
-class NumpyArrayWriter(DatasetWriter):
-    """DatasetWriter implementation for numpy ndarray"""
+class NumpyNumberWriter(DataWriter):
+    type: ClassVar[str] = "numpy_number"
+
+    def write(
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            f.write(str(data.data).encode("utf-8"))
+        return NumpyNumberReader(data_type=data), {self.art_name: art}
+
+
+class NumpyNumberReader(DataReader):
+    type: ClassVar[str] = "numpy_number"
+    data_type: NumpyNumberType
+
+    def read(self, artifacts: Artifacts) -> DataType:
+        if DataWriter.art_name not in artifacts:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
+            )
+        with artifacts[DataWriter.art_name].open() as f:
+            res = f.read()
+            data = self.data_type.actual_type(res)
+            return self.data_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DataType]:
+        raise NotImplementedError
+
+
+class NumpyArrayWriter(DataWriter):
+    """DataWriter implementation for numpy ndarray"""
 
     type: ClassVar[str] = "numpy"
 
     def write(
-        self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
-            np.savez_compressed(f, **{DATA_KEY: dataset.data})
-        return NumpyArrayReader(dataset_type=dataset), {self.art_name: art}
+            np.savez_compressed(f, **{DATA_KEY: data.data})
+        return NumpyArrayReader(data_type=data), {self.art_name: art}
 
 
-class NumpyArrayReader(DatasetReader):
-    """DatasetReader implementation for numpy ndarray"""
+class NumpyArrayReader(DataReader):
+    """DataReader implementation for numpy ndarray"""
 
     type: ClassVar[str] = "numpy"
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
-        if len(artifacts) != 1:
+    def read(self, artifacts: Artifacts) -> DataType:
+        if DataWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be oe {DATA_FILE} file"
+                f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
             )
-        with artifacts[DatasetWriter.art_name].open() as f:
+        with artifacts[DataWriter.art_name].open() as f:
             data = np.load(f)[DATA_KEY]
-        return self.dataset_type.copy().bind(data)
+        return self.data_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DataType]:
+        raise NotImplementedError

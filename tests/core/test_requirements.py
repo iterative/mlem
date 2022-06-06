@@ -1,14 +1,19 @@
+import subprocess
+import sys
+
 import pytest
 from pydantic import parse_obj_as
 
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.objects import ModelMeta
+from mlem.core.metadata import load_meta
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import (
     CustomRequirement,
     InstallableRequirement,
     Requirements,
     resolve_requirements,
 )
+from tests.conftest import resource_path
 
 
 def test_resolve_requirements_arg():
@@ -113,13 +118,29 @@ def test_resolve_unique_req():
 
 def test_serialize_empty():
     mt = SklearnModel(methods={}, model="")
-    obj = ModelMeta(model_type=mt)
+    obj = MlemModel(model_type=mt)
     payload = obj.dict()
-    obj2 = ModelMeta(model_type=mt)
+    obj2 = MlemModel(model_type=mt)
     obj2.requirements.__root__.append(InstallableRequirement(module="sklearn"))
     assert obj.requirements.__root__ == []
-    new_obj = parse_obj_as(ModelMeta, payload)
+    new_obj = parse_obj_as(MlemModel, payload)
     assert new_obj == obj
+
+
+@pytest.mark.parametrize("postfix", ["inside", "outside", "shell"])
+def test_req_collection_main(tmpdir, postfix):
+    import emoji
+    import numpy
+
+    path = resource_path(__file__, f"emoji_model_{postfix}.py")
+    model_path = str(tmpdir / "model")
+    res = subprocess.check_call([sys.executable, path, model_path])
+    assert res == 0
+    meta = load_meta(model_path, force_type=MlemModel)
+    assert set(meta.requirements.to_pip()) == {
+        InstallableRequirement.from_module(emoji).to_str(),
+        InstallableRequirement.from_module(numpy).to_str(),
+    }
 
 
 # Copyright 2019 Zyfra

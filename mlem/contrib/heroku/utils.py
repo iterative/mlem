@@ -1,20 +1,32 @@
+import subprocess
 from typing import Optional
 
 import requests
 from requests import HTTPError
 
-from ...core.errors import DeploymentError
+from ...core.errors import DeploymentError, MlemError
 from ...ui import EMOJI_BASE, EMOJI_BUILD, EMOJI_STOP, echo
 from .config import HEROKU_CONFIG
-from .meta import HerokuAppMeta, HerokuDeploy
+from .meta import HerokuAppMeta, HerokuDeployment
+
+
+def get_api_key() -> str:
+    if HEROKU_CONFIG.API_KEY is not None:
+        return HEROKU_CONFIG.API_KEY
+    try:
+        return (
+            subprocess.check_output(["heroku", "auth:token"])
+            .decode("utf8")
+            .strip()
+        )
+    except subprocess.CalledProcessError as e:
+        raise MlemError("HEROKU_API_KEY env is not provided") from e
 
 
 def heroku_api_request(
     method, route, data=None, accept_version="3", api_key: Optional[str] = None
 ):
-    api_key = api_key or HEROKU_CONFIG.API_KEY
-    if api_key is None:
-        raise ValueError("Please set env variable HEROKU_API_KEY")
+    api_key = api_key or get_api_key()
     if isinstance(method, str):
         method = getattr(requests, method.lower())
     kwargs = {}
@@ -36,7 +48,7 @@ def heroku_api_request(
     return r.json()
 
 
-def create_app(params: HerokuDeploy, api_key: str = None) -> HerokuAppMeta:
+def create_app(params: HerokuDeployment, api_key: str = None) -> HerokuAppMeta:
     data = {
         "name": params.app_name,
         "region": params.region,

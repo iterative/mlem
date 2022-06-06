@@ -17,8 +17,8 @@ repos:
       - id: mixed-line-ending
       - id: sort-simple-yaml
       - id: trailing-whitespace
-  - repo: 'https://gitlab.com/pycqa/flake8'
-    rev: 3.9.2
+  - repo: 'https://github.com/pycqa/flake8'
+    rev: 4.0.1
     hooks:
       - id: flake8
         args:
@@ -46,6 +46,7 @@ repos:
           - types-PyYAML
           - pydantic
           - types-filelock
+          - types-emoji
   - repo: local
     hooks:
       - id: pylint

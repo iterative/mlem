@@ -5,7 +5,7 @@ import pytest
 from pydantic import parse_obj_as
 
 from mlem.core.meta_io import MLEM_EXT
-from mlem.core.objects import MlemLink, MlemMeta, ModelMeta
+from mlem.core.objects import MlemLink, MlemModel, MlemObject
 from tests.conftest import MLEM_TEST_REPO, long
 
 LOCAL_LS_EXPECTED_RESULT = """Models:
@@ -15,8 +15,8 @@ LOCAL_LS_EXPECTED_RESULT = """Models:
 
 
 @pytest.mark.parametrize("obj_type", [None, "all", "model"])
-def test_ls(runner, filled_mlem_repo, obj_type):
-    os.chdir(filled_mlem_repo)
+def test_ls(runner, filled_mlem_project, obj_type):
+    os.chdir(filled_mlem_project)
     result = runner.invoke(
         ["list", "-t", obj_type] if obj_type else ["list"],
     )
@@ -33,17 +33,18 @@ def test_ls(runner, filled_mlem_repo, obj_type):
     assert "model" in data
     models = data["model"]
     assert len(models) == 2
-    model, link = [parse_obj_as(MlemMeta, m) for m in models]
+    model, link = [parse_obj_as(MlemObject, m) for m in models]
     if isinstance(model, MlemLink):
         model, link = link, model
-    assert isinstance(model, ModelMeta)
+    assert isinstance(model, MlemModel)
     assert isinstance(link, MlemLink)
 
 
 REMOTE_LS_EXPECTED_RESULT = """Models:
  - data/model
  - latest -> data/model
-Datasets:
+Data:
+ - data/pred
  - data/test_x
  - data/test_y
  - data/train
@@ -63,8 +64,8 @@ def test_ls_remote(runner, current_test_branch):
     assert result.output == REMOTE_LS_EXPECTED_RESULT
 
 
-def test_pretty_print(runner, model_path_mlem_repo):
-    model_path, _ = model_path_mlem_repo
+def test_pretty_print(runner, model_path_mlem_project):
+    model_path, _ = model_path_mlem_project
     result = runner.invoke(
         ["pprint", model_path + MLEM_EXT],
     )
@@ -74,8 +75,8 @@ def test_pretty_print(runner, model_path_mlem_repo):
         ["pprint", model_path + MLEM_EXT, "--json"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
-    meta = parse_obj_as(MlemMeta, json.loads(result.output))
-    assert isinstance(meta, ModelMeta)
+    meta = parse_obj_as(MlemObject, json.loads(result.output))
+    assert isinstance(meta, MlemModel)
 
 
 @long

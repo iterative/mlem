@@ -8,13 +8,13 @@ from mlem.cli.main import (
     option_conf,
     option_file_conf,
     option_load,
-    option_repo,
+    option_project,
     option_rev,
 )
 from mlem.core.metadata import load_meta
-from mlem.core.objects import ModelMeta
-from mlem.ext import list_implementations
-from mlem.runtime.server.base import Server
+from mlem.core.objects import MlemModel
+from mlem.runtime.server import Server
+from mlem.utils.entrypoints import list_implementations
 
 
 @mlem_command("serve", section="runtime")
@@ -23,7 +23,7 @@ def serve(
     subtype: str = Argument(
         "", help=f"Server type. Choices: {list_implementations(Server)}"
     ),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     load: Optional[str] = option_load("server"),
     conf: List[str] = option_conf("server"),
@@ -37,6 +37,6 @@ def serve(
     from mlem.api.commands import serve
 
     serve(
-        load_meta(model, repo, rev, force_type=ModelMeta),
+        load_meta(model, project, rev, force_type=MlemModel),
         config_arg(Server, load, subtype, conf, file_conf),
     )

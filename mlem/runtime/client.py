@@ -8,13 +8,15 @@ from pydantic import BaseModel, parse_obj_as
 from mlem.core.base import MlemABC
 from mlem.core.errors import MlemError, WrongMethodError
 from mlem.core.model import Signature
-from mlem.runtime.interface.base import ExecutionError, InterfaceDescriptor
+from mlem.runtime.interface import ExecutionError, InterfaceDescriptor
 
 logger = logging.getLogger(__name__)
 
 
-class BaseClient(MlemABC, ABC):
-    """"""
+class Client(MlemABC, ABC):
+    """Client is a way to invoke methods on running `Server` instance.
+    `Client`s dynamically define python methods based on interfaces
+    exposed by `Server`"""
 
     class Config:
         type_root = True
@@ -43,14 +45,12 @@ class BaseClient(MlemABC, ABC):
         if name not in self.methods:
             raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
-            base_url=self.base_url,
             method=self.methods[name],
             call_method=self._call_method,
         )
 
 
 class _MethodCall(BaseModel):
-    base_url: str
     method: Signature
     call_method: Callable
 
@@ -88,7 +88,7 @@ class _MethodCall(BaseModel):
         return self.method.returns.get_serializer().deserialize(out)
 
 
-class HTTPClient(BaseClient):
+class HTTPClient(Client):
     type: ClassVar[str] = "http"
     host: str = "0.0.0.0"
     port: Optional[int] = 8080

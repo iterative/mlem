@@ -20,11 +20,7 @@ from pydantic import BaseModel
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.base import MlemABC
-from mlem.core.dataset_type import (
-    DatasetAnalyzer,
-    DatasetType,
-    UnspecifiedDatasetType,
-)
+from mlem.core.data_type import DataAnalyzer, DataType, UnspecifiedDataType
 from mlem.core.errors import MlemObjectNotLoadedError, WrongMethodError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
@@ -32,9 +28,7 @@ from mlem.utils.module import get_object_requirements
 
 
 class ModelIO(MlemABC):
-    """
-    IO base class for models
-    """
+    """Base class for model IO. Represents a way to save and load model files"""
 
     class Config:
         type_root = True
@@ -45,7 +39,7 @@ class ModelIO(MlemABC):
     @abstractmethod
     def dump(self, storage: Storage, path, model) -> Artifacts:
         """ """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def load(self, artifacts: Artifacts):
@@ -53,10 +47,12 @@ class ModelIO(MlemABC):
         Must load and return model
         :return: model object
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class SimplePickleIO(ModelIO):
+    """IO with simple pickling of python model object"""
+
     type: ClassVar[str] = "simple_pickle"
 
     def dump(self, storage: Storage, path: str, model) -> Artifacts:
@@ -72,8 +68,10 @@ class SimplePickleIO(ModelIO):
 
 
 class Argument(BaseModel):
+    """Function argument descriptor"""
+
     name: str
-    type_: DatasetType
+    type_: DataType
     required: bool = True
     default: Any = None
     kw_only: bool = False
@@ -88,7 +86,7 @@ class Argument(BaseModel):
         **call_kwargs,
     ):
         if name in argspec.annotations and isinstance(
-            argspec.annotations[name], DatasetType
+            argspec.annotations[name], DataType
         ):
             type_ = argspec.annotations[name]
         elif auto_infer:
@@ -96,11 +94,11 @@ class Argument(BaseModel):
                 raise TypeError(
                     f"auto_infer=True, but no value for {name} argument"
                 )
-            type_ = DatasetAnalyzer.analyze(
+            type_ = DataAnalyzer.analyze(
                 defaults.get(name, call_kwargs.get(name))
             )
         else:
-            type_ = UnspecifiedDatasetType()
+            type_ = UnspecifiedDataType()
         return Argument(
             name=name,
             type_=type_,
@@ -111,10 +109,12 @@ class Argument(BaseModel):
 
 def compose_args(
     argspec: inspect.FullArgSpec,
+    call_args: Tuple,
+    call_kwargs: Dict,
     skip_first: bool = False,
     auto_infer: bool = False,
-    **call_kwargs,
-):
+) -> List[Argument]:
+    """Create a list of `Argument`s from argspec"""
     args_defaults = dict(
         zip(
             reversed(argspec.args or ()),
@@ -124,6 +124,7 @@ def compose_args(
     args = argspec.args
     if skip_first:
         args = args[1:]
+    call_kwargs.update(zip(args, call_args))
     return [
         Argument.from_argspec(
             name, argspec, args_defaults, auto_infer, **call_kwargs
@@ -142,34 +143,41 @@ def compose_args(
 
 
 class Signature(BaseModel, WithRequirements):
+    """Function signature descriptor"""
+
     name: str
     args: List[Argument]
-    returns: DatasetType
+    returns: DataType
     varargs: Optional[str] = None
     varkw: Optional[str] = None
 
     @classmethod
     def from_method(
-        cls, method: Callable, auto_infer: bool = False, **call_kwargs
+        cls,
+        method: Callable,
+        *call_args,
+        auto_infer: bool = False,
+        **call_kwargs,
     ):
         # no support for positional-only args, but who uses them anyway
         argspec = inspect.getfullargspec(method)
         if "return" in argspec.annotations and isinstance(
-            argspec.annotations["return"], DatasetType
+            argspec.annotations["return"], DataType
         ):
             returns = argspec.annotations["return"]
         elif auto_infer:
-            result = method(**call_kwargs)
-            returns = DatasetAnalyzer.analyze(result)
+            result = method(*call_args, **call_kwargs)
+            returns = DataAnalyzer.analyze(result)
         else:
-            returns = UnspecifiedDatasetType()
+            returns = UnspecifiedDataType()
         return Signature(
             name=method.__name__,
             args=compose_args(
                 argspec,
                 skip_first=argspec.args[0] == "self",
                 auto_infer=auto_infer,
-                **call_kwargs,
+                call_args=call_args,
+                call_kwargs=call_kwargs,
             ),
             returns=returns,
             varkw=argspec.varkw,
@@ -177,8 +185,8 @@ class Signature(BaseModel, WithRequirements):
         )
 
     def has_unspecified_args(self):
-        return isinstance(self.returns, UnspecifiedDatasetType) or any(
-            isinstance(a.type_, UnspecifiedDatasetType) for a in self.args
+        return isinstance(self.returns, UnspecifiedDataType) or any(
+            isinstance(a.type_, UnspecifiedDataType) for a in self.args
         )
 
     def get_requirements(self):
@@ -192,7 +200,7 @@ T = TypeVar("T", bound="ModelType")
 
 class ModelType(ABC, MlemABC, WithRequirements):
     """
-    Base class for dataset type metadata.
+    Base class for model metadata.
     """
 
     class Config:
@@ -272,6 +280,8 @@ class ModelType(ABC, MlemABC, WithRequirements):
 
 
 class ModelHook(Hook[ModelType], ABC):
+    """Base class for hooks to analyze model objects"""
+
     valid_types: ClassVar[Optional[Tuple[Type, ...]]] = None
 
     @classmethod
@@ -283,6 +293,8 @@ class ModelHook(Hook[ModelType], ABC):
 
 
 class ModelAnalyzer(Analyzer[ModelType]):
+    """Analyzer for model objects"""
+
     base_hook_class = ModelHook
     hooks: List[Type[ModelHook]]  # type: ignore
 

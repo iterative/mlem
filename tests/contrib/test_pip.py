@@ -1,15 +1,17 @@
 import os
 import subprocess
 
-from mlem.contrib.pip.base import PipPackager, WhlPackager
+from mlem.contrib.pip.base import PipBuilder, WhlBuilder
+from tests.conftest import long
 
 PIP_PACKAGE_NAME = "test_pip_package_name"
 
 
+@long
 def test_pip_package(tmpdir, model_meta_saved_single):
     path = str(tmpdir)
-    packager = PipPackager(target=path, package_name=PIP_PACKAGE_NAME)
-    packager.package(model_meta_saved_single)
+    builder = PipBuilder(target=path, package_name=PIP_PACKAGE_NAME)
+    builder.build(model_meta_saved_single)
 
     print(
         subprocess.check_output(
@@ -29,12 +31,13 @@ def test_pip_package(tmpdir, model_meta_saved_single):
         )
 
 
-def test_whl_package(tmpdir, model_meta_saved_single):
+@long
+def test_whl_build(tmpdir, model_meta_saved_single):
     path = str(tmpdir)
-    packager = WhlPackager(
+    builder = WhlBuilder(
         target=path, package_name=PIP_PACKAGE_NAME, version="1.0.0"
     )
-    packager.package(model_meta_saved_single)
+    builder.build(model_meta_saved_single)
     files = os.listdir(tmpdir)
     assert len(files) == 1
     whl_path = files[0]

@@ -13,9 +13,9 @@ from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
 
 import mlem
-from mlem.core.objects import ModelMeta
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements, UnixPackageRequirement
-from mlem.runtime.server.base import Server
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
@@ -112,7 +112,7 @@ class DockerBuildArgs(BaseModel):
 
 
 class DockerModelDirectory(BaseModel):
-    model: ModelMeta
+    model: MlemModel
     server: Server
     docker_args: "DockerBuildArgs"
     debug: bool
@@ -250,14 +250,14 @@ class DockerModelDirectory(BaseModel):
             sh.write(f"mlem serve {self.model_name} {self.server.type}")
 
     def _build_local_mlem_wheel(self):
-        repo_path = os.path.dirname(os.path.dirname(mlem.__file__))
+        mlem_src_path = os.path.dirname(os.path.dirname(mlem.__file__))
         echo(EMOJI_BUILD + "Building MLEM wheel file...")
-        logger.debug("Building mlem whl from %s...", repo_path)
+        logger.debug("Building mlem whl from %s...", mlem_src_path)
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
                 f"pip wheel . --no-deps -w {whl_dir}",
                 shell=True,
-                cwd=repo_path,
+                cwd=mlem_src_path,
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
             whl_name = os.path.basename(whl_path)

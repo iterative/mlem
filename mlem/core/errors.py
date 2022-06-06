@@ -19,7 +19,7 @@ class SerializationError(MlemError):
     pass
 
 
-class MlemRootNotFound(MlemError):
+class MlemProjectNotFound(MlemError):
     _message = "{MLEM_DIR} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
 
     def __init__(self, path, fs=None, rev=None) -> None:
@@ -67,7 +67,26 @@ class MlemObjectNotSavedError(ValueError, MlemError):
 
 
 class MlemObjectNotLoadedError(ValueError, MlemError):
-    """Thrown if model or dataset value is not loaded"""
+    """Thrown if model or data value is not loaded"""
+
+
+class UnsupportedDataBatchLoadingType(ValueError, MlemError):
+    """Thrown if batch loading of data with unsupported file type is called"""
+
+    _message = "Batch-loading data of type '{data_type}' is currently not supported. Please remove batch parameter."
+
+    def __init__(
+        self,
+        data_type,
+    ) -> None:
+
+        self.data_type = data_type
+        self.message = self._message.format(data_type=data_type)
+        super().__init__(self.message)
+
+
+class UnsupportedDataBatchLoading(MlemError):
+    """Thrown if batch loading of data is called for import workflow"""
 
 
 class WrongMethodError(ValueError, MlemError):
@@ -111,3 +130,16 @@ class WrongRequirementsError(MlemError):
         super().__init__(
             f"Wrong requirements: {self.wrong} {self.missing}\nTo fix it, run `{fix}`"
         )
+
+
+class UnknownImplementation(MlemError):
+    def __init__(self, type_name: str, abs_name: str):
+        self.abs_name = abs_name
+        self.type_name = type_name
+        super().__init__(f"Unknown {abs_name} implementation: {type_name}")
+
+
+class UnknownConfigSection(MlemError):
+    def __init__(self, section: str):
+        self.section = section
+        super().__init__(f'Unknown config section "{section}"')

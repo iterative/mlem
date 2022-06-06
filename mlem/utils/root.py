@@ -7,20 +7,26 @@ from fsspec.implementations.local import LocalFileSystem
 from typing_extensions import Literal
 
 from mlem.constants import MLEM_DIR
-from mlem.core.errors import MlemRootNotFound
+from mlem.core.errors import MlemProjectNotFound
 
 
-def mlem_repo_exists(
+def mlem_project_exists(
     path: str, fs: AbstractFileSystem, raise_on_missing: bool = False
 ):
-    exists = fs.exists(posixpath.join(path, MLEM_DIR))
+    """Check is mlem project exists at path"""
+    try:
+        exists = fs.exists(posixpath.join(path, MLEM_DIR))
+    except ValueError:
+        # some fsspec implementations throw ValueError because of
+        # wrong bucket/container names containing "."
+        exists = False
     if not exists and raise_on_missing:
-        raise MlemRootNotFound(path, fs)
+        raise MlemProjectNotFound(path, fs)
     return exists
 
 
 @overload
-def find_repo_root(
+def find_project_root(
     path: str = ".",
     fs: AbstractFileSystem = None,
     raise_on_missing: Literal[True] = ...,
@@ -30,7 +36,7 @@ def find_repo_root(
 
 
 @overload
-def find_repo_root(
+def find_project_root(
     path: str = ".",
     fs: AbstractFileSystem = None,
     raise_on_missing: Literal[False] = ...,
@@ -39,13 +45,13 @@ def find_repo_root(
     ...
 
 
-def find_repo_root(
+def find_project_root(
     path: str = ".",
     fs: AbstractFileSystem = None,
     raise_on_missing: bool = True,
     recursive: bool = True,
 ) -> Optional[str]:
-    """Search for mlem root folder, starting from the given path
+    """Search for mlem project root folder, starting from the given path
     and up the directory tree.
     Raises an Exception if folder is not found.
     """
@@ -55,18 +61,18 @@ def find_repo_root(
         path = os.path.abspath(path)
     _path = path[:]
     if not recursive:
-        if mlem_repo_exists(_path, fs):
+        if mlem_project_exists(_path, fs):
             return _path
     else:
         if fs.isfile(_path) or not fs.exists(_path):
             _path = os.path.dirname(_path)
         while True:
-            if mlem_repo_exists(_path, fs):
+            if mlem_project_exists(_path, fs):
                 return _path
             if _path == os.path.dirname(_path):
                 break
 
             _path = os.path.dirname(_path)
     if raise_on_missing:
-        raise MlemRootNotFound(path, fs)
+        raise MlemProjectNotFound(path, fs)
     return None
