@@ -88,6 +88,8 @@ jobs:
         HEROKU_TEAM: iterative-sandbox
         GITHUB_MATRIX_OS: ${{ matrix.os }}
         GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
+        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
+        BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v1
       with:
