@@ -95,6 +95,9 @@ class ExtensionLoader:
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
         Extension("mlem.contrib.rabbitmq", ["pika"], False),
+        Extension("mlem.contrib.github", [], True),
+        Extension("mlem.contrib.gitlabfs", [], True),
+        Extension("mlem.contrib.bitbucketfs", [], True),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}

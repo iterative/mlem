@@ -157,6 +157,9 @@ setup_args = dict(  # noqa: C408
             "server.heroku = mlem.contrib.heroku.build:HerokuServer",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
+            "resolver.bitbucket = mlem.contrib.bitbucketfs:BitBucketResolver",
+            "resolver.github = mlem.contrib.github:GithubResolver",
+            "resolver.gitlab = mlem.contrib.gitlabfs:GitlabResolver",
         ],
         "mlem.config": [
             "core = mlem.config:MlemConfig",

@@ -1,24 +1,38 @@
+import logging
+import os
+
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
+from mlem.contrib.bitbucketfs import BitBucketFileSystem
 from mlem.core.errors import RevisionNotFound
 from mlem.core.meta_io import UriResolver, get_fs
-from mlem.utils.bitbucketfs import CONFIG, BitBucketFileSystem
+from mlem.core.metadata import load_meta
+from mlem.core.objects import MlemModel
 from tests.conftest import long
 
-MLEM_TEST_REPO_PROJECT = "mike0sv/fsspec-test"
+MLEM_TEST_REPO_PROJECT = "iterative-ai/mlem-test"
 
 MLEM_TEST_REPO_URI = f"https://bitbucket.org/{MLEM_TEST_REPO_PROJECT}"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def loglevel():
+    logging.basicConfig(level=logging.DEBUG)
+    from atlassian.rest_client import log
+
+    log.setLevel(logging.DEBUG)
+
+
 @pytest.fixture()
 def fs_no_auth():
-    username = CONFIG.USERNAME
+    username = os.environ.get("BITBUCKET_USERNAME", None)
     try:
-        CONFIG.USERNAME = None
+        del os.environ["BITBUCKET_USERNAME"]
         yield BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
     finally:
-        CONFIG.USERNAME = username
+        if username:
+            os.environ["BITBUCKET_USERNAME"] = username
 
 
 @pytest.fixture()
@@ -29,33 +43,20 @@ def fs_auth():
 @long
 @pytest.mark.parametrize(
     "fs",
-    [
-        lazy_fixture("fs_auth"),
-        # lazy_fixture("fs_no_auth")
-    ],
+    [lazy_fixture("fs_auth"), lazy_fixture("fs_no_auth")],
 )
 def test_ls(fs):
     assert "README.md" in fs.ls("")
 
 
 @long
-def test_open():
-    fs = BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
+@pytest.mark.parametrize(
+    "fs",
+    [lazy_fixture("fs_auth"), lazy_fixture("fs_no_auth")],
+)
+def test_open(fs):
     with fs.open("README.md", "r") as f:
-        assert f.read().startswith("# README")
-
-
-@long
-def test_ls_auth():
-    fs = BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
-    assert "README.md" in fs.ls("")
-
-
-@long
-def test_open_auth():
-    fs = BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
-    with fs.open("README.md", "r") as f:
-        assert f.read().startswith("# README")
+        assert f.read().startswith("### Fixture for mlem tests")
 
 
 @long
@@ -76,7 +77,7 @@ def test_uri_resolver(uri):
 @long
 @pytest.mark.parametrize(
     "rev",
-    ["main", "branch", "tag", "eb2ffd48b624589ce8e39b51a4b984f6887deeb5"],
+    ["main", "branch", "tag", "3897d2ab"],
 )
 def test_uri_resolver_rev(rev):
     location = UriResolver.resolve(MLEM_TEST_REPO_URI, None, rev=rev, fs=None)
@@ -91,3 +92,9 @@ def test_uri_resolver_wrong_rev():
         UriResolver.resolve(
             MLEM_TEST_REPO_URI, None, rev="__not_exists__", fs=None
         )
+
+
+@long
+def test_loading_object():
+    meta = load_meta("latest", project=MLEM_TEST_REPO_URI + "/src/main/simple")
+    assert isinstance(meta, MlemModel)
