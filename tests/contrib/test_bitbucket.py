@@ -1,4 +1,3 @@
-import logging
 import os
 
 import pytest
@@ -14,14 +13,6 @@ from tests.conftest import long
 MLEM_TEST_REPO_PROJECT = "iterative-ai/mlem-test"
 
 MLEM_TEST_REPO_URI = f"https://bitbucket.org/{MLEM_TEST_REPO_PROJECT}"
-
-
-@pytest.fixture(scope="session", autouse=True)
-def loglevel():
-    logging.basicConfig(level=logging.DEBUG)
-    from atlassian.rest_client import log
-
-    log.setLevel(logging.DEBUG)
 
 
 @pytest.fixture()

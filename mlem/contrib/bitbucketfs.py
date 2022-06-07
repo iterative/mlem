@@ -165,10 +165,10 @@ class BitBucketFileSystem(
         repo, path = super()._strip_protocol(path).split("@", maxsplit=2)
         sha, path = _mathch_path_with_ref(repo, path)
         return {
-            "repo": repo,
             "path": path,
             "sha": sha,
             "protocol": protocol,
+            "repo": repo,
         }
 
     def _open(
