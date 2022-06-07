@@ -8,7 +8,7 @@ import sys
 from types import ModuleType
 from typing import Callable, Dict, List, Union
 
-from mlem.config import CONFIG
+from mlem.config import LOCAL_CONFIG
 from mlem.utils.importing import (
     import_module,
     module_importable,
@@ -160,7 +160,7 @@ class ExtensionLoader:
 
         cls._setup_import_hook(for_hook)
 
-        for mod in CONFIG.additional_extensions:
+        for mod in LOCAL_CONFIG.additional_extensions:
             cls.load(mod)
 
     @classmethod

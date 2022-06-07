@@ -7,11 +7,11 @@ MLEM is a tool to help you version and deploy your Machine Learning models:
 import mlem.log  # noqa
 
 from . import api  # noqa
-from .config import CONFIG
+from .config import LOCAL_CONFIG
 from .ext import ExtensionLoader
 from .version import __version__
 
-if CONFIG.AUTOLOAD_EXTS:
+if LOCAL_CONFIG.AUTOLOAD_EXTS:
     ExtensionLoader.load_all()
 
-__all__ = ["api", "__version__"]
+__all__ = ["api", "__version__", "LOCAL_CONFIG"]

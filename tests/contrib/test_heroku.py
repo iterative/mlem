@@ -16,7 +16,7 @@ from mlem.contrib.heroku.build import (
 from mlem.contrib.heroku.config import HEROKU_CONFIG
 from mlem.contrib.heroku.meta import (
     HerokuAppMeta,
-    HerokuDeploy,
+    HerokuDeployment,
     HerokuEnv,
     HerokuState,
 )
@@ -88,7 +88,7 @@ def test_heroku_api_request():
 @heroku_matrix
 def test_create_app(heroku_app_name, heroku_env, model):
     name = heroku_app_name("create-app")
-    heroku_deploy = HerokuDeploy(
+    heroku_deploy = HerokuDeployment(
         app_name=name,
         env_link=heroku_env.make_link(),
         model_link=model.make_link(),
@@ -119,7 +119,7 @@ def test_state_ensured_app():
 
 
 def _check_heroku_deployment(meta):
-    assert isinstance(meta, HerokuDeploy)
+    assert isinstance(meta, HerokuDeployment)
     assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")
     meta.wait_for_status(
         DeployStatus.RUNNING,
@@ -176,7 +176,7 @@ def test_env_deploy_full(
 
     _check_heroku_deployment(redeploy_meta)
     if CLEAR_APPS:
-        meta.destroy()
+        meta.remove()
 
         assert meta.state is None
         meta.wait_for_status(

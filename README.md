@@ -1,11 +1,11 @@
 ![image](https://user-images.githubusercontent.com/6797716/165590476-994d4d93-8e98-4afb-b5f8-6f42b9d56efc.png)
 
 
-[![Check, test and release](https://github.com/iterative/dvc/workflows/Tests/badge.svg?branch=main)](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml)
-[![Maintainability](https://codeclimate.com/github/iterative/dvc/badges/gpa.svg)](https://codeclimate.com/github/iterative/dvc)
+[![Check, test and release](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml/badge.svg)](https://github.com/iterative/mlem/actions/workflows/check-test-release.yml)
 [![codecov](https://codecov.io/gh/iterative/mlem/branch/main/graph/badge.svg?token=WHU4OAB6O2)](https://codecov.io/gh/iterative/mlem)
 [![PyPi](https://img.shields.io/pypi/v/mlem.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/mlem)
-[![License: Apache 2.0](https://img.shields.io/github/license/iterative/dvc)](https://github.com/iterative/mlem/blob/master/LICENSE)
+[![License: Apache 2.0](https://img.shields.io/github/license/iterative/mlem)](https://github.com/iterative/mlem/blob/master/LICENSE)
+<!-- [![Maintainability](https://codeclimate.com/github/iterative/mlem/badges/gpa.svg)](https://codeclimate.com/github/iterative/mlem) -->
 
 MLEM helps you with machine learning model deployment. It saves ML models in a standard format that can be used in a variety of downstream deployment scenarios such as real-time serving through a REST API or batch processing.
 
@@ -22,6 +22,10 @@ MLEM helps you with machine learning model deployment. It saves ML models in a s
 
 ## Usage
 
+This a quick walkthrough showcasing deployment and export functionality of MLEM.
+
+Please read [Get Started guide](https://mlem.ai/doc/get-started) for a full version.
+
 ### Installation
 
 Install MLEM with pip:
@@ -30,13 +34,13 @@ Install MLEM with pip:
 $ pip install mlem
 ```
 
-To install the development version, run:
+To install the pre-release version, run:
 
 ```
 $ pip install git+https://github.com/iterative/mlem
 ```
 
-### Save your model
+### Saving the model
 
 ```python
 # train.py
@@ -55,8 +59,8 @@ def main():
     save(
         rf,
         "rf",
-        tmp_sample_data=data,
-        tags=["random-forest", "classifier"],
+        sample_data=data,
+        labels=["random-forest", "classifier"],
         description="Random Forest Classifier",
     )
 
@@ -73,7 +77,7 @@ rf.mlem
 $ cat rf.mlem
 ```
 <details>
-  <summary>Click to show `cat` output</summary>
+  <summary>> Click to show `cat` output</summary>
 
 ```yaml
 artifacts:
@@ -82,6 +86,9 @@ artifacts:
     size: 163651
     uri: rf
 description: Random Forest Classifier
+labels:
+- random-forest
+- classifier
 model_type:
   methods:
     predict:
@@ -183,32 +190,26 @@ requirements:
   version: 1.4.1
 - module: numpy
   version: 1.22.3
-tags:
-- random-forest
-- classifier
 ```
 </details>
 
+### Deploying the model
 
-### Deploy it
+If you want to follow this Quick Start, you'll need to sign up on https://heroku.com,
+create an API_KEY and populate `HEROKU_API_KEY` env var.
 
-Create an environment to deploy your model:
+First, create an environment to deploy your model:
 
 ```shell
-$ mlem create env heroku staging
+$ mlem declare env heroku staging
 💾 Saving env to staging.mlem
 ```
 
-Define the deployment:
+Now we can [deploy the model with `mlem deploy`](https://mlem.ai/doc/get-started/deploying)
+(you need to use different `app_name`, since it's going to be published on https://herokuapp.com):
 
 ```shell
-$ mlem create deployment heroku myservice -c app_name=mlem-quick-start -c model=rf -c env=staging
-💾 Saving deployment to myservice.mlem
-```
-
-Deploy it:
-```shell
-$ mlem deploy create myservice
+$ mlem deployment run mydeploy -m rf -t staging -c app_name=mlem-quick-start
 ⏳️ Loading deployment from .mlem/deployment/myservice.mlem
 🔗 Loading link to .mlem/env/staging.mlem
 🔗 Loading link to .mlem/model/rf.mlem
@@ -229,48 +230,29 @@ $ mlem deploy create myservice
 ✅  Service example-mlem-get-started is up. You can check it out at https://mlem-quick-start.herokuapp.com/
 ```
 
-### Check the deployment
+### Exporting the model
 
-https://mlem-quick-start.herokuapp.com
-
-Let's save some data first:
-```python
-# save_data.py
-from mlem.api import save
-from sklearn.datasets import load_iris
-
-def main():
-    data, y = load_iris(return_X_y=True, as_frame=True)
-    save(
-        data,
-        "train.csv",
-        description="Training data for Random Forest Classifier",
-    )
-
-if __name__ == "__main__":
-    main()
-```
+You could easily [export the model to a different format using `mlem build`](https://mlem.ai/doc/get-started/building):
 
 ```
-$ mlem apply-remote http train.csv -c host=https://mlem-quick-start.herokuapp.com -c port=80 --json
+$ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
+⏳️ Loading model from rf.mlem
+🛠 Building MLEM wheel file...
+💼 Adding model files...
+🛠 Generating dockerfile...
+💼 Adding sources...
+💼 Generating requirements file...
+🛠 Building docker image sklearn-model:latest...
+✅  Built docker image sklearn-model:latest
 ```
 
-### Stop the deployment
+## Contributing
 
-```
-$ mlem deploy status myservice.mlem
-running
-```
+Contributions are welcome! Please see our [Contributing Guide](https://mlem.ai/doc/contributing/core)
+for more details. Thanks to all our contributors!
 
-```
-$ mlem deploy teardown myservice.mlem
-⏳️ Loading deployment from myservice.mlem
-🔗 Loading link to file://staging.mlem
-🔻 Deleting mlem-quick-start heroku app
-💾 Updating deployment at myservice.mlem
-```
+## Copyright
 
-```
-$ mlem deploy status myservice.mlem
-not_deployed
-```
+This project is distributed under the Apache license version 2.0 (see the LICENSE file in the project root).
+
+By submitting a pull request to this project, you agree to license your contribution under the Apache license version 2.0 to this project.

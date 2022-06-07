@@ -7,7 +7,7 @@ from rich.style import Style
 from rich.table import Column, Table
 from rich.text import Text
 
-from mlem.config import CONFIG
+from mlem.config import LOCAL_CONFIG
 
 console = Console()
 
@@ -77,7 +77,7 @@ def color(text, col):
 
 
 def emoji(name):
-    if not CONFIG.EMOJIS:
+    if not LOCAL_CONFIG.EMOJIS:
         return Text("")
     return Text(name + " ")
 

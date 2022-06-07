@@ -6,9 +6,9 @@ from mlem.cli.main import (
     mlem_command,
     option_external,
     option_index,
-    option_repo,
+    option_project,
     option_rev,
-    option_target_repo,
+    option_target_project,
 )
 from mlem.core.import_objects import ImportHook
 from mlem.utils.entrypoints import list_implementations
@@ -17,10 +17,10 @@ from mlem.utils.entrypoints import list_implementations
 @mlem_command("import", section="object")
 def import_object(
     uri: str = Argument(..., help="File to import"),
-    target: str = Argument(..., help="Path whare to save MLEM object"),
-    repo: Optional[str] = option_repo,
+    target: str = Argument(..., help="Path to save MLEM object"),
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
-    target_repo: Optional[str] = option_target_repo,
+    target_project: Optional[str] = option_target_project,
     copy: bool = Option(
         True,
         help="Whether to create a copy of file in target location or just link existing file",
@@ -29,26 +29,26 @@ def import_object(
     index: bool = option_index,
     external: bool = option_external,
 ):
-    """Create MLEM model or dataset metadata from file/dir
+    """Create MLEM model or data metadata from file/dir
 
     Examples:
-        Create MLEM dataset from local csv
+        Create MLEM data from local csv
         $ mlem import data/data.csv data/imported_data --type pandas[csv]
 
         Create MLEM model from local pickle file
         $ mlem import data/model.pkl data/imported_model
 
         Create MLEM model from remote pickle file
-        $ mlem import models/logreg --repo https://github.com/iterative/example-mlem --rev no-dvc data/imported_model --type pickle
+        $ mlem import models/logreg --project https://github.com/iterative/example-mlem --rev no-dvc data/imported_model --type pickle
     """
     from mlem.api.commands import import_object
 
     import_object(
         uri,
-        repo=repo,
+        project=project,
         rev=rev,
         target=target,
-        target_repo=target_repo,
+        target_project=target_project,
         copy_data=copy,
         type_=type_,
         external=external,

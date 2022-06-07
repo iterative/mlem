@@ -5,7 +5,7 @@ import pytest
 
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import WrongMethodError
 from mlem.core.model import Argument, Signature
 from mlem.runtime.client import HTTPClient
@@ -13,7 +13,7 @@ from mlem.runtime.client import HTTPClient
 
 @pytest.fixture
 def signature(train):
-    data_type = DatasetAnalyzer.analyze(train)
+    data_type = DataAnalyzer.analyze(train)
     returns_type = NumpyNdarrayType(
         shape=(None,),
         dtype="int32" if platform.system() == "Windows" else "int64",
