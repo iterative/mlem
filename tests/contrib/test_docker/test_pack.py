@@ -1,7 +1,9 @@
 import os
 import time
 
+import pytest
 import requests
+from pytest_lazyfixture import lazy_fixture
 from testcontainers.general import TestContainer
 
 from mlem.api import build
@@ -16,10 +18,13 @@ SERVER_PORT = 8080
 
 
 @long
-def test_build_dir(tmpdir, model_meta_saved):
+@pytest.mark.parametrize(
+    "modelmeta", [lazy_fixture("model_meta"), lazy_fixture("model_meta_saved")]
+)
+def test_build_dir(tmpdir, modelmeta):
     built = build(
         DockerDirBuilder(server=FastAPIServer(), target=str(tmpdir)),
-        model_meta_saved,
+        modelmeta,
     )
     assert isinstance(built, DockerModelDirectory)
     assert os.path.isfile(tmpdir / "run.sh")

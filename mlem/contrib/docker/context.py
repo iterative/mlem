@@ -205,7 +205,9 @@ class DockerModelDirectory(BaseModel):
             if self.model.is_saved:
                 self.model.clone(path, external=True)
             else:
-                self.model.copy().dump(path, external=True)
+                copy = self.model.copy()
+                copy.model_type.bind(self.model.model_type.model)
+                copy.dump(path, external=True)
 
     def write_dockerfile(self, requirements: Requirements):
         echo(EMOJI_BUILD + "Generating dockerfile...")
