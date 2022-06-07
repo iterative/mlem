@@ -174,7 +174,7 @@ class Signature(BaseModel, WithRequirements):
             name=method.__name__,
             args=compose_args(
                 argspec,
-                skip_first=argspec.args[0] == "self",
+                skip_first=argspec.args and argspec.args[0] == "self",
                 auto_infer=auto_infer,
                 call_args=call_args,
                 call_kwargs=call_kwargs,
