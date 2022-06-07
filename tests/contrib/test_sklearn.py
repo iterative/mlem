@@ -13,6 +13,7 @@ from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import ModelAnalyzer
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import UnixPackageRequirement
 from tests.conftest import check_model_type_common_interface, long
 
@@ -161,6 +162,14 @@ def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     assert reqs.of_type(UnixPackageRequirement) == [
         UnixPackageRequirement(package_name="libgomp1")
     ]
+
+
+def test_pipeline_requirements(lgbm_model):
+    model = Pipeline(steps=[("model", lgbm_model)])
+    meta = MlemModel.from_obj(model)
+
+    expected_requirements = {"sklearn", "lightgbm", "pandas", "numpy", "scipy"}
+    assert set(meta.requirements.modules) == expected_requirements
 
 
 # Copyright 2019 Zyfra

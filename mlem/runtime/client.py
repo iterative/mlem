@@ -46,12 +46,14 @@ class Client(MlemABC, ABC):
             raise WrongMethodError(f"{name} method is not exposed by server")
         return _MethodCall(
             method=self.methods[name],
+            name=name,
             call_method=self._call_method,
         )
 
 
 class _MethodCall(BaseModel):
     method: Signature
+    name: str
     call_method: Callable
 
     def __call__(self, *args, **kwargs):
@@ -83,7 +85,7 @@ class _MethodCall(BaseModel):
         logger.debug(
             'Calling server method "%s", args: %s ...', self.method.name, data
         )
-        out = self.call_method(self.method.name, data)
+        out = self.call_method(self.name, data)
         logger.debug("Server call returned %s", out)
         return self.method.returns.get_serializer().deserialize(out)
 
