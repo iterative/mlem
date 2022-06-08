@@ -1,4 +1,4 @@
-from typing import Any, ClassVar
+from typing import Any, ClassVar, List
 
 import pytest
 
@@ -28,6 +28,9 @@ class Container(DataType):
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
     ) -> DataWriter:
+        raise NotImplementedError
+
+    def combine(self, batched_data: List[Any]) -> Any:
         raise NotImplementedError
 
 

@@ -91,7 +91,9 @@ def apply(
             batch_data = get_data_value(part, batch_size)
             for batch in batch_data:
                 preds = w.call_method(resolved_method, batch.data)
-                res += [*preds]  # TODO: merge results
+                res.append(preds)
+        dt = w.methods[resolved_method].returns
+        res = dt.combine(res)
     else:
         res = [
             w.call_method(resolved_method, get_data_value(part))
