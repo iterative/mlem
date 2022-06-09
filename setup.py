@@ -50,6 +50,7 @@ extras = {
     "pandas": ["pandas", "lxml", "openpyxl", "xlrd", "tables", "pyarrow"],
     "numpy": ["numpy"],
     "sklearn": ["scipy", "scikit-learn"],
+    "onnx": ["onnx", "onnxruntime", "skl2onnx"],
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
@@ -65,6 +66,9 @@ extras = {
     "s3": ["s3fs[boto3]>=2021.11.1", "aiobotocore[boto3]>2"],
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
+    "protobuf": [
+        "protobuf==3.20.0"
+    ],  # https://github.com/protocolbuffers/protobuf/issues/10051
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
@@ -147,6 +151,7 @@ setup_args = dict(  # noqa: C408
             "model_type.lightgbm = mlem.contrib.lightgbm:LightGBMModel",
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.sklearn_pipeline = mlem.contrib.sklearn:SklearnPipelineType",
+            "model_type.onnx = mlem.contrib.onnx:ONNXModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "model_type.torch = mlem.contrib.torch:TorchModel",
             "builder.docker = mlem.contrib.docker.base:DockerImageBuilder",
