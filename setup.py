@@ -67,7 +67,7 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "protobuf": [
-        "protobuf=3.20.0"
+        "protobuf==3.20.0"
     ],  # https://github.com/protocolbuffers/protobuf/issues/10051
 }
 
