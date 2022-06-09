@@ -82,6 +82,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.numpy", ["numpy"], False),
         Extension("mlem.contrib.pandas", ["pandas"], False),
         Extension("mlem.contrib.sklearn", ["sklearn"], False),
+        Extension("mlem.contrib.onnx", ["onnx"], False),
         # Extension('mlem.contrib.tensorflow', ['tensorflow'], False, is_tf_v1),
         # Extension('mlem.contrib.tensorflow_v2', ['tensorflow'], False, is_tf_v2),
         Extension("mlem.contrib.torch", ["torch"], False),
