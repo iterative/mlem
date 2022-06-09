@@ -77,6 +77,7 @@ class ModelProtoIO(ModelIO):
 
     def load(self, artifacts: Artifacts):
         from mlem.contrib.onnx import ONNXWrappedModel
+
         if len(artifacts) != 1:
             raise ValueError("Invalid artifacts: should be one .onx file")
         with artifacts[self.art_name].open() as f:

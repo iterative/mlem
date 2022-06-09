@@ -1,26 +1,28 @@
-from typing import Any, ClassVar, Optional, IO, Union, Text
+from typing import IO, Any, ClassVar, Optional, Text, Union
 
 import numpy as np
 import onnx
 import onnxruntime as onnxrt
 import pandas as pd
 from numpy.typing import DTypeLike
-from onnx import ModelProto, load_model, ValueInfoProto
+from onnx import ModelProto, ValueInfoProto, load_model
 from onnx.mapping import TENSOR_TYPE_TO_NP_TYPE
 
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import (
     ModelHook,
     ModelIO,
+    ModelProtoIO,
     ModelType,
     Signature,
-    ModelProtoIO,
 )
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
-def convert_to_numpy(data: Union[np.ndarray, pd.DataFrame], dtype: DTypeLike) -> np.ndarray:
-    """Converts input data to numpy """
+def convert_to_numpy(
+    data: Union[np.ndarray, pd.DataFrame], dtype: DTypeLike
+) -> np.ndarray:
+    """Converts input data to numpy"""
     if isinstance(data, np.ndarray):
         pass
     elif isinstance(data, pd.DataFrame):
@@ -31,18 +33,20 @@ def convert_to_numpy(data: Union[np.ndarray, pd.DataFrame], dtype: DTypeLike) ->
 
 
 def get_onnx_to_numpy_type(value_info: ValueInfoProto) -> DTypeLike:
-    """Returns numpy equivalent type of onnx value info """
+    """Returns numpy equivalent type of onnx value info"""
     onnx_type = value_info.type.tensor_type.elem_type
     return TENSOR_TYPE_TO_NP_TYPE[onnx_type]
 
 
 class ONNXWrappedModel:
     """
-     Wrapper for `onnx` models and onnx runtime.
+    Wrapper for `onnx` models and onnx runtime.
     """
 
     def __init__(self, model: Union[ModelProto, IO[bytes], Text]):
-        self.model = model if isinstance(model, ModelProto) else load_model(model)
+        self.model = (
+            model if isinstance(model, ModelProto) else load_model(model)
+        )
         self.runtime_session = self._create_runtime_session()
 
     def _create_runtime_session(self):
@@ -65,14 +69,20 @@ class ONNXWrappedModel:
 
         input_dict = {}
         for model_input, input_data in zip(self.model.graph.input, data):
-            input_dict[model_input.name] = convert_to_numpy(input_data, get_onnx_to_numpy_type(model_input))
+            input_dict[model_input.name] = convert_to_numpy(
+                input_data, get_onnx_to_numpy_type(model_input)
+            )
 
         label_names = [out.name for out in self.runtime_session.get_outputs()]
         pred_onnx = self.runtime_session.run(label_names, input_dict)
 
         output = []
-        for model_output, input_data in zip(self.model.graph.output, pred_onnx):
-            if isinstance(input_data, list):  # TODO - temporary workaround to fix fastapi model issues
+        for model_output, input_data in zip(
+            self.model.graph.output, pred_onnx
+        ):
+            if isinstance(
+                input_data, list
+            ):  # TODO - temporary workaround to fix fastapi model issues
                 output.append(pd.DataFrame(input_data).to_numpy())
             else:
                 output.append(input_data)
@@ -87,16 +97,17 @@ class ONNXModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     type: ClassVar[str] = "onnx"
     io: ModelIO = ModelProtoIO()
-    valid_types: ClassVar = ModelProto,
+    valid_types: ClassVar = (ModelProto,)
 
     @classmethod
     def process(
-            cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
         obj = ONNXWrappedModel(obj)
         # TODO - use ONNX infer shapes.
         onnxrt_predict = Signature.from_method(
-            obj.predict, auto_infer=sample_data is not None, data=sample_data)
+            obj.predict, auto_infer=sample_data is not None, data=sample_data
+        )
         methods = {
             "predict": onnxrt_predict,
         }
