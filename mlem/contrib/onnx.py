@@ -77,9 +77,7 @@ class ONNXWrappedModel:
         pred_onnx = self.runtime_session.run(label_names, input_dict)
 
         output = []
-        for model_output, input_data in zip(
-            self.model.graph.output, pred_onnx
-        ):
+        for input_data in pred_onnx:
             if isinstance(
                 input_data, list
             ):  # TODO - temporary workaround to fix fastapi model issues
