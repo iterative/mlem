@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 from pydantic import parse_obj_as
 
@@ -226,8 +228,14 @@ def test_dict():
     }
 
 
-def test_dict_source():
-    d_value = {"1": 1.5, "2": "a", "3": {"1": False}}
+@pytest.mark.parametrize(
+    "d_value",
+    [
+        {"1": 1.5, "2": "a", "3": {"1": False}},
+        {"1": 1.5, 2: "a", "3": {1: False}},
+    ],
+)
+def test_dict_source_int_and_str_types(d_value):
     data_type = DataType.create(d_value)
 
     def custom_assert(x, y):
@@ -246,3 +254,64 @@ def test_dict_source():
     assert artifacts["1/data"].uri.endswith("data/1")
     assert artifacts["2/data"].uri.endswith("data/2")
     assert artifacts["3/1/data"].uri.endswith("data/3/1")
+
+
+def payload1():
+    return {
+        "item_types": {
+            "1": {"ptype": "float", "type": "primitive"},
+            "2": {"ptype": "str", "type": "primitive"},
+            "3": {
+                "item_types": {"1": {"ptype": "bool", "type": "primitive"}},
+                "type": "dict",
+            },
+        },
+        "type": "dict",
+    }
+
+
+def payload2():
+    payload2 = copy.deepcopy(payload1())
+    payload2["item_types"][2] = payload2["item_types"].pop("2")
+    payload2["item_types"]["3"]["item_types"][1] = payload2["item_types"]["3"][
+        "item_types"
+    ].pop("1")
+    return payload2
+
+
+@pytest.mark.parametrize(
+    "d_value,payload",
+    [
+        ({"1": 1.5, "2": "a", "3": {"1": False}}, payload1()),
+        ({"1": 1.5, 2: "a", "3": {1: False}}, payload2()),
+    ],
+)
+def test_dict_key_int_and_str_types(d_value, payload):
+    data_type = DataType.create(d_value)
+
+    assert isinstance(data_type, DictType)
+
+    assert data_type.dict() == payload
+    dt2 = parse_obj_as(DictType, payload)
+    assert dt2 == data_type
+    assert d_value == data_type.serialize(d_value)
+    assert d_value == data_type.deserialize(d_value)
+    assert data_type.get_model().__name__ == "DictType"
+    assert data_type.get_model().schema() == {
+        "title": "DictType",
+        "type": "object",
+        "properties": {
+            "1": {"title": "1", "type": "number"},
+            "2": {"title": "2", "type": "string"},
+            "3": {"$ref": "#/definitions/3_DictType"},
+        },
+        "required": ["1", "2", "3"],
+        "definitions": {
+            "3_DictType": {
+                "title": "3_DictType",
+                "type": "object",
+                "properties": {"1": {"title": "1", "type": "boolean"}},
+                "required": ["1"],
+            }
+        },
+    }
