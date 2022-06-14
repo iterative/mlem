@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 def rename_recursively(model: Type[BaseModel], prefix: str):
     model.__name__ = f"{prefix}_{model.__name__}"
     for field in model.__fields__.values():
-        if issubclass(field.type_, BaseModel):
+        if isinstance(field.type_, type) and issubclass(
+            field.type_, BaseModel
+        ):
             rename_recursively(field.type_, prefix)
 
 
