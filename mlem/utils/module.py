@@ -343,7 +343,9 @@ def lstrip_lines(lines: Union[str, List[str]], check=True) -> str:
 
 
 _SKIP_CLOSURE_OBJECTS: Dict[str, Dict[str, Set[str]]] = {
-    "globals": {"re": {"_cache"}},
+    # In onnx, "protobuf" module is imported using "google.protobuf" namespace which results in identifying "google"
+    # as possible installable requirement which is incorrect. TODO - see if this can be handled in more correct way
+    "globals": {"re": {"_cache"}, "onnx": {"google"}},
     "nonlocals": {},
 }
 

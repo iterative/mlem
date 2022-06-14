@@ -1,14 +1,14 @@
 import posixpath
 
 import numpy as np
-import pandas as pd
 import pytest
+from pytest_lazyfixture import lazy_fixture
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import Int64TensorType
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.contrib.onnx import ONNXModel, ONNXWrappedModel
+from mlem.contrib.onnx import ONNXModel
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer, ListType
 from mlem.core.model import ModelAnalyzer
@@ -43,73 +43,88 @@ def onnx_regressor(inp_data_nparray, out_data_nparray):
     return lr_onnx
 
 
-def test_hook_classifier(onnx_classifier, inp_data_nparray):
+@pytest.fixture
+def onnx_classifier_inference():
+    return [
+        np.array([1, 2]),
+        np.array([[0.73935163, 0.26064837], [0.26064837, 0.73935163]]),
+    ]
+
+
+@pytest.fixture
+def onnx_regressor_inference():
+    return [np.array([[1.0], [2.0]])]
+
+
+test_hook_classifier_data = [
+    (
+        lazy_fixture("onnx_classifier"),
+        [
+            NumpyNdarrayType(data=None, shape=(None,), dtype="int64"),
+            NumpyNdarrayType(data=None, shape=(None, 2), dtype="float64"),
+        ],
+    ),
+    (
+        lazy_fixture("onnx_regressor"),
+        [NumpyNdarrayType(data=None, shape=(None, 1), dtype="float32")],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "model,expected_return_type_items", test_hook_classifier_data
+)
+def test_hook_classifier(model, expected_return_type_items, inp_data_nparray):
     data_type = DataAnalyzer.analyze(inp_data_nparray)
-    model_type = ModelAnalyzer.analyze(
-        onnx_classifier, sample_data=inp_data_nparray
-    )
+    model_type = ModelAnalyzer.analyze(model, sample_data=inp_data_nparray)
 
     assert isinstance(model_type, ONNXModel)
     check_model_type_common_interface(
         model_type,
         data_type,
-        ListType(
-            items=[
-                NumpyNdarrayType(data=None, shape=(None,), dtype="int64"),
-                NumpyNdarrayType(data=None, shape=(None, 2), dtype="float64"),
-            ]
+        ListType(items=expected_return_type_items),
+    )
+
+
+@pytest.mark.parametrize(
+    "model,expected_output,output_idx",
+    [
+        (
+            lazy_fixture("onnx_classifier"),
+            lazy_fixture("onnx_classifier_inference"),
+            0,
         ),
-    )
-
-
-def test_hook_regressor(onnx_regressor, inp_data_nparray):
-    data_type = DataAnalyzer.analyze(inp_data_nparray)
-    model_type = ModelAnalyzer.analyze(
-        onnx_regressor, sample_data=inp_data_nparray
-    )
-
-    assert isinstance(model_type, ONNXModel)
-    check_model_type_common_interface(
-        model_type,
-        data_type,
-        ListType(
-            items=[
-                NumpyNdarrayType(data=None, shape=(None, 1), dtype="float32")
-            ]
+        (
+            lazy_fixture("onnx_classifier"),
+            lazy_fixture("onnx_classifier_inference"),
+            1,
         ),
-    )
-
-
-@pytest.mark.parametrize("model", ["onnx_classifier", "onnx_regressor"])
-def test_model_type__predict(model, inp_data_nparray, request):
-    model = request.getfixturevalue(model)
+        (
+            lazy_fixture("onnx_regressor"),
+            lazy_fixture("onnx_regressor_inference"),
+            0,
+        ),
+    ],
+)
+def test_model_type__predict(
+    model, expected_output, output_idx, inp_data_nparray
+):
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data_nparray)
 
     np.testing.assert_array_almost_equal(
-        ONNXWrappedModel(model).predict(inp_data_nparray)[0],
-        model_type.call_method("predict", inp_data_nparray)[0],
+        expected_output[output_idx],
+        model_type.call_method("predict", inp_data_nparray)[output_idx],
     )
 
 
-def test_model_type__clf_predict_proba(onnx_classifier, inp_data_nparray):
+def test_model_type__clf_missing_method(onnx_classifier, inp_data_nparray):
     model_type = ModelAnalyzer.analyze(
         onnx_classifier, sample_data=inp_data_nparray
     )
 
-    pd.testing.assert_frame_equal(
-        pd.DataFrame(
-            ONNXWrappedModel(onnx_classifier).predict(inp_data_nparray)[1]
-        ),
-        pd.DataFrame(model_type.call_method("predict", inp_data_nparray)[1]),
-    )
-
-
-def test_model_type__reg_predict_proba(onnx_classifier, inp_data_nparray):
-    model_type = ModelAnalyzer.analyze(
-        onnx_classifier, sample_data=inp_data_nparray
-    )
-
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=r"doesn't expose method 'predict_proba'"
+    ):
         model_type.call_method("predict_proba", inp_data_nparray)
 
 
@@ -120,16 +135,44 @@ def test_model_type__reg_predict_incorrect_inp_data(
         onnx_classifier, sample_data=inp_data_nparray
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="no of inputs provided: 2, expected: 1"
+    ):
         model_type.call_method("predict", [inp_data_nparray, inp_data_nparray])
 
 
-@pytest.mark.parametrize("model", ["onnx_classifier", "onnx_regressor"])
-def test_model_type__dump_load(tmpdir, model, inp_data_nparray, request):
-    model = request.getfixturevalue(model)
+@pytest.mark.parametrize(
+    "model,expected_output,output_idx",
+    [
+        (
+            lazy_fixture("onnx_classifier"),
+            lazy_fixture("onnx_classifier_inference"),
+            0,
+        ),
+        (
+            lazy_fixture("onnx_classifier"),
+            lazy_fixture("onnx_classifier_inference"),
+            1,
+        ),
+        (
+            lazy_fixture("onnx_regressor"),
+            lazy_fixture("onnx_regressor_inference"),
+            0,
+        ),
+    ],
+)
+def test_model_type__dump_load(
+    tmpdir, model, expected_output, output_idx, inp_data_nparray
+):
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data_nparray)
 
-    expected_requirements = {"numpy", "onnx", "pandas", "onnxruntime"}
+    expected_requirements = {
+        "numpy",
+        "onnx",
+        "pandas",
+        "onnxruntime",
+        "protobuf",
+    }
     assert set(model_type.get_requirements().modules) == expected_requirements
     artifacts = model_type.dump(LOCAL_STORAGE, posixpath.join(tmpdir, "model"))
     model_type.model = None
@@ -139,23 +182,7 @@ def test_model_type__dump_load(tmpdir, model, inp_data_nparray, request):
 
     model_type.load(artifacts)
     np.testing.assert_array_almost_equal(
-        ONNXWrappedModel(model).predict(inp_data_nparray)[0],
-        model_type.call_method("predict", inp_data_nparray)[0],
+        expected_output[output_idx],
+        model_type.call_method("predict", inp_data_nparray)[output_idx],
     )
     assert set(model_type.get_requirements().modules) == expected_requirements
-
-
-# Copyright 2019 Zyfra
-# Copyright 2021 Iterative
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.

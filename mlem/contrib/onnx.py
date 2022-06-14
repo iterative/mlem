@@ -1,22 +1,19 @@
-from typing import IO, Any, ClassVar, Optional, Text, Union
+from functools import cached_property
+from typing import Any, ClassVar, List, Optional, Union
 
 import numpy as np
 import onnx
 import onnxruntime as onnxrt
 import pandas as pd
 from numpy.typing import DTypeLike
-from onnx import ModelProto, ValueInfoProto, load_model
+from onnx import ModelProto, ValueInfoProto
 from onnx.mapping import TENSOR_TYPE_TO_NP_TYPE
 
+from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.model import (
-    ModelHook,
-    ModelIO,
-    ModelProtoIO,
-    ModelType,
-    Signature,
-)
+from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
+from mlem.utils.module import get_object_requirements
 
 
 def convert_to_numpy(
@@ -38,23 +35,59 @@ def get_onnx_to_numpy_type(value_info: ValueInfoProto) -> DTypeLike:
     return TENSOR_TYPE_TO_NP_TYPE[onnx_type]
 
 
-class ONNXWrappedModel:
+class ModelProtoIO(ModelIO):
+    """IO for ONNX model object"""
+
+    type: ClassVar[str] = "model_proto"
+
+    def dump(self, storage: Storage, path: str, model) -> Artifacts:
+        with storage.open(path) as (f, art):
+            onnx.save_model(model, f)
+        return {self.art_name: art}
+
+    def load(self, artifacts: Artifacts):
+        if len(artifacts) != 1:
+            raise ValueError("Invalid artifacts: should be one .onx file")
+        with artifacts[self.art_name].open() as f:
+            return onnx.load_model(f)
+
+
+class ONNXModel(ModelType, ModelHook, IsInstanceHookMixin):
     """
-    Wrapper for `onnx` models and onnx runtime.
+    :class:`mlem.core.model.ModelType` implementation for `onnx` models
     """
 
-    def __init__(self, model: Union[ModelProto, IO[bytes], Text]):
-        self.model = (
-            model if isinstance(model, ModelProto) else load_model(model)
+    type: ClassVar[str] = "onnx"
+    io: ModelIO = ModelProtoIO()
+    valid_types: ClassVar = (ModelProto,)
+
+    class Config:
+        keep_untouched = (cached_property,)
+
+    @classmethod
+    def process(
+        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+    ) -> ModelType:
+
+        model = ONNXModel(io=ModelProtoIO(), methods={}).bind(obj)
+        # TODO - use ONNX infer shapes.
+        # ONNXModelSignature().from_onnx(obj.model.graph)
+        onnxrt_predict = Signature.from_method(
+            model.predict, auto_infer=sample_data is not None, data=sample_data
         )
-        self.runtime_session = self._create_runtime_session()
+        model.methods = {
+            "predict": onnxrt_predict,
+        }
 
-    def _create_runtime_session(self):
-        """Creates onnx runtime inference session"""
+        return model
+
+    @cached_property
+    def runtime_session(self) -> onnxrt.InferenceSession:
+        """Provides onnx runtime inference session"""
         # TODO - add support for runtime providers, options. add support for GPU devices.
         return onnxrt.InferenceSession(self.model.SerializeToString())
 
-    def predict(self, data: Any) -> Any:
+    def predict(self, data: Union[List, np.ndarray, pd.DataFrame]) -> Any:
         """Returns inference output for given input data"""
         model_inputs = self.runtime_session.get_inputs()
 
@@ -87,32 +120,13 @@ class ONNXWrappedModel:
 
         return output
 
-
-class ONNXModel(ModelType, ModelHook, IsInstanceHookMixin):
-    """
-    :class:`mlem.core.model.ModelType` implementation for `onnx` models
-    """
-
-    type: ClassVar[str] = "onnx"
-    io: ModelIO = ModelProtoIO()
-    valid_types: ClassVar = (ModelProto,)
-
-    @classmethod
-    def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
-    ) -> ModelType:
-        obj = ONNXWrappedModel(obj)
-        # TODO - use ONNX infer shapes.
-        onnxrt_predict = Signature.from_method(
-            obj.predict, auto_infer=sample_data is not None, data=sample_data
-        )
-        methods = {
-            "predict": onnxrt_predict,
-        }
-
-        return ONNXModel(io=ModelProtoIO(), methods=methods).bind(obj)
-
     def get_requirements(self) -> Requirements:
-        return super().get_requirements() + InstallableRequirement.from_module(
-            onnx
+        return (
+            super().get_requirements()
+            + InstallableRequirement.from_module(onnx)
+            + get_object_requirements(self.predict)
+            + Requirements.new(
+                InstallableRequirement(module="protobuf", version="3.20.1")
+            )
         )
+        # https://github.com/protocolbuffers/protobuf/issues/10051
