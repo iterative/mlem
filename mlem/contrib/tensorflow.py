@@ -1,7 +1,10 @@
+import os.path
+import tempfile
 from typing import Any, ClassVar, Iterator, Optional, Tuple
 
-import numpy as np
+import h5py
 import tensorflow as tf
+from tensorflow.python.keras.saving.saved_model_experimental import sequential
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
@@ -14,7 +17,13 @@ from mlem.core.data_type import (
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.model import (
+    BufferModelIO,
+    ModelHook,
+    ModelIO,
+    ModelType,
+    Signature,
+)
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
@@ -87,7 +96,7 @@ class TFTensorWriter(DataWriter):
         self, data: DataType, storage: Storage, path: str
     ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
-            save(data.data, f)
+            pass
         return TFTensorReader(data_type=data), {self.art_name: art}
 
 
@@ -100,7 +109,7 @@ class TFTensorReader(DataReader):
                 f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
             )
         with artifacts[DataWriter.art_name].open() as f:
-            data = load(f)
+            data = f.read()  # TODO
             return self.data_type.copy().bind(data)
 
     def read_batch(
@@ -109,25 +118,42 @@ class TFTensorReader(DataReader):
         raise NotImplementedError
 
 
-class TFKerasModelIO(ModelIO):
+def is_custom_net(model):
+    return (
+        not model._is_graph_network
+        and not isinstance(  # pylint:disable=protected-access
+            model, sequential.Sequential
+        )
+    )
+
+
+class TFKerasModelIO(BufferModelIO):
     """
     :class:`.ModelIO` implementation for Tensorflow Keras models (:class:`tensorflow.keras.Model` objects)
     """
 
     type: ClassVar[str] = "tensorflow_io"
-    model_file_name = "model.tf"
+    save_format: Optional[str] = None
 
-    def dump(self, storage: Storage, path, model) -> Artifacts:
-        with storage.open(path) as (f, art):
-            save(model, f)
-            return {self.art_name: art}
+    def save_model(self, model: tf.keras.Model, path: str):
+        if self.save_format is None:
+            self.save_format = "tf" if is_custom_net(model) else "h5"
+        model.save(path, save_format=self.save_format)
 
     def load(self, artifacts: Artifacts):
-        if len(artifacts) != 1:
-            raise ValueError("Invalid artifacts: should have only one file")
+        if self.save_format == "h5":
+            if len(artifacts) != 1:
+                raise ValueError(
+                    "Invalid artifacts: should have only one file"
+                )
+            with artifacts[self.art_name].open() as f:
+                return tf.keras.models.load_model(h5py.File(f))
 
-        with artifacts[self.art_name].open() as f:
-            return load(f)
+        if self.save_format == "tf":
+            with tempfile.TemporaryDirectory() as tmpdir:
+                for k, a in artifacts.items():
+                    a.materialize(os.path.join(tmpdir, k))
+                return tf.keras.models.load_model(tmpdir)
 
 
 class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
@@ -159,9 +185,7 @@ class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
         return model
 
     def predict(self, data):
-        if isinstance(data, (np.ndarray, tf.Tensor)):
-            return self.model(data)
-        return self.model(*data)
+        return self.model(data)
 
     def get_requirements(self) -> Requirements:
         return super().get_requirements() + InstallableRequirement.from_module(
