@@ -6,7 +6,6 @@ install_requires = [
     "dill",
     "requests",
     "isort>=5.10",
-    "docker",
     "pydantic>=1.9.0,<2",
     "typer",
     "click<8.1",
@@ -42,12 +41,17 @@ tests = [
     "gcsfs",
     "testcontainers",
     "emoji",
+    "lxml",
+    "openpyxl",
+    "xlrd",
+    "tables",
+    "pyarrow",
 ]
 
 extras = {
     "tests": tests,
     "dvc": ["dvc~=2.0"],
-    "pandas": ["pandas", "lxml", "openpyxl", "xlrd", "tables", "pyarrow"],
+    "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scipy", "scikit-learn"],
     "catboost": ["catboost"],
@@ -65,6 +69,7 @@ extras = {
     "s3": ["s3fs[boto3]>=2021.11.1", "aiobotocore[boto3]>2"],
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
+    "docker": ["docker"],
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
