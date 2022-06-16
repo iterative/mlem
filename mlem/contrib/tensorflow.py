@@ -127,10 +127,8 @@ class TFTensorReader(DataReader):
 
 def is_custom_net(model):
     return (
-        not model._is_graph_network
-        and not isinstance(  # pylint:disable=protected-access
-            model, sequential.Sequential
-        )
+        not model._is_graph_network  # pylint:disable=protected-access
+        and not isinstance(model, sequential.Sequential)
     )
 
 
@@ -147,7 +145,9 @@ class TFKerasModelIO(BufferModelIO):
             self.save_format = "tf" if is_custom_net(model) else "h5"
         model.save(path, save_format=self.save_format)
 
-    def load(self, artifacts: Artifacts):
+    def load(  # pylint:disable=inconsistent-return-statements
+        self, artifacts: Artifacts
+    ):
         if self.save_format == "h5":
             if len(artifacts) != 1:
                 raise ValueError(
