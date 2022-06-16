@@ -95,21 +95,6 @@ def test_feed_dict_type__openapi_schema_3d(tftt_3d):
 
 
 @pytest.fixture
-def bi_np_data(np_data):
-    return [np_data, np_data]
-
-
-@pytest.fixture
-def bi_tensor_data(tensor_data):
-    return [tensor_data, tensor_data]
-
-
-@pytest.fixture
-def mixed_data(np_data, tensor_data):
-    return [np_data, tensor_data]
-
-
-@pytest.fixture
 def labels():
     return np.random.random((100, 10))
 
@@ -131,20 +116,15 @@ def simple_net(np_data, labels):
 
 
 @pytest.fixture
-def complex_net(bi_np_data, labels):
+def complex_net(np_data, labels):
     class Net(tf.keras.Model):
         def __init__(self):
             super().__init__(self)
-            self.left = tf.keras.layers.Dense(50, activation="relu")
-            self.right = tf.keras.layers.Dense(50, activation="tanh")
-            self.clf = tf.keras.layers.Dense(10)
+            self.l1 = tf.keras.layers.Dense(50, activation="tanh")
+            self.clf = tf.keras.layers.Dense(10, activation="relu")
 
         def call(self, inputs):
-            left_output, right_output = self.left(inputs[0]), self.right(
-                inputs[1]
-            )
-            clf_input = tf.concat([left_output, right_output], -1)
-            return self.clf(clf_input)
+            return self.clf(self.l1(inputs))
 
     model = Net()
 
@@ -153,7 +133,7 @@ def complex_net(bi_np_data, labels):
         loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
-    model.fit(bi_np_data, labels, epochs=1, batch_size=50)
+    model.fit(np_data, labels, epochs=1, batch_size=50)
 
     return model
 
@@ -163,9 +143,8 @@ def complex_net(bi_np_data, labels):
     [
         ("simple_net", "np_data"),
         ("simple_net", "tensor_data"),
-        ("complex_net", "bi_np_data"),
-        ("complex_net", "bi_tensor_data"),
-        ("complex_net", "mixed_data"),
+        ("complex_net", "np_data"),
+        ("complex_net", "tensor_data"),
     ],
 )
 def test_model_wrapper(net, input_data, tmpdir, request):
