@@ -6,7 +6,7 @@ import importlib
 import logging
 import sys
 from types import ModuleType
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List, Optional, Union
 
 from mlem.config import LOCAL_CONFIG
 from mlem.utils.importing import (
@@ -34,11 +34,15 @@ class Extension:
         reqs: List[str],
         force: bool = True,
         validator: Callable[[], bool] = None,
+        extra: Optional[str] = "",
     ):
         self.force = force
         self.reqs = reqs
         self.module = module
         self.validator = validator
+        self.extra = extra
+        if extra == "":
+            self.extra = module.split(".")[-1]
 
     def __str__(self):
         return f"<Extension {self.module}>"
@@ -81,7 +85,7 @@ class ExtensionLoader:
     builtin_extensions: Dict[str, Extension] = ExtensionDict(
         Extension("mlem.contrib.numpy", ["numpy"], False),
         Extension("mlem.contrib.pandas", ["pandas"], False),
-        Extension("mlem.contrib.sklearn", ["sklearn"], False),
+        Extension("mlem.contrib.sklearn", ["scipy", "scikit-learn"], False),
         # Extension('mlem.contrib.tensorflow', ['tensorflow'], False, is_tf_v1),
         # Extension('mlem.contrib.tensorflow_v2', ['tensorflow'], False, is_tf_v2),
         Extension("mlem.contrib.torch", ["torch"], False),
@@ -94,7 +98,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
-        Extension("mlem.contrib.rabbitmq", ["pika"], False),
+        Extension("mlem.contrib.rabbitmq", ["pika"], False, extra="rmq"),
         Extension("mlem.contrib.fastai", ["fastai"], False),
     )
 
