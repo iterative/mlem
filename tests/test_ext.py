@@ -1,3 +1,4 @@
+from mlem import ExtensionLoader
 from mlem.utils.entrypoints import (
     MLEM_ENTRY_POINT,
     find_implementations,
@@ -27,3 +28,17 @@ def test_all_impls_in_entrypoints():
     exts = {e.entry for e in exts.values()}
     impls = set(find_implementations()[MLEM_ENTRY_POINT])
     assert exts == impls
+
+
+def test_all_ext_has_pip_extra():
+    from setup import extras
+
+    exts_reqs = {
+        v.extra: v.reqs
+        for v in ExtensionLoader.builtin_extensions.values()
+        if v.extra is not None and len(v.reqs)
+    }
+
+    for name, reqs in exts_reqs.items():
+        assert name in extras
+        assert set(reqs) == set(extras[name])
