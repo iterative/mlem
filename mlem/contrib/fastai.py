@@ -6,7 +6,7 @@ from fastai.vision.core import PILImage
 from pydantic import BaseModel
 
 from mlem.core.artifacts import Artifacts
-from mlem.core.dataset_type import DatasetHook, DatasetSerializer, DatasetType
+from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import BufferModelIO, ModelHook, ModelType, Signature
 from mlem.core.requirements import Requirements
@@ -36,14 +36,16 @@ class FastAIModel(ModelType, ModelHook, IsInstanceHookMixin):
         return FastAIModel(
             methods={
                 "predict": Signature.from_method(
-                    obj.predict, item=sample_data, auto_infer=True
+                    obj.predict,
+                    item=sample_data,
+                    auto_infer=sample_data is not None,
                 )
             }
         )
 
 
 class CategoryDataType(
-    DatasetType, DatasetSerializer, DatasetHook, IsInstanceHookMixin
+    DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
     type: ClassVar = "fastai_category"
     valid_types: ClassVar = (Category,)
@@ -65,12 +67,14 @@ class CategoryDataType(
     def process(cls, obj: Any, **kwargs):
         return CategoryDataType(value=str(obj))
 
-    def get_writer(self, **kwargs):
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> DataWriter:
         raise NotImplementedError  # TODO
 
 
 class PILImageDataType(
-    DatasetType, DatasetSerializer, DatasetHook, IsInstanceHookMixin
+    DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
     type: ClassVar = "fastai_pil_image"
     valid_types: ClassVar = (PILImage,)
@@ -91,5 +95,7 @@ class PILImageDataType(
     def process(cls, obj: Any, **kwargs):
         return PILImageDataType()
 
-    def get_writer(self, **kwargs):
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> DataWriter:
         raise NotImplementedError  # TODO
