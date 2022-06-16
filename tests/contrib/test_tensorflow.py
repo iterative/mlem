@@ -161,8 +161,8 @@ def complex_net(bi_np_data, labels):
 @pytest.mark.parametrize(
     "net, input_data",
     [
-        # ("simple_net", "np_data"),
-        # ("simple_net", "tensor_data"),
+        ("simple_net", "np_data"),
+        ("simple_net", "tensor_data"),
         ("complex_net", "bi_np_data"),
         ("complex_net", "bi_tensor_data"),
         ("complex_net", "mixed_data"),
@@ -187,10 +187,11 @@ def test_model_wrapper(net, input_data, tmpdir, request):
 
     model_name = str(tmpdir / "tensorflow-model")
     artifacts = tmw.dump(LOCAL_STORAGE, model_name)
+
     assert (
-        os.path.isdir(model_name)
-        if callable(net)
-        else os.path.isfile(model_name)
+        os.path.isfile(model_name)
+        if isinstance(net, tf.keras.Sequential)
+        else os.path.isdir(model_name)
     )
 
     tmw.model = None
