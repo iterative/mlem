@@ -6,6 +6,7 @@ import tensorflow as tf
 from pydantic import parse_obj_as
 
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.tensorflow import TFTensorDataType
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
@@ -35,8 +36,6 @@ def tftt_3d(tensor_data):
 
 
 def test_feed_dict_type__self_serialization(tftt):
-    from mlem.contrib.tensorflow import TFTensorDataType
-
     assert isinstance(tftt, TFTensorDataType)
     assert tftt.get_requirements().modules == ["tensorflow"]
     payload = tftt.dict()
