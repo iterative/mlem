@@ -5,6 +5,7 @@ import pytest
 import tensorflow as tf
 from pydantic import parse_obj_as
 
+from mlem.api import save
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.tensorflow import TFTensorDataType
 from mlem.core.artifacts import LOCAL_STORAGE
@@ -184,3 +185,5 @@ def test_model_wrapper(net, input_data, tmpdir, request):
     np.testing.assert_array_equal(prediction, prediction2)
 
     assert set(tmw.get_requirements().modules) == expected_requirements
+
+    save(net, str(tmpdir / "tensorflow-net"), sample_data=input_data)

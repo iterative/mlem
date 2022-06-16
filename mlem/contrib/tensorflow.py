@@ -63,7 +63,7 @@ class TFTensorDataType(
         try:
             ret = tf.convert_to_tensor(obj, dtype=getattr(tf, self.dtype))
         except (ValueError, TypeError):
-            raise DeserializationError(  # pylint: disable=W0707
+            raise DeserializationError(  # pylint: disable=raise-missing-from
                 f"given object: {obj} could not be converted to tensor "
                 f"of type: {getattr(tf, self.dtype)}"
             )
