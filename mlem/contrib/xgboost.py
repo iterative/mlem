@@ -1,5 +1,4 @@
 import os
-import posixpath
 import tempfile
 from typing import Any, ClassVar, Dict, List, Optional, Type
 
@@ -8,11 +7,17 @@ from pydantic import BaseModel
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
-from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.artifacts import Artifacts
 from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.model import (
+    BufferModelIO,
+    ModelHook,
+    ModelIO,
+    ModelType,
+    Signature,
+)
 from mlem.core.requirements import (
     AddRequirementHook,
     InstallableRequirement,
@@ -112,7 +117,7 @@ class DMatrixDataType(
         raise NotImplementedError
 
 
-class XGBoostModelIO(ModelIO):
+class XGBoostModelIO(BufferModelIO):
     """
     :class:`~.ModelIO` implementation for XGBoost models
     """
@@ -120,14 +125,8 @@ class XGBoostModelIO(ModelIO):
     type: ClassVar[str] = "xgboost_io"
     model_file_name = "model.xgb"
 
-    def dump(
-        self, storage: Storage, path, model: xgboost.Booster
-    ) -> Artifacts:
-        with tempfile.TemporaryDirectory(prefix="mlem_xgboost_dump") as f:
-            local_path = os.path.join(f, self.model_file_name)
-            model.save_model(local_path)
-            remote_path = posixpath.join(path, self.model_file_name)
-            return {self.art_name: storage.upload(local_path, remote_path)}
+    def save_model(self, model: Any, path: str):
+        model.save_model(path)
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:

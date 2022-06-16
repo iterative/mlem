@@ -545,7 +545,9 @@ class RequirementAnalyzer(dill.Pickler):
                     )
                     if parent_package_name not in self._modules:
                         parent_package = sys.modules[parent_package_name]
-                        self.add_requirement(parent_package)
+                        # exclude namespace packages
+                        if parent_package.__file__ is not None:
+                            self.add_requirement(parent_package)
 
     def save(self, obj, save_persistent_id=True):
         if id(obj) in self.seen or isinstance(obj, IGNORE_TYPES_REQ):
