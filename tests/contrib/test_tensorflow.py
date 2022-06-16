@@ -7,11 +7,12 @@ from pydantic import parse_obj_as
 
 from mlem.api import save
 from mlem.constants import PREDICT_METHOD_NAME
-from mlem.contrib.tensorflow import TFTensorDataType
+from mlem.contrib.tensorflow import TFTensorDataType, TFTensorReader
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.data_type import DataAnalyzer
+from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
+from tests.conftest import data_write_read_check
 
 
 @pytest.fixture
@@ -33,6 +34,23 @@ def tftt(tensor_data):
 def tftt_3d(tensor_data):
     return DataAnalyzer.analyze(
         tf.tile(tf.expand_dims(tensor_data, -1), [1, 1, 20])
+    )
+
+
+def test_tensorflow_source(tensor_data):
+    data = tensor_data
+    data = DataType.create(data)
+
+    def custom_assert(x, y):
+        assert x.dtype == y.dtype
+        assert isinstance(x, tf.Tensor)
+        assert isinstance(y, tf.Tensor)
+
+    data_write_read_check(
+        data,
+        custom_eq=tf.equal,
+        reader_type=TFTensorReader,
+        custom_assert=custom_assert,
     )
 
 
@@ -187,3 +205,19 @@ def test_model_wrapper(net, input_data, tmpdir, request):
     assert set(tmw.get_requirements().modules) == expected_requirements
 
     save(net, str(tmpdir / "tensorflow-net"), sample_data=input_data)
+
+
+# Copyright 2019 Zyfra
+# Copyright 2021 Iterative
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
