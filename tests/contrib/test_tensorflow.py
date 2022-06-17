@@ -105,11 +105,25 @@ def test_feed_dict_deserialize_failure(tftt, obj):
 
 def test_feed_dict_type__openapi_schema_3d(tftt_3d):
     assert tftt_3d.dict() == {
-        "shape": (100, 32, 20),
+        "shape": (None, 32, 20),
         "dtype": "float32",
-        "type": "tensorflow",
+        "type": "tf_tensor",
     }
-    # can't access get_model().schema() since get_model() is not implemented
+    assert tftt_3d.get_model().schema() == {
+        "title": "TFTensor",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "array",
+                "items": {"type": "number"},
+                "minItems": 20,
+                "maxItems": 20,
+            },
+            "minItems": 32,
+            "maxItems": 32,
+        },
+    }
 
 
 @pytest.fixture
