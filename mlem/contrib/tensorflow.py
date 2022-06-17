@@ -1,13 +1,15 @@
 import os.path
 import tempfile
-from typing import Any, ClassVar, Iterator, Optional, Tuple
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import h5py
 import numpy as np
 import tensorflow as tf
+from pydantic import conlist, create_model
 from tensorflow.python.keras.saving.saved_model_experimental import sequential
 
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
@@ -28,6 +30,11 @@ from mlem.core.model import (
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
+def python_type_from_tf_string_repr(dtype: str):
+    #  not sure this will work all the time
+    return python_type_from_np_string_repr(dtype)
+
+
 class TFTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
@@ -39,10 +46,14 @@ class TFTensorDataType(
     :param dtype: data type of `tensorflow.Tensor` objects in data
     """
 
-    type: ClassVar[str] = "tensorflow"
+    type: ClassVar[str] = "tf_tensor"
     valid_types: ClassVar = (tf.Tensor,)
     shape: Tuple[Optional[int], ...]
     dtype: str
+
+    @property
+    def tf_type(self):
+        return getattr(tf, self.dtype)
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
@@ -52,21 +63,21 @@ class TFTensorDataType(
 
     def serialize(self, instance: tf.Tensor):
         self.check_type(instance, tf.Tensor, SerializationError)
-        if instance.dtype is not getattr(tf, self.dtype):
+        if instance.dtype is not self.tf_type:
             raise SerializationError(
                 f"given tensor is of dtype: {instance.dtype}, "
-                f"expected: {getattr(tf, self.dtype)}"
+                f"expected: {self.tf_type}"
             )
         self._check_shape(instance, SerializationError)
         return instance.numpy().tolist()
 
     def deserialize(self, obj):
         try:
-            ret = tf.convert_to_tensor(obj, dtype=getattr(tf, self.dtype))
+            ret = tf.convert_to_tensor(obj, dtype=self.tf_type)
         except (ValueError, TypeError):
             raise DeserializationError(  # pylint: disable=raise-missing-from
                 f"given object: {obj} could not be converted to tensor "
-                f"of type: {getattr(tf, self.dtype)}"
+                f"of type: {self.tf_type}"
             )
         self._check_shape(ret, DeserializationError)
         return ret
@@ -79,13 +90,25 @@ class TFTensorDataType(
     ) -> DataWriter:
         return TFTensorWriter(**kwargs)
 
+    def _subtype(self, subshape: Tuple[Optional[int], ...]):
+        if len(subshape) == 0:
+            return python_type_from_tf_string_repr(self.dtype)
+        return conlist(
+            self._subtype(subshape[1:]),
+            min_items=subshape[0],
+            max_items=subshape[0],
+        )
+
     def get_model(self, prefix: str = ""):
-        raise NotImplementedError
+        return create_model(
+            prefix + "TFTensor",
+            __root__=(List[self._subtype(self.shape[1:])], ...),  # type: ignore
+        )
 
     @classmethod
     def process(cls, obj: tf.Tensor, **kwargs) -> DataType:
         return TFTensorDataType(
-            shape=tuple(obj.shape),
+            shape=(None,) + tuple(obj.shape)[1:],
             dtype=obj.dtype.name,
         )
 
@@ -94,7 +117,7 @@ DATA_KEY = "data"
 
 
 class TFTensorWriter(DataWriter):
-    type: ClassVar[str] = "tensorflow"
+    type: ClassVar[str] = "tf_tensor"
 
     def write(
         self, data: DataType, storage: Storage, path: str
@@ -105,7 +128,7 @@ class TFTensorWriter(DataWriter):
 
 
 class TFTensorReader(DataReader):
-    type: ClassVar[str] = "tensorflow"
+    type: ClassVar[str] = "tf_tensor"
 
     def read(self, artifacts: Artifacts) -> DataType:
         if DataWriter.art_name not in artifacts:
@@ -137,7 +160,7 @@ class TFKerasModelIO(BufferModelIO):
     :class:`.ModelIO` implementation for Tensorflow Keras models (:class:`tensorflow.keras.Model` objects)
     """
 
-    type: ClassVar[str] = "tensorflow_io"
+    type: ClassVar[str] = "tf_keras"
     save_format: Optional[str] = None
 
     def save_model(self, model: tf.keras.Model, path: str):
@@ -149,7 +172,7 @@ class TFKerasModelIO(BufferModelIO):
         self, artifacts: Artifacts
     ):
         if self.save_format == "h5":
-            if len(artifacts) != 1:
+            if self.art_name not in artifacts:
                 raise ValueError(
                     "Invalid artifacts: should have only one file"
                 )
@@ -161,6 +184,10 @@ class TFKerasModelIO(BufferModelIO):
                 for k, a in artifacts.items():
                     a.materialize(os.path.join(tmpdir, k))
                 return tf.keras.models.load_model(tmpdir)
+        else:
+            raise ValueError(
+                f"Unknown save format {self.save_format} for tensorflow models, expected one of [tf, h5]"
+            )
 
 
 class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
@@ -168,7 +195,7 @@ class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
     :class:`.ModelType` implementation for Tensorflow Keras models
     """
 
-    type: ClassVar[str] = "tensorflow"
+    type: ClassVar[str] = "tf_keras"
     valid_types: ClassVar = (tf.keras.Model,)
     io: ModelIO = TFKerasModelIO()
 
