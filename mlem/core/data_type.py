@@ -2,6 +2,7 @@
 Base classes for working with data in MLEM
 """
 import builtins
+import json
 import posixpath
 from abc import ABC, abstractmethod
 from typing import (
@@ -70,8 +71,10 @@ class DataType(ABC, MlemABC, WithRequirements):
         return self
 
     @classmethod
-    def create(cls, obj: Any, **kwargs):
-        return DataAnalyzer.analyze(obj, **kwargs).bind(obj)
+    def create(cls, obj: Any, is_dynamic: bool = False, **kwargs):
+        return DataAnalyzer.analyze(obj, is_dynamic=is_dynamic, **kwargs).bind(
+            obj
+        )
 
 
 class DataSerializer(ABC):
@@ -367,7 +370,7 @@ class _TupleLikeType(DataType, DataSerializer):
 
 def _check_type_and_size(obj, dtype, size, exc_type):
     DataType.check_type(obj, dtype, exc_type)
-    if size != -1 and len(obj) != size:
+    if size is not None and len(obj) != size:
         raise exc_type(
             f"given {dtype.__name__} has len: {len(obj)}, expected: {size}"
         )
@@ -449,45 +452,83 @@ class OrderedCollectionHook(DataHook):
         return isinstance(obj, (list, tuple))
 
     @classmethod
-    def process(cls, obj, **kwargs) -> DataType:
+    def process(cls, obj, is_dynamic: bool = False, **kwargs) -> DataType:
         if isinstance(obj, tuple):
-            return TupleType(items=[DataAnalyzer.analyze(o) for o in obj])
+            return TupleType(
+                items=[
+                    DataAnalyzer.analyze(o, is_dynamic=is_dynamic, **kwargs)
+                    for o in obj
+                ]
+            )
 
         py_types = {type(o) for o in obj}
         if len(obj) <= 1 or len(py_types) > 1:
-            return ListType(items=[DataAnalyzer.analyze(o) for o in obj])
+            return ListType(
+                items=[
+                    DataAnalyzer.analyze(o, is_dynamic=is_dynamic, **kwargs)
+                    for o in obj
+                ]
+            )
+
+        size = None if is_dynamic else len(obj)
 
         if not py_types.intersection(
             PrimitiveType.PRIMITIVES
         ):  # py_types is guaranteed to be singleton set here
-            items_types = [DataAnalyzer.analyze(o) for o in obj]
+            items_types = [
+                DataAnalyzer.analyze(o, is_dynamic=is_dynamic, **kwargs)
+                for o in obj
+            ]
             first, *others = items_types
             for other in others:
                 if first != other:
                     return ListType(items=items_types)
-            return ArrayType(dtype=first, size=len(obj))
+            return ArrayType(dtype=first, size=size)
 
         # optimization for large lists of same primitive type elements
-        return ArrayType(dtype=DataAnalyzer.analyze(obj[0]), size=len(obj))
+        return ArrayType(
+            dtype=DataAnalyzer.analyze(
+                obj[0], is_dynamic=is_dynamic, **kwargs
+            ),
+            size=size,
+        )
 
 
-class DictType(DataType, DataSerializer, DataHook):
-    """
-    DataType for dict
-    """
-
-    type: ClassVar[str] = "dict"
-    item_types: Dict[str, DataType]
-
+class DictTypeHook(DataHook):
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, dict)
 
     @classmethod
-    def process(cls, obj: Any, **kwargs) -> "DictType":
-        return DictType(
-            item_types={k: DataAnalyzer.analyze(v) for (k, v) in obj.items()}
-        )
+    def process(
+        cls, obj: Any, is_dynamic: bool = False, **kwargs
+    ) -> Union["DictType", "DynamicDictType"]:
+
+        if not is_dynamic:
+            return DictType(
+                item_types={
+                    k: DataAnalyzer.analyze(v, is_dynamic=is_dynamic, **kwargs)
+                    for (k, v) in obj.items()
+                }
+            )
+        else:
+            return DynamicDictType(
+                key_type=DataAnalyzer.analyze(
+                    next(iter(obj.keys())), is_dynamic=is_dynamic, **kwargs
+                ),
+                value_type=DataAnalyzer.analyze(
+                    next(iter(obj.values())), is_dynamic=is_dynamic, **kwargs
+                ),
+            )
+
+
+class DictType(DataType, DataSerializer):
+    """
+    DataType for dict with fixed set of keys
+    """
+
+    type: ClassVar[str] = "dict"
+    item_types: Dict[str, DataType]
 
     def deserialize(self, obj):
         self._check_type_and_keys(obj, DeserializationError)
@@ -570,6 +611,124 @@ class DictReader(DataReader):
             v_data_type = dtype_reader.read(artifacts[key])  # type: ignore
             data_dict[key] = v_data_type.data
         return self.data_type.copy().bind(data_dict)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DataType]:
+        raise NotImplementedError
+
+
+class DynamicDictType(DataType, DataSerializer):
+    """
+    Dynamic DataType for dict without fixed set of keys
+    """
+
+    type: ClassVar[str] = "d_dict"
+
+    key_type: DataType
+    value_type: DataType
+
+    def deserialize(self, obj):
+        self._check_type_and_keys(obj, DeserializationError)
+        return {
+            self.key_type.get_serializer()
+            .deserialize(
+                k,
+            ): self.value_type.get_serializer()
+            .deserialize(
+                v,
+            )
+            for k, v in obj.items()
+        }
+
+    def serialize(self, instance: dict):
+        self._check_type_and_keys(instance, SerializationError)
+        if self.key_type == PrimitiveType and self.value_type == PrimitiveType:
+            return instance
+        else:
+            return {
+                self.key_type.get_serializer()
+                .serialize(
+                    k,
+                ): self.value_type.get_serializer()
+                .serialize(
+                    v,
+                )
+                for k, v in instance.items()
+            }
+
+    def _check_type_and_keys(self, obj, exc_type):
+        self.check_type(obj, dict, exc_type)
+        obj_type = DictTypeHook.process(obj, is_dynamic=True)
+        obj_types = (obj_type.key_type, obj_type.value_type)
+        expected_types = (self.key_type, self.value_type)
+        if obj_types != expected_types:
+            raise exc_type(
+                f"given dict has type: {obj_types}, expected: {expected_types}"
+            )
+
+        # TODO - should we check for type of all items of dict?
+
+    def get_requirements(self) -> Requirements:
+        return sum(
+            [
+                self.key_type.get_requirements(),
+                self.value_type.get_requirements(),
+            ],
+            Requirements.new(),
+        )
+
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DynamicDictWriter":
+        return DynamicDictWriter(**kwargs)
+
+    def get_model(self, prefix="") -> Type[BaseModel]:
+        field_type = (
+            Dict[  # type: ignore
+                self.key_type.get_serializer().get_model(
+                    prefix + "_key_"  # noqa: F821
+                ),
+                self.value_type.get_serializer().get_model(
+                    prefix + "_val_"  # noqa: F821
+                ),
+            ],
+            ...,
+        )
+        return create_model(prefix + "DynamicDictType", __root__=field_type)  # type: ignore
+
+
+class DynamicDictWriter(DataWriter):
+    type: ClassVar[str] = "d_dict"
+
+    def write(
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
+        if not isinstance(data, DynamicDictType):
+            raise ValueError(
+                f"expected data to be of DynamicDictTypeWriter, got {type(data)} instead"
+            )
+        with storage.open(path) as (f, art):
+            f.write(
+                json.dumps(data.get_serializer().serialize(data.data)).encode(
+                    "utf-8"
+                )
+            )
+        return DynamicDictReader(data_type=data), {DataWriter.art_name: art}
+
+
+class DynamicDictReader(DataReader):
+    type: ClassVar[str] = "d_dict"
+    data_type: DynamicDictType
+
+    def read(self, artifacts: Artifacts) -> DataType:
+        if DataWriter.art_name not in artifacts:
+            raise ValueError(
+                f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
+            )
+        with artifacts[DataWriter.art_name].open() as f:
+            data = json.load(f)
+        return self.data_type.copy().bind(data)
 
     def read_batch(
         self, artifacts: Artifacts, batch_size: int

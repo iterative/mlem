@@ -1,8 +1,9 @@
-from json import loads
+import re
 
 import numpy as np
 import pytest
 from pydantic import parse_obj_as
+from pytest_lazyfixture import lazy_fixture
 
 from mlem.contrib.numpy import (
     NumpyNdarrayType,
@@ -36,15 +37,120 @@ def test_npnumber_source():
     )
 
 
-def test_ndarray_source():
-    data = np.array([1, 2, 3])
-    data_type = DataType.create(data)
-    data_write_read_check(data_type, custom_eq=np.array_equal)
+@pytest.fixture
+def nat():
+    data = np.array([[1, 2], [3, 4]])
+    dtype = DataType.create(data)
+    payload = {"shape": (None, 2), "dtype": "int64", "type": "ndarray"}
+    schema = {
+        "title": "NumpyNdarray",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "minItems": 2,
+            "maxItems": 2,
+        },
+    }
+    test_data1 = data
+    test_data2 = np.array([[10, 20], [30, 40]])
+    test_data3 = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    return False, dtype, payload, schema, test_data1, test_data2, test_data3
 
 
 @pytest.fixture
-def nat():
-    return DataType.create(np.array([[1, 2], [3, 4]]))
+def nat_dynamic():
+    dtype = NumpyNdarrayType(shape=[2, None, None], dtype="int")
+    payload = {"dtype": "int", "shape": (2, None, None), "type": "ndarray"}
+    schema = {
+        "items": {
+            "items": {"items": {"type": "integer"}, "type": "array"},
+            "type": "array",
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "title": "NumpyNdarray",
+        "type": "array",
+    }
+    test_data1 = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+    test_data2 = np.array(
+        [[[1, 2], [3, 4], [5, 6]], [[7, 8], [9, 10], [11, 12]]]
+    )
+    test_data3 = np.array([[[1, 2, 2], [3, 4, 4]], [[5, 6, 6], [7, 8, 8]]])
+    return True, dtype, payload, schema, test_data1, test_data2, test_data3
+
+
+@pytest.fixture
+def nat_dynamic_float():
+    dtype = NumpyNdarrayType(shape=[2, None, None, 1], dtype="float")
+    payload = {
+        "dtype": "float",
+        "shape": (2, None, None, 1),
+        "type": "ndarray",
+    }
+    schema = {
+        "items": {
+            "items": {
+                "items": {
+                    "items": {"type": "number"},
+                    "maxItems": 1,
+                    "minItems": 1,
+                    "type": "array",
+                },
+                "type": "array",
+            },
+            "type": "array",
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "title": "NumpyNdarray",
+        "type": "array",
+    }
+    test_data1 = np.array([[[[1.0]], [[3.0]]], [[[5.1]], [[7.1]]]])
+    test_data2 = np.array([[[[1.1], [3.0], [5.0]]], [[[7.1], [9.99], [11.2]]]])
+    test_data3 = np.array(
+        [[[[1.1], [3.2]], [[5.33], [7.1]]], [[[1.11], [3.4]], [[5.3], [7.2]]]]
+    )
+    return True, dtype, payload, schema, test_data1, test_data2, test_data3
+
+
+@pytest.fixture
+def nat_dynamic_all_none_dims():
+    dtype = NumpyNdarrayType(shape=[None, None, None], dtype="int")
+    payload = {"dtype": "int", "shape": (None, None, None), "type": "ndarray"}
+    schema = {
+        "items": {
+            "items": {"items": {"type": "integer"}, "type": "array"},
+            "type": "array",
+        },
+        "title": "NumpyNdarray",
+        "type": "array",
+    }
+    test_data1 = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+    test_data2 = np.array(
+        [[[1, 2], [3, 4], [5, 6]], [[7, 8], [9, 10], [11, 12]]]
+    )
+    test_data3 = np.array([[[1, 2, 2], [3, 4, 4]], [[5, 6, 6], [7, 8, 8]]])
+    return True, dtype, payload, schema, test_data1, test_data2, test_data3
+
+
+@pytest.fixture
+def nat_dynamic_shape_none():
+    dtype = NumpyNdarrayType(shape=None, dtype="int")
+    payload = {"dtype": "int", "type": "ndarray"}
+    schema = {
+        "items": {
+            "anyOf": [{"type": "integer"}, {"items": {}, "type": "array"}]
+        },
+        "title": "NumpyNdarray",
+        "type": "array",
+    }
+    test_data1 = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+    test_data2 = np.array(
+        [[[1, 2], [3, 4], [5, 6]], [[7, 8], [9, 10], [11, 12]]]
+    )
+    test_data3 = np.array([[[1, 2, 2], [3, 4, 4]], [[5, 6, 6], [7, 8, 8]]])
+    return True, dtype, payload, schema, test_data1, test_data2, test_data3
 
 
 def test_python_type_from_np_string_repr():
@@ -81,41 +187,73 @@ def test_number():
     assert ndt.get_serializer().deserialize(n_payload) == value
 
 
-def test_ndarray(nat):
-    value = nat.data
+@pytest.mark.parametrize("test_data_idx", [4, 5, 6])
+@pytest.mark.parametrize(
+    "data",
+    [
+        (lazy_fixture("nat")),
+        (lazy_fixture("nat_dynamic")),
+        (lazy_fixture("nat_dynamic_all_none_dims")),
+        (lazy_fixture("nat_dynamic_shape_none")),
+        (lazy_fixture("nat_dynamic_float")),
+    ],
+)
+def test_ndarray(data, test_data_idx):
+    nat, payload, schema, value = (
+        data[1],
+        data[2],
+        data[3],
+        data[test_data_idx],
+    )
     assert isinstance(nat, NumpyNdarrayType)
-    assert nat.shape == (None, 2)
-    assert python_type_from_np_string_repr(nat.dtype) == int
     assert nat.get_requirements().modules == ["numpy"]
-    payload = nat.json()
-    nat2 = parse_obj_as(DataType, loads(payload))
+    assert nat.dict() == payload
+    nat2 = parse_obj_as(DataType, payload)
     assert nat == nat2
     assert nat.get_model().__name__ == nat2.get_model().__name__
-    assert nat.get_model().schema() == {
-        "title": "NumpyNdarray",
-        "type": "array",
-        "items": {
-            "type": "array",
-            "items": {"type": "integer"},
-            "minItems": 2,
-            "maxItems": 2,
-        },
-    }
+    assert nat.get_model().schema() == schema
     n_payload = nat.get_serializer().serialize(value)
     assert (nat.get_serializer().deserialize(n_payload) == value).all()
+    model = parse_obj_as(nat.get_model(), n_payload)
+    assert model.__root__ == n_payload
+
+    nat = nat.bind(value)
+    data_write_read_check(nat, custom_eq=np.array_equal)
 
 
 @pytest.mark.parametrize(
-    "obj",
+    "nddtype,obj,err_msg",
     [
-        {},  # wrong type
-        np.array([[1, 2], [3, 4]], dtype=np.float32),  # wrong data type
-        np.array([1, 2]),  # wrong shape
+        [
+            lazy_fixture("nat"),
+            {},
+            "given data is of type: <class 'dict'>, expected: <class 'numpy.ndarray'>",
+        ],
+        [
+            lazy_fixture("nat"),
+            np.array([[1, 2], [3, 4]], dtype=np.float32),
+            "given array is of type: float32, " "expected: int64",
+        ],
+        [
+            lazy_fixture("nat"),
+            np.array([1, 2]),
+            "given array is of rank: 1, expected: 2",
+        ],
+        [
+            lazy_fixture("nat_dynamic"),
+            np.array([1, 2]),
+            "given array is of rank: 1, " "expected: 3",
+        ],
+        [
+            lazy_fixture("nat_dynamic_float"),
+            np.array([[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]),
+            "given array is of shape: (1, None, None, 2), expected: (2, None, None, 1)",
+        ],
     ],
 )
-def test_ndarray_serialize_failure(nat, obj):
-    with pytest.raises(SerializationError):
-        nat.serialize(obj)
+def test_ndarray_serialize_failure(nddtype, obj, err_msg):
+    with pytest.raises(SerializationError, match=re.escape(err_msg)):
+        nddtype[1].serialize(obj)
 
 
 @pytest.mark.parametrize(
@@ -124,26 +262,10 @@ def test_ndarray_serialize_failure(nat, obj):
 )
 def test_ndarray_deserialize_failure(nat, obj):
     with pytest.raises(DeserializationError):
-        nat.deserialize(obj)
+        nat[1].deserialize(obj)
 
 
 def test_requirements():
     assert get_object_requirements(
         NumpyNdarrayType(shape=(0,), dtype="int")
     ).modules == ["numpy"]
-
-
-# Copyright 2019 Zyfra
-# Copyright 2021 Iterative
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.

@@ -69,8 +69,12 @@ class LightGBMDataType(
         return LightGBMDataWriter(**kwargs)
 
     @classmethod
-    def process(cls, obj: Any, **kwargs) -> DataType:
-        return LightGBMDataType(inner=DataAnalyzer.analyze(obj.data))
+    def process(cls, obj: Any, is_dynamic: bool = False, **kwargs) -> DataType:
+        return LightGBMDataType(
+            inner=DataAnalyzer.analyze(
+                obj.data, is_dynamic=is_dynamic, **kwargs
+            )
+        )
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.inner.get_serializer().get_model(prefix)
