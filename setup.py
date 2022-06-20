@@ -53,7 +53,7 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "pandas": ["pandas"],
     "numpy": ["numpy"],
-    "sklearn": ["scipy", "scikit-learn"],
+    "sklearn": ["scikit-learn"],
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
