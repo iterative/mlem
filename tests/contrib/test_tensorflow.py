@@ -5,11 +5,14 @@ import pytest
 import tensorflow as tf
 from pydantic import parse_obj_as
 
+from mlem.api import save
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.tensorflow import TFTensorDataType, TFTensorReader
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.data_type import DataAnalyzer
+from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
+from tests.conftest import data_write_read_check
 
 
 @pytest.fixture
@@ -34,9 +37,24 @@ def tftt_3d(tensor_data):
     )
 
 
-def test_feed_dict_type__self_serialization(tftt):
-    from mlem.contrib.tensorflow import TFTensorDataType
+def test_tensorflow_source(tensor_data):
+    data = tensor_data
+    data = DataType.create(data)
 
+    def custom_assert(x, y):
+        assert x.dtype == y.dtype
+        assert isinstance(x, tf.Tensor)
+        assert isinstance(y, tf.Tensor)
+
+    data_write_read_check(
+        data,
+        custom_eq=tf.equal,
+        reader_type=TFTensorReader,
+        custom_assert=custom_assert,
+    )
+
+
+def test_feed_dict_type__self_serialization(tftt):
     assert isinstance(tftt, TFTensorDataType)
     assert tftt.get_requirements().modules == ["tensorflow"]
     payload = tftt.dict()
@@ -87,26 +105,25 @@ def test_feed_dict_deserialize_failure(tftt, obj):
 
 def test_feed_dict_type__openapi_schema_3d(tftt_3d):
     assert tftt_3d.dict() == {
-        "shape": (100, 32, 20),
+        "shape": (None, 32, 20),
         "dtype": "float32",
-        "type": "tensorflow",
+        "type": "tf_tensor",
     }
-    # can't access get_model().schema() since get_model() is not implemented
-
-
-@pytest.fixture
-def bi_np_data(np_data):
-    return [np_data, np_data]
-
-
-@pytest.fixture
-def bi_tensor_data(tensor_data):
-    return [tensor_data, tensor_data]
-
-
-@pytest.fixture
-def mixed_data(np_data, tensor_data):
-    return [np_data, tensor_data]
+    assert tftt_3d.get_model().schema() == {
+        "title": "TFTensor",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "array",
+                "items": {"type": "number"},
+                "minItems": 20,
+                "maxItems": 20,
+            },
+            "minItems": 32,
+            "maxItems": 32,
+        },
+    }
 
 
 @pytest.fixture
@@ -131,20 +148,15 @@ def simple_net(np_data, labels):
 
 
 @pytest.fixture
-def complex_net(bi_np_data, labels):
+def complex_net(np_data, labels):
     class Net(tf.keras.Model):
         def __init__(self):
             super().__init__(self)
-            self.left = tf.keras.layers.Dense(50, activation="relu")
-            self.right = tf.keras.layers.Dense(50, activation="tanh")
-            self.clf = tf.keras.layers.Dense(10)
+            self.l1 = tf.keras.layers.Dense(50, activation="tanh")
+            self.clf = tf.keras.layers.Dense(10, activation="relu")
 
         def call(self, inputs):
-            left_output, right_output = self.left(inputs[0]), self.right(
-                inputs[1]
-            )
-            clf_input = tf.concat([left_output, right_output], -1)
-            return self.clf(clf_input)
+            return self.clf(self.l1(inputs))
 
     model = Net()
 
@@ -153,7 +165,7 @@ def complex_net(bi_np_data, labels):
         loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
-    model.fit(bi_np_data, labels, epochs=1, batch_size=50)
+    model.fit(np_data, labels, epochs=1, batch_size=50)
 
     return model
 
@@ -161,11 +173,10 @@ def complex_net(bi_np_data, labels):
 @pytest.mark.parametrize(
     "net, input_data",
     [
-        # ("simple_net", "np_data"),
-        # ("simple_net", "tensor_data"),
-        ("complex_net", "bi_np_data"),
-        ("complex_net", "bi_tensor_data"),
-        ("complex_net", "mixed_data"),
+        ("simple_net", "np_data"),
+        ("simple_net", "tensor_data"),
+        ("complex_net", "np_data"),
+        ("complex_net", "tensor_data"),
     ],
 )
 def test_model_wrapper(net, input_data, tmpdir, request):
@@ -187,10 +198,11 @@ def test_model_wrapper(net, input_data, tmpdir, request):
 
     model_name = str(tmpdir / "tensorflow-model")
     artifacts = tmw.dump(LOCAL_STORAGE, model_name)
+
     assert (
-        os.path.isdir(model_name)
-        if callable(net)
-        else os.path.isfile(model_name)
+        os.path.isfile(model_name)
+        if isinstance(net, tf.keras.Sequential)
+        else os.path.isdir(model_name)
     )
 
     tmw.model = None
@@ -205,3 +217,21 @@ def test_model_wrapper(net, input_data, tmpdir, request):
     np.testing.assert_array_equal(prediction, prediction2)
 
     assert set(tmw.get_requirements().modules) == expected_requirements
+
+    save(net, str(tmpdir / "tensorflow-net"), sample_data=input_data)
+
+
+# Copyright 2019 Zyfra
+# Copyright 2021 Iterative
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
