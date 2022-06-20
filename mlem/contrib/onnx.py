@@ -110,13 +110,13 @@ class ONNXModel(ModelType, ModelHook, IsInstanceHookMixin):
         pred_onnx = self.runtime_session.run(label_names, input_dict)
 
         output = []
-        for input_data in pred_onnx:
+        for output_data in pred_onnx:
             if isinstance(
-                input_data, list
+                output_data, list
             ):  # TODO - temporary workaround to fix fastapi model issues
-                output.append(pd.DataFrame(input_data).to_numpy())
+                output.append(pd.DataFrame(output_data).to_numpy())
             else:
-                output.append(input_data)
+                output.append(output_data)
 
         return output
 

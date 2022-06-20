@@ -1,8 +1,10 @@
-from typing import Any, ClassVar, Iterator, Optional, Tuple
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import torch
+from pydantic import conlist, create_model
 
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
@@ -15,6 +17,11 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
+
+
+def python_type_from_torch_string_repr(dtype: str):
+    #  not sure this will work all the time
+    return python_type_from_np_string_repr(dtype)
 
 
 class TorchTensorDataType(
@@ -68,14 +75,26 @@ class TorchTensorDataType(
     ) -> DataWriter:
         return TorchTensorWriter(**kwargs)
 
+    def _subtype(self, subshape: Tuple[Optional[int], ...]):
+        if len(subshape) == 0:
+            return python_type_from_torch_string_repr(self.dtype)
+        return conlist(
+            self._subtype(subshape[1:]),
+            min_items=subshape[0],
+            max_items=subshape[0],
+        )
+
     def get_model(self, prefix: str = ""):
-        raise NotImplementedError
+        return create_model(
+            prefix + "TorchTensor",
+            __root__=(List[self._subtype(self.shape[1:])], ...),  # type: ignore
+        )
 
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DataType:
         return TorchTensorDataType(
             shape=(None,) + obj.shape[1:],
-            dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
+            dtype=str(obj.dtype)[len("torch") + 1 :],
         )
 
 
