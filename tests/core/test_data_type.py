@@ -116,16 +116,16 @@ def test_array(array_data, value):
 
 
 @pytest.mark.parametrize(
-    "is_dynamic,array_data,value",
+    "array_data,value",
     [
-        (False, lazy_fixture("array"), None),
-        (True, lazy_fixture("array_dynamic"), None),
-        (True, lazy_fixture("array_dynamic"), [1, 2, 3]),
+        (lazy_fixture("array"), None),
+        (lazy_fixture("array_dynamic"), None),
+        (lazy_fixture("array_dynamic"), [1, 2, 3]),
     ],
 )
-def test_list_source(is_dynamic, array_data, value):
-    dt = DataType.create(array_data[0])
-    l_value = array_data[0] if value is None else value
+def test_list_source(array_data, value):
+    dt = DataType.create(array_data[1])
+    l_value = array_data[1] if value is None else value
     dt.bind(l_value)
 
     artifacts = data_write_read_check(
