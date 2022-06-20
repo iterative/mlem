@@ -34,9 +34,9 @@ def test_all_ext_has_pip_extra():
     from setup import extras
 
     exts_reqs = {
-        v.extra: v.reqs
+        v.extra: v.reqs_packages
         for v in ExtensionLoader.builtin_extensions.values()
-        if v.extra is not None and len(v.reqs)
+        if v.extra is not None and len(v.reqs_packages)
     }
 
     for name, reqs in exts_reqs.items():
