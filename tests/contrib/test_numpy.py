@@ -232,7 +232,7 @@ def test_ndarray(data, test_data_idx):
         [
             lazy_fixture("nat"),
             np.array([[1, 2], [3, 4]], dtype=np.float32),
-            "given array is of type: float32, " "expected: int64",
+            "given array is of type: float32, expected: int64",
         ],
         [
             lazy_fixture("nat"),
@@ -242,7 +242,7 @@ def test_ndarray(data, test_data_idx):
         [
             lazy_fixture("nat_dynamic"),
             np.array([1, 2]),
-            "given array is of rank: 1, " "expected: 3",
+            "given array is of rank: 1, expected: 3",
         ],
         [
             lazy_fixture("nat_dynamic_float"),
