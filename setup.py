@@ -70,6 +70,7 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "docker": ["docker"],
+    "heroku": ["docker"],
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
@@ -159,7 +160,7 @@ setup_args = dict(  # noqa: C408
             "builder.pip = mlem.contrib.pip.base:PipBuilder",
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
-            "server.heroku = mlem.contrib.heroku.build:HerokuServer",
+            "server.heroku = mlem.contrib.heroku.server:HerokuServer",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
         ],
