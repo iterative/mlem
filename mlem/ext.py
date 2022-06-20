@@ -6,7 +6,7 @@ import importlib
 import logging
 import sys
 from types import ModuleType
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List, Optional, Union
 
 from mlem.config import LOCAL_CONFIG
 from mlem.utils.importing import (
@@ -34,11 +34,15 @@ class Extension:
         reqs: List[str],
         force: bool = True,
         validator: Callable[[], bool] = None,
+        extra: Optional[str] = "",
     ):
         self.force = force
         self.reqs = reqs
         self.module = module
         self.validator = validator
+        self.extra = extra
+        if extra == "":
+            self.extra = module.split(".")[-1]
 
     def __str__(self):
         return f"<Extension {self.module}>"
@@ -51,6 +55,12 @@ class Extension:
 
     def __hash__(self):
         return hash(self.module)
+
+    @property
+    def reqs_packages(self):
+        from mlem.core.requirements import MODULE_PACKAGE_MAPPING
+
+        return [MODULE_PACKAGE_MAPPING.get(r, r) for r in self.reqs]
 
 
 class ExtensionDict(dict):
@@ -94,7 +104,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.docker", ["docker"], False),
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
-        Extension("mlem.contrib.rabbitmq", ["pika"], False),
+        Extension("mlem.contrib.rabbitmq", ["pika"], False, extra="rmq"),
         Extension("mlem.contrib.github", [], True),
         Extension("mlem.contrib.gitlabfs", [], True),
         Extension("mlem.contrib.bitbucketfs", [], True),
