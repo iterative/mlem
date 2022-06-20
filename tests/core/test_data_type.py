@@ -1,7 +1,6 @@
-import copy
-
 import pytest
 from pydantic import parse_obj_as
+from pytest_lazyfixture import lazy_fixture
 
 from mlem.core.data_type import (
     ArrayReader,
@@ -256,8 +255,10 @@ def test_dict_source_int_and_str_types(d_value):
     assert artifacts["3/1/data"].uri.endswith("data/3/1")
 
 
-def payload1():
-    return {
+@pytest.fixture
+def dict_data_str_keys():
+    data = {"1": 1.5, "2": "a", "3": {"1": False}}
+    payload = {
         "item_types": {
             "1": {"ptype": "float", "type": "primitive"},
             "2": {"ptype": "str", "type": "primitive"},
@@ -268,25 +269,32 @@ def payload1():
         },
         "type": "dict",
     }
+    return data, payload
 
 
-def payload2():
-    payload2 = copy.deepcopy(payload1())
-    payload2["item_types"][2] = payload2["item_types"].pop("2")
-    payload2["item_types"]["3"]["item_types"][1] = payload2["item_types"]["3"][
-        "item_types"
-    ].pop("1")
-    return payload2
+@pytest.fixture
+def dict_data_int_keys():
+    data = {"1": 1.5, 2: "a", "3": {1: False}}
+    payload = {
+        "item_types": {
+            "1": {"ptype": "float", "type": "primitive"},
+            2: {"ptype": "str", "type": "primitive"},
+            "3": {
+                "item_types": {1: {"ptype": "bool", "type": "primitive"}},
+                "type": "dict",
+            },
+        },
+        "type": "dict",
+    }
+    return data, payload
 
 
 @pytest.mark.parametrize(
-    "d_value,payload",
-    [
-        ({"1": 1.5, "2": "a", "3": {"1": False}}, payload1()),
-        ({"1": 1.5, 2: "a", "3": {1: False}}, payload2()),
-    ],
+    "dict_data",
+    [lazy_fixture("dict_data_str_keys"), lazy_fixture("dict_data_int_keys")],
 )
-def test_dict_key_int_and_str_types(d_value, payload):
+def test_dict_key_int_and_str_types(dict_data):
+    d_value, payload = dict_data
     data_type = DataType.create(d_value)
 
     assert isinstance(data_type, DictType)
