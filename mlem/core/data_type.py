@@ -503,23 +503,9 @@ class DictTypeHook(DataHook):
     def process(
         cls, obj: Any, is_dynamic: bool = False, **kwargs
     ) -> Union["DictType", "DynamicDictType"]:
-
         if not is_dynamic:
-            return DictType(
-                item_types={
-                    k: DataAnalyzer.analyze(v, is_dynamic=is_dynamic, **kwargs)
-                    for (k, v) in obj.items()
-                }
-            )
-        else:
-            return DynamicDictType(
-                key_type=DataAnalyzer.analyze(
-                    next(iter(obj.keys())), is_dynamic=is_dynamic, **kwargs
-                ),
-                value_type=DataAnalyzer.analyze(
-                    next(iter(obj.values())), is_dynamic=is_dynamic, **kwargs
-                ),
-            )
+            return DictType.analyze(obj, **kwargs)
+        return DynamicDictType.analyze(obj, **kwargs)
 
 
 class DictType(DataType, DataSerializer):
@@ -529,6 +515,15 @@ class DictType(DataType, DataSerializer):
 
     type: ClassVar[str] = "dict"
     item_types: Dict[str, DataType]
+
+    @classmethod
+    def analyze(cls, obj, **kwargs):
+        return DictType(
+            item_types={
+                k: DataAnalyzer.analyze(v, is_dynamic=False, **kwargs)
+                for (k, v) in obj.items()
+            }
+        )
 
     def deserialize(self, obj):
         self._check_type_and_keys(obj, DeserializationError)
@@ -645,21 +640,32 @@ class DynamicDictType(DataType, DataSerializer):
         self._check_type_and_keys(instance, SerializationError)
         if self.key_type == PrimitiveType and self.value_type == PrimitiveType:
             return instance
-        else:
-            return {
-                self.key_type.get_serializer()
-                .serialize(
-                    k,
-                ): self.value_type.get_serializer()
-                .serialize(
-                    v,
-                )
-                for k, v in instance.items()
-            }
+
+        return {
+            self.key_type.get_serializer()
+            .serialize(
+                k,
+            ): self.value_type.get_serializer()
+            .serialize(
+                v,
+            )
+            for k, v in instance.items()
+        }
+
+    @classmethod
+    def analyze(cls, obj, **kwargs):
+        return DynamicDictType(
+            key_type=DataAnalyzer.analyze(
+                next(iter(obj.keys())), is_dynamic=True, **kwargs
+            ),
+            value_type=DataAnalyzer.analyze(
+                next(iter(obj.values())), is_dynamic=True, **kwargs
+            ),
+        )
 
     def _check_type_and_keys(self, obj, exc_type):
         self.check_type(obj, dict, exc_type)
-        obj_type = DictTypeHook.process(obj, is_dynamic=True)
+        obj_type: DynamicDictType = self.analyze(obj)
         obj_types = (obj_type.key_type, obj_type.value_type)
         expected_types = (self.key_type, self.value_type)
         if obj_types != expected_types:
