@@ -44,7 +44,7 @@ def test_set_get(runner: Runner, mlem_project):
 
 def test_set_get_validation(runner: Runner, mlem_project):
     result = runner.invoke(
-        f"config set core.nonexisting json --project {mlem_project}".split()
+        f"--tb config set core.nonexisting json --project {mlem_project}".split()
     )
 
     assert result.exit_code == 1
@@ -58,7 +58,7 @@ def test_set_get_validation(runner: Runner, mlem_project):
     )
 
     result = runner.invoke(
-        f"config set nonexisting json --project {mlem_project}".split()
+        f"--tb config set nonexisting json --project {mlem_project}".split()
     )
 
     assert result.exit_code == 1
@@ -72,7 +72,7 @@ def test_set_get_validation(runner: Runner, mlem_project):
     )
 
     result = runner.invoke(
-        f"config set core.nonexisting json --project {mlem_project} --no-validate".split()
+        f"--tb config set core.nonexisting json --project {mlem_project} --no-validate".split()
     )
 
     assert result.exit_code == 0
