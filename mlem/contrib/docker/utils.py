@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from functools import wraps
 from threading import Lock
-from typing import Any, Iterator, Tuple, Union
+from typing import Any, Generator, Iterator, Tuple, Union
 
 import docker
 import requests
@@ -136,6 +136,49 @@ def wrap_docker_error(f):
             raise MlemError(f"Error calling docker: {e}") from e
 
     return inner
+
+
+def container_status(client: docker.DockerClient, name: str) -> str:
+    container = client.containers.get(name)
+    return container.status
+
+
+def container_is_running(client: docker.DockerClient, name: str) -> bool:
+    from docker.errors import NotFound
+
+    try:
+        return container_status(client, name) == "running"
+    except NotFound:
+        return False
+
+
+def container_logs(
+    container,
+    stdout=True,
+    stderr=True,
+    stream=False,
+    tail="all",
+    since=None,
+    follow=None,
+    until=None,
+    **kwargs,
+) -> Generator[str, None, None]:
+
+    log = container.logs(
+        stdout=stdout,
+        stderr=stderr,
+        stream=stream,
+        tail=tail,
+        since=since,
+        follow=follow,
+        until=until,
+        **kwargs,
+    )
+    if stream:
+        for line in log:
+            yield line.decode("utf-8")
+    else:
+        yield log.decode("utf-8")
 
 
 # Copyright 2019 Zyfra
