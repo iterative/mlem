@@ -16,12 +16,12 @@ from mlem.contrib.docker.utils import (
     create_docker_client,
     image_exists_at_dockerhub,
     print_docker_logs,
+    wrap_docker_error,
 )
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError
-from mlem.core.objects import MlemModel
-from mlem.pack import Packager
-from mlem.runtime.server.base import Server
+from mlem.core.objects import MlemBuilder, MlemModel
+from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_OK, EMOJI_UPLOAD, echo
 
 logger = logging.getLogger(__name__)
@@ -296,16 +296,16 @@ class DockerEnv(BaseModel):
             return image.exists(client)
 
 
-class _DockerPackMixin(BaseModel):
+class _DockerBuildMixin(BaseModel):
     server: Server
     args: DockerBuildArgs = DockerBuildArgs()
 
 
-class DockerDirPackager(Packager, _DockerPackMixin):
+class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
     type: ClassVar[str] = "docker_dir"
     target: str
 
-    def package(self, obj: MlemModel):
+    def build(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(
             model=obj,
             server=self.server,
@@ -317,26 +317,27 @@ class DockerDirPackager(Packager, _DockerPackMixin):
         return docker_dir
 
 
-class DockerImagePackager(Packager, _DockerPackMixin):
+class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
     type: ClassVar[str] = "docker"
     image: DockerImage
     env: DockerEnv = DockerEnv()
     force_overwrite: bool = False
     push: bool = True
 
-    def package(self, obj: MlemModel) -> DockerImage:
+    def build(self, obj: MlemModel) -> DockerImage:
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:
             if self.args.prebuild_hook is not None:
                 self.args.prebuild_hook(  # pylint: disable=not-callable # but it is
                     self.args.python_version
                 )
-            DockerDirPackager(
+            DockerDirBuilder(
                 server=self.server, args=self.args, target=tempdir
-            ).package(obj)
+            ).build(obj)
 
-            return self.build(tempdir)
+            return self.build_image(tempdir)
 
-    def build(self, context_dir: str) -> DockerImage:
+    @wrap_docker_error
+    def build_image(self, context_dir: str) -> DockerImage:
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         echo(EMOJI_BUILD + f"Building docker image {tag}...")

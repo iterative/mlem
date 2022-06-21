@@ -6,8 +6,8 @@ from typer import Argument
 from mlem.cli.main import mlem_command
 from mlem.core.base import MlemABC, load_impl_ext
 from mlem.core.objects import MlemObject
-from mlem.ext import list_implementations
 from mlem.ui import EMOJI_BASE, bold, color, echo
+from mlem.utils.entrypoints import list_implementations
 
 
 def explain_type(cls: Type[BaseModel], prefix="", force_not_req=False):

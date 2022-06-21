@@ -1,6 +1,7 @@
 """
 Base classes for meta objects in MLEM
 """
+import hashlib
 import os
 import posixpath
 import time
@@ -13,6 +14,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -28,7 +30,7 @@ from pydantic import ValidationError, parse_obj_as, validator
 from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
-from mlem.config import CONFIG
+from mlem.config import project_config
 from mlem.core.artifacts import (
     Artifacts,
     FSSpecStorage,
@@ -36,12 +38,12 @@ from mlem.core.artifacts import (
     PlaceholderArtifact,
 )
 from mlem.core.base import MlemABC
-from mlem.core.dataset_type import DatasetReader, DatasetType
+from mlem.core.data_type import DataReader, DataType
 from mlem.core.errors import (
     DeploymentError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
-    MlemRootNotFound,
+    MlemProjectNotFound,
     WrongMetaType,
 )
 from mlem.core.meta_io import (
@@ -56,13 +58,16 @@ from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
 from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
 from mlem.utils.path import make_posix
-from mlem.utils.root import find_repo_root
+from mlem.utils.root import find_project_root
 
 T = TypeVar("T", bound="MlemObject")
 
 
 class MlemObject(MlemABC):
-    """"""
+    """Base class for MLEM objects.
+    MLEM objects contain metadata about different types of objects and are saved
+    in a form of `.mlem` files.
+    """
 
     class Config:
         exclude = {"location"}
@@ -75,7 +80,7 @@ class MlemObject(MlemABC):
     location: Optional[Location] = None
     description: Optional[str] = None
     params: Dict[str, str] = {}
-    tags: List[str] = []
+    labels: List[str] = []
 
     @property
     def loc(self) -> Location:
@@ -85,12 +90,12 @@ class MlemObject(MlemABC):
 
     @property
     def name(self):
-        """Name of the object in the repo"""
-        repo_path = self.loc.path_in_repo[: -len(MLEM_EXT)]
+        """Name of the object in the project"""
+        project_path = self.loc.path_in_project[: -len(MLEM_EXT)]
         prefix = posixpath.join(MLEM_DIR, self.object_type)
-        if repo_path.startswith(prefix):
-            repo_path = repo_path[len(prefix) + 1 :]
-        return repo_path
+        if project_path.startswith(prefix):
+            project_path = project_path[len(prefix) + 1 :]
+        return project_path
 
     @property
     def is_saved(self):
@@ -115,7 +120,7 @@ class MlemObject(MlemABC):
     def _get_location(
         cls,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         fs: Optional[AbstractFileSystem],
         external: bool,
         ensure_mlem_root: bool,
@@ -124,19 +129,21 @@ class MlemObject(MlemABC):
         """Create location from arguments"""
         if metafile_path:
             path = cls.get_metafile_path(path)
-        loc = UriResolver.resolve(path, repo, rev=None, fs=fs, find_repo=True)
-        if loc.repo is not None:
-            # check that repo is mlem repo root
-            find_repo_root(
-                loc.repo, loc.fs, raise_on_missing=True, recursive=False
+        loc = UriResolver.resolve(
+            path, project, rev=None, fs=fs, find_project=True
+        )
+        if loc.project is not None:
+            # check that project is mlem project root
+            find_project_root(
+                loc.project, loc.fs, raise_on_missing=True, recursive=False
             )
-        if ensure_mlem_root and loc.repo is None:
-            raise MlemRootNotFound(loc.fullpath, loc.fs)
+        if ensure_mlem_root and loc.project is None:
+            raise MlemProjectNotFound(loc.fullpath, loc.fs)
         if (
-            loc.repo is None
+            loc.project is None
             or external
             or loc.fullpath.startswith(
-                posixpath.join(loc.repo, MLEM_DIR, cls.object_type)
+                posixpath.join(loc.project, MLEM_DIR, cls.object_type)
             )
         ):
             # orphan or external or inside .mlem
@@ -145,7 +152,7 @@ class MlemObject(MlemABC):
         internal_path = posixpath.join(
             MLEM_DIR,
             cls.object_type,
-            loc.path_in_repo,
+            loc.path_in_project,
         )
         loc.update_path(internal_path)
         return loc
@@ -199,25 +206,25 @@ class MlemObject(MlemABC):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem] = None,
-        repo: Optional[str] = None,
+        project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
         """Dumps metafile and possible artifacts to path.
 
         Args:
-            path: name of the object. Relative to repo, if it is provided.
-            fs: filesystem to save to. if not provided, inferred from repo and path
-            repo: path to mlem repo
+            path: name of the object. Relative to project, if it is provided.
+            fs: filesystem to save to. if not provided, inferred from project and path
+            project: path to mlem project
             index: whether add to index if object is external.
-                If set to True, checks existanse of mlem repo
-                defaults to True if mlem repo exists and external is true
+                If set to True, checks existanse of mlem project
+                defaults to True if mlem project exists and external is true
             external: whether to save object inside mlem dir or not.
-                Defaults to false if repo is provided
+                Defaults to false if project is provided
                 Forced to false if path points inside mlem dir
         """
         location, index = self._parse_dump_args(
-            path, repo, fs, index, external
+            path, project, fs, index, external
         )
         self._write_meta(location, index)
         return self
@@ -234,46 +241,49 @@ class MlemObject(MlemABC):
         )
         with location.open("w") as f:
             safe_dump(self.dict(), f)
-        if index and location.repo:
-            with no_echo():
-                self.make_link(
-                    self.name, location.fs, repo=location.repo, external=False
-                )
+        if index and location.project:
+            project_config(location.project, location.fs).index.index(
+                self, location
+            )
 
     def _parse_dump_args(
         self,
         path: str,
-        repo: Optional[str],
+        project: Optional[str],
         fs: Optional[AbstractFileSystem],
         index: Optional[bool],
         external: Optional[bool],
     ) -> Tuple[Location, bool]:
         """Parse arguments for .dump and bind meta"""
         if external is None:
-            external = CONFIG.DEFAULT_EXTERNAL
+            external = project_config(project, fs=fs).EXTERNAL
         # by default we index only external non-orphan objects
         if index is None:
-            index = external
+            index = True
             ensure_mlem_root = False
         else:
-            # if index manually set to True, there should be mlem repo
+            # if index manually set to True, there should be mlem project
             ensure_mlem_root = index
         location = self._get_location(
-            make_posix(path), make_posix(repo), fs, external, ensure_mlem_root
+            make_posix(path),
+            make_posix(project),
+            fs,
+            external,
+            ensure_mlem_root,
         )
         self.bind(location)
-        if location.repo is not None:
+        if location.project is not None:
             # force external=False if fullpath inside MLEM_DIR
             external = posixpath.join(MLEM_DIR, "") not in posixpath.dirname(
                 location.fullpath
             )
-        return location, index and external
+        return location, index
 
     def make_link(
         self,
         path: str = None,
         fs: Optional[AbstractFileSystem] = None,
-        repo: Optional[str] = None,
+        project: Optional[str] = None,
         external: Optional[bool] = None,
         absolute: bool = False,
     ) -> "MlemLink":
@@ -283,7 +293,7 @@ class MlemObject(MlemABC):
             )
         link = MlemLink(
             path=self.loc.path,
-            repo=self.loc.repo_uri,
+            project=self.loc.project_uri,
             rev=self.loc.rev,
             link_type=self.resolved_type,
         )
@@ -292,18 +302,18 @@ class MlemObject(MlemABC):
                 location,
                 _,
             ) = link._parse_dump_args(  # pylint: disable=protected-access
-                path, repo, fs, False, external=external
+                path, project, fs, False, external=external
             )
             if (
                 not absolute
-                and self.loc.is_same_repo(location)
+                and self.loc.is_same_project(location)
                 and self.loc.rev is None
             ):
                 link.path = self.get_metafile_path(self.name)
                 link.link_type = self.resolved_type
-                link.repo = None
+                link.project = None
             link._write_meta(  # pylint: disable=protected-access
-                location, False
+                location, True
             )
         return link
 
@@ -311,7 +321,7 @@ class MlemObject(MlemABC):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
-        repo: Optional[str] = None,
+        project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
@@ -324,7 +334,7 @@ class MlemObject(MlemABC):
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         new: "MlemObject" = self.deepcopy()
         new.dump(
-            path, fs, repo, index, external
+            path, fs, project, index, external
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
@@ -343,10 +353,16 @@ class MlemObject(MlemABC):
         with no_echo():
             self._write_meta(self.location, False)
 
+    def meta_hash(self):
+        return hashlib.md5(safe_dump(self.dict()).encode("utf8")).hexdigest()
+
 
 class MlemLink(MlemObject):
+    """Link is a special MlemObject that represents a MlemObject in a different
+    location"""
+
     path: str
-    repo: Optional[str] = None
+    project: Optional[str] = None
     rev: Optional[str] = None
     link_type: str
 
@@ -360,7 +376,7 @@ class MlemLink(MlemObject):
     def resolved_type(self):
         return self.link_type
 
-    @validator("path", "repo", allow_reuse=True)
+    @validator("path", "project", allow_reuse=True)
     def make_posix(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
@@ -391,13 +407,13 @@ class MlemLink(MlemObject):
     def parse_link(self) -> Location:
         from mlem.core.metadata import find_meta_location
 
-        if self.repo is None and self.rev is None:
-            # is it possible to have rev without repo?
+        if self.project is None and self.rev is None:
+            # is it possible to have rev without project?
             location = UriResolver.resolve(
-                path=self.path, repo=None, rev=None, fs=None
+                path=self.path, project=None, rev=None, fs=None
             )
             if (
-                location.repo is None
+                location.project is None
                 and isinstance(location.fs, LocalFileSystem)
                 and not os.path.isabs(
                     self.path
@@ -412,7 +428,7 @@ class MlemLink(MlemObject):
         # link is absolute
         return find_meta_location(
             UriResolver.resolve(
-                path=self.path, repo=self.repo, rev=self.rev, fs=None
+                path=self.path, project=self.project, rev=self.rev, fs=None
             )
         )
 
@@ -421,8 +437,8 @@ class MlemLink(MlemObject):
         cls, loc: Location, link_type: Union[str, Type[MlemObject]]
     ) -> "MlemLink":
         return MlemLink(
-            path=get_path_by_fs_path(loc.fs, loc.path_in_repo),
-            repo=loc.repo,
+            path=get_path_by_fs_path(loc.fs, loc.path_in_project),
+            project=loc.project,
             rev=loc.rev,
             link_type=link_type.object_type
             if not isinstance(link_type, str)
@@ -431,6 +447,8 @@ class MlemLink(MlemObject):
 
 
 class _WithArtifacts(ABC, MlemObject):
+    """Special subtype of MlemObject that can have files (artifacts) attached"""
+
     __abstract__: ClassVar[bool] = True
     artifacts: Optional[Artifacts] = None
     requirements: Requirements = Requirements.new()
@@ -444,13 +462,13 @@ class _WithArtifacts(ABC, MlemObject):
 
     @property
     def name(self):
-        repo_path = self.location.path_in_repo
+        project_path = self.location.path_in_project
         prefix = posixpath.join(MLEM_DIR, self.object_type)
-        if repo_path.startswith(prefix):
-            repo_path = repo_path[len(prefix) + 1 :]
-        if repo_path.endswith(MLEM_EXT):
-            repo_path = repo_path[: -len(MLEM_EXT)]
-        return repo_path
+        if project_path.startswith(prefix):
+            project_path = project_path[len(prefix) + 1 :]
+        if project_path.endswith(MLEM_EXT):
+            project_path = project_path[: -len(MLEM_EXT)]
+        return project_path
 
     @property
     def basename(self):
@@ -470,12 +488,12 @@ class _WithArtifacts(ABC, MlemObject):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
-        repo: Optional[str] = None,
+        project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
         location, index = self._parse_dump_args(
-            path, repo, fs, index, external
+            path, project, fs, index, external
         )
         try:
             if location.exists():
@@ -502,7 +520,7 @@ class _WithArtifacts(ABC, MlemObject):
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
-        repo: Optional[str] = None,
+        project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
     ):
@@ -515,7 +533,7 @@ class _WithArtifacts(ABC, MlemObject):
             location,
             index,
         ) = new._parse_dump_args(  # pylint: disable=protected-access
-            path, repo, fs, index, external
+            path, project, fs, index, external
         )
 
         for art_name, art in (self.artifacts or {}).items():
@@ -552,9 +570,9 @@ class _WithArtifacts(ABC, MlemObject):
         if not self.location.fs or isinstance(
             self.location.fs, LocalFileSystem
         ):
-            return CONFIG.default_storage.relative(
-                self.location.fs, self.dirname
-            )
+            return project_config(
+                self.loc.project, self.loc.fs
+            ).storage.relative(self.location.fs, self.dirname)
         return FSSpecStorage.from_fs_path(self.location.fs, self.dirname)
 
     def get_artifacts(self):
@@ -572,6 +590,8 @@ class _WithArtifacts(ABC, MlemObject):
 
 
 class MlemModel(_WithArtifacts):
+    """MlemObject representing a ML model"""
+
     object_type: ClassVar = "model"
     model_type_cache: Any
     model_type: ModelType
@@ -585,7 +605,7 @@ class MlemModel(_WithArtifacts):
         model: Any,
         sample_data: Any = None,
         description: str = None,
-        tags: List[str] = None,
+        labels: List[str] = None,
         params: Dict[str, str] = None,
     ) -> "MlemModel":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
@@ -594,7 +614,7 @@ class MlemModel(_WithArtifacts):
             model_type=mt,
             requirements=mt.get_requirements().expanded,
             description=description,
-            tags=tags or [],
+            labels=labels or [],
             params=params or {},
         )
 
@@ -622,25 +642,27 @@ class MlemModel(_WithArtifacts):
         return partial(self.model_type.call_method, item)
 
 
-class MlemDataset(_WithArtifacts):
-    class Config:
-        exclude = {"dataset"}
+class MlemData(_WithArtifacts):
+    """MlemObject representing data"""
 
-    object_type: ClassVar = "dataset"
+    class Config:
+        exclude = {"data"}
+
+    object_type: ClassVar = "data"
     reader_cache: Optional[Dict]
-    reader: Optional[DatasetReader]
+    reader: Optional[DataReader]
     reader, reader_raw, reader_cache = lazy_field(
-        DatasetReader,
+        DataReader,
         "reader",
         "reader_cache",
-        parse_as_type=Optional[DatasetReader],
+        parse_as_type=Optional[DataReader],
         default=None,
     )
-    dataset: Optional[DatasetType] = None
+    data_type: Optional[DataType] = None
 
     @property
     def data(self):
-        return self.dataset.data
+        return self.data_type.data
 
     @classmethod
     def from_data(
@@ -648,27 +670,27 @@ class MlemDataset(_WithArtifacts):
         data: Any,
         description: str = None,
         params: Dict[str, str] = None,
-        tags: List[str] = None,
-    ) -> "MlemDataset":
-        dataset = DatasetType.create(
+        labels: List[str] = None,
+    ) -> "MlemData":
+        data_type = DataType.create(
             data,
         )
-        meta = MlemDataset(
-            requirements=dataset.get_requirements().expanded,
+        meta = MlemData(
+            requirements=data_type.get_requirements().expanded,
             description=description,
             params=params or {},
-            tags=tags or [],
+            labels=labels or [],
         )
-        meta.dataset = dataset
+        meta.data_type = data_type
         return meta
 
     def write_value(self) -> Artifacts:
-        if self.dataset is not None:
+        if self.data_type is not None:
             filename = os.path.basename(self.name)
-            reader, artifacts = self.dataset.get_writer(
-                filename=filename
+            reader, artifacts = self.data_type.get_writer(
+                project=self.loc.project, filename=filename
             ).write(
-                self.dataset,
+                self.data_type,
                 self.storage,
                 filename,
             )
@@ -677,30 +699,55 @@ class MlemDataset(_WithArtifacts):
         raise ValueError("Meta is not binded to actual data")
 
     def load_value(self):
-        self.dataset = self.reader.read(self.relative_artifacts)
+        self.data_type = self.reader.read(self.relative_artifacts)
+
+    def read_batch(self, batch_size: int) -> Iterator[DataType]:
+        if self.reader is None:
+            raise MlemObjectNotSavedError(
+                "Cannot read batch from not saved data"
+            )
+        return self.reader.read_batch(self.relative_artifacts, batch_size)
 
     def get_value(self):
         return self.data
 
 
+class MlemBuilder(MlemObject):
+    """Base class to define different ways of building/exporting models
+    into different formats"""
+
+    class Config:
+        type_root = True
+        type_field = "type"
+
+    object_type: ClassVar = "builder"
+    abs_name: ClassVar[str] = "builder"
+
+    @abstractmethod
+    def build(self, obj: MlemModel):  # TODO maybe we can also pack datasets?
+        raise NotImplementedError
+
+
 class DeployState(MlemABC):
-    """"""
+    """Base class for deployment state metadata"""
 
     class Config:
         type_root = True
 
     abs_name: ClassVar[str] = "deploy_state"
 
+    model_hash: Optional[str] = None
+
     @abstractmethod
     def get_client(self):
         raise NotImplementedError
 
 
-DT = TypeVar("DT", bound="MlemDeploy")
+DT = TypeVar("DT", bound="MlemDeployment")
 
 
 class MlemEnv(MlemObject, Generic[DT]):
-    """"""
+    """Base class for target environment metadata"""
 
     class Config:
         type_root = True
@@ -713,19 +760,17 @@ class MlemEnv(MlemObject, Generic[DT]):
 
     @abstractmethod
     def deploy(self, meta: DT):
-        """"""
         raise NotImplementedError
 
     @abstractmethod
-    def destroy(self, meta: DT):
-        """"""
+    def remove(self, meta: DT):
         raise NotImplementedError
 
     @abstractmethod
     def get_status(self, meta: DT, raise_on_error=True) -> "DeployStatus":
         raise NotImplementedError
 
-    def check_type(self, deploy: "MlemDeploy"):
+    def check_type(self, deploy: "MlemDeployment"):
         if not isinstance(deploy, self.deploy_type):
             raise ValueError(
                 f"Meta of the {self.type} deployment should be {self.deploy_type}, not {deploy.__class__}"
@@ -733,6 +778,8 @@ class MlemEnv(MlemObject, Generic[DT]):
 
 
 class DeployStatus(str, Enum):
+    """Enum with deployment statuses"""
+
     UNKNOWN = "unknown"
     NOT_DEPLOYED = "not_deployed"
     STARTING = "starting"
@@ -741,8 +788,8 @@ class DeployStatus(str, Enum):
     RUNNING = "running"
 
 
-class MlemDeploy(MlemObject):
-    """"""
+class MlemDeployment(MlemObject):
+    """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
 
@@ -752,7 +799,7 @@ class MlemDeploy(MlemObject):
         exclude = {"model", "env"}
         use_enum_values = True
 
-    abs_name: ClassVar = "deploy"
+    abs_name: ClassVar = "deployment"
     type: ClassVar[str]
 
     env_link: MlemLink
@@ -775,11 +822,11 @@ class MlemDeploy(MlemObject):
             )
         return self.model
 
-    def deploy(self):
+    def run(self):
         return self.get_env().deploy(self)
 
-    def destroy(self):
-        self.get_env().destroy(self)
+    def remove(self):
+        self.get_env().remove(self)
 
     def get_status(self, raise_on_error: bool = True) -> DeployStatus:
         return self.get_env().get_status(self, raise_on_error=raise_on_error)
@@ -822,20 +869,36 @@ class MlemDeploy(MlemObject):
             )
         return False
 
+    def model_changed(self):
+        if self.state is None or self.state.model_hash is None:
+            return True
+        return self.get_model().meta_hash() != self.state.model_hash
+
+    def update_model_hash(self, model: Optional[MlemModel] = None):
+        model = model or self.get_model()
+        if self.state is None:
+            return
+        self.state.model_hash = model.meta_hash()
+
+    def replace_model(self, model: MlemModel):
+        self.model = model
+        self.model_link = self.model.make_link()
+
 
 def find_object(
-    path: str, fs: AbstractFileSystem, repo: str = None
+    path: str, fs: AbstractFileSystem, project: str = None
 ) -> Tuple[str, str]:
-    """assumes .mlem/ content is valid"""
-    if repo is None:
-        repo = find_repo_root(path, fs)
-    if repo is not None and path.startswith(repo):
-        path = os.path.relpath(path, repo)
+    """Extract object_type and path from path.
+    assumes .mlem/ content is valid"""
+    if project is None:
+        project = find_project_root(path, fs)
+    if project is not None and path.startswith(project):
+        path = os.path.relpath(path, project)
     source_paths = [
         (
             tp,
             posixpath.join(
-                repo or "",
+                project or "",
                 MLEM_DIR,
                 cls.object_type,
                 cls.get_metafile_path(path),

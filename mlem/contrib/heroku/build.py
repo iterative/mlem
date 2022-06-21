@@ -1,15 +1,12 @@
 import logging
-import os
 from typing import ClassVar, Optional
 
-from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import MlemModel
-from mlem.runtime import Interface
 
 from ...ui import EMOJI_BUILD, echo, set_offset
 from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
 from ..docker.helpers import build_model_image
-from .config import HEROKU_CONFIG
+from .server import HerokuServer
 
 DEFAULT_HEROKU_REGISTRY = "registry.heroku.com"
 
@@ -25,21 +22,17 @@ class HerokuRemoteRegistry(RemoteRegistry):
         return super().uri(image).split(":")[0]
 
     def login(self, client):
-        password = self.api_key or HEROKU_CONFIG.API_KEY
+        from .utils import get_api_key
+
+        password = self.api_key or get_api_key()
         if password is None:
             raise ValueError(
                 "Cannot login to heroku docker registry: no api key provided"
             )
-        self._login(self.host, client, "_", password)
-
-
-class HerokuServer(FastAPIServer):
-    type: ClassVar = "heroku"
-
-    def serve(self, interface: Interface):
-        self.port = int(os.environ["PORT"])
-        logger.info("Switching port to %s", self.port)
-        return super().serve(interface)
+        try:
+            self._login(self.host, client, "_", password)
+        except Exception as e:
+            raise ValueError([]) from e
 
 
 def build_heroku_docker(

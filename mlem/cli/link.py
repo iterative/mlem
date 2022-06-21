@@ -6,7 +6,7 @@ from mlem.cli.main import (
     mlem_command,
     option_external,
     option_rev,
-    option_target_repo,
+    option_target_project,
 )
 
 
@@ -14,14 +14,14 @@ from mlem.cli.main import (
 def link(
     source: str = Argument(..., help="URI to object you are crating link to"),
     target: str = Argument(..., help="Path to save link object"),
-    source_repo: Optional[str] = Option(
+    source_project: Optional[str] = Option(
         None,
-        "--source-repo",
-        "--sr",
-        help="Repo for source object",
+        "--source-project",
+        "--sp",
+        help="Project for source object",
     ),
     rev: Optional[str] = option_rev,
-    target_repo: Optional[str] = option_target_repo,
+    target_project: Optional[str] = option_target_project,
     external: bool = option_external,
     follow_links: bool = Option(
         True,
@@ -42,18 +42,18 @@ def link(
         Add alias to local object
         $ mlem link my_model latest
 
-        Add remote object to your repo without copy
-        $ mlem link models/logreg --source-repo https://github.com/iteartive/example-mlem remote_model
+        Add remote object to your project without copy
+        $ mlem link models/logreg --source-project https://github.com/iteartive/example-mlem remote_model
     """
     from mlem.api.commands import link
 
     link(
         source=source,
-        source_repo=source_repo,
+        source_project=source_project,
         rev=rev,
         target=target,
-        target_repo=target_repo,
+        target_project=target_project,
         follow_links=follow_links,
-        external=external,
+        external=external or False,
         absolute=absolute,
     )

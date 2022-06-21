@@ -4,12 +4,16 @@ import lightgbm as lgb
 import numpy as np
 import pytest
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.dataset_type import DatasetAnalyzer
+from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import ModelAnalyzer
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import UnixPackageRequirement
 from tests.conftest import check_model_type_common_interface, long
 
@@ -38,16 +42,25 @@ def regressor(inp_data, out_data):
     return lr
 
 
+@pytest.fixture()
+def pipeline(inp_data, out_data):
+    pipe = Pipeline([("scaler", StandardScaler()), ("svc", SVC())])
+    pipe.fit(inp_data, out_data)
+    return pipe
+
+
 @pytest.fixture
 def lgbm_model(inp_data, out_data):
     lgbm_regressor = lgb.LGBMRegressor()
     return lgbm_regressor.fit(inp_data, out_data)
 
 
-@pytest.mark.parametrize("model_fixture", ["classifier", "regressor"])
+@pytest.mark.parametrize(
+    "model_fixture", ["classifier", "regressor", "pipeline"]
+)
 def test_hook(model_fixture, inp_data, request):
     model = request.getfixturevalue(model_fixture)
-    data_type = DatasetAnalyzer.analyze(inp_data)
+    data_type = DataAnalyzer.analyze(inp_data)
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)
@@ -62,7 +75,7 @@ def test_hook(model_fixture, inp_data, request):
 
 
 def test_hook_lgb(lgbm_model, inp_data):
-    data_type = DatasetAnalyzer.analyze(inp_data)
+    data_type = DataAnalyzer.analyze(inp_data)
     model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)
@@ -77,7 +90,7 @@ def test_hook_lgb(lgbm_model, inp_data):
     )
 
 
-@pytest.mark.parametrize("model", ["classifier", "regressor"])
+@pytest.mark.parametrize("model", ["classifier", "regressor", "pipeline"])
 def test_model_type__predict(model, inp_data, request):
     model = request.getfixturevalue(model)
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
@@ -149,6 +162,14 @@ def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     assert reqs.of_type(UnixPackageRequirement) == [
         UnixPackageRequirement(package_name="libgomp1")
     ]
+
+
+def test_pipeline_requirements(lgbm_model):
+    model = Pipeline(steps=[("model", lgbm_model)])
+    meta = MlemModel.from_obj(model)
+
+    expected_requirements = {"sklearn", "lightgbm", "pandas", "numpy", "scipy"}
+    assert set(meta.requirements.modules) == expected_requirements
 
 
 # Copyright 2019 Zyfra

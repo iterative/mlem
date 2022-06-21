@@ -12,12 +12,12 @@ from mlem.api.commands import import_object, init, ls
 from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import LocalArtifact
-from mlem.core.errors import MlemRootNotFound
+from mlem.core.errors import MlemProjectNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemDataset, MlemLink, MlemModel
-from mlem.runtime.client.base import HTTPClient
+from mlem.core.objects import MlemData, MlemLink, MlemModel
+from mlem.runtime.client import HTTPClient
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
@@ -35,11 +35,11 @@ def mlem_client(request_get_mock, request_post_mock):
     [
         (
             lazy_fixture("model_meta"),
-            lazy_fixture("dataset_meta"),
+            lazy_fixture("data_meta"),
         ),
         (
             lazy_fixture("model_meta_saved"),
-            lazy_fixture("dataset_meta_saved"),
+            lazy_fixture("data_meta_saved"),
         ),
         (
             lazy_fixture("model_meta_saved"),
@@ -58,9 +58,9 @@ def test_apply_remote(mlem_client, train):
     assert isinstance(res, ndarray)
 
 
-def test_link_as_separate_file(model_path_mlem_repo):
-    model_path, mlem_repo = model_path_mlem_repo
-    link_path = os.path.join(mlem_repo, "latest.mlem")
+def test_link_as_separate_file(model_path_mlem_project):
+    model_path, mlem_project = model_path_mlem_project
+    link_path = os.path.join(mlem_project, "latest.mlem")
     link(model_path, target=link_path, external=True)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
@@ -69,54 +69,54 @@ def test_link_as_separate_file(model_path_mlem_repo):
     assert isinstance(model, MlemModel)
 
 
-def test_link_in_mlem_dir(model_path_mlem_repo):
-    model_path, mlem_repo = model_path_mlem_repo
+def test_link_in_mlem_dir(model_path_mlem_project):
+    model_path, mlem_project = model_path_mlem_project
     link_name = "latest"
     link_obj = link(
         model_path,
         target=link_name,
-        target_repo=mlem_repo,
+        target_project=mlem_project,
         external=False,
     )
     assert isinstance(link_obj, MlemLink)
     link_dumped_to = os.path.join(
-        mlem_repo, MLEM_DIR, "link", link_name + MLEM_EXT
+        mlem_project, MLEM_DIR, "link", link_name + MLEM_EXT
     )
     assert os.path.exists(link_dumped_to)
     loaded_link_object = load_meta(link_dumped_to, follow_links=False)
     assert isinstance(loaded_link_object, MlemLink)
-    assert loaded_link_object.repo is None
+    assert loaded_link_object.project is None
     assert loaded_link_object.rev is None
     assert (
         loaded_link_object.path
-        == os.path.relpath(model_path, mlem_repo) + MLEM_EXT
+        == os.path.relpath(model_path, mlem_project) + MLEM_EXT
     )
     model = load_meta(link_dumped_to)
     assert isinstance(model, MlemModel)
 
 
 @long
-def test_link_from_remote_to_local(current_test_branch, mlem_repo):
+def test_link_from_remote_to_local(current_test_branch, mlem_project):
     link(
         "simple/data/model",
-        source_repo=MLEM_TEST_REPO,
+        source_project=MLEM_TEST_REPO,
         rev="main",
         target="remote",
-        target_repo=mlem_repo,
+        target_project=mlem_project,
     )
     loaded_link_object = load_meta(
-        "remote", repo=mlem_repo, follow_links=False
+        "remote", project=mlem_project, follow_links=False
     )
     assert isinstance(loaded_link_object, MlemLink)
-    assert loaded_link_object.repo == MLEM_TEST_REPO
+    assert loaded_link_object.project == MLEM_TEST_REPO
     assert loaded_link_object.rev == "main"
     assert loaded_link_object.path == "simple/data/model" + MLEM_EXT
     model = loaded_link_object.load_link()
     assert isinstance(model, MlemModel)
 
 
-def test_ls_local(filled_mlem_repo):
-    objects = ls(filled_mlem_repo)
+def test_ls_local(filled_mlem_project):
+    objects = ls(filled_mlem_project)
     assert len(objects) == 1
     assert MlemModel in objects
     models = objects[MlemModel]
@@ -128,13 +128,13 @@ def test_ls_local(filled_mlem_repo):
     assert isinstance(model, MlemModel)
     assert isinstance(lnk, MlemLink)
     assert (
-        posixpath.join(make_posix(filled_mlem_repo), lnk.path)
+        posixpath.join(make_posix(filled_mlem_project), lnk.path)
         == model.loc.fullpath
     )
 
 
-def test_ls_no_repo(tmpdir):
-    with pytest.raises(MlemRootNotFound):
+def test_ls_no_project(tmpdir):
+    with pytest.raises(MlemProjectNotFound):
         ls(str(tmpdir))
 
 
@@ -155,8 +155,8 @@ def test_ls_remote(current_test_branch):
     assert isinstance(model, MlemModel)
     assert isinstance(lnk, MlemLink)
 
-    assert MlemDataset in objects
-    assert len(objects[MlemDataset]) == 3
+    assert MlemData in objects
+    assert len(objects[MlemData]) == 4
 
 
 def test_init(tmpdir):
@@ -238,14 +238,14 @@ def test_import_model_pickle__no_copy(
 
 
 @pytest.mark.parametrize("file_ext, type_", [(".pkl", None), ("", "pickle")])
-def test_import_model_pickle__no_copy_in_mlem_repo(
-    write_model_pickle, train, mlem_repo, file_ext, type_
+def test_import_model_pickle__no_copy_in_mlem_project(
+    write_model_pickle, train, mlem_project, file_ext, type_
 ):
     filename = IMPORT_MODEL_FILENAME + file_ext
-    path = os.path.join(mlem_repo, filename)
+    path = os.path.join(mlem_project, filename)
     write_model_pickle(path)
 
-    out_path = os.path.join(mlem_repo, "mlem_model")
+    out_path = os.path.join(mlem_project, "mlem_model")
     meta = import_object(
         path, target=out_path, type_=type_, copy_data=False, external=True
     )
@@ -258,7 +258,7 @@ def test_import_model_pickle_remote(
     s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
 ):
     path = posixpath.join(
-        s3_tmp_path("import_model_no_repo"), IMPORT_MODEL_FILENAME
+        s3_tmp_path("import_model_no_project"), IMPORT_MODEL_FILENAME
     )
     write_model_pickle(path, s3_storage_fs)
     out_path = str(tmpdir / "mlem_model")
@@ -272,14 +272,14 @@ def test_import_model_pickle_remote(
 
 
 @long
-def test_import_model_pickle_remote_in_repo(
+def test_import_model_pickle_remote_in_project(
     s3_tmp_path, s3_storage_fs, write_model_pickle, train
 ):
-    repo_path = s3_tmp_path("import_model_repo")
-    init(repo_path)
-    path = posixpath.join(repo_path, IMPORT_MODEL_FILENAME)
+    project_path = s3_tmp_path("import_model_project")
+    init(project_path)
+    path = posixpath.join(project_path, IMPORT_MODEL_FILENAME)
     write_model_pickle(path, s3_storage_fs)
-    out_path = posixpath.join(repo_path, "mlem_model")
+    out_path = posixpath.join(project_path, "mlem_model")
     meta = import_object(
         path, target=out_path, copy_data=False, type_="pickle", external=True
     )

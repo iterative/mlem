@@ -1,15 +1,17 @@
-from typing import Any, ClassVar, Optional, Tuple
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import torch
+from pydantic import conlist, create_model
 
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.dataset_type import (
-    DatasetHook,
-    DatasetReader,
-    DatasetSerializer,
-    DatasetType,
-    DatasetWriter,
+from mlem.core.data_type import (
+    DataHook,
+    DataReader,
+    DataSerializer,
+    DataType,
+    DataWriter,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
@@ -17,15 +19,20 @@ from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
-class TorchTensorDatasetType(
-    DatasetType, DatasetSerializer, DatasetHook, IsInstanceHookMixin
+def python_type_from_torch_string_repr(dtype: str):
+    #  not sure this will work all the time
+    return python_type_from_np_string_repr(dtype)
+
+
+class TorchTensorDataType(
+    DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
     """
-    :class:`.DatasetType` implementation for `torch.Tensor` objects
+    :class:`.DataType` implementation for `torch.Tensor` objects
     which converts them to built-in Python lists and vice versa.
 
-    :param shape: shape of `torch.Tensor` objects in dataset
-    :param dtype: data type of `torch.Tensor` objects in dataset
+    :param shape: shape of `torch.Tensor` objects in data
+    :param dtype: data type of `torch.Tensor` objects in data
     """
 
     type: ClassVar[str] = "torch"
@@ -63,42 +70,61 @@ class TorchTensorDatasetType(
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(torch)])
 
-    def get_writer(self, **kwargs) -> DatasetWriter:
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> DataWriter:
         return TorchTensorWriter(**kwargs)
 
-    def get_model(self):
-        raise NotImplementedError()
+    def _subtype(self, subshape: Tuple[Optional[int], ...]):
+        if len(subshape) == 0:
+            return python_type_from_torch_string_repr(self.dtype)
+        return conlist(
+            self._subtype(subshape[1:]),
+            min_items=subshape[0],
+            max_items=subshape[0],
+        )
+
+    def get_model(self, prefix: str = ""):
+        return create_model(
+            prefix + "TorchTensor",
+            __root__=(List[self._subtype(self.shape[1:])], ...),  # type: ignore
+        )
 
     @classmethod
-    def process(cls, obj: torch.Tensor, **kwargs) -> DatasetType:
-        return TorchTensorDatasetType(
+    def process(cls, obj: torch.Tensor, **kwargs) -> DataType:
+        return TorchTensorDataType(
             shape=(None,) + obj.shape[1:],
-            dtype=str(obj.dtype)[len(obj.dtype.__module__) + 1 :],
+            dtype=str(obj.dtype)[len("torch") + 1 :],
         )
 
 
-class TorchTensorWriter(DatasetWriter):
+class TorchTensorWriter(DataWriter):
     type: ClassVar[str] = "torch"
 
     def write(
-        self, dataset: DatasetType, storage: Storage, path: str
-    ) -> Tuple[DatasetReader, Artifacts]:
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
-            torch.save(dataset.data, f)
-        return TorchTensorReader(dataset_type=dataset), {self.art_name: art}
+            torch.save(data.data, f)
+        return TorchTensorReader(data_type=data), {self.art_name: art}
 
 
-class TorchTensorReader(DatasetReader):
+class TorchTensorReader(DataReader):
     type: ClassVar[str] = "torch"
 
-    def read(self, artifacts: Artifacts) -> DatasetType:
-        if DatasetWriter.art_name not in artifacts:
+    def read(self, artifacts: Artifacts) -> DataType:
+        if DataWriter.art_name not in artifacts:
             raise ValueError(
-                f"Wrong artifacts {artifacts}: should be one {DatasetWriter.art_name} file"
+                f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
             )
-        with artifacts[DatasetWriter.art_name].open() as f:
+        with artifacts[DataWriter.art_name].open() as f:
             data = torch.load(f)
-            return self.dataset_type.copy().bind(data)
+            return self.data_type.copy().bind(data)
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[DataType]:
+        raise NotImplementedError
 
 
 class TorchModelIO(ModelIO):
@@ -146,7 +172,9 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
                 data=sample_data,
             ),
             "torch_predict": Signature.from_method(
-                obj.__call__, auto_infer=sample_data is None, data=sample_data
+                obj.__call__,
+                sample_data,
+                auto_infer=sample_data is not None,
             ),
         }
         return model

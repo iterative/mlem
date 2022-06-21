@@ -8,19 +8,26 @@ from mlem.cli.main import (
     Choices,
     mlem_command,
     option_json,
-    option_repo,
+    option_project,
     option_rev,
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
 from mlem.ui import echo, set_echo
 
+OBJECT_TYPE_NAMES = {"data": "Data"}
+
 
 def _print_objects_of_type(cls: Type[MlemObject], objects: List[MlemObject]):
     if len(objects) == 0:
         return
 
-    echo(cls.object_type.capitalize() + "s:")
+    echo(
+        OBJECT_TYPE_NAMES.get(
+            cls.object_type, cls.object_type.capitalize() + "s"
+        )
+        + ":"
+    )
     for meta in objects:
         if (
             isinstance(meta, MlemLink)
@@ -34,8 +41,6 @@ def _print_objects_of_type(cls: Type[MlemObject], objects: List[MlemObject]):
 
 TYPE_ALIASES = {
     "models": "model",
-    "data": "dataset",
-    "datasets": "dataset",
 }
 
 
@@ -47,8 +52,8 @@ def ls(
         "--type",
         help="Type of objects to list",
     ),
-    repo: str = Argument(
-        "", help="Repo to list from", show_default="current directory"
+    project: str = Argument(
+        "", help="Project to list from", show_default="current directory"
     ),
     rev: Optional[str] = option_rev,
     links: bool = Option(
@@ -56,7 +61,7 @@ def ls(
     ),
     json: bool = option_json,
 ):
-    """List MLEM objects of in repo
+    """List MLEM objects of in project
 
     Examples:
         $ mlem list https://github.com/iterative/example-mlem
@@ -71,7 +76,9 @@ def ls(
             TYPE_ALIASES.get(type_filter, type_filter)
         ]
 
-    objects = ls(repo or ".", rev=rev, type_filter=types, include_links=links)
+    objects = ls(
+        project or ".", rev=rev, type_filter=types, include_links=links
+    )
     if json:
         print(
             dumps(
@@ -90,7 +97,7 @@ def ls(
 @mlem_command("pprint", hidden=True)
 def pretty_print(
     path: str = Argument(..., help="Path to object"),
-    repo: Optional[str] = option_repo,
+    project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     follow_links: bool = Option(
         False,
@@ -111,7 +118,7 @@ def pretty_print(
     """
     with set_echo(None if json else ...):
         meta = load_meta(
-            path, repo, rev, follow_links=follow_links, load_value=False
+            path, project, rev, follow_links=follow_links, load_value=False
         ).dict()
     if json:
         print(dumps(meta))

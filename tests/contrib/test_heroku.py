@@ -16,8 +16,8 @@ from mlem.contrib.heroku.build import (
 from mlem.contrib.heroku.config import HEROKU_CONFIG
 from mlem.contrib.heroku.meta import (
     HerokuAppMeta,
-    HerokuDeploy,
-    HerokuEnvMeta,
+    HerokuDeployment,
+    HerokuEnv,
     HerokuState,
 )
 from mlem.contrib.heroku.utils import (
@@ -61,9 +61,7 @@ def heroku_app_name():
 
 @pytest.fixture()
 def heroku_env(tmpdir_factory):
-    return HerokuEnvMeta().dump(
-        str(tmpdir_factory.mktemp("heroku_test") / "env")
-    )
+    return HerokuEnv().dump(str(tmpdir_factory.mktemp("heroku_test") / "env"))
 
 
 @pytest.fixture()
@@ -90,7 +88,7 @@ def test_heroku_api_request():
 @heroku_matrix
 def test_create_app(heroku_app_name, heroku_env, model):
     name = heroku_app_name("create-app")
-    heroku_deploy = HerokuDeploy(
+    heroku_deploy = HerokuDeployment(
         app_name=name,
         env_link=heroku_env.make_link(),
         model_link=model.make_link(),
@@ -120,19 +118,8 @@ def test_state_ensured_app():
     assert state.ensured_app.name == "name"
 
 
-@heroku
-@long
-@heroku_matrix
-def test_env_deploy_full(
-    tmp_path_factory, model, heroku_env, heroku_app_name, uses_docker_build
-):
-    name = heroku_app_name("full-cycle")
-    meta_path = tmp_path_factory.mktemp("deploy-meta")
-    meta = deploy(
-        str(meta_path), model, heroku_env, app_name=name, team=HEROKU_TEAM
-    )
-
-    assert isinstance(meta, HerokuDeploy)
+def _check_heroku_deployment(meta):
+    assert isinstance(meta, HerokuDeployment)
     assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")
     meta.wait_for_status(
         DeployStatus.RUNNING,
@@ -164,8 +151,32 @@ def test_env_deploy_full(
     assert isinstance(res, list)
     assert len(res) == 1
 
+
+@heroku
+@long
+@heroku_matrix
+def test_env_deploy_full(
+    tmp_path_factory,
+    model: MlemModel,
+    heroku_env,
+    heroku_app_name,
+    uses_docker_build,
+):
+    name = heroku_app_name("full-cycle")
+    meta_path = tmp_path_factory.mktemp("deploy-meta")
+    meta = deploy(
+        str(meta_path), model, heroku_env, app_name=name, team=HEROKU_TEAM
+    )
+
+    _check_heroku_deployment(meta)
+
+    model.description = "New version"
+    model.update()
+    redeploy_meta = deploy(meta, model, heroku_env)
+
+    _check_heroku_deployment(redeploy_meta)
     if CLEAR_APPS:
-        meta.destroy()
+        meta.remove()
 
         assert meta.state is None
         meta.wait_for_status(

@@ -11,9 +11,8 @@ from fsspec.implementations.local import LocalFileSystem
 
 import mlem
 from mlem.core.meta_io import get_fs, get_uri
-from mlem.core.objects import MlemModel
+from mlem.core.objects import MlemBuilder, MlemModel
 from mlem.core.requirements import InstallableRequirement
-from mlem.pack import Packager
 from mlem.ui import EMOJI_PACK, echo, no_echo
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
@@ -77,16 +76,16 @@ class PipMixin(SetupTemplate):
         )
 
 
-class PipPackager(Packager, PipMixin):
+class PipBuilder(MlemBuilder, PipMixin):
     type: ClassVar = "pip"
     target: str
 
-    def package(self, obj: MlemModel):
+    def build(self, obj: MlemModel):
         fs, root = get_fs(self.target)
         self.make_distr(obj, root, fs)
 
 
-class WhlPackager(Packager, PipMixin):
+class WhlBuilder(MlemBuilder, PipMixin):
     type: ClassVar = "whl"
     target: str
 
@@ -102,7 +101,7 @@ class WhlPackager(Packager, PipMixin):
 
             target_fs.upload(whl_path, posixpath.join(target, whl_name))
 
-    def package(self, obj: MlemModel):
+    def build(self, obj: MlemModel):
         fs, path = get_fs(self.target)
         with tempfile.TemporaryDirectory() as tmpdir:
             self.make_distr(obj, str(tmpdir), LocalFileSystem())

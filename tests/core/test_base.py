@@ -1,22 +1,21 @@
 from typing import ClassVar, Optional
 
-from mlem.contrib.docker import DockerImagePackager
+from mlem.contrib.docker import DockerImageBuilder
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.base import MlemABC, build_mlem_object, parse_links, smart_split
-from mlem.core.objects import MlemLink, MlemModel, MlemObject
-from mlem.pack import Packager
-from mlem.runtime.server.base import Server
+from mlem.core.objects import MlemBuilder, MlemLink, MlemModel, MlemObject
+from mlem.runtime.server import Server
 from tests.conftest import resource_path
 
 
 def test_build_model():
     res = build_mlem_object(
-        Packager,
+        MlemBuilder,
         "docker",
         ["image.name=kek"],
         [f"server={resource_path(__file__, 'server.yaml')}"],
     )
-    assert isinstance(res, DockerImagePackager)
+    assert isinstance(res, DockerImageBuilder)
     assert res.image.name == "kek"
     assert isinstance(res.server, FastAPIServer)
     assert res.server.port == 8081

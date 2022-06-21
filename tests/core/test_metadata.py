@@ -28,11 +28,11 @@ from tests.conftest import (
 @pytest.mark.parametrize("obj", [lazy_fixture("model"), lazy_fixture("train")])
 def test_save_with_meta_fields(obj, tmpdir):
     path = str(tmpdir / "obj")
-    save(obj, path, description="desc", params={"a": "b"}, tags=["tag"])
+    save(obj, path, description="desc", params={"a": "b"}, labels=["tag"])
     new = load_meta(path)
     assert new.description == "desc"
     assert new.params == {"a": "b"}
-    assert new.tags == ["tag"]
+    assert new.labels == ["tag"]
 
 
 def test_save_with_meta_fields_update(model, train, tmpdir):
@@ -42,17 +42,17 @@ def test_save_with_meta_fields_update(model, train, tmpdir):
         path,
         description="desc",
         params={"a": "b"},
-        tags=["tag"],
+        labels=["tag"],
         update=True,
     )
     save(train, path, update=True)
     new = load_meta(path)
     assert new.description == "desc"
     assert new.params == {"a": "b"}
-    assert new.tags == ["tag"]
+    assert new.labels == ["tag"]
 
 
-def test_saving_with_repo(model, tmpdir):
+def test_saving_with_project(model, tmpdir):
     path = str(tmpdir / "obj")
     save(model, path)
     load_meta(path)
@@ -66,10 +66,10 @@ def test_model_saving_without_sample_data(model, tmpdir_factory):
     save(model, path, index=False)
 
 
-def test_model_saving_in_mlem_repo_root(model_train_target, tmpdir_factory):
-    repo = str(tmpdir_factory.mktemp("mlem-root"))
-    init(repo)
-    model_dir = os.path.join(repo, "generated-model")
+def test_model_saving_in_mlem_project_root(model_train_target, tmpdir_factory):
+    project = str(tmpdir_factory.mktemp("mlem-root"))
+    init(project)
+    model_dir = os.path.join(project, "generated-model")
     model, train, _ = model_train_target
     save(model, model_dir, sample_data=train, index=True)
 
@@ -139,7 +139,7 @@ def test_model_loading_from_github(path, current_test_branch):
     assert "GITHUB_USERNAME" in os.environ and "GITHUB_TOKEN" in os.environ
     model = load(
         path,
-        repo=os.path.join(MLEM_TEST_REPO, "simple"),
+        project=os.path.join(MLEM_TEST_REPO, "simple"),
         rev=current_test_branch,
     )
     train, _ = load_iris(return_X_y=True)

@@ -16,13 +16,13 @@ from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
-from mlem import version
-from mlem.analytics import send_cli_call
+from mlem import LOCAL_CONFIG, version
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
 from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemObject
+from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
 
@@ -163,8 +163,15 @@ class MlemGroup(TyperGroup, MlemMixin):
         return None
 
 
-def MlemGroupSection(section, options_metavar="options"):
-    return partial(MlemGroup, section=section, options_metavar=options_metavar)
+def MlemGroupSection(
+    section, options_metavar="options", aliases: Optional[List[str]] = None
+):
+    return partial(
+        MlemGroup,
+        section=section,
+        options_metavar=options_metavar,
+        aliases=aliases,
+    )
 
 
 class ChoicesMeta(EnumMeta):
@@ -213,11 +220,11 @@ def mlem_callback(
     Examples:
         $ mlem init
         $ mlem list https://github.com/iterative/example-mlem
-        $ mlem clone models/logreg --repo https://github.com/iterative/example-mlem --rev main logreg
+        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main logreg
         $ mlem link logreg latest
         $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
         $ mlem serve latest fastapi -c port=8001
-        $ mlem pack latest docker_dir -c target=build/ -c server.type=fastapi
+        $ mlem build latest docker_dir -c target=build/ -c server.type=fastapi
     """
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():
@@ -226,7 +233,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback}
+    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
 
 
 def _extract_examples(
@@ -271,17 +278,17 @@ def mlem_command(
                     res = f(*iargs, **ikwargs) or {}
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
             except (ClickException, Exit, Abort) as e:
-                error = str(type(e))
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 raise
             except MlemError as e:
-                error = str(type(e))
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
                     raise
                 with cli_echo():
                     echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
-                error = str(type(e))
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
                     raise
                 with cli_echo():
@@ -296,15 +303,15 @@ def mlem_command(
                     )
                 raise typer.Exit(1)
             finally:
-                send_cli_call(cmd_name, error_msg=error, **res)
+                telemetry.send_cli_call(cmd_name, error=error, **res)
 
         return inner
 
     return decorator
 
 
-option_repo = Option(
-    None, "-r", "--repo", help="Path to MLEM repo", show_default="none"  # type: ignore
+option_project = Option(
+    None, "-p", "--project", help="Path to MLEM project", show_default="none"  # type: ignore
 )
 option_method = Option(
     PREDICT_METHOD_NAME,
@@ -323,26 +330,26 @@ option_external = Option(
     "--external",
     "-e",
     is_flag=True,
-    help=f"Save result not in {MLEM_DIR}, but directly in repo",
+    help=f"Save result not in {MLEM_DIR}, but directly in project",
 )
-option_target_repo = Option(
+option_target_project = Option(
     None,
-    "--target-repo",
-    "--tr",
-    help="Repo to save target to",
+    "--target-project",
+    "--tp",
+    help="Project to save target to",
     show_default="none",  # type: ignore
 )
 option_json = Option(False, "--json", help="Output as json")
-option_data_repo = Option(
+option_data_project = Option(
     None,
-    "--data-repo",
+    "--data-project",
     "--dr",
-    help="Repo with dataset",
+    help="Project with data",
 )
 option_data_rev = Option(
     None,
     "--data-rev",
-    help="Revision of dataset",
+    help="Revision of data",
 )
 
 

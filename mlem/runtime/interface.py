@@ -7,7 +7,7 @@ from pydantic import BaseModel
 import mlem
 import mlem.version
 from mlem.core.base import MlemABC
-from mlem.core.dataset_type import DatasetType
+from mlem.core.data_type import DataType
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
@@ -24,7 +24,10 @@ class InterfaceDescriptor(BaseModel):
 
 
 class Interface(ABC, MlemABC):
-    """"""
+    """Base class for runtime interfaces.
+    Describes a set of methods togerher with their signatures (arguments
+    and return type) and executors - actual python callables to be run
+    when the method is invoked. Used to setup `Server`"""
 
     class Config:
         type_root = True
@@ -103,7 +106,7 @@ class Interface(ABC, MlemABC):
             for a in self.get_method_signature(method_name).args
         }
 
-    def get_method_returns(self, method_name: str) -> DatasetType:
+    def get_method_returns(self, method_name: str) -> DataType:
         """
         Gets return type of given method
 
@@ -129,6 +132,9 @@ def expose(f):
 
 
 class SimpleInterface(Interface):
+    """Interface that exposes its own methods that marked with `expose`
+    decorator"""
+
     type: ClassVar[str] = "simple"
     methods: InterfaceDescriptor = InterfaceDescriptor()
 
@@ -162,6 +168,8 @@ class SimpleInterface(Interface):
 
 
 class ModelInterface(Interface):
+    """Interface that descibes model methods"""
+
     class Config:
         exclude = {"model_type"}
 

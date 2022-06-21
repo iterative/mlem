@@ -5,13 +5,13 @@ from ..core.metadata import load, load_meta, save
 from .commands import (
     apply,
     apply_remote,
+    build,
     clone,
     deploy,
     import_object,
     init,
     link,
     ls,
-    pack,
     serve,
 )
 
@@ -23,7 +23,7 @@ __all__ = [
     "clone",
     "init",
     "link",
-    "pack",
+    "build",
     "apply",
     "apply_remote",
     "import_object",
