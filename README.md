@@ -14,9 +14,9 @@ It saves ML models in a standard format that can be used in a variety of product
   Wrap models as a Python package or Docker Image, or deploy them to Heroku (SageMaker, Kubernetes, and more platforms coming soon).
   Switch between platforms transparently, with a single command.
 
-- **Simple text file to save model metadata:**
-  Automatically include Python requirements and input data needs into a deployment-ready format.
-  Use the same format on any ML framework.
+- **Model metadata into YAML automatically:**
+  Automatically include Python requirements and input data needs into a human-readable, deployment-ready format.
+  Use the same metafile on any ML framework.
 
 - **Stick to your training workflow:**
   MLEM doesn't ask you to rewrite model training code.
