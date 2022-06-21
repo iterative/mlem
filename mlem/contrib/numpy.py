@@ -137,7 +137,7 @@ class NumpyNdarrayType(
             prefix + "NumpyNdarray",
             __root__=(
                 self._subtype(self.shape)
-                if self.shape
+                if self.shape is not None
                 else List[
                     Union[python_type_from_np_string_repr(self.dtype), List]
                 ],  # type: ignore
@@ -157,7 +157,7 @@ class NumpyNdarrayType(
         return instance.tolist()
 
     def _check_shape(self, array, exc_type):
-        if self.shape:
+        if self.shape is not None:
             if len(array.shape) != len(self.shape):
                 raise exc_type(
                     f"given array is of rank: {len(array.shape)}, expected: {len(self.shape)}"

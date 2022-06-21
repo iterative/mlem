@@ -19,7 +19,7 @@ from typing import (
 )
 
 import flatdict
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from pydantic.main import create_model
 
 from mlem.core.artifacts import Artifacts, Storage
@@ -504,8 +504,8 @@ class DictTypeHook(DataHook):
         cls, obj: Any, is_dynamic: bool = False, **kwargs
     ) -> Union["DictType", "DynamicDictType"]:
         if not is_dynamic:
-            return DictType.analyze(obj, **kwargs)
-        return DynamicDictType.analyze(obj, **kwargs)
+            return DictType.create(obj, **kwargs)
+        return DynamicDictType.create(obj, **kwargs)
 
 
 class DictType(DataType, DataSerializer):
@@ -517,7 +517,7 @@ class DictType(DataType, DataSerializer):
     item_types: Dict[str, DataType]
 
     @classmethod
-    def analyze(cls, obj, **kwargs):
+    def create(cls, obj, **kwargs):
         return DictType(
             item_types={
                 k: DataAnalyzer.analyze(v, is_dynamic=False, **kwargs)
@@ -620,11 +620,19 @@ class DynamicDictType(DataType, DataSerializer):
 
     type: ClassVar[str] = "d_dict"
 
-    key_type: DataType
+    key_type: PrimitiveType
     value_type: DataType
 
+    @validator("key_type")
+    def is_valid_key_type(  # pylint: disable=no-self-argument
+        cls, key_type  # noqa: B902
+    ):
+        if key_type.ptype not in ["str", "int", "float"]:
+            raise ValueError(f"key_type {key_type.ptype} is not supported")
+        return key_type
+
     def deserialize(self, obj):
-        self._check_type_and_keys(obj, DeserializationError)
+        self.check_type(obj, dict, DeserializationError)
         return {
             self.key_type.get_serializer()
             .deserialize(
@@ -637,9 +645,7 @@ class DynamicDictType(DataType, DataSerializer):
         }
 
     def serialize(self, instance: dict):
-        self._check_type_and_keys(instance, SerializationError)
-        if self.key_type == PrimitiveType and self.value_type == PrimitiveType:
-            return instance
+        self._check_types(instance, SerializationError)
 
         return {
             self.key_type.get_serializer()
@@ -653,7 +659,9 @@ class DynamicDictType(DataType, DataSerializer):
         }
 
     @classmethod
-    def analyze(cls, obj, **kwargs):
+    def create(
+        cls, obj, is_dynamic: bool = True, **kwargs
+    ) -> "DynamicDictType":
         return DynamicDictType(
             key_type=DataAnalyzer.analyze(
                 next(iter(obj.keys())), is_dynamic=True, **kwargs
@@ -663,17 +671,24 @@ class DynamicDictType(DataType, DataSerializer):
             ),
         )
 
-    def _check_type_and_keys(self, obj, exc_type):
+    def _check_types(self, obj, exc_type, ignore_key_type: bool = False):
         self.check_type(obj, dict, exc_type)
-        obj_type: DynamicDictType = self.analyze(obj)
-        obj_types = (obj_type.key_type, obj_type.value_type)
-        expected_types = (self.key_type, self.value_type)
+
+        obj_type = self.create(obj)
+        if ignore_key_type:
+            obj_types: Union[
+                Tuple[PrimitiveType, DataType], Tuple[DataType]
+            ] = (obj_type.value_type,)
+            expected_types: Union[
+                Tuple[PrimitiveType, DataType], Tuple[DataType]
+            ] = (self.value_type,)
+        else:
+            obj_types = (obj_type.key_type, obj_type.value_type)
+            expected_types = (self.key_type, self.value_type)
         if obj_types != expected_types:
             raise exc_type(
                 f"given dict has type: {obj_types}, expected: {expected_types}"
             )
-
-        # TODO - should we check for type of all items of dict?
 
     def get_requirements(self) -> Requirements:
         return sum(
@@ -734,6 +749,8 @@ class DynamicDictReader(DataReader):
             )
         with artifacts[DataWriter.art_name].open() as f:
             data = json.load(f)
+            # json stores keys as strings. Deserialize string keys as well as values.
+            data = self.data_type.deserialize(data)
         return self.data_type.copy().bind(data)
 
     def read_batch(

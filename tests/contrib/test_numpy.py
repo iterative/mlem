@@ -153,6 +153,20 @@ def nat_dynamic_shape_none():
     return True, dtype, payload, schema, test_data1, test_data2, test_data3
 
 
+@pytest.fixture
+def nat_shape_empty():
+    dtype = NumpyNdarrayType(shape=(), dtype="int")
+    payload = {"dtype": "int", "shape": (), "type": "ndarray"}
+    schema = {
+        "title": "NumpyNdarray",
+        "type": "integer",
+    }
+    test_data1 = np.array(1)
+    test_data2 = np.array(3)
+    test_data3 = np.array(4)
+    return True, dtype, payload, schema, test_data1, test_data2, test_data3
+
+
 def test_python_type_from_np_string_repr():
     assert python_type_from_np_string_repr("int64") == int
 
@@ -196,6 +210,7 @@ def test_number():
         (lazy_fixture("nat_dynamic_all_none_dims")),
         (lazy_fixture("nat_dynamic_shape_none")),
         (lazy_fixture("nat_dynamic_float")),
+        (lazy_fixture("nat_shape_empty")),
     ],
 )
 def test_ndarray(data, test_data_idx):
@@ -243,6 +258,11 @@ def test_ndarray(data, test_data_idx):
             lazy_fixture("nat_dynamic"),
             np.array([1, 2]),
             "given array is of rank: 1, expected: 3",
+        ],
+        [
+            lazy_fixture("nat_empty_shape"),
+            np.array([1, 2]),
+            "given array is of rank: 1, expected: 0",
         ],
         [
             lazy_fixture("nat_dynamic_float"),

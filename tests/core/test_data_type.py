@@ -1,5 +1,6 @@
 import copy
 
+import numpy as np
 import pytest
 from pydantic import parse_obj_as
 from pytest_lazyfixture import lazy_fixture
@@ -308,6 +309,50 @@ def dynamic_dict_str_val_type_data():
 
 
 @pytest.fixture
+def dynamic_dict_int_key_type_data():
+    is_dynamic = True
+    d = {1: "1", 2: "2"}
+    payload = {
+        "key_type": {"ptype": "int", "type": "primitive"},
+        "value_type": {"ptype": "str", "type": "primitive"},
+        "type": "d_dict",
+    }
+    schema = {
+        "title": "DynamicDictType",
+        "type": "object",
+        "additionalProperties": {"type": "string"},
+    }
+
+    test_data1 = {1: "1", 2: "2"}
+    test_data2 = {2: "1"}
+    test_data3 = {3: "1", 4: "2", 5: "3", 6: "1"}
+
+    return is_dynamic, d, payload, schema, test_data1, test_data2, test_data3
+
+
+@pytest.fixture
+def dynamic_dict_float_key_type_data():
+    is_dynamic = True
+    d = {1.0: "1", 2.0: "2"}
+    payload = {
+        "key_type": {"ptype": "float", "type": "primitive"},
+        "value_type": {"ptype": "str", "type": "primitive"},
+        "type": "d_dict",
+    }
+    schema = {
+        "title": "DynamicDictType",
+        "type": "object",
+        "additionalProperties": {"type": "string"},
+    }
+
+    test_data1 = {1.0: "1", 2.0: "2"}
+    test_data2 = {2.9999999999: "1"}
+    test_data3 = {3.8998: "1", 4.0001: "2", 5.2: "3", 6.9: "1"}
+
+    return is_dynamic, d, payload, schema, test_data1, test_data2, test_data3
+
+
+@pytest.fixture
 def dynamic_dict_array_type():
     is_dynamic = True
     d = {"a": [1, 2, 3], "b": [3, 4, 5]}
@@ -379,6 +424,41 @@ def dynamic_dict_dict_type():
     return is_dynamic, d, payload, schema, test_data1, test_data2, test_data3
 
 
+@pytest.fixture
+def dynamic_dict_ndarray_type():
+    is_dynamic = True
+    d = {"a": np.array([1, 2]), "b": np.array([3, 4])}
+    payload = {
+        "key_type": {"ptype": "str", "type": "primitive"},
+        "type": "d_dict",
+        "value_type": {"dtype": "int64", "shape": (None,), "type": "ndarray"},
+    }
+
+    schema = {
+        "additionalProperties": {"$ref": "#/definitions/_val_NumpyNdarray"},
+        "definitions": {
+            "_val_NumpyNdarray": {
+                "items": {"type": "integer"},
+                "title": "_val_NumpyNdarray",
+                "type": "array",
+            }
+        },
+        "title": "DynamicDictType",
+        "type": "object",
+    }
+
+    test_data1 = {"a": np.array([1, 2]), "b": np.array([3, 4])}
+    test_data2 = {
+        "a": np.array([1, 2]),
+    }
+    test_data3 = {
+        "a": np.array([1, 2]),
+        "b": np.array([3, 4]),
+        "c": np.array([5, 6]),
+    }
+    return is_dynamic, d, payload, schema, test_data1, test_data2, test_data3
+
+
 @pytest.mark.parametrize("test_data_idx", [4, 5, 6])
 @pytest.mark.parametrize(
     "data",
@@ -386,8 +466,11 @@ def dynamic_dict_dict_type():
         lazy_fixture("dict_data"),
         lazy_fixture("dynamic_dict_data"),
         lazy_fixture("dynamic_dict_str_val_type_data"),
+        lazy_fixture("dynamic_dict_int_key_type_data"),
+        lazy_fixture("dynamic_dict_float_key_type_data"),
         lazy_fixture("dynamic_dict_array_type"),
         lazy_fixture("dynamic_dict_dict_type"),
+        lazy_fixture("dynamic_dict_ndarray_type"),
     ],
 )
 def test_dict(data, test_data_idx):
@@ -405,11 +488,12 @@ def test_dict(data, test_data_idx):
     assert dt.dict() == payload
     dt2 = parse_obj_as(dtype, payload)
     assert dt2 == dt
-    assert test_data == dt.serialize(test_data)
-    assert test_data == dt.deserialize(test_data)
+    serialised_test_data = dt.serialize(test_data)
+    deserialised_test_data = dt.deserialize(serialised_test_data)
+    assert serialised_test_data == dt.serialize(deserialised_test_data)
     assert dt.get_model().__name__ == dtype.__name__
     assert dt.get_model().schema() == schema
-    assert parse_obj_as(dt.get_model(), test_data)
+    assert parse_obj_as(dt.get_model(), serialised_test_data)
 
 
 @pytest.mark.parametrize("test_data_idx", [4, 5, 6])
@@ -419,8 +503,11 @@ def test_dict(data, test_data_idx):
         lazy_fixture("dict_data"),
         lazy_fixture("dynamic_dict_data"),
         lazy_fixture("dynamic_dict_str_val_type_data"),
+        lazy_fixture("dynamic_dict_int_key_type_data"),
+        lazy_fixture("dynamic_dict_float_key_type_data"),
         lazy_fixture("dynamic_dict_array_type"),
         lazy_fixture("dynamic_dict_dict_type"),
+        lazy_fixture("dynamic_dict_ndarray_type"),
     ],
 )
 def test_dict_source(data, test_data_idx):
@@ -434,7 +521,7 @@ def test_dict_source(data, test_data_idx):
     dtype_reader = DynamicDictReader if is_dynamic else DictReader
 
     def custom_assert(x, y):
-        assert x == y
+        np.testing.assert_equal(x, y)
         assert len(x) == len(y)
         assert isinstance(x, dict)
         assert isinstance(y, dict)
