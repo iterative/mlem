@@ -60,7 +60,7 @@ $ python -m pip install mlem
 > To install the pre-release version:
 >
 > ```console
-> $ pyhon -m pip install git+https://github.com/iterative/mlem
+> $ python -m pip install git+https://github.com/iterative/mlem
 > ```
 
 ### Saving the model
