@@ -198,9 +198,7 @@ class PrimitiveType(DataType, DataHook, DataSerializer):
         return Requirements.new()
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return create_model(
-            prefix + self.ptype.capitalize(), __root__=(self.to_type, ...)
-        )
+        return self.to_type
 
 
 class PrimitiveWriter(DataWriter):
