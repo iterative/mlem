@@ -54,7 +54,7 @@ Please read [Get Started guide](https://mlem.ai/doc/get-started) for a full vers
 MLEM requires Python 3.
 
 ```console
-$ pyhon -m pip install mlem
+$ python -m pip install mlem
 ```
 
 > To install the pre-release version:
