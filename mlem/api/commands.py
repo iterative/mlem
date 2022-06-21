@@ -258,7 +258,7 @@ def init(path: str = ".") -> None:
             pass
         echo(
             EMOJI_MLEM
-            + color("What's next?\n------------", "yellow")
+            + color("What's next?\n---------------", "yellow")
             + """
 - Check out the documentation: <https://mlem.ai/docs>
 - Star us on GitHub: <https://github.com/iterative/mlem>
