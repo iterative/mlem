@@ -56,6 +56,12 @@ class Extension:
     def __hash__(self):
         return hash(self.module)
 
+    @property
+    def reqs_packages(self):
+        from mlem.core.requirements import MODULE_PACKAGE_MAPPING
+
+        return [MODULE_PACKAGE_MAPPING.get(r, r) for r in self.reqs]
+
 
 class ExtensionDict(dict):
     """
@@ -85,7 +91,7 @@ class ExtensionLoader:
     builtin_extensions: Dict[str, Extension] = ExtensionDict(
         Extension("mlem.contrib.numpy", ["numpy"], False),
         Extension("mlem.contrib.pandas", ["pandas"], False),
-        Extension("mlem.contrib.sklearn", ["scipy", "scikit-learn"], False),
+        Extension("mlem.contrib.sklearn", ["sklearn"], False),
         Extension("mlem.contrib.tensorflow", ["tensorflow"], False),
         Extension("mlem.contrib.torch", ["torch"], False),
         Extension("mlem.contrib.catboost", ["catboost"], False),
@@ -98,6 +104,9 @@ class ExtensionLoader:
         Extension("mlem.contrib.fastapi", ["fastapi", "uvicorn"], False),
         Extension("mlem.contrib.callable", [], True),
         Extension("mlem.contrib.rabbitmq", ["pika"], False, extra="rmq"),
+        Extension("mlem.contrib.github", [], True),
+        Extension("mlem.contrib.gitlabfs", [], True),
+        Extension("mlem.contrib.bitbucketfs", [], True),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}

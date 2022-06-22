@@ -7,18 +7,41 @@
 [![License: Apache 2.0](https://img.shields.io/github/license/iterative/mlem)](https://github.com/iterative/mlem/blob/master/LICENSE)
 <!-- [![Maintainability](https://codeclimate.com/github/iterative/mlem/badges/gpa.svg)](https://codeclimate.com/github/iterative/mlem) -->
 
-MLEM helps you with machine learning model deployment. It saves ML models in a standard format that can be used in a variety of downstream deployment scenarios such as real-time serving through a REST API or batch processing.
+MLEM helps you package and deploy machine learning models.
+It saves ML models in a standard format that can be used in a variety of production scenarios such as real-time REST serving or batch processing.
 
-- **Run your model anywhere you want:** package it as a Python package, a Docker Image or deploy it to Heroku (SageMaker, Kubernetes and more platforms are coming). Switch between formats and deployment platforms with a single command thanks to unified abstraction.
-- **Simple YAML file to save model metadata:** automatically package Python env requirements and input data specifications into a ready-to-deploy format. Use the same human-readable format for any ML framework.
-- **Stick to your training workflow:** MLEM doesn't ask you to rewrite your training code. To start using packaging or deployment machinery, add just two lines to your python script: one to import the library and one to save the model.
-- **Developer-first experience:** use CLI when you feel like DevOps and API when you feel like a developer.
+- **Run your ML models anywhere:**
+  Wrap models as a Python package or Docker Image, or deploy them to Heroku (SageMaker, Kubernetes, and more platforms coming soon).
+  Switch between platforms transparently, with a single command.
 
-## Why MLEM?
+- **Model metadata into YAML automatically:**
+  Automatically include Python requirements and input data needs into a human-readable, deployment-ready format.
+  Use the same metafile on any ML framework.
 
-- MLEM **automatically detects** ML framework, Python requirements, model methods and input/output data specifications, saving your time and preventing manual errors.
-- MLEM is designed for **Git-centered** ML models development. Use GitOps with Git as the single source of truth. Enable GitFlow and other software engineering best practices.
-- MLEM is made with **Unix philosophy** in mind - one tool solves one problem very well. Plug MLEM into your toolset, easily integrating it with other tools like DVC.
+- **Stick to your training workflow:**
+  MLEM doesn't ask you to rewrite model training code.
+  Add just two lines around your Python code: one to import the library and one to save the model.
+
+- **Developer-first experience:**
+  Use the CLI when you feel like DevOps, or the API if you feel like a developer.
+
+## Why is MLEM special?
+
+The main reason to use MLEM instead of other tools is to adopt a **GitOps approach** to manage model lifecycles.
+
+- **Git as a single source of truth:**
+  MLEM writes model metadata to a plain text file that can be versioned in Git along with code.
+  This enables GitFlow and other software engineering best practices.
+
+- **Unify model and software deployment:**
+  Release models using the same processes used for software updates (branching, pull requests, etc.).
+
+- **Reuse existing Git infrastructure:**
+  Use familiar hosting like Github or Gitlab for model management, instead of having separate services.
+
+- **UNIX philosophy:**
+  MLEM is a modular tool that solves one problem very well.
+  It integrates well into a larger toolset from Iterative.ai, such as [DVC](https://dvc.org/) and [CML](https://cml.dev/).
 
 ## Usage
 
@@ -28,17 +51,17 @@ Please read [Get Started guide](https://mlem.ai/doc/get-started) for a full vers
 
 ### Installation
 
-Install MLEM with pip:
+MLEM requires Python 3.
 
-```
-$ pip install mlem
+```console
+$ python -m pip install mlem
 ```
 
-To install the pre-release version, run:
-
-```
-$ pip install git+https://github.com/iterative/mlem
-```
+> To install the pre-release version:
+>
+> ```console
+> $ python -m pip install git+https://github.com/iterative/mlem
+> ```
 
 ### Saving the model
 

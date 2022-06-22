@@ -53,7 +53,7 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "pandas": ["pandas"],
     "numpy": ["numpy"],
-    "sklearn": ["scipy", "scikit-learn"],
+    "sklearn": ["scikit-learn"],
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
@@ -71,6 +71,7 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "docker": ["docker"],
+    "heroku": ["docker"],
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
@@ -165,9 +166,12 @@ setup_args = dict(  # noqa: C408
             "builder.pip = mlem.contrib.pip.base:PipBuilder",
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
-            "server.heroku = mlem.contrib.heroku.build:HerokuServer",
+            "server.heroku = mlem.contrib.heroku.server:HerokuServer",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
+            "resolver.bitbucket = mlem.contrib.bitbucketfs:BitBucketResolver",
+            "resolver.github = mlem.contrib.github:GithubResolver",
+            "resolver.gitlab = mlem.contrib.gitlabfs:GitlabResolver",
         ],
         "mlem.config": [
             "core = mlem.config:MlemConfig",

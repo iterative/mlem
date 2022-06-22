@@ -1,5 +1,5 @@
 import posixpath
-from typing import Optional
+from typing import ClassVar, Optional
 from urllib.parse import quote_plus, urlparse, urlsplit
 
 import gitlab
@@ -7,6 +7,8 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFile
 from fsspec.registry import known_implementations
 from gitlab import Gitlab, GitlabGetError
+
+from mlem.core.meta_io import CloudGitResolver
 
 GL_TYPES = {"blob": "file", "tree": "directory"}
 
@@ -125,11 +127,6 @@ class GitlabFileSystem(AbstractFileSystem):  # pylint: disable=abstract-method
         )
 
 
-known_implementations["gitlab"] = {
-    "class": f"{GitlabFileSystem.__module__}.{GitlabFileSystem.__name__}"
-}
-
-
 def ls_gitlab_refs(project_id):
     gl = Gitlab()
     project = gl.projects.get(project_id)
@@ -154,23 +151,63 @@ def _mathch_path_with_ref(project_id, path):
     return sha, posixpath.join(*path)
 
 
-def gitlab_check_rev(project_id: str, rev: str):
-    gl = gitlab.Gitlab()
-    try:
-        gl.projects.get(project_id).branches.get(rev)
-        return True
-    except GitlabGetError:
-        return False
+known_implementations["gitlab"] = {
+    "class": f"{GitlabFileSystem.__module__}.{GitlabFileSystem.__name__}"
+}
 
 
-def get_gitlab_kwargs(uri: str):
-    """Parse URI to git repo to get dict with all URI parts"""
-    # TODO: do we lose URL to the site, like https://github.com?
-    # should be resolved as part of https://github.com/iterative/mlem/issues/4
-    sha: Optional[str]
-    parsed = urlparse(uri)
-    project_id, *path = parsed.path.strip("/").split("/-/blob/")
-    if not path:
-        return {"project_id": project_id, "path": ""}
-    sha, path = _mathch_path_with_ref(project_id, path[0])
-    return {"project_id": project_id, "sha": sha, "path": path}
+class GitlabResolver(CloudGitResolver):
+    type: ClassVar = "gitlab"
+    FS = GitlabFileSystem
+    PROTOCOL = "gitlab"
+    GITLAB_COM = "https://gitlab.com"
+
+    # TODO: support on-prem gitlab (other hosts)
+    PREFIXES = [GITLAB_COM, PROTOCOL + "://"]
+    versioning_support = True
+
+    @classmethod
+    def get_kwargs(cls, uri):
+        """Parse URI to git repo to get dict with all URI parts"""
+        # TODO: do we lose URL to the site, like https://github.com?
+        # should be resolved as part of https://github.com/iterative/mlem/issues/4
+        sha: Optional[str]
+        parsed = urlparse(uri)
+        project_id, *path = parsed.path.strip("/").split("/-/blob/")
+        if not path:
+            return {"project_id": project_id, "path": ""}
+        sha, path = _mathch_path_with_ref(project_id, path[0])
+        return {"project_id": project_id, "sha": sha, "path": path}
+
+    @classmethod
+    def check_rev(cls, options):
+        gl = gitlab.Gitlab()
+        try:
+            gl.projects.get(options["project_id"]).branches.get(options["sha"])
+            return True
+        except GitlabGetError:
+            return False
+
+    @classmethod
+    def get_uri(
+        cls,
+        path: str,
+        project: Optional[str],
+        rev: Optional[str],
+        fs: GitlabFileSystem,
+    ):
+        fullpath = posixpath.join(project or "", path)
+        return (
+            f"https://gitlab.com/{fs.project_id}/-/blob/{fs.root}/{fullpath}"
+        )
+
+    @classmethod
+    def get_project_uri(  # pylint: disable=unused-argument
+        cls,
+        path: str,
+        project: Optional[str],
+        rev: Optional[str],
+        fs: GitlabFileSystem,
+        uri: str,
+    ):
+        return f"https://gitlab.com/{fs.project_id}/-/tree/{fs.root}/{project or ''}"
