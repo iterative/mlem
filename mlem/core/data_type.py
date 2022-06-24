@@ -504,8 +504,8 @@ class DictTypeHook(DataHook):
         cls, obj: Any, is_dynamic: bool = False, **kwargs
     ) -> Union["DictType", "DynamicDictType"]:
         if not is_dynamic:
-            return DictType.create(obj, **kwargs)
-        return DynamicDictType.create(obj, **kwargs)
+            return DictType.process(obj, **kwargs)
+        return DynamicDictType.process(obj, **kwargs)
 
 
 class DictType(DataType, DataSerializer):
@@ -517,7 +517,7 @@ class DictType(DataType, DataSerializer):
     item_types: Dict[str, DataType]
 
     @classmethod
-    def create(cls, obj, **kwargs):
+    def process(cls, obj, **kwargs):
         return DictType(
             item_types={
                 k: DataAnalyzer.analyze(v, is_dynamic=False, **kwargs)
@@ -659,9 +659,7 @@ class DynamicDictType(DataType, DataSerializer):
         }
 
     @classmethod
-    def create(
-        cls, obj, is_dynamic: bool = True, **kwargs
-    ) -> "DynamicDictType":
+    def process(cls, obj, **kwargs) -> "DynamicDictType":
         return DynamicDictType(
             key_type=DataAnalyzer.analyze(
                 next(iter(obj.keys())), is_dynamic=True, **kwargs
@@ -674,7 +672,7 @@ class DynamicDictType(DataType, DataSerializer):
     def _check_types(self, obj, exc_type, ignore_key_type: bool = False):
         self.check_type(obj, dict, exc_type)
 
-        obj_type = self.create(obj)
+        obj_type = self.process(obj)
         if ignore_key_type:
             obj_types: Union[
                 Tuple[PrimitiveType, DataType], Tuple[DataType]

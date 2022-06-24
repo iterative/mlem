@@ -427,34 +427,46 @@ def dynamic_dict_dict_type():
 @pytest.fixture
 def dynamic_dict_ndarray_type():
     is_dynamic = True
-    d = {"a": np.array([1, 2]), "b": np.array([3, 4])}
+    d = {11: {1: np.array([1, 2])}, 22: {2: np.array([3, 4])}}
     payload = {
-        "key_type": {"ptype": "str", "type": "primitive"},
+        "key_type": {"ptype": "int", "type": "primitive"},
         "type": "d_dict",
-        "value_type": {"dtype": "int64", "shape": (None,), "type": "ndarray"},
+        "value_type": {
+            "key_type": {"ptype": "int", "type": "primitive"},
+            "type": "d_dict",
+            "value_type": {
+                "dtype": "int64",
+                "shape": (None,),
+                "type": "ndarray",
+            },
+        },
     }
-
     schema = {
-        "additionalProperties": {"$ref": "#/definitions/_val_NumpyNdarray"},
+        "additionalProperties": {"$ref": "#/definitions/_val_DynamicDictType"},
         "definitions": {
-            "_val_NumpyNdarray": {
+            "_val_DynamicDictType": {
+                "additionalProperties": {
+                    "$ref": "#/definitions/_val__val_NumpyNdarray"
+                },
+                "title": "_val_DynamicDictType",
+                "type": "object",
+            },
+            "_val__val_NumpyNdarray": {
                 "items": {"type": "integer"},
-                "title": "_val_NumpyNdarray",
+                "title": "_val__val_NumpyNdarray",
                 "type": "array",
-            }
+            },
         },
         "title": "DynamicDictType",
         "type": "object",
     }
 
-    test_data1 = {"a": np.array([1, 2]), "b": np.array([3, 4])}
-    test_data2 = {
-        "a": np.array([1, 2]),
-    }
+    test_data1 = {11: {1: np.array([1, 2])}, 22: {2: np.array([3, 4])}}
+    test_data2 = {11: {1: np.array([1, 2])}}
     test_data3 = {
-        "a": np.array([1, 2]),
-        "b": np.array([3, 4]),
-        "c": np.array([5, 6]),
+        11: {1: np.array([1, 2])},
+        22: {2: np.array([3, 4])},
+        33: {2: np.array([5, 6])},
     }
     return is_dynamic, d, payload, schema, test_data1, test_data2, test_data3
 
