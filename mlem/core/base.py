@@ -67,7 +67,7 @@ def load_impl_ext(
                     reqs = [e.name] if e.name is not None else []
                     extra = None
                 else:
-                    reqs = ext.reqs
+                    reqs = ext.reqs_packages
                     extra = ext.extra
                 raise ExtensionRequirementError(
                     ep.name or "", reqs, extra

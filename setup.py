@@ -53,7 +53,7 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "pandas": ["pandas"],
     "numpy": ["numpy"],
-    "sklearn": ["scipy", "scikit-learn"],
+    "sklearn": ["scikit-learn"],
     "onnx": ["onnx", "onnxruntime", "skl2onnx"],
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
@@ -74,6 +74,7 @@ extras = {
     "protobuf": [
         "protobuf==3.20.0"
     ],  # https://github.com/protocolbuffers/protobuf/issues/10051
+    "heroku": ["docker"],
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
@@ -164,9 +165,12 @@ setup_args = dict(  # noqa: C408
             "builder.pip = mlem.contrib.pip.base:PipBuilder",
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
-            "server.heroku = mlem.contrib.heroku.build:HerokuServer",
+            "server.heroku = mlem.contrib.heroku.server:HerokuServer",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
+            "resolver.bitbucket = mlem.contrib.bitbucketfs:BitBucketResolver",
+            "resolver.github = mlem.contrib.github:GithubResolver",
+            "resolver.gitlab = mlem.contrib.gitlabfs:GitlabResolver",
         ],
         "mlem.config": [
             "core = mlem.config:MlemConfig",
