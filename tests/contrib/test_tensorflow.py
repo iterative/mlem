@@ -1,5 +1,4 @@
 import os
-import posixpath
 
 import numpy as np
 import pytest
@@ -197,7 +196,7 @@ def test_model_wrapper(net, input_data, tmpdir, request):
 
     np.testing.assert_array_equal(orig_pred, prediction)
 
-    model_name = posixpath.join(tmpdir / "tensorflow-model")
+    model_name = str(tmpdir / "tensorflow-model")
     artifacts = tmw.dump(LOCAL_STORAGE, model_name)
 
     assert (

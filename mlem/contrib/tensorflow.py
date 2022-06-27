@@ -1,4 +1,4 @@
-import os.path
+import posixpath
 import tempfile
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
@@ -182,7 +182,7 @@ class TFKerasModelIO(BufferModelIO):
         if self.save_format == "tf":
             with tempfile.TemporaryDirectory() as tmpdir:
                 for k, a in artifacts.items():
-                    a.materialize(os.path.join(tmpdir, k))
+                    a.materialize(posixpath.join(tmpdir, k))
                 return tf.keras.models.load_model(tmpdir)
         else:
             raise ValueError(
