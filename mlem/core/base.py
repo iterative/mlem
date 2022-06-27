@@ -6,7 +6,7 @@ from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Literal
 from yaml import safe_load
 
-from mlem.core.errors import UnknownImplementation
+from mlem.core.errors import ExtensionRequirementError, UnknownImplementation
 from mlem.polydantic import PolyModel
 from mlem.utils.importing import import_string
 from mlem.utils.path import make_posix
@@ -54,7 +54,24 @@ def load_impl_ext(
     eps = load_entrypoints()
     for ep in eps.values():
         if ep.abs_name == abs_name and ep.name == type_name:
-            obj = ep.ep.load()
+            try:
+                obj = ep.ep.load()
+            except ImportError as e:
+                from mlem.ext import ExtensionLoader
+
+                ext = ExtensionLoader.builtin_extensions.get(
+                    ep.ep.module_name, None
+                )
+                reqs: List[str]
+                if ext is None:
+                    reqs = [e.name] if e.name is not None else []
+                    extra = None
+                else:
+                    reqs = ext.reqs_packages
+                    extra = ext.extra
+                raise ExtensionRequirementError(
+                    ep.name or "", reqs, extra
+                ) from e
             if not issubclass(obj, MlemABC):
                 raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj

@@ -3,7 +3,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from typing import ClassVar, Dict, Iterable, List, Set, Type, Union
 
-from pydantic import parse_obj_as
+from pydantic import ValidationError, parse_obj_as
 from yaml import safe_dump, safe_load
 
 from mlem.constants import MLEM_DIR
@@ -75,6 +75,7 @@ class LinkIndex(Index):
         location: Location,
         type_filter: TypeFilter,
         include_links: bool = True,
+        ignore_errors: bool = False,
     ) -> Dict[Type[MlemObject], List[MlemObject]]:
         _type_filter = self.parse_type_filter(type_filter)
         if len(_type_filter) == 0:
@@ -90,31 +91,35 @@ class LinkIndex(Index):
             for file in files:
                 if not file.startswith(type_path):
                     continue
-                with no_echo():
-                    meta = load_meta(
-                        posixpath.relpath(file, location.project),
-                        project=location.project,
-                        rev=location.rev,
-                        follow_links=False,
-                        fs=location.fs,
-                        load_value=False,
-                    )
-                obj_type = cls
-                if isinstance(meta, MlemLink):
-                    link_name = posixpath.relpath(file, type_path)[
-                        : -len(MLEM_EXT)
-                    ]
-                    is_auto_link = meta.path == link_name + MLEM_EXT
+                try:
+                    with no_echo():
+                        meta = load_meta(
+                            posixpath.relpath(file, location.project),
+                            project=location.project,
+                            rev=location.rev,
+                            follow_links=False,
+                            fs=location.fs,
+                            load_value=False,
+                        )
+                    obj_type = cls
+                    if isinstance(meta, MlemLink):
+                        link_name = posixpath.relpath(file, type_path)[
+                            : -len(MLEM_EXT)
+                        ]
+                        is_auto_link = meta.path == link_name + MLEM_EXT
 
-                    obj_type = MlemObject.__type_map__[meta.link_type]
-                    if obj_type not in _type_filter:
-                        continue
-                    if is_auto_link:
-                        with no_echo():
-                            meta = meta.load_link()
-                    elif not include_links:
-                        continue
-                res[obj_type].append(meta)
+                        obj_type = MlemObject.__type_map__[meta.link_type]
+                        if obj_type not in _type_filter:
+                            continue
+                        if is_auto_link:
+                            with no_echo():
+                                meta = meta.load_link()
+                        elif not include_links:
+                            continue
+                    res[obj_type].append(meta)
+                except ValidationError:
+                    if not ignore_errors:
+                        raise
         return res
 
 

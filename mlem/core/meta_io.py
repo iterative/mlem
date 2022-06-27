@@ -5,29 +5,19 @@ import contextlib
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
-from typing import List, Optional, Tuple, Type
+from typing import ClassVar, List, Optional, Tuple, Type
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
-from fsspec.implementations.github import GithubFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
 
+from mlem.core.base import MlemABC
 from mlem.core.errors import (
     HookNotFound,
     InvalidArgumentError,
     LocationNotFound,
     MlemObjectNotFound,
     RevisionNotFound,
-)
-from mlem.utils.github import (
-    get_github_envs,
-    get_github_kwargs,
-    github_check_rev,
-)
-from mlem.utils.gitlabfs import (
-    GitlabFileSystem,
-    get_gitlab_kwargs,
-    gitlab_check_rev,
 )
 from mlem.utils.root import MLEM_DIR, find_project_root
 
@@ -86,16 +76,25 @@ class Location(BaseModel):
         return self.uri
 
 
-class UriResolver(ABC):
+class UriResolver(MlemABC):
     """Base class for resolving location. Turns (path, project, rev, fs) tuple
     into a normalized `Location` instance"""
 
-    impls: List[Type["UriResolver"]] = []
-    versioning_support: bool = False
+    abs_name: ClassVar = "resolver"
+
+    class Config:
+        type_root = True
+
+    impls: ClassVar[List[Type["UriResolver"]]] = []
+    low_priority: ClassVar[bool] = False
+    versioning_support: ClassVar[bool] = False
 
     def __init_subclass__(cls, *args, **kwargs):
         if not isabstract(cls) and cls not in cls.impls:
-            cls.impls.append(cls)
+            if cls.low_priority:
+                cls.impls.append(cls)
+            else:
+                cls.impls.insert(0, cls)
         super(UriResolver, cls).__init_subclass__(*args, **kwargs)
 
     @classmethod
@@ -119,6 +118,7 @@ class UriResolver(ABC):
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> Type["UriResolver"]:
+
         for i in cls.impls:
             if i.check(path, project, rev, fs):
                 return i
@@ -219,15 +219,11 @@ class UriResolver(ABC):
         return uri[: -len(path)]
 
 
-class GithubResolver(UriResolver):
-    """Resolve https://github.com URLs"""
-
-    PROTOCOL = "github://"
-    GITHUB_COM = "https://github.com"
-
-    # TODO: support on-prem github (other hosts)
-    PREFIXES = [GITHUB_COM, PROTOCOL]
-    versioning_support = True
+class CloudGitResolver(UriResolver, ABC):
+    FS: ClassVar[Type[AbstractFileSystem]]
+    PROTOCOL: ClassVar[str]
+    PREFIXES: ClassVar[List[str]]
+    versioning_support: ClassVar = True
 
     @classmethod
     def check(
@@ -238,104 +234,7 @@ class GithubResolver(UriResolver):
         fs: Optional[AbstractFileSystem],
     ) -> bool:
         fullpath = posixpath.join(project or "", path)
-        return isinstance(fs, GithubFileSystem) or any(
-            fullpath.startswith(h) for h in cls.PREFIXES
-        )
-
-    @classmethod
-    def get_fs(
-        cls, uri: str, rev: Optional[str]
-    ) -> Tuple[GithubFileSystem, str]:
-        options = get_github_envs()
-        if not uri.startswith(cls.PROTOCOL):
-            try:
-                github_kwargs = get_github_kwargs(uri)
-            except ValueError as e:
-                raise LocationNotFound(*e.args) from e
-            options.update(github_kwargs)
-            path = options.pop("path")
-            options["sha"] = rev or options.get("sha", None)
-        else:
-            path = uri
-        try:
-            fs, _, (path,) = get_fs_token_paths(
-                path, protocol="github", storage_options=options
-            )
-        except FileNotFoundError as e:  # TODO catch HTTPError for wrong orgrepo
-            if options["sha"] is not None and not github_check_rev(
-                options["org"], options["repo"], options["sha"]
-            ):
-                raise RevisionNotFound(options["sha"], uri) from e
-            raise LocationNotFound(
-                f"Could not resolve github location {uri}"
-            ) from e
-        return fs, path
-
-    @classmethod
-    def get_uri(
-        cls,
-        path: str,
-        project: Optional[str],
-        rev: Optional[str],
-        fs: GithubFileSystem,
-    ):
-        fullpath = posixpath.join(project or "", path)
-        return (
-            f"https://github.com/{fs.org}/{fs.repo}/tree/{fs.root}/{fullpath}"
-        )
-
-    @classmethod
-    def pre_process(
-        cls,
-        path: str,
-        project: Optional[str],
-        rev: Optional[str],
-        fs: Optional[AbstractFileSystem],
-    ):
-        if fs is not None and not isinstance(fs, GithubFileSystem):
-            raise TypeError(
-                f"{path, project, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
-            )
-        if (
-            isinstance(fs, GithubFileSystem)
-            and rev is not None
-            and fs.root != rev
-        ):
-            fs.root = rev
-            fs.invalidate_cache()
-
-        return path, project, rev, fs
-
-    @classmethod
-    def get_project_uri(
-        cls,
-        path: str,
-        project: Optional[str],
-        rev: Optional[str],
-        fs: GithubFileSystem,
-        uri: str,
-    ):
-        return f"https://github.com/{fs.org}/{fs.repo}/{project or ''}"
-
-
-class GitlabResolver(UriResolver):
-    PROTOCOL = "gitlab://"
-    GITLAB_COM = "https://gitlab.com"
-
-    # TODO: support on-prem gitlab (other hosts)
-    PREFIXES = [GITLAB_COM, PROTOCOL]
-    versioning_support = True
-
-    @classmethod
-    def check(
-        cls,
-        path: str,
-        project: Optional[str],
-        rev: Optional[str],
-        fs: Optional[AbstractFileSystem],
-    ) -> bool:
-        fullpath = posixpath.join(project or "", path)
-        return isinstance(fs, GitlabFileSystem) or any(
+        return isinstance(fs, cls.FS) or any(
             fullpath.startswith(h) for h in cls.PREFIXES
         )
 
@@ -343,25 +242,23 @@ class GitlabResolver(UriResolver):
     def get_fs(
         cls, uri: str, rev: Optional[str]
     ) -> Tuple[AbstractFileSystem, str]:
-        options = {}  # get_github_envs()
+        options = cls.get_envs()
         if not uri.startswith(cls.PROTOCOL):
             try:
-                gitlab_kwargs = get_gitlab_kwargs(uri)
+                kwargs = cls.get_kwargs(uri)
             except ValueError as e:
                 raise LocationNotFound(*e.args) from e
-            options.update(gitlab_kwargs)
+            options.update(kwargs)
             path = options.pop("path")
             options["sha"] = rev or options.get("sha", None)
         else:
             path = uri
         try:
             fs, _, (path,) = get_fs_token_paths(
-                path, protocol="gitlab", storage_options=options
+                path, protocol=cls.PROTOCOL, storage_options=options
             )
-        except FileNotFoundError as e:  # TODO catch HTTPError for wrong org/repo
-            if options["sha"] is not None and not gitlab_check_rev(
-                options["project_id"], options["sha"]
-            ):
+        except FileNotFoundError as e:  # TODO catch HTTPError for wrong orgrepo
+            if options["sha"] is not None and not cls.check_rev(options):
                 raise RevisionNotFound(options["sha"], uri) from e
             raise LocationNotFound(
                 f"Could not resolve github location {uri}"
@@ -369,17 +266,16 @@ class GitlabResolver(UriResolver):
         return fs, path
 
     @classmethod
-    def get_uri(
-        cls,
-        path: str,
-        project: Optional[str],
-        rev: Optional[str],
-        fs: GitlabFileSystem,
-    ):
-        fullpath = posixpath.join(project or "", path)
-        return (
-            f"https://gitlab.com/{fs.project_id}/-/blob/{fs.root}/{fullpath}"
-        )
+    def get_envs(cls):
+        return {}
+
+    @classmethod
+    def get_kwargs(cls, uri):
+        raise NotImplementedError
+
+    @classmethod
+    def check_rev(cls, options):
+        raise NotImplementedError
 
     @classmethod
     def pre_process(
@@ -389,34 +285,21 @@ class GitlabResolver(UriResolver):
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ):
-        if fs is not None and not isinstance(fs, GitlabFileSystem):
+        if fs is not None and not isinstance(fs, cls.FS):
             raise TypeError(
-                f"{path, project, rev, fs} cannot be resolved by {cls}: fs should be GithubFileSystem, not {fs.__class__}"
+                f"{path, project, rev, fs} cannot be resolved by {cls}: fs should be {cls.FS.__class__}, not {fs.__class__}"
             )
-        if (
-            isinstance(fs, GitlabFileSystem)
-            and rev is not None
-            and fs.root != rev
-        ):
+        if isinstance(fs, cls.FS) and rev is not None and fs.root != rev:
             fs.root = rev
             fs.invalidate_cache()
 
         return path, project, rev, fs
 
-    @classmethod
-    def get_project_uri(  # pylint: disable=unused-argument
-        cls,
-        path: str,
-        project: Optional[str],
-        rev: Optional[str],
-        fs: GitlabFileSystem,
-        uri: str,
-    ):
-        return f"https://gitlab.com/{fs.project_id}/-/tree/{fs.root}/{project or ''}"
-
 
 class FSSpecResolver(UriResolver):
     """Resolve different fsspec URIs"""
+
+    low_priority: ClassVar = True
 
     @classmethod
     def check(

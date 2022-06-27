@@ -53,6 +53,9 @@ def mlem_config_settings_source(section: Optional[str]):
     return inner
 
 
+T = TypeVar("T", bound="MlemConfigBase")
+
+
 class MlemConfigBase(BaseSettings):
     """Special base for mlem settings to be able to read them from files"""
 
@@ -92,6 +95,10 @@ class MlemConfigBase(BaseSettings):
                     key = key.lower()
                 new_value[key] = val
         return new_value
+
+    @classmethod
+    def local(cls: Type[T]) -> T:
+        return project_config("", section=cls)
 
 
 class MlemConfig(MlemConfigBase):
@@ -147,9 +154,6 @@ def get_config_cls(section: str) -> Type[MlemConfigBase]:
         return load_entrypoints(MLEM_CONFIG_ENTRY_POINT)[section].ep.load()
     except KeyError as e:
         raise UnknownConfigSection(section) from e
-
-
-T = TypeVar("T", bound=MlemConfigBase)
 
 
 @overload
