@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 from types import ModuleType
-from typing import ClassVar, List, Type
+from typing import Any, ClassVar, List, Type
 
 import fastapi
 import uvicorn
@@ -51,24 +51,27 @@ class FastAPIServer(Server, LibRequirementsMixin):
             key: (serializer.get_model(), ...)
             for key, serializer in serializers.items()
         }
-        payload_model = create_model("Model", **kwargs)  # type: ignore
-        rename_recursively(payload_model, method_name + "_request")
+
+        def serializer_validator(_, values):
+            field_values = {}
+            for a in signature.args:
+                field_values[a.name] = serializers[a.name].deserialize(
+                    values[a.name]
+                )
+            return deserialzied_model(**field_values)
+
+        schema_model = create_model("Model", **kwargs, __validators__={"validate": classmethod(serializer_validator)})  # type: ignore
+        deserialzied_model = create_model("Model", **{a.name: (Any, ...) for a in signature.args})  # type: ignore
+        rename_recursively(schema_model, method_name + "_request")
         response_serializer = signature.returns.get_serializer()
         response_model = response_serializer.get_model()
-        rename_recursively(response_model, method_name + "_response")
+        if issubclass(response_model, BaseModel):
+            rename_recursively(response_model, method_name + "_response")
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
-        def handler(model: payload_model):  # type: ignore[valid-type]
-            kwargs = {}
-            # TODO: https://github.com/iterative/mlem/issues/149
-            for a in signature.args:
-                d = getattr(model, a.name).dict()
-                obj = d.get("__root__", None)
-                if obj is not None:
-                    kwargs[a.name] = serializers[a.name].deserialize(obj)
-                else:
-                    kwargs[a.name] = serializers[a.name].deserialize(d)
-            result = executor(**kwargs)
+        def handler(model: schema_model):  # type: ignore[valid-type]
+            values = {a.name: getattr(model, a.name) for a in signature.args}
+            result = executor(**values)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
