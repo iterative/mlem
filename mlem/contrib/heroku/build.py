@@ -1,14 +1,12 @@
 import logging
-import os
 from typing import ClassVar, Optional
 
-from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.objects import MlemModel
-from mlem.runtime import Interface
 
 from ...ui import EMOJI_BUILD, echo, set_offset
 from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
 from ..docker.helpers import build_model_image
+from .server import HerokuServer
 
 DEFAULT_HEROKU_REGISTRY = "registry.heroku.com"
 
@@ -35,15 +33,6 @@ class HerokuRemoteRegistry(RemoteRegistry):
             self._login(self.host, client, "_", password)
         except Exception as e:
             raise ValueError([]) from e
-
-
-class HerokuServer(FastAPIServer):
-    type: ClassVar = "heroku"
-
-    def serve(self, interface: Interface):
-        self.port = int(os.environ["PORT"])
-        logger.info("Switching port to %s", self.port)
-        return super().serve(interface)
 
 
 def build_heroku_docker(

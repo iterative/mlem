@@ -18,6 +18,7 @@ from mlem import LOCAL_CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
+from mlem.contrib.github import ls_github_branches
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.data_type import DataReader, DataType, DataWriter
@@ -27,7 +28,6 @@ from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.interface import ModelInterface
-from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
 

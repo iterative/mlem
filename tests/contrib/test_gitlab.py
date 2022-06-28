@@ -1,10 +1,10 @@
 import pytest
 
+from mlem.contrib.gitlabfs import GitlabFileSystem
 from mlem.core.errors import RevisionNotFound
 from mlem.core.meta_io import UriResolver, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
-from mlem.utils.gitlabfs import GitlabFileSystem
 from tests.conftest import long
 
 MLEM_TEST_REPO_PROJECT = "iterative.ai/mlem-test"

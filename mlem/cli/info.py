@@ -60,6 +60,9 @@ def ls(
         True, "+l/-l", "--links/--no-links", help="Include links"
     ),
     json: bool = option_json,
+    ignore_errors: bool = Option(
+        False, "-i", "--ignore-errors", help="Ignore corrupted objects"
+    ),
 ):
     """List MLEM objects of in project
 
@@ -77,7 +80,11 @@ def ls(
         ]
 
     objects = ls(
-        project or ".", rev=rev, type_filter=types, include_links=links
+        project or ".",
+        rev=rev,
+        type_filter=types,
+        include_links=links,
+        ignore_errors=ignore_errors,
     )
     if json:
         print(
