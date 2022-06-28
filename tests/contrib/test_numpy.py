@@ -260,7 +260,7 @@ def test_ndarray(data, test_data_idx):
             "given array is of rank: 1, expected: 3",
         ],
         [
-            lazy_fixture("nat_empty_shape"),
+            lazy_fixture("nat_shape_empty"),
             np.array([1, 2]),
             "given array is of rank: 1, expected: 0",
         ],
