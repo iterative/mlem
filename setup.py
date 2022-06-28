@@ -46,6 +46,7 @@ tests = [
     "xlrd",
     "tables",
     "pyarrow",
+    "skl2onnx",
 ]
 
 extras = {
@@ -54,7 +55,7 @@ extras = {
     "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
-    "onnx": ["onnx", "onnxruntime", "skl2onnx"],
+    "onnx": ["onnx", "onnxruntime"],
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],

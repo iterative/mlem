@@ -1,4 +1,3 @@
-from functools import cached_property
 from typing import Any, ClassVar, List, Optional, Union
 
 import numpy as np
@@ -13,6 +12,7 @@ from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.requirements import InstallableRequirement, Requirements
+from mlem.utils.backport import cached_property
 from mlem.utils.module import get_object_requirements
 
 
@@ -41,13 +41,21 @@ class ModelProtoIO(ModelIO):
     type: ClassVar[str] = "model_proto"
 
     def dump(self, storage: Storage, path: str, model) -> Artifacts:
+        path = f"{path}/model.onnx"
         with storage.open(path) as (f, art):
-            onnx.save_model(model, f)
+            onnx.save_model(
+                model,
+                f,
+                save_as_external_data=True,
+                location="tensors",
+                size_threshold=0,
+                all_tensors_to_one_file=True,
+            )
         return {self.art_name: art}
 
     def load(self, artifacts: Artifacts):
         if len(artifacts) != 1:
-            raise ValueError("Invalid artifacts: should be one .onx file")
+            raise ValueError("Invalid artifacts: should be one .onnx file")
         with artifacts[self.art_name].open() as f:
             return onnx.load_model(f)
 
@@ -71,7 +79,6 @@ class ONNXModel(ModelType, ModelHook, IsInstanceHookMixin):
 
         model = ONNXModel(io=ModelProtoIO(), methods={}).bind(obj)
         # TODO - use ONNX infer shapes.
-        # ONNXModelSignature().from_onnx(obj.model.graph)
         onnxrt_predict = Signature.from_method(
             model.predict, auto_infer=sample_data is not None, data=sample_data
         )
