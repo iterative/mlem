@@ -417,3 +417,12 @@ def skip_matrix(os_: str, python: str):
     return pytest.mark.skip(
         reason=f"This test is only for {os_} and python:{python}"
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_colorama():
+    # workaround for tf+dvc import error
+    # https://github.com/pytest-dev/pytest/issues/5502
+    import colorama
+
+    colorama.init = lambda: None

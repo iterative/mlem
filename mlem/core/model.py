@@ -1,8 +1,12 @@
 """
 Base classes to work with ML models in MLEM
 """
+import glob
 import inspect
+import os
 import pickle
+import posixpath
+import tempfile
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -48,6 +52,33 @@ class ModelIO(MlemABC):
         :return: model object
         """
         raise NotImplementedError
+
+
+class BufferModelIO(ModelIO, ABC):
+    filename: ClassVar[str] = "model"
+
+    @abstractmethod
+    def save_model(self, model: Any, path: str):
+        raise NotImplementedError
+
+    def dump(self, storage: Storage, path, model) -> Artifacts:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_path = os.path.join(tmpdir, self.filename)
+            self.save_model(model, model_path)
+            if os.path.isfile(model_path):
+                return {self.art_name: storage.upload(model_path, path)}
+
+            files = [
+                os.path.relpath(p, model_path)
+                for p in glob.glob(model_path + "/**", recursive=True)
+                if os.path.isfile(p)
+            ]
+            return {
+                f: storage.upload(
+                    os.path.join(model_path, f), posixpath.join(path, f)
+                )
+                for f in files
+            }
 
 
 class SimplePickleIO(ModelIO):
@@ -174,7 +205,7 @@ class Signature(BaseModel, WithRequirements):
             name=method.__name__,
             args=compose_args(
                 argspec,
-                skip_first=argspec.args[0] == "self",
+                skip_first=len(argspec.args) > 0 and argspec.args[0] == "self",
                 auto_infer=auto_infer,
                 call_args=call_args,
                 call_kwargs=call_kwargs,
