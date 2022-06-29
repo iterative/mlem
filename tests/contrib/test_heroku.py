@@ -127,7 +127,7 @@ def _check_heroku_deployment(meta):
             DeployStatus.NOT_DEPLOYED,
             DeployStatus.STARTING,
         ],
-        times=25,
+        times=50,
     )
     assert meta.get_status() == DeployStatus.RUNNING
     time.sleep(10)
