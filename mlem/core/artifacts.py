@@ -18,6 +18,7 @@ from typing_extensions import Literal, TypedDict
 
 from mlem.core.base import MlemABC
 from mlem.core.meta_io import Location, get_fs, get_path_by_fs_path
+from mlem.utils.path import make_posix
 
 CHUNK_SIZE = 2**20  # 1 mb
 
@@ -204,7 +205,7 @@ class FSSpecStorage(Storage):
 
     def upload(self, local_path: str, target_path: str) -> FSSpecArtifact:
         fs = self.get_fs()
-        path = posixpath.join(self.get_base_path(), target_path)
+        path = posixpath.join(self.get_base_path(), make_posix(target_path))
         fs.makedirs(posixpath.dirname(path), exist_ok=True)
         fs.upload(local_path, path)
         return FSSpecArtifact(

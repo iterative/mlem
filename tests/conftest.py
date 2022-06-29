@@ -18,6 +18,7 @@ from mlem import LOCAL_CONFIG
 from mlem.api import init, save
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
+from mlem.contrib.github import ls_github_branches
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.data_type import DataReader, DataType, DataWriter
@@ -27,7 +28,6 @@ from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.interface import ModelInterface
-from mlem.utils.github import ls_github_branches
 
 RESOURCES = "resources"
 
@@ -417,3 +417,12 @@ def skip_matrix(os_: str, python: str):
     return pytest.mark.skip(
         reason=f"This test is only for {os_} and python:{python}"
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_colorama():
+    # workaround for tf+dvc import error
+    # https://github.com/pytest-dev/pytest/issues/5502
+    import colorama
+
+    colorama.init = lambda: None

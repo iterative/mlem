@@ -260,7 +260,7 @@ def init(path: str = ".") -> None:
             pass
         echo(
             EMOJI_MLEM
-            + color("What's next?\n------------", "yellow")
+            + color("What's next?\n---------------", "yellow")
             + """
 - Check out the documentation: <https://mlem.ai/docs>
 - Star us on GitHub: <https://github.com/iterative/mlem>
@@ -367,13 +367,14 @@ def ls(  # pylint: disable=too-many-locals
         Type[MlemObject], Iterable[Type[MlemObject]], None
     ] = None,
     include_links: bool = True,
+    ignore_errors: bool = False,
 ) -> Dict[Type[MlemObject], List[MlemObject]]:
     loc = UriResolver.resolve(
         "", project=project, rev=rev, fs=fs, find_project=True
     )
     _validate_ls_project(loc, project)
     return project_config(project, fs).index.list(
-        loc, type_filter, include_links
+        loc, type_filter, include_links, ignore_errors
     )
 
 

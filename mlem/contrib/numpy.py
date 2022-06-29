@@ -150,7 +150,6 @@ class NumpyNdarrayType(
         )
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        # TODO: https://github.com/iterative/mlem/issues/33
         return create_model(
             prefix + "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
         )

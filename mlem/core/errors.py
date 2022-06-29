@@ -1,4 +1,6 @@
 """Exceptions raised by the MLEM."""
+from typing import List, Optional
+
 from mlem.constants import MLEM_DIR
 
 
@@ -147,3 +149,17 @@ class UnknownConfigSection(MlemError):
     def __init__(self, section: str):
         self.section = section
         super().__init__(f'Unknown config section "{section}"')
+
+
+class ExtensionRequirementError(MlemError):
+    def __init__(self, ext: str, reqs: List[str], extra: Optional[str]):
+        self.ext = ext
+        self.reqs = reqs
+        self.extra = extra
+        extra_install = (
+            "" if extra is None else f"`pip install mlem[{extra}]` or "
+        )
+        reqs_str = " ".join(reqs)
+        super().__init__(
+            f"Extension '{ext}' requires additional dependencies: {extra_install}`pip install {reqs_str}`"
+        )

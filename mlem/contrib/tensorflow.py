@@ -1,7 +1,12 @@
+import posixpath
+import tempfile
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
-import torch
+import h5py
+import numpy as np
+import tensorflow as tf
 from pydantic import conlist, create_model
+from tensorflow.python.keras.saving.saved_model_experimental import sequential
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
@@ -15,30 +20,40 @@ from mlem.core.data_type import (
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.model import (
+    BufferModelIO,
+    ModelHook,
+    ModelIO,
+    ModelType,
+    Signature,
+)
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
-def python_type_from_torch_string_repr(dtype: str):
+def python_type_from_tf_string_repr(dtype: str):
     #  not sure this will work all the time
     return python_type_from_np_string_repr(dtype)
 
 
-class TorchTensorDataType(
+class TFTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
     """
-    :class:`.DataType` implementation for `torch.Tensor` objects
+    :class:`.DataType` implementation for `tensorflow.Tensor` objects
     which converts them to built-in Python lists and vice versa.
 
-    :param shape: shape of `torch.Tensor` objects in data
-    :param dtype: data type of `torch.Tensor` objects in data
+    :param shape: shape of `tensorflow.Tensor` objects in data
+    :param dtype: data type of `tensorflow.Tensor` objects in data
     """
 
-    type: ClassVar[str] = "torch"
-    valid_types: ClassVar = (torch.Tensor,)
+    type: ClassVar[str] = "tf_tensor"
+    valid_types: ClassVar = (tf.Tensor,)
     shape: Tuple[Optional[int], ...]
     dtype: str
+
+    @property
+    def tf_type(self):
+        return getattr(tf, self.dtype)
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
@@ -46,38 +61,38 @@ class TorchTensorDataType(
                 f"given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}"
             )
 
-    def serialize(self, instance: torch.Tensor):
-        self.check_type(instance, torch.Tensor, SerializationError)
-        if instance.dtype is not getattr(torch, self.dtype):
+    def serialize(self, instance: tf.Tensor):
+        self.check_type(instance, tf.Tensor, SerializationError)
+        if instance.dtype is not self.tf_type:
             raise SerializationError(
                 f"given tensor is of dtype: {instance.dtype}, "
-                f"expected: {getattr(torch, self.dtype)}"
+                f"expected: {self.tf_type}"
             )
         self._check_shape(instance, SerializationError)
-        return instance.tolist()
+        return instance.numpy().tolist()
 
     def deserialize(self, obj):
         try:
-            ret = torch.tensor(obj, dtype=getattr(torch, self.dtype))
+            ret = tf.convert_to_tensor(obj, dtype=self.tf_type)
         except (ValueError, TypeError):
-            raise DeserializationError(  # pylint: disable=W0707
+            raise DeserializationError(  # pylint: disable=raise-missing-from
                 f"given object: {obj} could not be converted to tensor "
-                f"of type: {getattr(torch, self.dtype)}"
+                f"of type: {self.tf_type}"
             )
         self._check_shape(ret, DeserializationError)
         return ret
 
     def get_requirements(self) -> Requirements:
-        return Requirements.new([InstallableRequirement.from_module(torch)])
+        return Requirements.new([InstallableRequirement.from_module(tf)])
 
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
     ) -> DataWriter:
-        return TorchTensorWriter(**kwargs)
+        return TFTensorWriter(**kwargs)
 
     def _subtype(self, subshape: Tuple[Optional[int], ...]):
         if len(subshape) == 0:
-            return python_type_from_torch_string_repr(self.dtype)
+            return python_type_from_tf_string_repr(self.dtype)
         return conlist(
             self._subtype(subshape[1:]),
             min_items=subshape[0],
@@ -86,34 +101,34 @@ class TorchTensorDataType(
 
     def get_model(self, prefix: str = ""):
         return create_model(
-            prefix + "TorchTensor",
+            prefix + "TFTensor",
             __root__=(List[self._subtype(self.shape[1:])], ...),  # type: ignore
         )
 
     @classmethod
-    def process(cls, obj: torch.Tensor, **kwargs) -> DataType:
-        return TorchTensorDataType(
-            shape=(None,) + obj.shape[1:],
-            dtype=str(obj.dtype)[len("torch") + 1 :],
+    def process(cls, obj: tf.Tensor, **kwargs) -> DataType:
+        return TFTensorDataType(
+            shape=(None,) + tuple(obj.shape)[1:],
+            dtype=obj.dtype.name,
         )
 
-    def combine(self, batched_data: List[torch.Tensor]) -> torch.Tensor:
-        raise NotImplementedError
+
+DATA_KEY = "data"
 
 
-class TorchTensorWriter(DataWriter):
-    type: ClassVar[str] = "torch"
+class TFTensorWriter(DataWriter):
+    type: ClassVar[str] = "tf_tensor"
 
     def write(
         self, data: DataType, storage: Storage, path: str
     ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
-            torch.save(data.data, f)
-        return TorchTensorReader(data_type=data), {self.art_name: art}
+            np.savez_compressed(f, **{DATA_KEY: data.data.numpy()})
+        return TFTensorReader(data_type=data), {self.art_name: art}
 
 
-class TorchTensorReader(DataReader):
-    type: ClassVar[str] = "torch"
+class TFTensorReader(DataReader):
+    type: ClassVar[str] = "tf_tensor"
 
     def read(self, artifacts: Artifacts) -> DataType:
         if DataWriter.art_name not in artifacts:
@@ -121,7 +136,10 @@ class TorchTensorReader(DataReader):
                 f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
             )
         with artifacts[DataWriter.art_name].open() as f:
-            data = torch.load(f)
+            np_data = np.load(f)[DATA_KEY]
+            data = tf.convert_to_tensor(
+                np_data, dtype=getattr(tf, np_data.dtype.name)
+            )
             return self.data_type.copy().bind(data)
 
     def read_batch(
@@ -130,51 +148,69 @@ class TorchTensorReader(DataReader):
         raise NotImplementedError
 
 
-class TorchModelIO(ModelIO):
+def is_custom_net(model):
+    return (
+        not model._is_graph_network  # pylint:disable=protected-access
+        and not isinstance(model, sequential.Sequential)
+    )
+
+
+class TFKerasModelIO(BufferModelIO):
     """
-    :class:`.ModelIO` implementation for PyTorch models
-    """
-
-    type: ClassVar[str] = "torch_io"
-    is_jit: bool = False
-
-    def dump(self, storage: Storage, path, model) -> Artifacts:
-        self.is_jit = isinstance(model, torch.jit.ScriptModule)
-        save = torch.jit.save if self.is_jit else torch.save
-        with storage.open(path) as (f, art):
-            save(model, f)
-            return {self.art_name: art}
-
-    def load(self, artifacts: Artifacts):
-        if len(artifacts) != 1:
-            raise ValueError("Invalid artifacts: should have only one file")
-
-        load = torch.jit.load if self.is_jit else torch.load
-        with artifacts[self.art_name].open() as f:
-            return load(f)
-
-
-class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
-    """
-    :class:`.ModelType` implementation for PyTorch models
+    :class:`.ModelIO` implementation for Tensorflow Keras models (:class:`tensorflow.keras.Model` objects)
     """
 
-    type: ClassVar[str] = "torch"
-    valid_types: ClassVar = (torch.nn.Module,)
-    io: ModelIO = TorchModelIO()
+    type: ClassVar[str] = "tf_keras"
+    save_format: Optional[str] = None
+
+    def save_model(self, model: tf.keras.Model, path: str):
+        if self.save_format is None:
+            self.save_format = "tf" if is_custom_net(model) else "h5"
+        model.save(path, save_format=self.save_format)
+
+    def load(  # pylint:disable=inconsistent-return-statements
+        self, artifacts: Artifacts
+    ):
+        if self.save_format == "h5":
+            if self.art_name not in artifacts:
+                raise ValueError(
+                    "Invalid artifacts: should have only one file"
+                )
+            with artifacts[self.art_name].open() as f:
+                return tf.keras.models.load_model(h5py.File(f))
+
+        if self.save_format == "tf":
+            with tempfile.TemporaryDirectory() as tmpdir:
+                for k, a in artifacts.items():
+                    a.materialize(posixpath.join(tmpdir, k))
+                return tf.keras.models.load_model(tmpdir)
+        else:
+            raise ValueError(
+                f"Unknown save format {self.save_format} for tensorflow models, expected one of [tf, h5]"
+            )
+
+
+class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
+    """
+    :class:`.ModelType` implementation for Tensorflow Keras models
+    """
+
+    type: ClassVar[str] = "tf_keras"
+    valid_types: ClassVar = (tf.keras.Model,)
+    io: ModelIO = TFKerasModelIO()
 
     @classmethod
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        model = TorchModel(model=obj, methods={})
+        model = TFKerasModel(model=obj, methods={})
         model.methods = {
             PREDICT_METHOD_NAME: Signature.from_method(
                 model.predict,
                 auto_infer=sample_data is not None,
                 data=sample_data,
             ),
-            "torch_predict": Signature.from_method(
+            "tensorflow_predict": Signature.from_method(
                 obj.__call__,
                 sample_data,
                 auto_infer=sample_data is not None,
@@ -183,13 +219,11 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
         return model
 
     def predict(self, data):
-        if isinstance(data, torch.Tensor):
-            return self.model(data)
-        return self.model(*data)
+        return self.model(data)
 
     def get_requirements(self) -> Requirements:
         return super().get_requirements() + InstallableRequirement.from_module(
-            mod=torch
+            mod=tf
         )
 
 
