@@ -36,6 +36,8 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
     - name: set PYSHA
       run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
     - uses: actions/cache@v3
@@ -120,6 +122,8 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
     - id: dist
       uses: casperdcl/deploy-pypi@v2
       with:
