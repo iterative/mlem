@@ -55,7 +55,7 @@ extras = {
     "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
-    "onnx": ["onnx", "onnxruntime"],
+    "onnx": ["onnx", "onnxruntime", "protobuf==3.20.0"], # https://github.com/protocolbuffers/protobuf/issues/10051
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
@@ -73,9 +73,6 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "docker": ["docker"],
-    "protobuf": [
-        "protobuf==3.20.0"
-    ],  # https://github.com/protocolbuffers/protobuf/issues/10051
     "heroku": ["docker"],
 }
 
@@ -156,6 +153,7 @@ setup_args = dict(  # noqa: C408
             "model_io.lightgbm_io = mlem.contrib.lightgbm:LightGBMModelIO",
             "model_io.pickle = mlem.contrib.callable:PickleModelIO",
             "model_io.xgboost_io = mlem.contrib.xgboost:XGBoostModelIO",
+            'model_io.model_proto = mlem.contrib.onnx:ModelProtoIO',
             "model_io.torch_io = mlem.contrib.torch:TorchModelIO",
             "model_io.tf_keras = mlem.contrib.tensorflow:TFKerasModelIO",
             "model_type.callable = mlem.contrib.callable:CallableModelType",
