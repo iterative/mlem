@@ -14,7 +14,7 @@ install_requires = [
     "aiohttp_swagger<2",
     "Jinja2>=3",
     "fsspec>=2021.7.0",
-    "pyparsing<3",  # legacy resolver problem
+    "pyparsing<4",  # legacy resolver problem
     "cached-property",
     "entrypoints",
     "gitpython",

@@ -100,7 +100,7 @@ rf.mlem
 $ cat rf.mlem
 ```
 <details>
-  <summary>> Click to show `cat` output</summary>
+  <summary> Click to show `cat` output</summary>
 
 ```yaml
 artifacts:
