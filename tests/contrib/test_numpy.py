@@ -38,10 +38,14 @@ def test_npnumber_source():
 
 
 @pytest.fixture
-def nat():
+def nat(numpy_default_int_dtype):
     data = np.array([[1, 2], [3, 4]])
     dtype = DataType.create(data)
-    payload = {"shape": (None, 2), "dtype": "int64", "type": "ndarray"}
+    payload = {
+        "shape": (None, 2),
+        "dtype": numpy_default_int_dtype,
+        "type": "ndarray",
+    }
     schema = {
         "title": "NumpyNdarray",
         "type": "array",
@@ -247,7 +251,7 @@ def test_ndarray(data, test_data_idx):
         [
             lazy_fixture("nat"),
             np.array([[1, 2], [3, 4]], dtype=np.float32),
-            "given array is of type: float32, expected: int64",
+            f"given array is of type: float32, expected: {np.array([[1, 2], [3, 4]]).dtype}",
         ],
         [
             lazy_fixture("nat"),

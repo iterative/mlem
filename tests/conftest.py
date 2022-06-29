@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Type
 
 import git
+import numpy as np
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
@@ -426,3 +427,10 @@ def disable_colorama():
     import colorama
 
     colorama.init = lambda: None
+
+
+@pytest.fixture
+def numpy_default_int_dtype():
+    # default int type is platform dependent.
+    # For windows 64 it is int32 and for linux 64 it is int64
+    return str(np.array([1]).dtype)

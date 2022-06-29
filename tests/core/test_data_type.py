@@ -425,7 +425,7 @@ def dynamic_dict_dict_type():
 
 
 @pytest.fixture
-def dynamic_dict_ndarray_type():
+def dynamic_dict_ndarray_type(numpy_default_int_dtype):
     is_dynamic = True
     d = {11: {1: np.array([1, 2])}, 22: {2: np.array([3, 4])}}
     payload = {
@@ -435,7 +435,7 @@ def dynamic_dict_ndarray_type():
             "key_type": {"ptype": "int", "type": "primitive"},
             "type": "d_dict",
             "value_type": {
-                "dtype": "int64",
+                "dtype": numpy_default_int_dtype,
                 "shape": (None,),
                 "type": "ndarray",
             },
