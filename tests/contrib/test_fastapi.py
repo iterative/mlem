@@ -81,6 +81,22 @@ def test_create_handler(signature, executor):
     assert isinstance(response_model, ModelMetaclass)
 
 
+def test_create_handler_primitive():
+    def f(data):
+        return data
+
+    signature = Signature.from_method(f, auto_infer=True, data="value")
+
+    server = FastAPIServer()
+    handler, response_model = server._create_handler(
+        PREDICT_METHOD_NAME, signature, f
+    )
+    request_model = handler.__annotations__["model"]
+    assert request_model.__fields__["data"].type_ is str
+    assert response_model is str
+    assert handler(request_model(data="value")) == "value"
+
+
 def test_endpoint(client, interface, train):
     payload = (
         interface.model_type.methods[PREDICT_METHOD_NAME]
@@ -92,7 +108,7 @@ def test_endpoint(client, interface, train):
         f"/{PREDICT_METHOD_NAME}",
         json={"data": payload},
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert response.json() == [0] * 50 + [1] * 50 + [2] * 50
 
 

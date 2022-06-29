@@ -287,6 +287,14 @@ def mlem_command(
                 with cli_echo():
                     echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
+            except ValidationError as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                msgs = "\n".join(_format_validation_error(e))
+                with cli_echo():
+                    echo(msgs)
+                raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
