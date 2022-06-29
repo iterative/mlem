@@ -122,6 +122,8 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
     - id: dist
       uses: casperdcl/deploy-pypi@v2
       with:
