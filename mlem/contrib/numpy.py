@@ -94,7 +94,7 @@ class NumpyNdarrayType(
     type: ClassVar[str] = "ndarray"
     libraries: ClassVar[List[ModuleType]] = [np]
 
-    shape: Tuple[Optional[int], ...]
+    shape: Optional[Tuple[Optional[int], ...]]
     dtype: str
 
     @staticmethod
@@ -133,7 +133,16 @@ class NumpyNdarrayType(
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return create_model(
-            prefix + "NumpyNdarray", __root__=(List[self._subtype(self.shape[1:])], ...)  # type: ignore
+            prefix + "NumpyNdarray",
+            __root__=(
+                self._subtype(self.shape)
+                if self.shape is not None
+                else List[
+                    Union[python_type_from_np_string_repr(self.dtype), List]
+                ],  # type: ignore
+                ...,
+            )
+            # type: ignore
         )
 
     def serialize(self, instance: np.ndarray):
@@ -147,10 +156,20 @@ class NumpyNdarrayType(
         return instance.tolist()
 
     def _check_shape(self, array, exc_type):
-        if tuple(array.shape)[1:] != self.shape[1:]:
-            raise exc_type(
-                f"given array is of shape: {(None,) + tuple(array.shape)[1:]}, expected: {self.shape}"
+        if self.shape is not None:
+            if len(array.shape) != len(self.shape):
+                raise exc_type(
+                    f"given array is of rank: {len(array.shape)}, expected: {len(self.shape)}"
+                )
+
+            array_shape = tuple(
+                None if expected_dim is None else array_dim
+                for array_dim, expected_dim in zip(array.shape, self.shape)
             )
+            if tuple(array_shape) != self.shape:
+                raise exc_type(
+                    f"given array is of shape: {array_shape}, expected: {self.shape}"
+                )
 
     def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyArrayWriter()
