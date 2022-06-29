@@ -31,7 +31,7 @@ jobs:
       uses: styfle/cancel-workflow-action@0.10.0
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
@@ -60,7 +60,7 @@ jobs:
           python: "3.9"
       fail-fast: true
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
@@ -108,7 +108,7 @@ jobs:
         BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
         BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
     - name: "Upload coverage to Codecov"
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -117,7 +117,7 @@ jobs:
     needs: [check, test]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
