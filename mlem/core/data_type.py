@@ -19,7 +19,7 @@ from typing import (
 )
 
 import flatdict
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, StrictInt, StrictStr, validator
 from pydantic.main import create_model
 
 from mlem.core.artifacts import Artifacts, Storage
@@ -514,7 +514,7 @@ class DictType(DataType, DataSerializer):
     """
 
     type: ClassVar[str] = "dict"
-    item_types: Dict[str, DataType]
+    item_types: Dict[Union[StrictStr, StrictInt], DataType]
 
     @classmethod
     def process(cls, obj, **kwargs):
@@ -563,7 +563,7 @@ class DictType(DataType, DataSerializer):
 
     def get_model(self, prefix="") -> Type[BaseModel]:
         kwargs = {
-            k: (v.get_serializer().get_model(prefix + k + "_"), ...)
+            str(k): (v.get_serializer().get_model(prefix + str(k) + "_"), ...)
             for k, v in self.item_types.items()
         }
         return create_model(prefix + "DictType", **kwargs)  # type: ignore
@@ -585,9 +585,9 @@ class DictWriter(DataWriter):
             dtype_reader, art = dtype.get_writer().write(
                 dtype.copy().bind(data.data[key]),
                 storage,
-                posixpath.join(path, key),
+                posixpath.join(path, str(key)),
             )
-            res[key] = art
+            res[str(key)] = art
             readers[key] = dtype_reader
         return DictReader(data_type=data, item_readers=readers), dict(
             flatdict.FlatterDict(res, delimiter="/")
@@ -597,13 +597,13 @@ class DictWriter(DataWriter):
 class DictReader(DataReader):
     type: ClassVar[str] = "dict"
     data_type: DictType
-    item_readers: Dict[str, DataReader]
+    item_readers: Dict[Union[StrictStr, StrictInt], DataReader]
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         data_dict = {}
         for (key, dtype_reader) in self.item_readers.items():
-            v_data_type = dtype_reader.read(artifacts[key])  # type: ignore
+            v_data_type = dtype_reader.read(artifacts[str(key)])  # type: ignore
             data_dict[key] = v_data_type.data
         return self.data_type.copy().bind(data_dict)
 

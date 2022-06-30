@@ -25,6 +25,59 @@ from mlem.core.data_type import (
 from tests.conftest import data_write_read_check
 
 
+@pytest.fixture
+def dict_data_str_keys():
+    data = {"1": 1.5, "2": "a", "3": {"1": False}}
+    payload = {
+        "item_types": {
+            "1": {"ptype": "float", "type": "primitive"},
+            "2": {"ptype": "str", "type": "primitive"},
+            "3": {
+                "item_types": {"1": {"ptype": "bool", "type": "primitive"}},
+                "type": "dict",
+            },
+        },
+        "type": "dict",
+    }
+    schema = {
+        "title": "DictType",
+        "type": "object",
+        "properties": {
+            "1": {"title": "1", "type": "number"},
+            "2": {"title": "2", "type": "string"},
+            "3": {"$ref": "#/definitions/3_DictType"},
+        },
+        "required": ["1", "2", "3"],
+        "definitions": {
+            "3_DictType": {
+                "title": "3_DictType",
+                "type": "object",
+                "properties": {"1": {"title": "1", "type": "boolean"}},
+                "required": ["1"],
+            }
+        },
+    }
+
+    return data, payload, schema
+
+
+@pytest.fixture
+def dict_data_int_keys(dict_data_str_keys):
+    data = {"1": 1.5, 2: "a", "3": {1: False}}
+    payload = {
+        "item_types": {
+            "1": {"ptype": "float", "type": "primitive"},
+            2: {"ptype": "str", "type": "primitive"},
+            "3": {
+                "item_types": {1: {"ptype": "bool", "type": "primitive"}},
+                "type": "dict",
+            },
+        },
+        "type": "dict",
+    }
+    return data, payload, dict_data_str_keys[2]
+
+
 class NotPrimitive:
     pass
 
@@ -300,7 +353,6 @@ def dynamic_dict_str_val_type_data():
         "type": "object",
         "additionalProperties": {"type": "string"},
     }
-
     test_data1 = {"a": "1", "b": "2"}
     test_data2 = {"a": "1"}
     test_data3 = {"a": "1", "b": "2", "c": "3", "d": "1"}
@@ -551,3 +603,50 @@ def test_dict_source(data, test_data_idx):
     else:
         assert list(artifacts.keys()) == ["data"]
         assert artifacts["data"].uri.endswith("data")
+
+
+@pytest.mark.parametrize(
+    "dict_data",
+    [lazy_fixture("dict_data_str_keys"), lazy_fixture("dict_data_int_keys")],
+)
+def test_dict_key_int_and_str_types(dict_data):
+    d_value, payload, schema = dict_data
+    data_type = DataType.create(d_value)
+
+    assert isinstance(data_type, DictType)
+
+    assert data_type.dict() == payload
+    dt2 = parse_obj_as(DictType, payload)
+    assert dt2 == data_type
+    assert d_value == data_type.serialize(d_value)
+    assert d_value == data_type.deserialize(d_value)
+    assert data_type.get_model().__name__ == "DictType"
+    assert data_type.get_model().schema() == schema
+
+
+@pytest.mark.parametrize(
+    "d_value",
+    [
+        {"1": 1.5, "2": "a", "3": {"1": False}},
+        {"1": 1.5, 2: "a", "3": {1: False}},
+    ],
+)
+def test_dict_source_int_and_str_types(d_value):
+    data_type = DataType.create(d_value)
+
+    def custom_assert(x, y):
+        assert x == y
+        assert len(x) == len(y)
+        assert isinstance(x, dict)
+        assert isinstance(y, dict)
+
+    artifacts = data_write_read_check(
+        data_type,
+        reader_type=DictReader,
+        custom_assert=custom_assert,
+    )
+
+    assert list(artifacts.keys()) == ["1/data", "2/data", "3/1/data"]
+    assert artifacts["1/data"].uri.endswith("data/1")
+    assert artifacts["2/data"].uri.endswith("data/2")
+    assert artifacts["3/1/data"].uri.endswith("data/3/1")
