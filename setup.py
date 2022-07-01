@@ -8,7 +8,7 @@ install_requires = [
     "isort>=5.10",
     "pydantic>=1.9.0,<2",
     "typer",
-    "click<8.1",
+    "click<8.2",
     "rich",
     "aiohttp<4",
     "aiohttp_swagger<2",
