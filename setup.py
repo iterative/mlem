@@ -55,11 +55,8 @@ extras = {
     "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
-    "onnx": [
-        "onnx",
-        "onnxruntime",
-        "protobuf==3.20.0",
-    ],  # https://github.com/protocolbuffers/protobuf/issues/10051
+    "onnx": ["onnx"],
+    "onnxruntime": ["onnxruntime"],
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],

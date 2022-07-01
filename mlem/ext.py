@@ -92,11 +92,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.numpy", ["numpy"], False),
         Extension("mlem.contrib.pandas", ["pandas"], False),
         Extension("mlem.contrib.sklearn", ["sklearn"], False),
-        Extension(
-            "mlem.contrib.onnx",
-            ["onnx", "onnxruntime", "protobuf==3.20.0"],
-            False,
-        ),
+        Extension("mlem.contrib.onnx", ["onnx"], False),
         Extension("mlem.contrib.tensorflow", ["tensorflow"], False),
         Extension("mlem.contrib.torch", ["torch"], False),
         Extension("mlem.contrib.catboost", ["catboost"], False),
