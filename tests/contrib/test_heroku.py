@@ -28,7 +28,7 @@ from mlem.contrib.heroku.utils import (
 )
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import DeployStatus, MlemModel
-from tests.conftest import long, skip_matrix
+from tests.conftest import flaky, long, skip_matrix
 
 heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
@@ -152,6 +152,7 @@ def _check_heroku_deployment(meta):
     assert len(res) == 1
 
 
+@flaky
 @heroku
 @long
 @heroku_matrix

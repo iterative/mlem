@@ -33,6 +33,7 @@ from mlem.runtime.interface import ModelInterface
 RESOURCES = "resources"
 
 long = pytest.mark.long
+flaky = pytest.mark.flaky
 MLEM_TEST_REPO_ORG = "iterative"
 MLEM_TEST_REPO_NAME = "mlem-test"
 MLEM_TEST_REPO = (
