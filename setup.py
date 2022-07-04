@@ -56,7 +56,10 @@ extras = {
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
     "onnx": ["onnx"],
-    "onnxruntime": ["onnxruntime"],
+    "onnxruntime": [
+        "protobuf==3.20.0",
+        "onnxruntime",
+    ],  # TODO - see if it can be merged with onnx
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
