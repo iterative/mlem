@@ -152,7 +152,12 @@ def _check_heroku_deployment(meta):
     assert len(res) == 1
 
 
-@flaky
+def is_not_crash(err, *args):  # pylint: disable=unused-argument
+    time.sleep(10)
+    return not issubclass(err[0], DeploymentError)
+
+
+@flaky(rerun_filter=is_not_crash, max_runs=2)
 @heroku
 @long
 @heroku_matrix
