@@ -46,6 +46,7 @@ tests = [
     "xlrd",
     "tables",
     "pyarrow",
+    "skl2onnx",
 ]
 
 extras = {
@@ -54,6 +55,11 @@ extras = {
     "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
+    "onnx": ["onnx"],
+    "onnxruntime": [
+        "protobuf==3.20.0",
+        "onnxruntime",
+    ],  # TODO - see if it can be merged with onnx
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
@@ -151,6 +157,7 @@ setup_args = dict(  # noqa: C408
             "model_io.lightgbm_io = mlem.contrib.lightgbm:LightGBMModelIO",
             "model_io.pickle = mlem.contrib.callable:PickleModelIO",
             "model_io.xgboost_io = mlem.contrib.xgboost:XGBoostModelIO",
+            "model_io.model_proto = mlem.contrib.onnx:ModelProtoIO",
             "model_io.torch_io = mlem.contrib.torch:TorchModelIO",
             "model_io.tf_keras = mlem.contrib.tensorflow:TFKerasModelIO",
             "model_type.callable = mlem.contrib.callable:CallableModelType",
@@ -158,6 +165,7 @@ setup_args = dict(  # noqa: C408
             "model_type.lightgbm = mlem.contrib.lightgbm:LightGBMModel",
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.sklearn_pipeline = mlem.contrib.sklearn:SklearnPipelineType",
+            "model_type.onnx = mlem.contrib.onnx:ONNXModel",
             "model_type.xgboost = mlem.contrib.xgboost:XGBoostModel",
             "model_type.torch = mlem.contrib.torch:TorchModel",
             "model_type.tf_keras = mlem.contrib.tensorflow:TFKerasModel",
