@@ -622,7 +622,7 @@ def test_signature_req(data):
         "numpy",
     ]
     assert len(actual) == len(expected)
-    assert all([a == b for a, b in zip(actual, expected)])
+    assert all(a == b for (a, b) in zip(actual, expected))
 
 
 # Copyright 2019 Zyfra
