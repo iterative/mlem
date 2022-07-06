@@ -609,7 +609,9 @@ class MlemModel(_WithArtifacts):
         params: Dict[str, str] = None,
     ) -> "MlemModel":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
-        mt.model = model
+        if mt.model is None:
+            mt = mt.bind(model)
+
         return MlemModel(
             model_type=mt,
             requirements=mt.get_requirements().expanded,
