@@ -1,4 +1,4 @@
-#
+# pylint: disable=cannot-enumerate-pytest-fixtures
 import os
 import tempfile
 import time
@@ -26,7 +26,7 @@ REGISTRY_PORT = 5000
 
 
 @pytest.fixture(scope="session")
-def runner_test_images(tmpdir_factory, dockerenv_local, dockerenv_remote):
+def _test_images(tmpdir_factory, dockerenv_local, dockerenv_remote):
     with dockerenv_local.daemon.client() as client:
         tag_name = f"{dockerenv_remote.registry.get_host()}/{REPOSITORY_NAME}/{IMAGE_NAME}"
         client.images.pull(IMAGE_NAME, "latest").tag(tag_name)
@@ -50,14 +50,14 @@ def runner_test_images(tmpdir_factory, dockerenv_local, dockerenv_remote):
 
 @docker_test
 def test_run_default_registry(
-    dockerenv_local, runner_test_images, model_meta_saved_single
+    dockerenv_local, _test_images, model_meta_saved_single
 ):
     _check_runner(IMAGE_NAME, dockerenv_local, model_meta_saved_single)
 
 
 @docker_test
 def test_run_remote_registry(
-    dockerenv_remote, runner_test_images, model_meta_saved_single
+    dockerenv_remote, _test_images, model_meta_saved_single
 ):
     _check_runner(IMAGE_NAME, dockerenv_remote, model_meta_saved_single)
 
@@ -76,7 +76,7 @@ def test_run_local_image_name_that_will_never_exist(
 
 @docker_test
 def test_run_local_fail_inside_container(
-    dockerenv_remote, runner_test_images, model_meta_saved_single
+    dockerenv_remote, _test_images, model_meta_saved_single
 ):
     with pytest.raises(DeploymentError):
         _check_runner(
