@@ -120,7 +120,8 @@ def test_state_ensured_app():
 
 def _check_heroku_deployment(meta):
     assert isinstance(meta, HerokuDeployment)
-    assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")
+    state = meta.get_state()
+    assert heroku_api_request("GET", f"/apps/{state.ensured_app.name}")
     meta.wait_for_status(
         DeployStatus.RUNNING,
         allowed_intermediate=[
@@ -132,7 +133,7 @@ def _check_heroku_deployment(meta):
     assert meta.get_status() == DeployStatus.RUNNING
     time.sleep(10)
     docs_page = requests.post(
-        meta.state.ensured_app.web_url + "predict",
+        state.ensured_app.web_url + "predict",
         json={
             "data": {
                 "values": [
@@ -178,7 +179,7 @@ def test_env_deploy_full(
     if CLEAR_APPS:
         meta.remove()
 
-        assert meta.state is None
+        assert meta.get_state() == HerokuState()
         meta.wait_for_status(
             DeployStatus.NOT_DEPLOYED,
             allowed_intermediate=DeployStatus.RUNNING,

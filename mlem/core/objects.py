@@ -24,6 +24,7 @@ from typing import (
     overload,
 )
 
+import fsspec
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError, parse_obj_as, validator
@@ -31,6 +32,7 @@ from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
 from mlem.config import project_config
+from mlem.constants import MLEM_STATE_DIR
 from mlem.core.artifacts import (
     Artifacts,
     FSSpecStorage,
@@ -737,6 +739,7 @@ class DeployState(MlemABC):
         type_root = True
 
     abs_name: ClassVar[str] = "deploy_state"
+    type: ClassVar[str]
 
     model_hash: Optional[str] = None
 
@@ -790,7 +793,88 @@ class DeployStatus(str, Enum):
     RUNNING = "running"
 
 
-class MlemDeployment(MlemObject):
+ST = TypeVar("ST", bound=DeployState)
+
+
+class StateManager(MlemABC):
+    abs_name: ClassVar = "state"
+    type: ClassVar[str]
+
+    class Config:
+        type_root = True
+
+    @abstractmethod
+    def _get_state(
+        self, deployment: "MlemDeployment"
+    ) -> Optional[DeployState]:
+        pass
+
+    def get_state(
+        self, deployment: "MlemDeployment", state_type: Type[ST]
+    ) -> Optional[ST]:
+        state = self._get_state(deployment)
+        if state is not None and not isinstance(state, state_type):
+            raise DeploymentError(
+                f"State for {deployment.name} is {state.type}, but should be {state_type.type}"
+            )
+        return state
+
+    @abstractmethod
+    def update_state(self, deployment: "MlemDeployment", state: DeployState):
+        pass
+
+    @abstractmethod
+    def purge_state(self, deployment: "MlemDeployment"):
+        pass
+
+
+class FSSpecStateManager(StateManager):
+    type: ClassVar = "fsspec"
+
+    class Config:
+        exclude = {"fs", "path"}
+        arbitrary_types_allowed = True
+
+    uri: str
+    storage_options: Dict = {}
+
+    fs: Optional[AbstractFileSystem] = None
+    path: str = ""
+
+    def get_fs(self) -> AbstractFileSystem:
+        if self.fs is None:
+            self.fs, _, (self.path,) = fsspec.get_fs_token_paths(
+                self.uri, storage_options=self.storage_options
+            )
+        return self.fs
+
+    def _get_path(self, deployment: "MlemDeployment"):
+        return posixpath.join(self.path, MLEM_STATE_DIR, deployment.name)
+
+    def _get_state(
+        self, deployment: "MlemDeployment"
+    ) -> Optional[DeployState]:
+        try:
+            with self.get_fs().open(self._get_path(deployment)) as f:
+                return parse_obj_as(DeployState, safe_load(f))
+        except FileNotFoundError:
+            return None
+
+    def update_state(self, deployment: "MlemDeployment", state: DeployState):
+        path = self._get_path(deployment)
+        fs = self.get_fs()
+        fs.makedirs(posixpath.dirname(path), exist_ok=True)
+        with fs.open(path, "w") as f:
+            safe_dump(state.dict(), f)
+
+    def purge_state(self, deployment: "MlemDeployment"):
+        path = self._get_path(deployment)
+        fs = self.get_fs()
+        if fs.exists(path):
+            fs.delete(path)
+
+
+class MlemDeployment(MlemObject, Generic[ST]):
     """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
@@ -803,12 +887,39 @@ class MlemDeployment(MlemObject):
 
     abs_name: ClassVar = "deployment"
     type: ClassVar[str]
+    state_type: ClassVar[Type[ST]]
 
     env_link: MlemLink
     env: Optional[MlemEnv]
     model_link: MlemLink
     model: Optional[MlemModel]
-    state: Optional[DeployState]
+    state_manager: Optional[StateManager]
+
+    @validator("state_manager", always=True)
+    def default_state_manager(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        if value is None:
+            value = project_config("").state
+        return value
+
+    @property
+    def _state_manager(self) -> StateManager:
+        if self.state_manager is None:
+            raise ValueError("state_manager cannot be None")
+        return self.state_manager
+
+    def get_state(self) -> ST:
+        return (
+            self._state_manager.get_state(self, self.state_type)
+            or self.state_type()
+        )
+
+    def update_state(self, state: ST):
+        self._state_manager.update_state(self, state)
+
+    def purge_state(self):
+        self._state_manager.purge_state(self)
 
     def get_env(self):
         if self.env is None:
@@ -872,15 +983,22 @@ class MlemDeployment(MlemObject):
         return False
 
     def model_changed(self):
-        if self.state is None or self.state.model_hash is None:
+        state = self.get_state()
+        if state.model_hash is None:
             return True
-        return self.get_model().meta_hash() != self.state.model_hash
+        return self.get_model().meta_hash() != state.model_hash
 
-    def update_model_hash(self, model: Optional[MlemModel] = None):
+    def update_model_hash(
+        self,
+        model: Optional[MlemModel] = None,
+        state: Optional[ST] = None,
+        update_state: bool = True,
+    ):
         model = model or self.get_model()
-        if self.state is None:
-            return
-        self.state.model_hash = model.meta_hash()
+        state = state or self.get_state()
+        state.model_hash = model.meta_hash()
+        if update_state:
+            self.update_state(state)
 
     def replace_model(self, model: MlemModel):
         self.model = model

@@ -119,6 +119,7 @@ class MlemConfig(MlemConfigBase):
     INDEX: Dict = {}
     EXTERNAL: bool = False
     EMOJIS: bool = True
+    STATE: Dict = {}
 
     @property
     def storage(self):
@@ -144,6 +145,16 @@ class MlemConfig(MlemConfigBase):
         return self.ADDITIONAL_EXTENSIONS.split(  # pylint: disable=no-member
             ","
         )
+
+    @property
+    def state(self):
+        if not self.STATE:
+            from mlem.core.objects import FSSpecStateManager
+
+            return FSSpecStateManager(fs=LocalFileSystem(), uri="")
+        from mlem.core.objects import StateManager
+
+        return parse_obj_as(StateManager, self.STATE)
 
 
 LOCAL_CONFIG = MlemConfig()

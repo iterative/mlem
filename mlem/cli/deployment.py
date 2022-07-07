@@ -22,7 +22,7 @@ from mlem.core.base import parse_string_conf
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemDeployment
+from mlem.core.objects import DeployState, MlemDeployment
 from mlem.ui import echo, no_echo, set_echo
 
 deployment = Typer(
@@ -136,11 +136,12 @@ def deploy_apply(
         deploy_meta = load_meta(
             path, project=project, rev=rev, force_type=MlemDeployment
         )
-        if deploy_meta.state is None:
+        state: DeployState = deploy_meta.get_state()
+        if state == deploy_meta.state_type():
             raise DeploymentError(
                 f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
             )
-        client = deploy_meta.state.get_client()
+        client = state.get_client()
 
         result = run_apply_remote(
             client,
