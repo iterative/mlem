@@ -153,8 +153,10 @@ def _check_heroku_deployment(meta):
 
 
 def is_not_crash(err, *args):  # pylint: disable=unused-argument
-    time.sleep(10)
-    return not issubclass(err[0], DeploymentError)
+    needs_another_try = issubclass(err[0], DeploymentError)
+    if needs_another_try:
+        time.sleep(10)
+    return not needs_another_try
 
 
 @flaky(rerun_filter=is_not_crash, max_runs=2)
