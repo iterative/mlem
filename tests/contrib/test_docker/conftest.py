@@ -16,9 +16,9 @@ CLEAN = True
 IMAGE_NAME = "mlem_test_docker_builder_image"
 
 
-@pytest.fixture()
-def dockerenv_local():
-    return DockerEnv()
+@pytest.fixture(scope="session")
+def dockerenv_local(tmp_path_factory):
+    return DockerEnv().dump(str(tmp_path_factory.mktemp("dockerenv_local")))
 
 
 @pytest.fixture(scope="session")
@@ -37,7 +37,7 @@ def dind():
 @pytest.fixture(scope="session")
 def docker_daemon(dind):
     daemon = DockerDaemon(
-        host=f"localhost:{dind.get_exposed_port(DAEMON_PORT)}"
+        host=f"tcp://localhost:{dind.get_exposed_port(DAEMON_PORT)}"
     )
     exc = None
     for _ in range(10):
@@ -68,8 +68,10 @@ def docker_registry(dind, docker_daemon):
 
 
 @pytest.fixture(scope="session")
-def dockerenv_remote(docker_registry, docker_daemon):
-    return DockerEnv(registry=docker_registry, daemon=docker_daemon)
+def dockerenv_remote(docker_registry, docker_daemon, tmp_path_factory):
+    return DockerEnv(registry=docker_registry, daemon=docker_daemon).dump(
+        str(tmp_path_factory.mktemp("dockerenv_remote"))
+    )
 
 
 def has_docker():

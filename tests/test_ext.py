@@ -26,8 +26,11 @@ def test_all_impls_in_entrypoints():
     # reinstall your dev copy of mlem to re-populate them
     exts = load_entrypoints()
     exts = {e.entry for e in exts.values()}
-    impls = set(find_implementations()[MLEM_ENTRY_POINT])
-    assert exts == impls
+    impls = find_implementations()[MLEM_ENTRY_POINT]
+    impls_sorted = sorted(
+        impls, key=lambda x: tuple(x.split(" = ")[1].split(":"))
+    )
+    assert exts == set(impls), str(impls_sorted)
 
 
 def test_all_ext_has_pip_extra():
