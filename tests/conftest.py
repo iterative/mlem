@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
+from flaky import flaky  # noqa  # pylint: disable=unused-import
 from fsspec.implementations.local import LocalFileSystem
 from git import GitCommandError, Repo
 from requests import ConnectionError, HTTPError

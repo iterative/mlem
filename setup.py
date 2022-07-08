@@ -34,6 +34,8 @@ tests = [
     # we use this to suppress some messages in tests, eg: foo/bar naming,
     # and, protected method calls in our tests
     "pylint-plugin-utils",
+    # we use this to mark tests that needs to be retried
+    "flaky",
     "s3fs",
     "boto3",
     "botocore",
