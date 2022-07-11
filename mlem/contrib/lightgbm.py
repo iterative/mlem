@@ -75,6 +75,9 @@ class LightGBMDataType(
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.inner.get_serializer().get_model(prefix)
 
+    def combine(self, batched_data: List[lgb.Dataset]) -> lgb.Dataset:
+        raise NotImplementedError
+
 
 class LightGBMDataWriter(DataWriter):
     type: ClassVar[str] = "lightgbm"

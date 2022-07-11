@@ -111,6 +111,9 @@ class DMatrixDataType(
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
+    def combine(self, batched_data: List[xgboost.DMatrix]) -> xgboost.DMatrix:
+        raise NotImplementedError
+
 
 class XGBoostModelIO(ModelIO):
     """
