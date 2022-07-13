@@ -24,6 +24,7 @@ from mlem.core.objects import (
 from mlem.core.requirements import InstallableRequirement, Requirements
 from tests.conftest import (
     MLEM_TEST_REPO,
+    flaky,
     long,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
@@ -219,6 +220,7 @@ def test_model_cloning(model_single_path):
         _check_cloned_model(cloned_model_meta, path)
 
 
+@flaky
 def test_complex_model_cloning(complex_model_single_path):
     model = load_meta(complex_model_single_path)
     with tempfile.TemporaryDirectory() as path:

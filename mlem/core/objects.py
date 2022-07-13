@@ -650,7 +650,7 @@ class MlemData(_WithArtifacts):
     """MlemObject representing data"""
 
     class Config:
-        exclude = {"data"}
+        exclude = {"data_type"}
 
     object_type: ClassVar = "data"
     reader_cache: Optional[Dict]
