@@ -95,7 +95,7 @@ extras = {
 }
 
 extras["all"] = [_ for e in extras.values() for _ in e]
-extras["tests"] += extras["all"]
+extras["tests"] += [e for e in extras["all"] if not e.startswith("dvc-")]
 
 setup_args = dict(  # noqa: C408
     name="mlem",
