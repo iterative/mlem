@@ -53,7 +53,6 @@ tests = [
 
 extras = {
     "tests": tests,
-    "dvc": ["dvc~=2.0"],
     "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
@@ -80,10 +79,27 @@ extras = {
     "rmq": ["pika"],
     "docker": ["docker"],
     "heroku": ["docker"],
+    "dvc": ["dvc~=2.0"],
 }
 
+# add DVC extras
+for e in [
+    "azure",
+    "gdrive",
+    "gs",
+    "hdfs",
+    "oss",
+    "s3",
+    "ssh",
+    "ssh_gssapi",
+    "webdav",
+    "webhdfs",
+    "webdhfs_kerberos",
+]:
+    extras[f"dvc-{e}"] = [f"dvc[{e}]~=2.0"]
+
 extras["all"] = [_ for e in extras.values() for _ in e]
-extras["tests"] += extras["all"]
+extras["tests"] += [e for e in extras["all"] if not e.startswith("dvc-")]
 
 setup_args = dict(  # noqa: C408
     name="mlem",
