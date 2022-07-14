@@ -137,7 +137,10 @@ def deploy_apply(
             path, project=project, rev=rev, force_type=MlemDeployment
         )
         state: DeployState = deploy_meta.get_state()
-        if state == deploy_meta.state_type():
+        if (
+            state == deploy_meta.state_type()
+            and not deploy_meta.state_type.allow_default
+        ):
             raise DeploymentError(
                 f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
             )

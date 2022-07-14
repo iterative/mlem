@@ -27,6 +27,8 @@ def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
 
 
 class DeployStateMock(DeployState):
+    allow_default: ClassVar = True
+
     def get_client(self) -> Client:
         pass
 
@@ -36,9 +38,10 @@ class MlemDeploymentMock(MlemDeployment):
         use_enum_values = True
 
     type: ClassVar = "mock"
+    state_type: ClassVar = DeployStateMock
+
     status: DeployStatus = DeployStatus.NOT_DEPLOYED
     param: str = ""
-    state: DeployState = DeployStateMock()
 
 
 class MlemEnvMock(MlemEnv):
@@ -126,7 +129,7 @@ def test_deploy_apply(
     result = runner.invoke(
         f"deploy apply {mock_deploy_path} {data_path} -o {path}".split()
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, (result.output, result.exception)
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.status == DeployStatus.NOT_DEPLOYED

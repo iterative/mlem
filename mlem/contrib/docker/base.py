@@ -306,13 +306,13 @@ class DockerContainer(MlemDeployment, _DockerBuildMixin):
     :param container_id: internal docker id for this container"""
 
     type: ClassVar = "docker_container"
+    state_type: ClassVar = DockerContainerState
 
     container_name: str
     image_name: Optional[str] = None
     port_mapping: Dict[int, int] = {}
     params: Dict[str, str] = {}
     rm: bool = True
-    state: Optional[DockerContainerState] = None
 
     @property
     def ensure_image_name(self):
@@ -338,27 +338,32 @@ class DockerEnv(MlemEnv[DockerContainer]):
         with self.daemon.client() as client:
             return image.exists(client)
 
-    def run_container(self, meta: DockerContainer):
-        if meta.state is None or meta.state.image is None:
+    def run_container(
+        self,
+        meta: DockerContainer,
+        state: Optional[DockerContainerState] = None,
+    ):
+        state = state or meta.get_state()
+        if state.image is None:
             raise DeploymentError(
                 f"Image {meta.ensure_image_name} is not built"
             )
 
         with self.daemon.client() as client:
-            meta.state.image.registry.login(client)
+            state.image.registry.login(client)
 
             try:
                 # always detach from container and just stream logs if detach=False
                 container = client.containers.run(
-                    meta.state.image.uri,
+                    state.image.uri,
                     name=meta.container_name,
                     auto_remove=meta.rm,
                     ports=meta.port_mapping,
                     detach=True,
                     **meta.params,
                 )
-                meta.state.container_id = container.id
-                meta.update()
+                state.container_id = container.id
+                meta.update_state(state)
                 sleep(0.5)
                 if not container_is_running(client, meta.container_name):
                     if not meta.rm:
@@ -380,30 +385,28 @@ class DockerEnv(MlemEnv[DockerContainer]):
     def logs(
         self, meta: DockerContainer, **kwargs
     ) -> Generator[str, None, None]:
-        if meta.state is None or meta.state.container_id is None:
+        state = meta.get_state()
+        if state.container_id is None:
             raise DeploymentError(
                 f"Container {meta.container_name} is not deployed"
             )
         with self.daemon.client() as client:
-            container = client.containers.get(meta.state.container_id)
+            container = client.containers.get(state.container_id)
             yield from container_logs(container, **kwargs)
 
     def deploy(self, meta: DockerContainer):
         self.check_type(meta)
 
-        if meta.state is None:
-            meta.state = DockerContainerState()
-
-        meta.update()
+        state = meta.get_state()
 
         redeploy = False
-        if meta.state.image is None or meta.model_changed():
+        if state.image is None or meta.model_changed():
             from .helpers import build_model_image
 
             image_name = meta.image_name or meta.container_name
             echo(EMOJI_BUILD + f"Creating docker image {image_name}")
             with set_offset(2):
-                meta.state.image = build_model_image(
+                state.image = build_model_image(
                     meta.get_model(),
                     image_name,
                     meta.server,
@@ -411,42 +414,43 @@ class DockerEnv(MlemEnv[DockerContainer]):
                     force_overwrite=True,
                     **meta.args.dict(),
                 )
-            meta.update_model_hash()
-            meta.update()
+            meta.update_model_hash(state=state)
+            meta.update_state(state)
             redeploy = True
-        if meta.state.container_id is None or redeploy:
-            self.run_container(meta)
+        if state.container_id is None or redeploy:
+            self.run_container(meta, state)
 
         echo(EMOJI_OK + f"Container {meta.container_name} is up")
 
     def remove(self, meta: DockerContainer):
         self.check_type(meta)
-        if meta.state is None or meta.state.container_id is None:
+        state = meta.get_state()
+        if state.container_id is None:
             raise DeploymentError(
                 f"Container {meta.container_name} is not deployed"
             )
 
         with self.daemon.client() as client:
             try:
-                container = client.containers.get(meta.state.container_id)
+                container = client.containers.get(state.container_id)
                 container.stop()
                 container.remove()
             except docker.errors.NotFound:
                 pass
-        meta.state.container_id = None
-        meta.update()
+        state.container_id = None
+        meta.update_state(state)
 
     def get_status(
         self, meta: DockerContainer, raise_on_error=True
     ) -> DeployStatus:
         self.check_type(meta)
-
-        if meta.state is None or meta.state.container_id is None:
+        state = meta.get_state()
+        if state.container_id is None:
             return DeployStatus.NOT_DEPLOYED
 
         with self.daemon.client() as client:
             try:
-                status = container_status(client, meta.state.container_id)
+                status = container_status(client, state.container_id)
                 return CONTAINER_STATUS_MAPPING[status]
             except NotFound:
                 return DeployStatus.UNKNOWN

@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
@@ -61,6 +62,9 @@ from mlem.polydantic.lazy import lazy_field
 from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_project_root
+
+if TYPE_CHECKING:
+    from mlem.runtime.client import Client
 
 T = TypeVar("T", bound="MlemObject")
 
@@ -740,6 +744,7 @@ class DeployState(MlemABC):
 
     abs_name: ClassVar[str] = "deploy_state"
     type: ClassVar[str]
+    allow_default: ClassVar[bool] = False
 
     model_hash: Optional[str] = None
 
@@ -920,6 +925,9 @@ class MlemDeployment(MlemObject, Generic[ST]):
 
     def purge_state(self):
         self._state_manager.purge_state(self)
+
+    def get_client(self) -> "Client":
+        return self.get_state().get_client()
 
     def get_env(self):
         if self.env is None:
