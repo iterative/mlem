@@ -79,20 +79,24 @@ extras = {
     "rmq": ["pika"],
     "docker": ["docker"],
     "heroku": ["docker"],
-    # dvc and its dependencies
     "dvc": ["dvc~=2.0"],
-    "dvc-azure": ["dvc[azure]~=2.0"],
-    "dvc-gdrive": ["dvc[gdrive]~=2.0"],
-    "dvc-gs": ["dvc[gs]~=2.0"],
-    "dvc-hdfs": ["dvc[hdfs]~=2.0"],
-    "dvc-oss": ["dvc[oss]~=2.0"],
-    "dvc-s3": ["dvc[s3]~=2.0"],
-    "dvc-ssh": ["dvc[ssh]~=2.0"],
-    "dvc-ssh_gssapi": ["dvc[ssh_gssapi]~=2.0"],
-    "dvc-webdav": ["dvc[webdav]~=2.0"],
-    "dvc-webhdfs": ["dvc[webhdfs]~=2.0"],
-    "dvc-webdhfs_kerberos": ["dvc[webdhfs_kerberos]~=2.0"],
 }
+
+# add DVC extras
+for e in [
+    "azure",
+    "gdrive",
+    "gs",
+    "hdfs",
+    "oss",
+    "s3",
+    "ssh",
+    "ssh_gssapi",
+    "webdav",
+    "webhdfs",
+    "webdhfs_kerberos",
+]:
+    extras[f"dvc-{e}"] = [f"dvc[{e}]~=2.0"]
 
 extras["all"] = [_ for e in extras.values() for _ in e]
 extras["tests"] += [e for e in extras["all"] if not e.startswith("dvc-")]
