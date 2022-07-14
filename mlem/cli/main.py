@@ -34,16 +34,17 @@ class MlemFormatter(HelpFormatter):
 class MlemMixin(Command):
     def __init__(
         self,
-        name: t.Optional[str],
+        *args,
         examples: Optional[str],
         section: str = "other",
         aliases: List[str] = None,
         **kwargs,
     ):
-        super().__init__(name, **kwargs)
+        super().__init__(*args, **kwargs)
         self.examples = examples
         self.section = section
         self.aliases = aliases
+        self.rich_help_panel = section.capitalize()
 
     def collect_usage_pieces(self, ctx: Context) -> t.List[str]:
         return [p.lower() for p in super().collect_usage_pieces(ctx)]
@@ -66,7 +67,10 @@ class MlemMixin(Command):
                 formatter.write(self.examples)
 
 
-class MlemCommand(TyperCommand, MlemMixin):
+class MlemCommand(
+    MlemMixin,
+    TyperCommand,
+):
     def __init__(
         self,
         name: Optional[str],
@@ -77,7 +81,7 @@ class MlemCommand(TyperCommand, MlemMixin):
     ):
         examples, help = _extract_examples(help)
         super().__init__(
-            name,
+            name=name,
             section=section,
             aliases=aliases,
             examples=examples,
@@ -86,7 +90,7 @@ class MlemCommand(TyperCommand, MlemMixin):
         )
 
 
-class MlemGroup(TyperGroup, MlemMixin):
+class MlemGroup(MlemMixin, TyperGroup):
     order = ["common", "object", "runtime", "other"]
 
     def __init__(
@@ -102,7 +106,7 @@ class MlemGroup(TyperGroup, MlemMixin):
     ) -> None:
         examples, help = _extract_examples(help)
         super().__init__(
-            name,
+            name=name,
             help=help,
             examples=examples,
             aliases=aliases,
@@ -163,15 +167,12 @@ class MlemGroup(TyperGroup, MlemMixin):
         return None
 
 
-def MlemGroupSection(
-    section, options_metavar="options", aliases: Optional[List[str]] = None
-):
-    return partial(
-        MlemGroup,
-        section=section,
-        options_metavar=options_metavar,
-        aliases=aliases,
-    )
+def mlem_group(section, aliases: Optional[List[str]] = None):
+    class MlemGroupSection(MlemGroup):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, section=section, aliases=aliases, **kwargs)
+
+    return MlemGroupSection
 
 
 class ChoicesMeta(EnumMeta):
@@ -196,8 +197,12 @@ class Choices(str, Enum, metaclass=ChoicesMeta):
 
 
 app = Typer(
-    cls=MlemGroup, context_settings={"help_option_names": ["-h", "--help"]}
+    cls=MlemGroup,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
+# available from typer>=0.6
+app.pretty_exceptions_enable = False
+app.pretty_exceptions_show_locals = False
 
 
 @app.callback(no_args_is_help=True, invoke_without_command=True)
