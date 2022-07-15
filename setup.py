@@ -28,7 +28,7 @@ tests = [
     "pytest-cov",
     "pytest-lazy-fixture==0.6.3",
     "pytest-mock",
-    "pylint<2.14",
+    "pylint<2.15",
     # we use this to suppress pytest-related false positives in our tests.
     "pylint-pytest",
     # we use this to suppress some messages in tests, eg: foo/bar naming,
