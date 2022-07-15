@@ -29,7 +29,7 @@ class LazyModel(BaseModel):
         exclude: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
         by_alias: bool = True,
         skip_defaults: bool = None,
-        exclude_unset: bool = True,
+        exclude_unset: bool = False,
         exclude_defaults: bool = True,
         exclude_none: bool = False,
     ) -> "DictStrAny":
