@@ -5,9 +5,9 @@ from typer import Argument, Option, Typer
 
 from mlem.cli.apply import run_apply_remote
 from mlem.cli.main import (
-    MlemGroupSection,
     app,
     mlem_command,
+    mlem_group,
     option_data_project,
     option_data_rev,
     option_external,
@@ -28,7 +28,7 @@ from mlem.ui import echo, no_echo, set_echo
 deployment = Typer(
     name="deployment",
     help="Manage deployments",
-    cls=MlemGroupSection("runtime", aliases=["deploy"]),
+    cls=mlem_group("runtime", aliases=["deploy"]),
 )
 app.add_typer(deployment)
 

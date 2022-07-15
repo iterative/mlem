@@ -1,6 +1,6 @@
 from typer import Argument, Typer
 
-from mlem.cli.main import MlemGroupSection, app, mlem_command
+from mlem.cli.main import app, mlem_command, mlem_group
 from mlem.ui import echo
 from mlem.utils.entrypoints import (
     MLEM_ENTRY_POINT,
@@ -8,7 +8,7 @@ from mlem.utils.entrypoints import (
     load_entrypoints,
 )
 
-dev = Typer(name="dev", cls=MlemGroupSection("common"), hidden=True)
+dev = Typer(name="dev", cls=mlem_group("common"), hidden=True)
 app.add_typer(dev)
 
 
