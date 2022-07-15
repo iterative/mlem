@@ -99,7 +99,7 @@ for e in [
     extras[f"dvc-{e}"] = [f"dvc[{e}]~=2.0"]
 
 extras["all"] = [_ for e in extras.values() for _ in e]
-extras["tests"] += [e for e in extras["all"] if not e.startswith("dvc-")]
+extras["tests"] += [e for e in extras["all"] if e[: len("dvc[")] != "dvc["]
 
 setup_args = dict(  # noqa: C408
     name="mlem",
