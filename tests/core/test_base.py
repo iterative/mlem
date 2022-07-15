@@ -27,6 +27,10 @@ def test_smart_split():
     assert smart_split("a.'b c'.d", ".") == ["a", "b c", "d"]
 
 
+def test_smart_split_maxsplit():
+    assert smart_split("a=b=c=d", "=", maxsplit=2) == ["a", "b", "c=d"]
+
+
 def test_parse_links():
     class ModelWithLink(MlemObject):
         field_link: MlemLink
