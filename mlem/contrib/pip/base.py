@@ -38,11 +38,7 @@ class SetupTemplate(TemplateModel):
     def validate_python_version(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
-        try:
-            float(value)
-            return f"=={value}"
-        except ValueError:
-            return value
+        return f"=={value}" if value[0] in "0123456789" else value
 
 
 class SourceTemplate(TemplateModel):
@@ -54,7 +50,9 @@ class SourceTemplate(TemplateModel):
 
 class PipMixin(SetupTemplate):
     def prepare_dict(self):
-        self.python_version = self.python_version or get_python_version()
+        self.python_version = (
+            self.python_version or f"=={get_python_version()}"
+        )
         return SetupTemplate.dict(self, include=set(SetupTemplate.__fields__))
 
     def make_distr(self, obj: MlemModel, root: str, fs: AbstractFileSystem):
