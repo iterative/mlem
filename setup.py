@@ -7,7 +7,7 @@ install_requires = [
     "requests",
     "isort>=5.10",
     "pydantic>=1.9.0,<2",
-    "typer<0.6",
+    "typer",
     "click<8.2",
     "rich",
     "aiohttp<4",
@@ -99,7 +99,7 @@ for e in [
     extras[f"dvc-{e}"] = [f"dvc[{e}]~=2.0"]
 
 extras["all"] = [_ for e in extras.values() for _ in e]
-extras["tests"] += [e for e in extras["all"] if not e.startswith("dvc-")]
+extras["tests"] += [e for e in extras["all"] if e[: len("dvc[")] != "dvc["]
 
 setup_args = dict(  # noqa: C408
     name="mlem",

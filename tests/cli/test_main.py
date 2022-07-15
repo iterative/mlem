@@ -18,8 +18,18 @@ def iter_group(group: Group, prefix=()):
 
 @pytest.fixture
 def app_cli_cmd():
-    commands = [get_command_from_info(c) for c in app.registered_commands]
-    groups = [get_group_from_info(g) for g in app.registered_groups]
+    commands = [
+        get_command_from_info(
+            c, pretty_exceptions_short=False, rich_markup_mode="rich"
+        )
+        for c in app.registered_commands
+    ]
+    groups = [
+        get_group_from_info(
+            g, pretty_exceptions_short=False, rich_markup_mode="rich"
+        )
+        for g in app.registered_groups
+    ]
     return [(c.name, c) for c in commands] + [
         (" ".join(names), cmd) for g in groups for names, cmd in iter_group(g)
     ]
