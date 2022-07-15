@@ -8,6 +8,7 @@ from typing import ClassVar, Dict, List, Optional
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from pydantic import validator
 
 import mlem
 from mlem.core.meta_io import get_fs, get_uri
@@ -32,6 +33,16 @@ class SetupTemplate(TemplateModel):
     author: str = ""
     version: str = "0.0.0"
     additional_setup_kwargs: Dict = {}
+
+    @validator("python_version")
+    def validate_python_version(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        try:
+            float(value)
+            return f"=={value}"
+        except ValueError:
+            return value
 
 
 class SourceTemplate(TemplateModel):

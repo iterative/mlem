@@ -163,14 +163,17 @@ def get_recursively(obj: dict, keys: List[str]):
     return get_recursively(obj[key], keys)
 
 
-def smart_split(string: str, char: str):
+def smart_split(string: str, char: str, maxsplit: int = None):
     SPECIAL = "\0"
     if char != " ":
         string = string.replace(" ", SPECIAL).replace(char, " ")
-    return [
+    res = [
         s.replace(" ", char).replace(SPECIAL, " ")
         for s in shlex.split(string, posix=True)
     ]
+    if maxsplit is None:
+        return res
+    return res[:maxsplit] + [char.join(res[maxsplit:])]
 
 
 def build_mlem_object(
@@ -214,7 +217,7 @@ def parse_links(model: Type["BaseModel"], str_conf: List[str]):
         if name in link_mapping and issubclass(f.type_, MlemObject)
     }
     for c in str_conf:
-        keys, value = smart_split(c, "=")
+        keys, value = smart_split(c, "=", 1)
         if keys in link_mapping:
             links[link_mapping[keys]] = MlemLink(
                 path=value, link_type=link_types[keys].object_type
@@ -252,7 +255,7 @@ def build_model(
         set_recursively(model_dict, smart_split(keys, "."), value)
 
     for c in str_conf or []:
-        keys, value = smart_split(c, "=")
+        keys, value = smart_split(c, "=", 1)
         if value == "None":
             value = None
         set_recursively(model_dict, smart_split(keys, "."), value)
