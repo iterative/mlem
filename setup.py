@@ -3,13 +3,13 @@ from pathlib import Path
 from setuptools import find_packages, setup
 
 install_requires = [
-    "dill~=0.3.0",
-    "requests~=2.0",
-    "isort~=5.10",
+    "dill",
+    "requests",
+    "isort>=5.10",
     "pydantic>=1.9.0,<2",
     "typer<0.6",
     "click<8.2",
-    "rich<13",
+    "rich",
     "aiohttp<4",
     "aiohttp_swagger<2",
     "Jinja2>=3",
