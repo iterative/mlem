@@ -149,9 +149,7 @@ class MlemConfig(MlemConfigBase):
     @property
     def state(self):
         if not self.STATE:
-            from mlem.core.objects import LocalFileStateManager
-
-            return LocalFileStateManager()
+            return None
         from mlem.core.objects import StateManager
 
         return parse_obj_as(StateManager, self.STATE)

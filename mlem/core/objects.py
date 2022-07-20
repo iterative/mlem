@@ -1034,7 +1034,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
     @property
     def _state_manager(self) -> StateManager:
         if self.state_manager is None:
-            raise ValueError("state_manager cannot be None")
+            return LocalFileStateManager()
         return self.state_manager
 
     def get_state(self) -> ST:
