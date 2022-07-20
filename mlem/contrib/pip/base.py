@@ -8,6 +8,7 @@ from typing import ClassVar, Dict, List, Optional
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from pydantic import validator
 
 import mlem
 from mlem.core.meta_io import get_fs, get_uri
@@ -33,6 +34,12 @@ class SetupTemplate(TemplateModel):
     version: str = "0.0.0"
     additional_setup_kwargs: Dict = {}
 
+    @validator("python_version")
+    def validate_python_version(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        return f"=={value}" if value[0] in "0123456789" else value
+
 
 class SourceTemplate(TemplateModel):
     TEMPLATE_FILE: ClassVar = "source.py.j2"
@@ -43,7 +50,9 @@ class SourceTemplate(TemplateModel):
 
 class PipMixin(SetupTemplate):
     def prepare_dict(self):
-        self.python_version = self.python_version or get_python_version()
+        self.python_version = (
+            self.python_version or f"=={get_python_version()}"
+        )
         return SetupTemplate.dict(self, include=set(SetupTemplate.__fields__))
 
     def make_distr(self, obj: MlemModel, root: str, fs: AbstractFileSystem):

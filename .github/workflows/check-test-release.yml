@@ -73,7 +73,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
     - name: set pip cache
       id: pip-cache
-      uses: actions/cache@v3.0.4
+      uses: actions/cache@v3.0.5
       with:
         path: ${{ steps.pip-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
@@ -85,12 +85,11 @@ jobs:
         brew install hdf5 wget c-blosc
         wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
         brew install ./libomp.rb
-    # legacy-resolver makes install faster by order of magnitude
     - name: Install
       if: steps.cache.pip-cache-dir.cache-hit != 'true'
       run: |
         pip install --upgrade pip setuptools wheel
-        pip install pre-commit .[tests] --use-deprecated=legacy-resolver
+        pip install pre-commit .[tests]
     - run: pre-commit run pylint -a -v --show-diff-on-failure
       if: matrix.python != '3.7'
     - name: Run tests
