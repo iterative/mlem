@@ -67,43 +67,43 @@ class HerokuEnv(MlemEnv[HerokuDeployment]):
     def deploy(self, meta: HerokuDeployment):
         from .utils import create_app, release_docker_app
 
-        state: HerokuState = meta.get_state()
-
         self.check_type(meta)
+        with meta.lock_state():
+            state: HerokuState = meta.get_state()
+            if state.app is None:
+                state.app = create_app(meta, api_key=self.api_key)
+                meta.update_state(state)
 
-        if state.app is None:
-            state.app = create_app(meta, api_key=self.api_key)
-            meta.update_state(state)
+            redeploy = False
+            if state.image is None or meta.model_changed():
+                state.image = build_heroku_docker(
+                    meta.get_model(), state.app.name, api_key=self.api_key
+                )
+                meta.update_model_hash(state=state)
+                redeploy = True
+            if state.release_state is None or redeploy:
+                state.release_state = release_docker_app(
+                    state.app.name,
+                    state.image.image_id,
+                    api_key=self.api_key,
+                )
+                meta.update_state(state)
 
-        redeploy = False
-        if state.image is None or meta.model_changed():
-            state.image = build_heroku_docker(
-                meta.get_model(), state.app.name, api_key=self.api_key
+            echo(
+                EMOJI_OK
+                + f"Service {meta.app_name} is up. You can check it out at {state.app.web_url}"
             )
-            meta.update_model_hash(state=state)
-            redeploy = True
-        if state.release_state is None or redeploy:
-            state.release_state = release_docker_app(
-                state.app.name,
-                state.image.image_id,
-                api_key=self.api_key,
-            )
-            meta.update_state(state)
-
-        echo(
-            EMOJI_OK
-            + f"Service {meta.app_name} is up. You can check it out at {state.app.web_url}"
-        )
 
     def remove(self, meta: HerokuDeployment):
         from .utils import delete_app
 
         self.check_type(meta)
-        state: HerokuState = meta.get_state()
+        with meta.lock_state():
+            state: HerokuState = meta.get_state()
 
-        if state.app is not None:
-            delete_app(state.ensured_app.name, self.api_key)
-        meta.purge_state()
+            if state.app is not None:
+                delete_app(state.ensured_app.name, self.api_key)
+            meta.purge_state()
 
     def get_status(
         self, meta: "HerokuDeployment", raise_on_error=True

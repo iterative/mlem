@@ -1,6 +1,7 @@
 """
 Base classes for meta objects in MLEM
 """
+import contextlib
 import hashlib
 import os
 import posixpath
@@ -12,6 +13,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    ContextManager,
     Dict,
     Generic,
     Iterable,
@@ -33,7 +35,7 @@ from typing_extensions import Literal
 from yaml import safe_dump, safe_load
 
 from mlem.config import project_config
-from mlem.constants import MLEM_STATE_DIR
+from mlem.constants import MLEM_STATE_DIR, MLEM_STATE_EXT
 from mlem.core.artifacts import (
     Artifacts,
     FSSpecStorage,
@@ -60,6 +62,7 @@ from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
 from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
+from mlem.utils.fslock import FSLock
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_project_root
 
@@ -801,6 +804,11 @@ class DeployStatus(str, Enum):
 ST = TypeVar("ST", bound=DeployState)
 
 
+@contextlib.contextmanager
+def _no_lock():
+    yield
+
+
 class StateManager(MlemABC):
     abs_name: ClassVar = "state"
     type: ClassVar[str]
@@ -832,6 +840,52 @@ class StateManager(MlemABC):
     def purge_state(self, deployment: "MlemDeployment"):
         pass
 
+    @abstractmethod
+    def lock(self, deployment: "MlemDeployment") -> ContextManager:
+        return _no_lock()
+
+
+class LocalFileStateManager(StateManager):
+    type: ClassVar = "local"
+
+    locking: bool = True
+    lock_timeout: float = 10 * 60
+
+    @staticmethod
+    def location(deployment: "MlemDeployment") -> Location:
+        loc = deployment.loc.copy()
+        loc.update_path(loc.path + MLEM_STATE_EXT)
+        return loc
+
+    def _get_state(
+        self, deployment: "MlemDeployment"
+    ) -> Optional[DeployState]:
+        try:
+            with self.location(deployment).open("r") as f:
+                return parse_obj_as(DeployState, safe_load(f))
+        except FileNotFoundError:
+            return None
+
+    def update_state(self, deployment: "MlemDeployment", state: DeployState):
+        with self.location(deployment).open("w", make_dir=True) as f:
+            safe_dump(state.dict(), f)
+
+    def purge_state(self, deployment: "MlemDeployment"):
+        loc = self.location(deployment)
+        if loc.exists():
+            loc.delete()
+
+    def lock(self, deployment: "MlemDeployment"):
+        if self.locking:
+            loc = self.location(deployment)
+            return FSLock(
+                loc.fs,
+                loc.dirname,
+                deployment.loc.basename,
+                timeout=self.lock_timeout,
+            )
+        return super().lock(deployment)
+
 
 class FSSpecStateManager(StateManager):
     type: ClassVar = "fsspec"
@@ -842,6 +896,8 @@ class FSSpecStateManager(StateManager):
 
     uri: str
     storage_options: Dict = {}
+    locking: bool = True
+    lock_timeout: float = 10 * 60
 
     fs: Optional[AbstractFileSystem] = None
     path: str = ""
@@ -877,6 +933,16 @@ class FSSpecStateManager(StateManager):
         fs = self.get_fs()
         if fs.exists(path):
             fs.delete(path)
+
+    def lock(self, deployment: "MlemDeployment"):
+        if self.locking:
+            return FSLock(
+                self.get_fs(),
+                posixpath.join(self.path, MLEM_STATE_DIR),
+                deployment.name,
+                timeout=self.lock_timeout,
+            )
+        return super().lock(deployment)
 
 
 class MlemDeployment(MlemObject, Generic[ST]):
@@ -919,6 +985,9 @@ class MlemDeployment(MlemObject, Generic[ST]):
             self._state_manager.get_state(self, self.state_type)
             or self.state_type()
         )
+
+    def lock_state(self):
+        return self._state_manager.lock(self)
 
     def update_state(self, state: ST):
         self._state_manager.update_state(self, state)
