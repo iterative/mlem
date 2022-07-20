@@ -31,7 +31,7 @@ import fsspec
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError, parse_obj_as, validator
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 from yaml import safe_dump, safe_load
 
 from mlem.config import project_config
@@ -67,6 +67,12 @@ from mlem.utils.path import make_posix
 from mlem.utils.root import find_project_root
 
 if TYPE_CHECKING:
+    from pydantic.typing import (
+        AbstractSetIntStr,
+        MappingIntStrAny,
+        TupleGenerator,
+    )
+
     from mlem.runtime.client import Client
 
 T = TypeVar("T", bound="MlemObject")
@@ -366,6 +372,9 @@ class MlemObject(MlemABC):
         return hashlib.md5(safe_dump(self.dict()).encode("utf8")).hexdigest()
 
 
+TL = TypeVar("TL", bound="MlemLink")
+
+
 class MlemLink(MlemObject):
     """Link is a special MlemObject that represents a MlemObject in a different
     location"""
@@ -453,6 +462,50 @@ class MlemLink(MlemObject):
             if not isinstance(link_type, str)
             else link_type,
         )
+
+    @classmethod
+    def typed_link(
+        cls: Type["MlemLink"], type_: Union[str, Type[MlemObject]]
+    ) -> Type["MlemLink"]:
+        type_name = type_ if isinstance(type_, str) else type_.object_type
+
+        class TypedMlemLink(cls):  # type: ignore[valid-type]
+            object_type: ClassVar = f"link_{type_name}"
+            link_type = type_name
+
+            def _iter(
+                self,
+                to_dict: bool = False,
+                by_alias: bool = False,
+                include: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+                exclude: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+                exclude_unset: bool = False,
+                exclude_defaults: bool = False,
+                exclude_none: bool = False,
+            ) -> "TupleGenerator":
+                exclude = exclude or set()
+                if isinstance(exclude, set):
+                    exclude.update(("type", "object_type", "link_type"))
+                elif isinstance(exclude, dict):
+                    exclude.update(
+                        {"type": True, "object_type": True, "link_type": True}
+                    )
+                return super()._iter(
+                    to_dict,
+                    by_alias,
+                    include,
+                    exclude,
+                    exclude_unset,
+                    exclude_defaults,
+                    exclude_none,
+                )
+
+        return TypedMlemLink
+
+    def typed(self, type_: Type[TL]) -> TL:
+        if self.link_type != type_.link_type:
+            raise ValueError(f"Cannot create {type_} from {self.__class__}")
+        return type_(**self.dict())
 
 
 class _WithArtifacts(ABC, MlemObject):
@@ -945,6 +998,10 @@ class FSSpecStateManager(StateManager):
         return super().lock(deployment)
 
 
+EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)
+ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)
+
+
 class MlemDeployment(MlemObject, Generic[ST]):
     """Base class for deployment metadata"""
 
@@ -953,17 +1010,17 @@ class MlemDeployment(MlemObject, Generic[ST]):
     class Config:
         type_root = True
         type_field = "type"
-        exclude = {"model", "env"}
+        exclude = {"model_cache", "env_cache"}
         use_enum_values = True
 
     abs_name: ClassVar = "deployment"
     type: ClassVar[str]
     state_type: ClassVar[Type[ST]]
 
-    env_link: MlemLink
-    env: Optional[MlemEnv]
-    model_link: MlemLink
-    model: Optional[MlemModel]
+    env: Union[str, MlemEnv, EnvLink]
+    env_cache: Optional[MlemEnv] = None
+    model: Union[ModelLink, str]
+    model_cache: Optional[MlemModel] = None
     state_manager: Optional[StateManager]
 
     @validator("state_manager", always=True)
@@ -998,19 +1055,57 @@ class MlemDeployment(MlemObject, Generic[ST]):
     def get_client(self) -> "Client":
         return self.get_state().get_client()
 
-    def get_env(self):
-        if self.env is None:
-            self.env = self.env_link.bind(self.loc).load_link(
-                force_type=MlemEnv
-            )
-        return self.env
+    @validator("env")
+    def validate_env(cls, value):  # pylint: disable=no-self-argument
+        if isinstance(value, MlemLink):
+            if value.project is None:
+                return value.path
+            if not isinstance(value, EnvLink):
+                return EnvLink(**value.dict())
+        return value
 
-    def get_model(self):
-        if self.model is None:
-            self.model = self.model_link.bind(self.loc).load_link(
-                force_type=MlemModel
-            )
-        return self.model
+    def get_env(self):
+        if self.env_cache is None:
+            if isinstance(self.env, str):
+                link = MlemLink(
+                    path=self.env,
+                    project=self.loc.project,
+                    rev=self.loc.rev,
+                    link_type=MlemEnv.object_type,
+                )
+                self.env_cache = link.load_link(force_type=MlemEnv)
+            elif isinstance(self.env, MlemEnv):
+                self.env_cache = self.env
+            elif isinstance(self.env, MlemLink):
+                self.env_cache = self.env.load_link(force_type=MlemEnv)
+        return self.env_cache
+
+    @validator("model")
+    def validate_model(cls, value):  # pylint: disable=no-self-argument
+        if isinstance(value, MlemLink):
+            if value.project is None:
+                return value.path
+            if not isinstance(value, ModelLink):
+                return ModelLink(**value.dict())
+        return value
+
+    def get_model(self) -> MlemModel:
+        if self.model_cache is None:
+            if isinstance(self.model, str):
+                link = MlemLink(
+                    path=self.model,
+                    project=self.loc.project,
+                    rev=self.loc.rev,
+                    link_type=MlemModel.object_type,
+                )
+                self.model_cache = link.load_link(force_type=MlemModel)
+            elif isinstance(self.model, MlemLink):
+                self.model_cache = self.model.load_link(force_type=MlemModel)
+            else:
+                raise ValueError(
+                    f"model field should be either str or MlemLink instance, got {self.model.__class__}"
+                )
+        return self.model_cache
 
     def run(self):
         return self.get_env().deploy(self)
@@ -1078,8 +1173,8 @@ class MlemDeployment(MlemObject, Generic[ST]):
             self.update_state(state)
 
     def replace_model(self, model: MlemModel):
-        self.model = model
-        self.model_link = self.model.make_link()
+        self.model = model.make_link().typed(ModelLink)
+        self.model_cache = model
 
 
 def find_object(

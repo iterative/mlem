@@ -90,8 +90,8 @@ def test_create_app(heroku_app_name, heroku_env, model):
     name = heroku_app_name("create-app")
     heroku_deploy = HerokuDeployment(
         app_name=name,
-        env_link=heroku_env.make_link(),
-        model_link=model.make_link(),
+        env=heroku_env,
+        model=model.make_link(),
         team=HEROKU_TEAM,
     )
     create_app(heroku_deploy)

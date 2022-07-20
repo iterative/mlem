@@ -100,8 +100,8 @@ def _check_runner(img, env: DockerEnv, model):
             container_name=CONTAINER_NAME,
             port_mapping={80: 8008},
             server=FastAPIServer(),
-            model_link=model.make_link(),
-            env_link=env.make_link(),
+            model=model.make_link(),
+            env=env,
             rm=False,
         )
         instance.dump(os.path.join(tmpdir, "deploy"))

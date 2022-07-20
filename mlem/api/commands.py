@@ -450,10 +450,9 @@ def deploy(
         model_meta = get_model_meta(model)
         env_meta = ensure_meta(MlemEnv, env)
         deploy_meta = env_meta.deploy_type(
-            model=model_meta,
+            model_cache=model_meta,
             env=env_meta,
-            env_link=env_meta.make_link(),
-            model_link=model_meta.make_link(),
+            model=model_meta.make_link(),
             **deploy_kwargs,
         )
         deploy_meta.dump(deploy_path, fs, project, index, external)
