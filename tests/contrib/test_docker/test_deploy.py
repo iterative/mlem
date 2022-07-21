@@ -6,15 +6,18 @@ import time
 import pytest
 from requests.exceptions import HTTPError
 
+from mlem.api import deploy
 from mlem.contrib.docker.base import (
     DockerContainer,
     DockerContainerState,
     DockerEnv,
     DockerImage,
 )
+from mlem.contrib.docker.context import DockerBuildArgs
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import DeployStatus
+from tests.conftest import resource_path
 from tests.contrib.test_docker.conftest import docker_test
 
 IMAGE_NAME = "mike0sv/ebaklya"
@@ -92,6 +95,31 @@ def test_run_local_fail_inside_container(
             dockerenv_remote,
             model_meta_saved_single,
         )
+
+
+@docker_test
+def test_deploy_full(
+    tmp_path_factory, dockerenv_local, model_meta_saved_single
+):
+    meta_path = tmp_path_factory.mktemp("deploy-meta")
+    meta = deploy(
+        str(meta_path),
+        model_meta_saved_single,
+        dockerenv_local,
+        args=DockerBuildArgs(templates_dir=[resource_path(__file__)]),
+        server="fastapi",
+        container_name="test_full_deploy",
+    )
+
+    meta.wait_for_status(
+        DeployStatus.RUNNING,
+        allowed_intermediate=[
+            DeployStatus.NOT_DEPLOYED,
+            DeployStatus.STARTING,
+        ],
+        times=50,
+    )
+    assert meta.get_status() == DeployStatus.RUNNING
 
 
 def _check_runner(img, env: DockerEnv, model):

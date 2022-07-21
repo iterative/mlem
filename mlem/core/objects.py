@@ -379,12 +379,13 @@ class MlemLink(MlemObject):
     """Link is a special MlemObject that represents a MlemObject in a different
     location"""
 
+    object_type: ClassVar = "link"
+    __link_type_map__: ClassVar[Dict[str, Type["TypedLink"]]] = {}
+
     path: str
     project: Optional[str] = None
     rev: Optional[str] = None
     link_type: str
-
-    object_type: ClassVar = "link"
 
     @property
     def link_cls(self) -> Type[MlemObject]:
@@ -469,8 +470,9 @@ class MlemLink(MlemObject):
     ) -> Type["MlemLink"]:
         type_name = type_ if isinstance(type_, str) else type_.object_type
 
-        class TypedMlemLink(cls):  # type: ignore[valid-type]
+        class TypedMlemLink(TypedLink):
             object_type: ClassVar = f"link_{type_name}"
+            _link_type: ClassVar = type_name
             link_type = type_name
 
             def _iter(
@@ -502,10 +504,18 @@ class MlemLink(MlemObject):
 
         return TypedMlemLink
 
-    def typed(self, type_: Type[TL]) -> TL:
-        if self.link_type != type_.link_type:
-            raise ValueError(f"Cannot create {type_} from {self.__class__}")
+    @property
+    def typed(self) -> "TypedLink":
+        type_ = MlemLink.__link_type_map__[self.link_type]
         return type_(**self.dict())
+
+
+class TypedLink(MlemLink, ABC):
+    _link_type: ClassVar
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        MlemLink.__link_type_map__[cls._link_type] = cls
 
 
 class _WithArtifacts(ABC, MlemObject):
@@ -1173,7 +1183,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
             self.update_state(state)
 
     def replace_model(self, model: MlemModel):
-        self.model = model.make_link().typed(ModelLink)
+        self.model = model.make_link().typed
         self.model_cache = model
 
 

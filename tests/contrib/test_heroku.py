@@ -160,7 +160,7 @@ def is_not_crash(err, *args):  # pylint: disable=unused-argument
     return not needs_another_try
 
 
-@flaky(rerun_filter=is_not_crash, max_runs=2)
+@flaky(rerun_filter=is_not_crash, max_runs=1)
 @heroku
 @long
 @heroku_matrix
