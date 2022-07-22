@@ -29,7 +29,7 @@ def test_fslock(tmpdir):
 
 
 def _work(dirname, num):
-    time.sleep(num / 100)
+    time.sleep(0.2 + num / 10)
     with FSLock(LocalFileSystem(), dirname, NAME, salt=num):
         path = os.path.join(dirname, NAME)
         if os.path.exists(path):
@@ -43,8 +43,8 @@ def _work(dirname, num):
 
 
 def test_fslock_concurrent(tmpdir):
-    start = 50
-    end = 60
+    start = 0
+    end = 10
     threads = [
         Thread(target=_work, args=(tmpdir, n)) for n in range(start, end)
     ]

@@ -72,11 +72,6 @@ class FSLock:
             if m is not None
         ]
 
-    def _check(self):
-        c = len(self._list_locks()) == 0
-        print(c)
-        return c
-
     def _double_check(self):
         minlock = min(self._list_locks())
         c = minlock == (self._timestamp, self._salt)
