@@ -16,6 +16,7 @@ from mlem.core.objects import (
     MlemLink,
 )
 from mlem.runtime.client import Client, HTTPClient
+from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
 
 
@@ -94,7 +95,7 @@ def test_deploy_meta_str_model(mlem_project, model_meta, mock_env_path):
             "model": "model",
             "object_type": "deployment",
             "type": "mock",
-            "env": mock_env_path,
+            "env": make_posix(mock_env_path),
         }
 
     assert (
@@ -120,7 +121,7 @@ def test_deploy_meta_link_str_model(mlem_project, model_meta, mock_env_path):
             "model": "model",
             "object_type": "deployment",
             "type": "mock",
-            "env": mock_env_path,
+            "env": make_posix(mock_env_path),
         }
 
     assert (
@@ -148,7 +149,10 @@ def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
             "model": {"path": "model", "project": mlem_project},
             "object_type": "deployment",
             "type": "mock",
-            "env": {"path": mock_env_path, "project": mlem_project},
+            "env": {
+                "path": make_posix(mock_env_path),
+                "project": mlem_project,
+            },
         }
 
     assert (
