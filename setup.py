@@ -58,7 +58,7 @@ extras = {
     "sklearn": ["scikit-learn"],
     "onnx": ["onnx"],
     "onnxruntime": [
-        "protobuf==3.20.1",
+        "protobuf==4.21.3",
         "onnxruntime",
     ],  # TODO - see if it can be merged with onnx
     "catboost": ["catboost"],
