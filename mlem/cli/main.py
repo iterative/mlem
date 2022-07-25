@@ -259,6 +259,7 @@ def mlem_command(
     aliases=None,
     options_metavar="[options]",
     parent=app,
+    mlem_cls=None,
     **kwargs,
 ):
     def decorator(f):
@@ -271,7 +272,9 @@ def mlem_command(
             *args,
             options_metavar=options_metavar,
             **kwargs,
-            cls=partial(MlemCommand, section=section, aliases=aliases),
+            cls=partial(
+                mlem_cls or MlemCommand, section=section, aliases=aliases
+            ),
         )
         @wraps(f)
         @pass_context

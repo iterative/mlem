@@ -52,12 +52,20 @@ def load_entrypoints(domain: str = MLEM_ENTRY_POINT) -> Dict[str, Entrypoint]:
 
 def list_implementations(
     base_class: Union[str, Type[MlemABC]],
-    meta_subtype: Type["MlemObject"] = None,
+    meta_subtype: Union[str, Type["MlemObject"]] = None,
 ) -> List[str]:
+    from mlem.core.objects import MlemObject
+
     if isinstance(base_class, type) and issubclass(base_class, MlemABC):
         abs_name = base_class.abs_name
-    if base_class == "meta" and meta_subtype is not None:
-        base_class = meta_subtype.object_type
+
+    if (
+        base_class == "meta" or base_class == MlemObject
+    ) and meta_subtype is not None:
+        if isinstance(meta_subtype, str):
+            base_class = meta_subtype
+        else:
+            base_class = meta_subtype.object_type
         abs_name = "meta"
     if isinstance(base_class, str):
         abs_name = base_class

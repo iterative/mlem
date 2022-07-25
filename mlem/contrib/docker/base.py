@@ -328,7 +328,9 @@ class DockerEnv(MlemEnv[DockerContainer]):
     type: ClassVar = "docker"
     deploy_type: ClassVar = DockerContainer
     registry: DockerRegistry = DockerRegistry()
+    """Docker registry parameters"""
     daemon: DockerDaemon = DockerDaemon(host="")
+    """Docker daemon parameters"""
 
     def delete_image(self, image: DockerImage, force: bool = False, **kwargs):
         with self.daemon.client() as client:

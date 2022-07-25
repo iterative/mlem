@@ -78,9 +78,13 @@ class MlemObject(MlemABC):
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     location: Optional[Location] = None
+    """MlemObject location [transient]"""
     description: Optional[str] = None
+    """Description string"""
     params: Dict[str, str] = {}
+    """Arbitrary map of additional parameters"""
     labels: List[str] = []
+    """List of labels"""
 
     @property
     def loc(self) -> Location:
