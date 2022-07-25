@@ -46,6 +46,7 @@ from mlem.core.base import MlemABC
 from mlem.core.data_type import DataReader, DataType
 from mlem.core.errors import (
     DeploymentError,
+    MlemError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemProjectNotFound,
@@ -852,6 +853,11 @@ class MlemEnv(MlemObject, Generic[DT]):
                 f"Meta of the {self.type} deployment should be {self.deploy_type}, not {deploy.__class__}"
             )
 
+    def __init_subclass__(cls):
+        if hasattr(cls, "deploy_type"):
+            cls.deploy_type.env_type = cls
+        super().__init_subclass__()
+
 
 class DeployStatus(str, Enum):
     """Enum with deployment statuses"""
@@ -1026,8 +1032,9 @@ class MlemDeployment(MlemObject, Generic[ST]):
     abs_name: ClassVar = "deployment"
     type: ClassVar[str]
     state_type: ClassVar[Type[ST]]
+    env_type: ClassVar[MlemEnv]
 
-    env: Union[str, MlemEnv, EnvLink]
+    env: Union[str, MlemEnv, EnvLink, None] = None
     env_cache: Optional[MlemEnv] = None
     model: Union[ModelLink, str]
     model_cache: Optional[MlemModel] = None
@@ -1088,6 +1095,13 @@ class MlemDeployment(MlemObject, Generic[ST]):
                 self.env_cache = self.env
             elif isinstance(self.env, MlemLink):
                 self.env_cache = self.env.load_link(force_type=MlemEnv)
+            elif self.env is None:
+                try:
+                    self.env_cache = self.env_type()
+                except ValidationError as e:
+                    raise MlemError(
+                        f"{self.env_type} env does not have default value, please set `env` field"
+                    ) from e
         return self.env_cache
 
     @validator("model")

@@ -448,11 +448,14 @@ def deploy(
         if not deploy_path:
             raise MlemError("deploy_path cannot be empty")
         model_meta = get_model_meta(model)
-        env_meta = ensure_meta(MlemEnv, env)
-        deploy_meta = env_meta.deploy_type(
+        env_meta = ensure_meta(MlemEnv, env, allow_typename=True)
+        if isinstance(env_meta, type):
+            env = None
+        deploy_type = env_meta.deploy_type
+        deploy_meta = deploy_type(
             model_cache=model_meta,
-            env=env_meta,
-            model=model_meta.make_link(),
+            env=env,
+            model=model,
             **deploy_kwargs,
         )
         deploy_meta.dump(deploy_path, fs, project, index, external)

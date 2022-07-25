@@ -120,6 +120,7 @@ class MlemConfig(MlemConfigBase):
     EXTERNAL: bool = False
     EMOJIS: bool = True
     STATE: Dict = {}
+    SERVER: Dict = {}
 
     @property
     def storage(self):
@@ -153,6 +154,14 @@ class MlemConfig(MlemConfigBase):
         from mlem.core.objects import StateManager
 
         return parse_obj_as(StateManager, self.STATE)
+
+    @property
+    def server(self):
+        from mlem.runtime.server import Server
+
+        if not self.SERVER:
+            return parse_obj_as(Server, {"type": "fastapi"})
+        return parse_obj_as(Server, self.SERVER)
 
 
 LOCAL_CONFIG = MlemConfig()
