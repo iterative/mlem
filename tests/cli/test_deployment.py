@@ -3,6 +3,7 @@ from typing import ClassVar
 
 import pytest
 from numpy import ndarray
+from yaml import safe_load
 
 from mlem.api import load
 from mlem.core.meta_io import MLEM_EXT
@@ -15,6 +16,7 @@ from mlem.core.objects import (
     MlemLink,
 )
 from mlem.runtime.client import Client, HTTPClient
+from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
 
 
@@ -27,6 +29,8 @@ def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
 
 
 class DeployStateMock(DeployState):
+    allow_default: ClassVar = True
+
     def get_client(self) -> Client:
         pass
 
@@ -36,9 +40,10 @@ class MlemDeploymentMock(MlemDeployment):
         use_enum_values = True
 
     type: ClassVar = "mock"
+    state_type: ClassVar = DeployStateMock
+
     status: DeployStatus = DeployStatus.NOT_DEPLOYED
     param: str = ""
-    state: DeployState = DeployStateMock()
 
 
 class MlemEnvMock(MlemEnv):
@@ -71,10 +76,91 @@ def mock_deploy_path(tmp_path, mock_env_path, model_meta_saved_single):
     path = os.path.join(tmp_path, "deployname")
     MlemDeploymentMock(
         param="bbb",
-        model_link=model_meta_saved_single.make_link(),
-        env_link=MlemLink(path=mock_env_path, link_type="env"),
+        model=model_meta_saved_single.make_link(),
+        model_cache=model_meta_saved_single,
+        env=mock_env_path,
     ).dump(path)
     return path
+
+
+def test_deploy_meta_str_model(mlem_project, model_meta, mock_env_path):
+    model_meta.dump("model", project=mlem_project)
+
+    deployment = MlemDeploymentMock(model="model", env=mock_env_path)
+    deployment.dump("deployment", project=mlem_project)
+
+    with deployment.loc.open("r") as f:
+        data = safe_load(f)
+        assert data == {
+            "model": "model",
+            "object_type": "deployment",
+            "type": "mock",
+            "env": make_posix(mock_env_path),
+        }
+
+    assert (
+        load_meta(
+            "deployment", project=mlem_project, force_type=MlemDeployment
+        )
+        == deployment
+    )
+
+
+def test_deploy_meta_link_str_model(mlem_project, model_meta, mock_env_path):
+    model_meta.dump("model", project=mlem_project)
+
+    deployment = MlemDeploymentMock(
+        model=MlemLink(path="model", link_type="model"),
+        env=MlemLink(path=mock_env_path, link_type="env"),
+    )
+    deployment.dump("deployment", project=mlem_project)
+
+    with deployment.loc.open("r") as f:
+        data = safe_load(f)
+        assert data == {
+            "model": "model",
+            "object_type": "deployment",
+            "type": "mock",
+            "env": make_posix(mock_env_path),
+        }
+
+    assert (
+        load_meta(
+            "deployment", project=mlem_project, force_type=MlemDeployment
+        )
+        == deployment
+    )
+
+
+def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
+    model_meta.dump("model", project=mlem_project)
+
+    deployment = MlemDeploymentMock(
+        model=MlemLink(path="model", project=mlem_project, link_type="model"),
+        env=MlemLink(
+            path=mock_env_path, project=mlem_project, link_type="env"
+        ),
+    )
+    deployment.dump("deployment", project=mlem_project)
+
+    with deployment.loc.open("r") as f:
+        data = safe_load(f)
+        assert data == {
+            "model": {"path": "model", "project": mlem_project},
+            "object_type": "deployment",
+            "type": "mock",
+            "env": {
+                "path": make_posix(mock_env_path),
+                "project": mlem_project,
+            },
+        }
+
+    assert (
+        load_meta(
+            "deployment", project=mlem_project, force_type=MlemDeployment
+        )
+        == deployment
+    )
 
 
 def test_deploy_create_new(
@@ -126,7 +212,7 @@ def test_deploy_apply(
     result = runner.invoke(
         f"deploy apply {mock_deploy_path} {data_path} -o {path}".split()
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, (result.output, result.exception)
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.status == DeployStatus.NOT_DEPLOYED

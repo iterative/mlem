@@ -2,6 +2,7 @@ import posixpath
 
 from mlem.config import CONFIG_FILE_NAME, MlemConfig, project_config
 from mlem.constants import MLEM_DIR
+from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.artifacts import FSSpecStorage, LocalStorage
 from mlem.core.meta_io import get_fs
 from tests.conftest import long
@@ -28,3 +29,7 @@ def test_loading_remote(s3_tmp_path, s3_storage_fs):
     with fs.open(path, "w") as f:
         f.write("core:\n  ADDITIONAL_EXTENSIONS: ext1\n")
     assert project_config(path, fs=fs).additional_extensions == ["ext1"]
+
+
+def test_default_server():
+    assert project_config().server == FastAPIServer()

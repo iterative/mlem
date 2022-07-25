@@ -1,8 +1,10 @@
 import re
-from typing import Any, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Optional, Tuple, Type, TypeVar, Union, overload
 
-from mlem.core.base import MlemABC, build_mlem_object
-from mlem.core.errors import InvalidArgumentError
+from typing_extensions import Literal
+
+from mlem.core.base import MlemABC, build_mlem_object, load_impl_ext
+from mlem.core.errors import InvalidArgumentError, MlemObjectNotFound
 from mlem.core.metadata import load, load_meta
 from mlem.core.objects import MlemData, MlemModel, MlemObject
 
@@ -42,9 +44,41 @@ def get_model_meta(model: Union[str, MlemModel]) -> MlemModel:
 MM = TypeVar("MM", bound=MlemObject)
 
 
-def ensure_meta(as_class: Type[MM], obj_or_path: Union[str, MM]) -> MM:
+@overload
+def ensure_meta(
+    as_class: Type[MM],
+    obj_or_path: Union[str, MM],
+    allow_typename: bool = False,
+) -> Union[MM, Type[MM]]:
+    pass
+
+
+@overload
+def ensure_meta(
+    as_class: Type[MM],
+    obj_or_path: Union[str, MM],
+    allow_typename: Literal[False] = False,
+) -> MM:
+    pass
+
+
+def ensure_meta(
+    as_class: Type[MM],
+    obj_or_path: Union[str, MM],
+    allow_typename: bool = False,
+) -> Union[MM, Type[MM]]:
     if isinstance(obj_or_path, str):
-        return load_meta(obj_or_path, force_type=as_class)
+        try:
+            return load_meta(obj_or_path, force_type=as_class)
+        except MlemObjectNotFound:
+            if allow_typename:
+                impl = load_impl_ext(
+                    as_class.abs_name, obj_or_path, raise_on_missing=False
+                )
+                if impl is None or not issubclass(impl, as_class):
+                    raise
+                return impl
+            raise
     if isinstance(obj_or_path, as_class):
         return obj_or_path
     raise ValueError(f"Cannot get {as_class} from '{obj_or_path}'")

@@ -43,8 +43,18 @@ class Location(BaseModel):
     def path_in_project(self):
         return posixpath.relpath(self.fullpath, self.project)
 
+    @property
+    def dirname(self):
+        return posixpath.dirname(self.fullpath)
+
+    @property
+    def basename(self):
+        return posixpath.basename(self.path)
+
     @contextlib.contextmanager
-    def open(self, mode="r", **kwargs):
+    def open(self, mode="r", make_dir: bool = False, **kwargs):
+        if make_dir:
+            self.fs.makedirs(posixpath.dirname(self.fullpath), exist_ok=True)
         with self.fs.open(self.fullpath, mode, **kwargs) as f:
             yield f
 
@@ -62,6 +72,9 @@ class Location(BaseModel):
 
     def exists(self):
         return self.fs.exists(self.fullpath)
+
+    def delete(self):
+        self.fs.delete(self.fullpath)
 
     def is_same_project(self, other: "Location"):
         return other.fs == self.fs and other.project == self.project

@@ -71,6 +71,8 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             return super().validate(value)
         if isinstance(value, str):
             value = {cls.__config__.type_field: value}
+        if not isinstance(value, dict):
+            raise ValueError(f"{value} is neither dict nor {cls}")
         value = value.copy()
         type_name = value.pop(
             cls.__config__.type_field, cls.__config__.default_type
@@ -108,15 +110,21 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
             exclude_defaults=exclude_defaults,
             exclude_none=exclude_none,
         )
+        exclude = exclude or set()
         if self.__is_root__:
             alias = self.__get_alias__(self.__config__.type_field)
-            if not exclude_defaults or alias != self.__config__.default_type:
+            if (
+                not exclude_defaults or alias != self.__config__.default_type
+            ) and self.__config__.type_field not in exclude:
                 yield self.__config__.type_field, alias
 
         for parent in self.__iter_parents__(include_top=False):
             alias = parent.__get_alias__()
-            if not exclude_defaults or alias != parent.__config__.default_type:
-                yield parent.__type_field__(), alias
+            parent_type_field = parent.__type_field__()
+            if (
+                not exclude_defaults or alias != parent.__config__.default_type
+            ) and parent_type_field not in exclude:
+                yield parent_type_field, alias
 
     def __iter__(self):
         """Add alias field"""
