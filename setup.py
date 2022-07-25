@@ -94,7 +94,7 @@ for e in [
     "ssh_gssapi",
     "webdav",
     "webhdfs",
-    "webdhfs_kerberos",
+    "webhdfs_kerberos",
 ]:
     extras[f"dvc-{e}"] = [f"dvc[{e}]~=2.0"]
 
