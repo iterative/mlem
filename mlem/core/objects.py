@@ -884,6 +884,7 @@ class StateManager(MlemABC):
 
     class Config:
         type_root = True
+        default_type = "fsspec"
 
     @abstractmethod
     def _get_state(
