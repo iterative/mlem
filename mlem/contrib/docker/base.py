@@ -184,9 +184,7 @@ class RemoteRegistry(DockerRegistry):
             status = json.loads(line)
             if "error" in status:
                 error_msg = status["error"]
-                raise DeploymentError(
-                    f"Cannot push docker image: {error_msg}"
-                )
+                raise DeploymentError(f"Cannot push docker image: {error_msg}")
         echo(EMOJI_OK + f"Pushed image {tag} to {self.host}")
 
     def uri(self, image: str):
