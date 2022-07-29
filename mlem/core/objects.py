@@ -1179,8 +1179,8 @@ class MlemDeployment(MlemObject, Generic[ST]):
             )
         return False
 
-    def model_changed(self):
-        state = self.get_state()
+    def model_changed(self, state: Optional[ST] = None):
+        state = state or self.get_state()
         if state.model_hash is None:
             return True
         return self.get_model().meta_hash() != state.model_hash
