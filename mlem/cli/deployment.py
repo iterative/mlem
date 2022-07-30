@@ -22,7 +22,7 @@ from mlem.core.base import parse_string_conf
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import DeploymentError
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DeployState, MlemDeployment
+from mlem.core.objects import DeployState, DeployStatus, MlemDeployment
 from mlem.ui import echo, no_echo, set_echo
 
 deployment = Typer(
@@ -67,6 +67,9 @@ def deploy_run(
     """
     from mlem.api.commands import deploy
 
+    conf = conf or []
+    env_conf = [c[len("env.") :] for c in conf if c.startswith("env.")]
+    conf = [c for c in conf if not c.startswith("env.")]
     deploy(
         path,
         model,
@@ -74,6 +77,7 @@ def deploy_run(
         project,
         external=external,
         index=index,
+        env_kwargs=parse_string_conf(env_conf),
         **parse_string_conf(conf or []),
     )
 
@@ -108,6 +112,40 @@ def deploy_status(
         )
         status = deploy_meta.get_status()
     echo(status)
+
+
+@mlem_command("wait", parent=deployment)
+def deploy_wait(
+    path: str = Argument(..., help="Path to deployment meta"),
+    project: Optional[str] = option_project,
+    statuses: List[DeployStatus] = Option(
+        [DeployStatus.RUNNING],
+        "-s",
+        "--status",
+        help="statuses to wait for",
+    ),
+    intermediate: List[DeployStatus] = Option(
+        None, "-i", "--intermediate", help="Possible intermediate statuses"
+    ),
+    poll_timeout: float = Option(
+        1.0, "-p", "--poll-timeout", help="Timeout between attempts"
+    ),
+    times: int = Option(
+        0, "-t", "--times", help="Number of attempts. 0 -> indefinite"
+    ),
+):
+    """Wait for status of deployed service
+
+    Examples:
+        $ mlem deployment status service_name
+    """
+    with no_echo():
+        deploy_meta = load_meta(
+            path, project=project, force_type=MlemDeployment
+        )
+        deploy_meta.wait_for_status(
+            statuses, poll_timeout, times, allowed_intermediate=intermediate
+        )
 
 
 @mlem_command("apply", parent=deployment)

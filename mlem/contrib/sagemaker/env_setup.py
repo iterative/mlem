@@ -6,6 +6,7 @@ from mlem.ui import echo
 
 MLEM_TF = "mlem_sagemaker.tf"
 
+
 def _tf_command(tf_dir, command, *flags, **vars):
     vars = " ".join(f"-var='{k}={v}'" for k, v in vars.items())
     return " ".join(
@@ -19,11 +20,23 @@ def _tf_command(tf_dir, command, *flags, **vars):
         ]
     )
 
+
+def _tf_get_var(tf_dir, varname):
+    return (
+        subprocess.check_output(
+            _tf_command(tf_dir, "output", varname), shell=True
+        )
+        .decode("utf8")
+        .strip()
+        .strip('"')
+    )
+
+
 def sagemaker_terraform(
     user_name: str = "mlem",
     role_name: str = "mlem",
-        region_name: str = "us-east-1",
-        profile: str = "default",
+    region_name: str = "us-east-1",
+    profile: str = "default",
     plan: bool = False,
     work_dir: str = ".",
     export_secret: str = None,
@@ -48,7 +61,7 @@ def sagemaker_terraform(
                 role_name=role_name,
                 user_name=user_name,
                 region_name=region_name,
-                profile=profile
+                profile=profile,
             ),
             shell=True,
         )
@@ -56,19 +69,26 @@ def sagemaker_terraform(
 
     if not plan and export_secret:
         if os.path.exists(export_secret):
-            echo(
+            print(
                 f"Creds already present at {export_secret}, please backup and remove them"
             )
             return
-        key_id = subprocess.check_output(
-            _tf_command(work_dir, "output", "access_key_id"), shell=True
-        ).decode("utf8")
-        access_secret = subprocess.check_output(
-            _tf_command(work_dir, "output", "secret_access_key"), shell=True
-        ).decode("utf8")
-        with open(export_secret, "w") as f:
-            f.write(
-                f"""export AWS_ACCESS_KEY_ID={key_id}
-export AWS_SECRET_ACCESS_KEY={access_secret}
-"""
+        key_id = _tf_get_var(work_dir, "access_key_id")
+        access_secret = _tf_get_var(work_dir, "secret_access_key")
+        region = _tf_get_var(work_dir, "region_name")
+        profile = _tf_get_var(work_dir, "aws_user")
+        print(profile, region)
+        if export_secret.endswith(".csv"):
+            secrets = f"""User Name,Access key ID,Secret access key
+{profile},{key_id},{access_secret}"""
+            print(
+                f"Import new profile:\naws configure import --csv file://{export_secret}\naws configure set region {region} --profile {profile}"
             )
+        else:
+            secrets = f"""export AWS_ACCESS_KEY_ID={key_id}
+export AWS_SECRET_ACCESS_KEY={access_secret}
+export AWS_REGION={region}
+"""
+            print(f"Source envs:\nsource {export_secret}")
+        with open(export_secret, "w") as f:
+            f.write(secrets)

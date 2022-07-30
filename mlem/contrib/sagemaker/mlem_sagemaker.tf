@@ -76,3 +76,11 @@ output "access_key_id" {
   value = aws_iam_access_key.aws_user.id
   sensitive = true
 }
+
+output "region_name" {
+  value = var.region_name
+}
+
+output "aws_user" {
+  value = aws_iam_user.aws_user.name
+}

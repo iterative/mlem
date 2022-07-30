@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 from mlem import ExtensionLoader
 from mlem.utils.entrypoints import (
     MLEM_ENTRY_POINT,
@@ -21,6 +24,19 @@ def test_find_implementations():
         assert not i.startswith("None")
 
 
+def _write_entrypoints(impls_sorted):
+    setup_path = Path(__file__).parent.parent / "setup.py"
+    with open(setup_path) as f:
+        setup_py = f.read()
+    impls_string = ",\n".join(f'            "{i}"' for i in impls_sorted)
+    new_entrypoints = f'"mlem.contrib": [\n{impls_string},\n        ]'
+    setup_py = re.subn(
+        r'"mlem\.contrib": \[\n[^]]*]', new_entrypoints, setup_py
+    )[0]
+    with open(setup_path, "w") as f:
+        f.write(setup_py)
+
+
 def test_all_impls_in_entrypoints():
     # if this test fails, add new entrypoints (take the result of find_implementations()) to setup.py and
     # reinstall your dev copy of mlem to re-populate them
@@ -30,7 +46,12 @@ def test_all_impls_in_entrypoints():
     impls_sorted = sorted(
         impls, key=lambda x: tuple(x.split(" = ")[1].split(":"))
     )
-    assert exts == set(impls), str(impls_sorted)
+    impls_set = set(impls)
+    if exts != impls_set:
+        _write_entrypoints(impls_sorted)
+        assert (
+            exts == impls_set
+        ), "New enrtypoints written to setup.py, please reinstall"
 
 
 def test_all_ext_has_pip_extra():

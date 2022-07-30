@@ -195,7 +195,7 @@ class RemoteRegistry(DockerRegistry):
         echo(EMOJI_OK + f"Pushed image {tag} to {self.host}")
 
     def uri(self, image: str):
-        return f"{self.host}/{image}"
+        return f"{self.get_host()}/{image}"
 
     def _get_digest(self, name, tag):
         r = requests.head(

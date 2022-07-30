@@ -1,2 +1,3 @@
 ENV PYTHONPATH=.
-RUN alias serve="mlem serve /opt/ml/model/model.mlem sagemaker"
+RUN echo "mlem serve /opt/ml/model/model.mlem sagemaker" > /usr/local/bin/serve && chmod +x /usr/local/bin/serve
+ENTRYPOINT ["bash", "-c"]

@@ -3,6 +3,7 @@ Base classes for meta objects in MLEM
 """
 import contextlib
 import hashlib
+import itertools
 import os
 import posixpath
 import time
@@ -1123,8 +1124,12 @@ class MlemDeployment(MlemObject, Generic[ST]):
                     rev=self.loc.rev,
                     link_type=MlemModel.object_type,
                 )
+                if self.is_saved:
+                    link.bind(self.loc)
                 self.model_cache = link.load_link(force_type=MlemModel)
             elif isinstance(self.model, MlemLink):
+                if self.is_saved:
+                    self.model.bind(self.loc)
                 self.model_cache = self.model.load_link(force_type=MlemModel)
             else:
                 raise ValueError(
@@ -1162,7 +1167,12 @@ class MlemDeployment(MlemObject, Generic[ST]):
             allowed = set(allowed_intermediate)
 
         current = DeployStatus.UNKNOWN
-        for _ in range(times):
+        iterator: Iterable
+        if times == 0:
+            iterator = itertools.count()
+        else:
+            iterator = range(times)
+        for _ in iterator:
             current = self.get_status(raise_on_error=False)
             if current in statuses:
                 return True
@@ -1174,6 +1184,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
                 return False
             time.sleep(timeout)
         if raise_on_timeout:
+            # TODO: count actual time passed
             raise DeploymentError(
                 f"Deployment status is still {current} after {times * timeout} seconds"
             )

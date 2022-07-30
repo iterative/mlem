@@ -1,9 +1,9 @@
 import base64
 import os
-
-from docker.errors import ImageNotFound
+from typing import ClassVar, Optional
 
 import boto3
+from docker.errors import ImageNotFound
 
 from ...core.objects import MlemModel
 from ...ui import EMOJI_BUILD, EMOJI_KEY, echo, set_offset
@@ -23,8 +23,8 @@ def ecr_repo_check(image_name, region):
         client.create_repository(repositoryName=image_name)
 
 
-
 class ECRegistry(RemoteRegistry):
+    type: ClassVar = "ecr"
     account: str
     region: str
 
@@ -33,11 +33,13 @@ class ECRegistry(RemoteRegistry):
         auth_data = ecr.get_authorization_token()
         token = auth_data["authorizationData"][0]["authorizationToken"]
         user, token = base64.b64decode(token).decode("utf8").split(":")
-        self._login(self.host, client, user, token)
-        echo(EMOJI_KEY + f"Logged in to remote registry at host {self.host}")
+        self._login(self.get_host(), client, user, token)
+        echo(
+            EMOJI_KEY
+            + f"Logged in to remote registry at host {self.get_host()}"
+        )
 
-    @property
-    def host(self):
+    def get_host(self) -> Optional[str]:
         return f"{self.account}.dkr.ecr.{self.region}.amazonaws.com"
 
     def image_exists(self, client, image: "DockerImage"):
@@ -46,7 +48,7 @@ class ECRegistry(RemoteRegistry):
         return len(images) > 0
 
     def delete_image(
-            self, client, image: "DockerImage", force=False, **kwargs
+        self, client, image: "DockerImage", force=False, **kwargs
     ):
         if image.image_id is None:
             try:
@@ -64,21 +66,21 @@ class ECRegistry(RemoteRegistry):
 
 
 def build_sagemaker_docker(
-        meta: MlemModel,
-        method: str,
-        account: str,
-        region: str,
-        image_name: str,
+    meta: MlemModel,
+    method: str,
+    account: str,
+    region: str,
+    image_name: str,
 ):
     docker_env = DockerEnv(registry=ECRegistry(account=account, region=region))
     ecr_repo_check(image_name, region)
     echo(EMOJI_BUILD + "Creating docker image for sagemaker")
     with set_offset(2):
         return build_model_image(
-        meta,
-        image_name,
-        server=SageMakerServer(method=method),
-        env=docker_env,
-        force_overwrite=True,
-        templates_dir=os.path.dirname(__file__)
-    )
+            meta,
+            image_name,
+            server=SageMakerServer(method=method),
+            env=docker_env,
+            force_overwrite=True,
+            templates_dir=[os.path.dirname(__file__)],
+        )
