@@ -80,6 +80,7 @@ extras = {
     "rmq": ["pika"],
     "docker": ["docker"],
     "heroku": ["docker", "fastapi", "uvicorn"],
+    "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
 }
 
@@ -153,6 +154,10 @@ setup_args = dict(  # noqa: C408
             "builder.docker = mlem.contrib.docker.base:DockerImageBuilder",
             "docker_registry.local = mlem.contrib.docker.base:DockerRegistry",
             "docker_registry.remote = mlem.contrib.docker.base:RemoteRegistry",
+            "deploy_state.kubernetes = mlem.contrib.kubernetes.base:K8sDeploymentState",
+            "deployment.kubernetes = mlem.contrib.kubernetes.base:K8sDeployment",
+            "env.kubernetes = mlem.contrib.kubernetes.base:K8sEnv",
+            "builder.kubernetes = mlem.contrib.kubernetes.base:K8sYamlBuilder",
             "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",

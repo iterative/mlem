@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ name }}
+  template:
+    metadata:
+      labels:
+        app: {{ name }}
+    spec:
+      containers:
+      - name: {{ name }}
+        image: {{ image }}
+        imagePullPolicy: {{ image_pull_policy }}
+        ports:
+        - containerPort: {{ port }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ name }}
+  labels:
+    run: {{ name }}
+spec:
+  ports:
+  - port: {{ port }}
+    protocol: TCP
+    targetPort: {{ port }}
+  selector:
+    app: {{ name }}
+  type: {{ service_type }}
