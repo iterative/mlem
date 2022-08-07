@@ -2,6 +2,7 @@ import os
 import posixpath
 import tarfile
 import tempfile
+from functools import wraps
 from typing import ClassVar, Optional, Tuple
 
 import boto3
@@ -159,6 +160,16 @@ ENDPOINT_STATUS_MAPPING = {
 }
 
 
+def updates_state(f):
+    @wraps(f)
+    def inner(self, meta: MlemDeployment, state: DeployState, *args, **kwargs):
+        res = f(self, meta, state, *args, **kwargs)
+        meta.update_state(state)
+        return res
+
+    return inner
+
+
 class SagemakerEnv(MlemEnv):
     type: ClassVar = "sagemaker"
     deploy_type: ClassVar = SagemakerDeployment
@@ -175,7 +186,7 @@ class SagemakerEnv(MlemEnv):
         return f"arn:aws:iam::{self.account}:role/{self.role}"
 
     @staticmethod
-    def upload_model(
+    def _create_and_upload_model_arch(
         session: sagemaker.Session,
         model: MlemModel,
         bucket: str,
@@ -201,7 +212,7 @@ class SagemakerEnv(MlemEnv):
             return model_location
 
     @staticmethod
-    def delete_model_file(session: sagemaker.Session, model_path: str):
+    def _delete_model_file(session: sagemaker.Session, model_path: str):
         s3_client = session.boto_session.client("s3")
         if model_path.startswith("s3://"):
             model_path = model_path[len("s3://") :]
@@ -213,65 +224,19 @@ class SagemakerEnv(MlemEnv):
         with meta.lock_state():
             state: SagemakerDeployState = meta.get_state()
             redeploy = meta.model_changed()
-            model = meta.get_model()
-            deploy_id = model.meta_hash()[:5].lower()
             state.previous = state.previous or SagemakerDeployState()
+
+            session, aws_vars = self.get_session_and_aws_vars(state.region)
             if state.region is None:
-                session, aws_vars = init_aws_vars(
-                    profile=self.profile,
-                    role=self.role,
-                    bucket=self.bucket,
-                    region=self.region,
-                    account=self.account,
-                )
                 state.region = aws_vars.region
                 meta.update_state(state)
-            else:
-                session, aws_vars = self.get_session_and_aws_vars(state.region)
 
             if not meta.use_prebuilt and (state.image_tag is None or redeploy):
-                try:
-                    state.method_signature = model.model_type.methods[
-                        meta.method
-                    ]
-                except KeyError as e:
-                    raise WrongMethodError(
-                        f"Wrong method {meta.method} for model {model.name}"
-                    ) from e
-                image_tag = meta.image_tag or model.meta_hash()
-                if state.image_tag is not None:
-                    state.previous.image_tag = state.image_tag
-                    state.previous.image = state.image
-                state.image = build_sagemaker_docker(
-                    model,
-                    meta.method,
-                    aws_vars.account,
-                    aws_vars.region,
-                    image_tag,
-                    self.ecr_repository or DEFAULT_ECR_REPOSITORY,
-                    aws_vars,
-                )
-                state.image_tag = image_tag
-                meta.update_state(state)
+                self._build_image(meta, state, aws_vars)
 
             if state.model_location is None or redeploy:
-                echo(
-                    EMOJI_UPLOAD
-                    + f"Uploading model distribution to {aws_vars.bucket}..."
-                )
-                if state.model_location is not None:
-                    state.previous.model_location = state.model_location
-                state.model_location = self.upload_model(
-                    session,
-                    meta.get_model(),
-                    aws_vars.bucket,
-                    meta.model_arch_location
-                    or generate_model_file_name(deploy_id),
-                )
-                meta.update_model_hash(state=state)
-                meta.update_state(state)
+                self._upload_model(meta, state, aws_vars, session)
 
-            redeploy = True
             if (
                 state.endpoint_name is None
                 or redeploy
@@ -279,111 +244,175 @@ class SagemakerEnv(MlemEnv):
                 and state.endpoint_model_hash != state.model_hash
             ):
                 if state.endpoint_name is None:
-                    sm_model = sagemaker.Model(
-                        image_uri=state.image_uri,
-                        model_data=posixpath.join(
-                            state.model_location, MODEL_TAR_FILENAME
-                        ),
-                        name=meta.model_name,
-                        role=aws_vars.role,
-                        sagemaker_session=session,
-                    )
-                    echo(
-                        EMOJI_BUILD
-                        + f"Starting up sagemaker {meta.initial_instance_count} `{meta.instance_type}` instance(s)..."
-                    )
-                    sm_model.deploy(
-                        initial_instance_count=meta.initial_instance_count,
-                        instance_type=meta.instance_type,
-                        accelerator_type=meta.accelerator_type,
-                        endpoint_name=meta.endpoint_name,
-                        wait=False,
-                    )
-                    state.endpoint_name = sm_model.endpoint_name
-                    state.endpoint_model_hash = state.model_hash
-                    meta.update_state(state)
+                    self._deploy_model(meta, state, aws_vars, session)
                 else:
-                    sm_model = sagemaker.Model(
-                        image_uri=state.image_uri,
-                        model_data=posixpath.join(
-                            state.model_location, MODEL_TAR_FILENAME
-                        ),
-                        name=meta.model_name,
-                        role=aws_vars.role,
-                        sagemaker_session=session,
-                    )
-                    sm_model.create(
-                        instance_type=meta.instance_type,
-                        accelerator_type=meta.accelerator_type,
-                    )
+                    self._update_model(meta, state, aws_vars, session)
 
-                    prev_endpoint_conf = (
-                        session.sagemaker_client.describe_endpoint(
-                            EndpointName=state.endpoint_name
-                        )["EndpointConfigName"]
-                    )
-                    prev_model_name = (
-                        session.sagemaker_client.describe_endpoint_config(
-                            EndpointConfigName=prev_endpoint_conf
-                        )["ProductionVariants"][0]["ModelName"]
-                    )
+    @updates_state
+    def _update_model(
+        self,
+        meta: SagemakerDeployment,
+        state: SagemakerDeployState,
+        aws_vars: AWSVars,
+        session: sagemaker.Session,
+    ):
+        assert state.model_location is not None  # TODO
+        sm_model = sagemaker.Model(
+            image_uri=state.image_uri,
+            model_data=posixpath.join(
+                state.model_location, MODEL_TAR_FILENAME
+            ),
+            name=meta.model_name,
+            role=aws_vars.role,
+            sagemaker_session=session,
+        )
+        sm_model.create(
+            instance_type=meta.instance_type,
+            accelerator_type=meta.accelerator_type,
+        )
+        prev_endpoint_conf = session.sagemaker_client.describe_endpoint(
+            EndpointName=state.endpoint_name
+        )["EndpointConfigName"]
+        prev_model_name = session.sagemaker_client.describe_endpoint_config(
+            EndpointConfigName=prev_endpoint_conf
+        )["ProductionVariants"][0]["ModelName"]
 
-                    predictor = state.get_predictor(session)
-                    predictor.update_endpoint(
-                        model_name=sm_model.name,
-                        initial_instance_count=meta.initial_instance_count,
-                        instance_type=meta.instance_type,
-                        accelerator_type=meta.accelerator_type,
-                        wait=True,
-                    )
+        predictor = state.get_predictor(session)
+        predictor.update_endpoint(
+            model_name=sm_model.name,
+            initial_instance_count=meta.initial_instance_count,
+            instance_type=meta.instance_type,
+            accelerator_type=meta.accelerator_type,
+            wait=True,
+        )
+        session.sagemaker_client.delete_model(ModelName=prev_model_name)
+        prev = state.previous
+        if prev is not None:
+            if prev.image is not None:
+                self._delete_image(meta, prev, aws_vars)
+            if prev.model_location is not None:
+                self._delete_model_file(session, prev.model_location)
+                prev.model_location = None
+        session.sagemaker_client.delete_endpoint_config(
+            EndpointConfigName=prev_endpoint_conf
+        )
+        state.endpoint_model_hash = state.model_hash
 
-                    session.sagemaker_client.delete_model(
-                        ModelName=prev_model_name
-                    )
-                    prev = state.previous
-                    if prev is not None:
-                        if prev.image is not None:
-                            with DockerDaemon(host="").client() as client:
-                                if isinstance(prev.image.registry, ECRegistry):
-                                    prev.image.registry.with_aws_vars(aws_vars)
-                                prev.image.delete(client)
-                            prev.image = None
-                        if prev.model_location is not None:
-                            self.delete_model_file(
-                                session, prev.model_location
-                            )
-                            prev.model_location = None
+    @updates_state
+    def _delete_image(self, _, state, aws_vars):
+        with DockerDaemon(host="").client() as client:
+            if isinstance(state.image.registry, ECRegistry):
+                state.image.registry.with_aws_vars(aws_vars)
+            state.image.delete(client)
+            state.image = None
 
-                    session.sagemaker_client.delete_endpoint_config(
-                        EndpointConfigName=prev_endpoint_conf
-                    )
+    @updates_state
+    def _deploy_model(
+        self,
+        meta: SagemakerDeployment,
+        state: SagemakerDeployState,
+        aws_vars: AWSVars,
+        session: sagemaker.Session,
+    ):
+        assert state.model_location is not None  # TODO
+        sm_model = sagemaker.Model(
+            image_uri=state.image_uri,
+            model_data=posixpath.join(
+                state.model_location, MODEL_TAR_FILENAME
+            ),
+            name=meta.model_name,
+            role=aws_vars.role,
+            sagemaker_session=session,
+        )
+        echo(
+            EMOJI_BUILD
+            + f"Starting up sagemaker {meta.initial_instance_count} `{meta.instance_type}` instance(s)..."
+        )
+        sm_model.deploy(
+            initial_instance_count=meta.initial_instance_count,
+            instance_type=meta.instance_type,
+            accelerator_type=meta.accelerator_type,
+            endpoint_name=meta.endpoint_name,
+            wait=False,
+        )
+        state.endpoint_name = sm_model.endpoint_name
+        state.endpoint_model_hash = state.model_hash
 
-                    state.endpoint_model_hash = state.model_hash
-                    meta.update_state(state)
+    @updates_state
+    def _upload_model(
+        self,
+        meta: SagemakerDeployment,
+        state: SagemakerDeployState,
+        aws_vars: AWSVars,
+        session: sagemaker.Session,
+    ):
+        assert state.previous is not None  # TODO
+        echo(
+            EMOJI_UPLOAD
+            + f"Uploading model distribution to {aws_vars.bucket}..."
+        )
+        if state.model_location is not None:
+            state.previous.model_location = state.model_location
+        state.model_location = self._create_and_upload_model_arch(
+            session,
+            meta.get_model(),
+            aws_vars.bucket,
+            meta.model_arch_location
+            or generate_model_file_name(meta.get_model().meta_hash()),
+        )
+        meta.update_model_hash(state=state)
+
+    @updates_state
+    def _build_image(
+        self,
+        meta: SagemakerDeployment,
+        state: SagemakerDeployState,
+        aws_vars: AWSVars,
+    ):
+        assert state.previous is not None  # TODO
+        model = meta.get_model()
+        try:
+            state.method_signature = model.model_type.methods[meta.method]
+        except KeyError as e:
+            raise WrongMethodError(
+                f"Wrong method {meta.method} for model {model.name}"
+            ) from e
+        image_tag = meta.image_tag or model.meta_hash()
+        if state.image_tag is not None:
+            state.previous.image_tag = state.image_tag
+            state.previous.image = state.image
+        state.image = build_sagemaker_docker(
+            model,
+            meta.method,
+            aws_vars.account,
+            aws_vars.region,
+            image_tag,
+            self.ecr_repository or DEFAULT_ECR_REPOSITORY,
+            aws_vars,
+        )
+        state.image_tag = image_tag
 
     def remove(self, meta: SagemakerDeployment):
         with meta.lock_state():
             state: SagemakerDeployState = meta.get_state()
             session, aws_vars = self.get_session_and_aws_vars(state.region)
             if state.model_location is not None:
-                self.delete_model_file(session, state.model_location)
+                self._delete_model_file(session, state.model_location)
             if state.endpoint_name is not None:
 
                 client = session.sagemaker_client
-                response = client.describe_endpoint_config(
-                    EndpointConfigName=state.endpoint_name
-                )
-                model_name = response["ProductionVariants"][0]["ModelName"]
+                endpoint_conf = session.sagemaker_client.describe_endpoint(
+                    EndpointName=state.endpoint_name
+                )["EndpointConfigName"]
+
+                model_name = client.describe_endpoint_config(
+                    EndpointConfigName=endpoint_conf
+                )["ProductionVariants"][0]["ModelName"]
                 client.delete_model(ModelName=model_name)
                 client.delete_endpoint(EndpointName=state.endpoint_name)
-                client.delete_endpoint_config(
-                    EndpointConfigName=state.endpoint_name
-                )
+                client.delete_endpoint_config(EndpointConfigName=endpoint_conf)
             if state.image is not None:
-                with DockerDaemon(host="").client() as client:
-                    if isinstance(state.image.registry, ECRegistry):
-                        state.image.registry.with_aws_vars(aws_vars)
-                    state.image.delete(client)
+                self._delete_image(meta, state, aws_vars)
             meta.purge_state()
 
     def get_status(
