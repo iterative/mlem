@@ -143,6 +143,16 @@ def test_req_collection_main(tmpdir, postfix):
     }
 
 
+def test_consistent_resolve_order():
+    reqs = ["a", "b", "c"]
+    # current = resolve_requirements(reqs).modules
+    for _ in range(10):
+        assert resolve_requirements(reqs).modules == reqs
+        # new = resolve_requirements(reqs).modules
+        # assert new == current
+        # current = new
+
+
 # Copyright 2019 Zyfra
 # Copyright 2021 Iterative
 #

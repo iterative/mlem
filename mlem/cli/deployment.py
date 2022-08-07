@@ -182,7 +182,7 @@ def deploy_apply(
             raise DeploymentError(
                 f"{deploy_meta.type} deployment has no state. Either {deploy_meta.type} is not deployed yet or has been un-deployed again."
             )
-        client = state.get_client()
+        client = deploy_meta.get_client(state)
 
         result = run_apply_remote(
             client,

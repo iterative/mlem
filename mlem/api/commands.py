@@ -440,8 +440,6 @@ def deploy(
 
     else:
         deploy_meta = deploy_meta_or_path
-        if model is not None:
-            deploy_meta.replace_model(get_model_meta(model))
         update = True
 
     if deploy_meta is None:
@@ -465,7 +463,9 @@ def deploy(
             **deploy_kwargs,
         )
         deploy_meta.dump(deploy_path, fs, project, index, external)
-
+    else:
+        if model is not None:
+            deploy_meta.replace_model(get_model_meta(model, load_value=False))
     if update:
         pass  # todo update from deploy_args and env_args
     # ensuring links are working

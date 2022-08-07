@@ -20,19 +20,8 @@ from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
 
 
-@pytest.fixture
-def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
-    return mocker.patch(
-        "tests.cli.test_deployment.DeployStateMock.get_client",
-        return_value=HTTPClient(host="", port=None),
-    )
-
-
 class DeployStateMock(DeployState):
     allow_default: ClassVar = True
-
-    def get_client(self) -> Client:
-        pass
 
 
 class MlemDeploymentMock(MlemDeployment):
@@ -44,6 +33,9 @@ class MlemDeploymentMock(MlemDeployment):
 
     status: DeployStatus = DeployStatus.NOT_DEPLOYED
     param: str = ""
+
+    def _get_client(self, state) -> Client:
+        return HTTPClient(host="", port=None)
 
 
 class MlemEnvMock(MlemEnv):
@@ -248,7 +240,6 @@ def test_deploy_apply(
     runner: Runner,
     mock_deploy_path,
     data_path,
-    mock_deploy_get_client,
     tmp_path,
 ):
     path = os.path.join(tmp_path, "output")

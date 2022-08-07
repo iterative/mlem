@@ -44,11 +44,6 @@ class HerokuState(DeployState):
             raise ValueError("App is not created yet")
         return self.app
 
-    def get_client(self) -> Client:
-        return HTTPClient(
-            host=urlparse(self.ensured_app.web_url).netloc, port=80
-        )
-
 
 class HerokuDeployment(MlemDeployment):
     type: ClassVar = "heroku"
@@ -57,6 +52,11 @@ class HerokuDeployment(MlemDeployment):
     region: str = "us"
     stack: str = "container"
     team: Optional[str] = None
+
+    def _get_client(self, state: HerokuState) -> Client:
+        return HTTPClient(
+            host=urlparse(state.ensured_app.web_url).netloc, port=80
+        )
 
 
 class HerokuEnv(MlemEnv[HerokuDeployment]):

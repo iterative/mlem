@@ -3,7 +3,8 @@ import os
 from typing import ClassVar, Optional
 
 import boto3
-from docker.errors import ImageNotFound
+import sagemaker
+from pydantic import BaseModel
 
 from ...core.objects import MlemModel
 from ...ui import EMOJI_BUILD, EMOJI_KEY, echo, set_offset
@@ -14,23 +15,50 @@ from .runtime import SageMakerServer
 IMAGE_NAME = "mlem-sagemaker-runner"
 
 
-def ecr_repo_check(image_name, region):
-    client = boto3.client("ecr", region_name=region)
+class AWSVars(BaseModel):
+    profile: str
+    bucket: str
+    region: str
+    account: str
+    role_name: str
+
+    @property
+    def role(self):
+        return f"arn:aws:iam::{self.account}:role/{self.role_name}"
+
+    def get_sagemaker_session(self):
+        return sagemaker.Session(
+            self.get_session(), default_bucket=self.bucket
+        )
+
+    def get_session(self):
+        return boto3.Session(
+            profile_name=self.profile, region_name=self.region
+        )
+
+
+def ecr_repo_check(region, repository, session: boto3.Session):
+    client = session.client("ecr", region_name=region)
 
     repos = client.describe_repositories()["repositories"]
 
-    if image_name not in {r["repositoryName"] for r in repos}:
-        client.create_repository(repositoryName=image_name)
+    if repository not in {r["repositoryName"] for r in repos}:
+        echo(EMOJI_BUILD + f"Creating ECR repository {repository}")
+        client.create_repository(repositoryName=repository)
 
 
 class ECRegistry(RemoteRegistry):
+    class Config:
+        exclude = {"aws_vars"}
+
     type: ClassVar = "ecr"
     account: str
     region: str
 
+    aws_vars: Optional[AWSVars] = None
+
     def login(self, client):
-        ecr = boto3.client("ecr", region_name=self.region)
-        auth_data = ecr.get_authorization_token()
+        auth_data = self.ecr_client.get_authorization_token()
         token = auth_data["authorizationData"][0]["authorizationToken"]
         user, token = base64.b64decode(token).decode("utf8").split(":")
         self._login(self.get_host(), client, user, token)
@@ -43,25 +71,29 @@ class ECRegistry(RemoteRegistry):
         return f"{self.account}.dkr.ecr.{self.region}.amazonaws.com"
 
     def image_exists(self, client, image: "DockerImage"):
-        ecr = boto3.client("ecr", region_name=self.region)
-        images = ecr.list_images(repositoryName=image.name)["imageIds"]
+        images = self.ecr_client.list_images(repositoryName=image.name)[
+            "imageIds"
+        ]
         return len(images) > 0
 
     def delete_image(
         self, client, image: "DockerImage", force=False, **kwargs
     ):
-        if image.image_id is None:
-            try:
-                docker_image = client.images.get(image.name)
-                image_id = docker_image.id
-            except ImageNotFound:
-                return
-        else:
-            image_id = image.image_id
-        ecr = boto3.client("ecr", region_name=self.region)
-        ecr.batch_delete_image(
+        self.ecr_client.batch_delete_image(
             repositoryName=image.name,
-            imageIds=[{"imageDigest": image_id, "imageTag": image.name}],
+            imageIds=[{"imageTag": image.tag}],
+        )
+
+    def with_aws_vars(self, aws_vars):
+        self.aws_vars = aws_vars
+        return self
+
+    @property
+    def ecr_client(self):
+        return (
+            self.aws_vars.get_session().client("ecr")
+            if self.aws_vars
+            else boto3.client("ecr", region_name=self.region)
         )
 
 
@@ -71,14 +103,21 @@ def build_sagemaker_docker(
     account: str,
     region: str,
     image_name: str,
+    repository: str,
+    aws_vars: AWSVars,
 ):
-    docker_env = DockerEnv(registry=ECRegistry(account=account, region=region))
-    ecr_repo_check(image_name, region)
+    docker_env = DockerEnv(
+        registry=ECRegistry(account=account, region=region).with_aws_vars(
+            aws_vars
+        )
+    )
+    ecr_repo_check(region, repository, aws_vars.get_session())
     echo(EMOJI_BUILD + "Creating docker image for sagemaker")
     with set_offset(2):
         return build_model_image(
             meta,
-            image_name,
+            name=repository,
+            tag=image_name,
             server=SageMakerServer(method=method),
             env=docker_env,
             force_overwrite=True,

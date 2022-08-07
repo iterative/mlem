@@ -51,6 +51,8 @@ from mlem.core.errors import (
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemProjectNotFound,
+    WrongABCType,
+    WrongMetaSubType,
     WrongMetaType,
 )
 from mlem.core.meta_io import (
@@ -816,10 +818,6 @@ class DeployState(MlemABC):
 
     model_hash: Optional[str] = None
 
-    @abstractmethod
-    def get_client(self):
-        raise NotImplementedError
-
 
 DT = TypeVar("DT", bound="MlemDeployment")
 
@@ -1019,8 +1017,10 @@ class FSSpecStateManager(StateManager):
 EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)
 ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)
 
+ET = TypeVar("ET", bound=MlemEnv)
 
-class MlemDeployment(MlemObject, Generic[ST]):
+
+class MlemDeployment(MlemObject, Generic[ST, ET]):
     """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
@@ -1034,7 +1034,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
     abs_name: ClassVar = "deployment"
     type: ClassVar[str]
     state_type: ClassVar[Type[ST]]
-    env_type: ClassVar[MlemEnv]
+    env_type: ClassVar[Type[ET]]
 
     env: Union[str, MlemEnv, EnvLink, None] = None
     env_cache: Optional[MlemEnv] = None
@@ -1071,8 +1071,14 @@ class MlemDeployment(MlemObject, Generic[ST]):
     def purge_state(self):
         self._state_manager.purge_state(self)
 
-    def get_client(self) -> "Client":
-        return self.get_state().get_client()
+    def get_client(self, state: DeployState = None) -> "Client":
+        if state is not None and not isinstance(state, self.state_type):
+            raise WrongABCType(state, self.state_type)
+        return self._get_client(state or self.get_state())
+
+    @abstractmethod
+    def _get_client(self, state: ST) -> "Client":
+        raise NotImplementedError
 
     @validator("env")
     def validate_env(cls, value):  # pylint: disable=no-self-argument
@@ -1083,7 +1089,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
                 return EnvLink(**value.dict())
         return value
 
-    def get_env(self):
+    def get_env(self) -> ET:
         if self.env_cache is None:
             if isinstance(self.env, str):
                 link = MlemLink(
@@ -1104,6 +1110,12 @@ class MlemDeployment(MlemObject, Generic[ST]):
                     raise MlemError(
                         f"{self.env_type} env does not have default value, please set `env` field"
                     ) from e
+            else:
+                raise ValueError(
+                    "env should be one of [str, MlemLink, MlemEnv]"
+                )
+        if not isinstance(self.env_cache, self.env_type):
+            raise WrongMetaSubType(self.env_cache, self.env_type)
         return self.env_cache
 
     @validator("model")
@@ -1155,7 +1167,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
             DeployStatus, Iterable[DeployStatus]
         ] = None,
         raise_on_timeout: bool = True,
-    ):
+    ) -> object:
         if isinstance(status, DeployStatus):
             statuses = {status}
         else:
