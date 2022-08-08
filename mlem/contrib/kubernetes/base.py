@@ -38,13 +38,6 @@ class K8sDeploymentState(DeployState):
     type: ClassVar = "kubernetes"
     image: Optional[DockerImage]
     pod_name: Optional[str]
-    kube_config_file_path: Optional[str] = None
-
-    def get_client(self):
-        config.load_kube_config(
-            config_file=self.kube_config_file_path
-            or os.getenv("KUBECONFIG", default="~/.kube/config")
-        )
 
 
 class K8sDeployment(MlemDeployment):
@@ -52,6 +45,13 @@ class K8sDeployment(MlemDeployment):
     server: Optional[Server] = None
     state_type: ClassVar = K8sDeploymentState
     image_name: Optional[str] = None
+    kube_config_file_path: Optional[str] = None
+
+    def _get_client(self, state: K8sDeploymentState):
+        config.load_kube_config(
+            config_file=self.kube_config_file_path
+            or os.getenv("KUBECONFIG", default="~/.kube/config")
+        )
 
 
 class K8sEnv(MlemEnv[K8sDeployment]):
