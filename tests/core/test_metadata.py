@@ -39,9 +39,8 @@ def test_save_with_meta_fields_update(model, train, tmpdir):
         model,
         path,
         params={"a": "b"},
-        update=True,
     )
-    save(train, path, update=True)
+    save(train, path)
     new = load_meta(path)
     assert new.params == {"a": "b"}
 

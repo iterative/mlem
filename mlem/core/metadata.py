@@ -50,7 +50,6 @@ def save(
     index: bool = None,
     external: Optional[bool] = None,
     params: Dict[str, str] = None,
-    update: bool = False,
 ) -> MlemObject:
     """Saves given object to a given path
 
@@ -66,24 +65,10 @@ def save(
         index: Whether to add object to mlem project index
         external: if obj is saved to project, whether to put it outside of .mlem dir
         params: arbitrary params for object
-        update: whether to keep old params if new values were not provided
 
     Returns:
         None
     """
-    if update and params is None:
-        try:
-            old_meta = load_meta(
-                path, project=project, fs=fs, load_value=False
-            )
-            params = params or old_meta.params
-        except MlemObjectNotFound:
-            logger.warning(
-                "Saving with update=True, but no existing object found at %s %s %s",
-                project,
-                path,
-                fs,
-            )
     meta = get_object_metadata(
         obj,
         sample_data,
