@@ -27,11 +27,11 @@ class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
             self.templates_dir,
         )
 
-        logger.debug('Docker image is based on "%s".', self.image)
+        logger.debug('Docker image is based on "%s".', self.image_uri)
 
         k8s_yaml_args = {
             "name": self.name,
-            "image": self.image_uri,
+            "image_uri": self.image_uri,
             "image_pull_policy": self.image_pull_policy,
             "port": self.port,
             "service_type": self.service_type,

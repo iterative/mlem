@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: {{ name }}
-        image: {{ image }}
+        image: {{ image_uri }}
         imagePullPolicy: {{ image_pull_policy }}
         ports:
         - containerPort: {{ port }}
