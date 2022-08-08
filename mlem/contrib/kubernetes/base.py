@@ -1,12 +1,15 @@
 import os
+import tempfile
+from time import sleep
 from typing import ClassVar, Optional
 
-from kubernetes import config
+from kubernetes import client, config, utils
 
 from mlem.config import project_config
 from mlem.core.objects import (
     DeployState,
     DeployStatus,
+    MlemBuilder,
     MlemDeployment,
     MlemEnv,
     MlemModel,
@@ -17,7 +20,6 @@ from mlem.ui import EMOJI_BUILD, EMOJI_OK, echo, set_offset
 from ..docker.base import (
     DockerEnv,
     DockerImage,
-    DockerImageBuilder,
     DockerRegistry,
     generate_docker_container_name,
 )
@@ -57,8 +59,14 @@ class K8sEnv(MlemEnv[K8sDeployment]):
     deploy_type: ClassVar = K8sDeployment
     registry: Optional[DockerRegistry] = DockerRegistry()
 
-    def create_k8s_resources():
-        pass
+    def create_k8s_resources(self, generator):
+        k8s_client = client.ApiClient()
+        with tempfile.TemporaryDirectory(
+            prefix="mlem_k8s_yaml_build_"
+        ) as tempdir:
+            filename = os.path.join(tempdir, "resource.yaml")
+            generator.write(filename)
+            utils.create_from_yaml(k8s_client, filename, verbose=True)
 
     def deploy(self, meta: K8sDeployment):
         self.check_type(meta)
@@ -85,8 +93,20 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                     )
                 meta.update_model_hash(state=state)
                 redeploy = True
+
             if state.pod_name is None or redeploy:
-                state.pod_name = "..."  # TODO: use K8 APIs to deploy the yaml
+                k8s_yaml_builder = K8sYamlBuilder(image=state.image)
+                generator = K8sYamlGenerator(
+                    **k8s_yaml_builder.get_resource_args().dict()
+                )
+                self.create_k8s_resources(generator)
+
+                sleep(0.5)
+
+                core_client = client.CoreV1Api()
+                pods_list = core_client.list_namespaced_pod("default")
+
+                state.pod_name = pods_list.items[0].metadata.name
                 meta.update_state(state)
 
             echo(EMOJI_OK + f"Pod {state.pod_name} is up")
@@ -109,18 +129,35 @@ class K8sEnv(MlemEnv[K8sDeployment]):
         if state.pod_name is None:
             return DeployStatus.NOT_DEPLOYED
 
-        return DeployStatus.STOPPED  # replace it by actual value
-        # get state from kubernetes client and use POD_STATE_MAPPING to return
+        core_client = client.CoreV1Api()
+        pods_list = core_client.list_namespaced_pod("default")
+
+        return POD_STATE_MAPPING[pods_list.items[0].metadata.phase]
 
 
-class K8sYamlBuilder(DockerImageBuilder):
+class K8sYamlBuilder(MlemBuilder, K8sYamlBuildArgs):
     type: ClassVar = "kubernetes"
+    image: DockerImage
+
+    def get_resource_args(self):
+        return K8sYamlBuildArgs(
+            name=self.image.name,
+            image_uri=self.image.uri,
+            image_pull_policy=self.image_pull_policy,
+            port=self.port,
+            service_type=self.service_type,
+        )
 
     def build(self, obj: MlemModel):
-        image = super().build(obj)
-        resource_args = K8sYamlBuildArgs(
-            image=image.uri,
+        resource_args = self.get_resource_args()
+
+        generator = K8sYamlGenerator(**resource_args.dict())
+        resource_yaml = generator.generate()
+
+        generator.write("resources.yaml")
+        echo(
+            EMOJI_OK
+            + f"resources.yaml generated for {obj.basename}, apply manualy using kubectl OR use mlem deploy"
         )
-        resource_yaml = K8sYamlGenerator(**resource_args.dict()).generate()
 
         return resource_yaml
