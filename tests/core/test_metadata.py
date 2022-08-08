@@ -33,18 +33,6 @@ def test_save_with_meta_fields(obj, tmpdir):
     assert new.params == {"a": "b"}
 
 
-def test_save_with_meta_fields_update(model, train, tmpdir):
-    path = str(tmpdir / "obj")
-    save(
-        model,
-        path,
-        params={"a": "b"},
-    )
-    save(train, path)
-    new = load_meta(path)
-    assert new.params == {"a": "b"}
-
-
 def test_saving_with_project(model, tmpdir):
     path = str(tmpdir / "obj")
     save(model, path)
