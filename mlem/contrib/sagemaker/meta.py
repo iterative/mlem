@@ -2,7 +2,6 @@ import os
 import posixpath
 import tarfile
 import tempfile
-from functools import wraps
 from typing import ClassVar, Optional, Tuple
 
 import boto3
@@ -160,16 +159,6 @@ ENDPOINT_STATUS_MAPPING = {
 }
 
 
-def updates_state(f):
-    @wraps(f)
-    def inner(self, meta: MlemDeployment, state: DeployState, *args, **kwargs):
-        res = f(self, meta, state, *args, **kwargs)
-        meta.update_state(state)
-        return res
-
-    return inner
-
-
 class SagemakerEnv(MlemEnv):
     type: ClassVar = "sagemaker"
     deploy_type: ClassVar = SagemakerDeployment
@@ -248,7 +237,6 @@ class SagemakerEnv(MlemEnv):
                 else:
                     self._update_model(meta, state, aws_vars, session)
 
-    @updates_state
     def _update_model(
         self,
         meta: SagemakerDeployment,
@@ -297,16 +285,16 @@ class SagemakerEnv(MlemEnv):
             EndpointConfigName=prev_endpoint_conf
         )
         state.endpoint_model_hash = state.model_hash
+        meta.update_state(state)
 
-    @updates_state
-    def _delete_image(self, _, state, aws_vars):
+    def _delete_image(self, meta, state, aws_vars):
         with DockerDaemon(host="").client() as client:
             if isinstance(state.image.registry, ECRegistry):
                 state.image.registry.with_aws_vars(aws_vars)
             state.image.delete(client)
             state.image = None
+        meta.update_state(state)
 
-    @updates_state
     def _deploy_model(
         self,
         meta: SagemakerDeployment,
@@ -337,8 +325,8 @@ class SagemakerEnv(MlemEnv):
         )
         state.endpoint_name = sm_model.endpoint_name
         state.endpoint_model_hash = state.model_hash
+        meta.update_state(state)
 
-    @updates_state
     def _upload_model(
         self,
         meta: SagemakerDeployment,
@@ -361,8 +349,8 @@ class SagemakerEnv(MlemEnv):
             or generate_model_file_name(meta.get_model().meta_hash()),
         )
         meta.update_model_hash(state=state)
+        meta.update_state(state)
 
-    @updates_state
     def _build_image(
         self,
         meta: SagemakerDeployment,
@@ -391,6 +379,7 @@ class SagemakerEnv(MlemEnv):
             aws_vars,
         )
         state.image_tag = image_tag
+        meta.update_state(state)
 
     def remove(self, meta: SagemakerDeployment):
         with meta.lock_state():
