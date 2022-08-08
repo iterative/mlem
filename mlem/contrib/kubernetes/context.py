@@ -31,7 +31,7 @@ class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
 
         k8s_yaml_args = {
             "name": self.name,
-            "image": self.image,
+            "image": self.image_uri,
             "image_pull_policy": self.image_pull_policy,
             "port": self.port,
             "service_type": self.service_type,
