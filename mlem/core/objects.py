@@ -655,7 +655,7 @@ class MlemData(_WithArtifacts):
         exclude = {"data_type"}
 
     object_type: ClassVar = "data"
-    reader_cache: Optional[Dict]
+    reader_cache: Union[DataReader, Dict, None]
     reader: Optional[DataReader]
     reader, reader_raw, reader_cache = lazy_field(
         DataReader,

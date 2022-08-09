@@ -42,6 +42,11 @@ def load_impl_ext(
         load_entrypoints,
     )
 
+    if abs_name in MlemABC.abs_types:
+        abs_class = MlemABC.abs_types[abs_name]
+        if type_name in abs_class.__type_map__:
+            return abs_class.__type_map__[type_name]
+
     if type_name is not None and "." in type_name:
         try:
             obj = import_string(type_name)

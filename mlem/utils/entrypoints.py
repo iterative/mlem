@@ -59,9 +59,7 @@ def list_implementations(
     if isinstance(base_class, type) and issubclass(base_class, MlemABC):
         abs_name = base_class.abs_name
 
-    if (
-        base_class == "meta" or base_class == MlemObject
-    ) and meta_subtype is not None:
+    if (base_class in ("meta", MlemObject)) and meta_subtype is not None:
         if isinstance(meta_subtype, str):
             base_class = meta_subtype
         else:
@@ -123,7 +121,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     return {
         MLEM_ENTRY_POINT: [
             f"{obj.abs_name}.{obj.__get_alias__()} = {name}"
-            if not obj.__is_root__
+            if not obj.__is_root__ or not hasattr(obj, obj.__type_field__())
             else f"{obj.abs_name} = {name}"
             for obj, name in impls.items()
         ]

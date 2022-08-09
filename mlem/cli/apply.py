@@ -1,12 +1,15 @@
 from json import dumps
 from typing import List, Optional
 
-from typer import Argument, Option
+from typer import Argument, Option, Typer
 
 from mlem.api import import_object
 from mlem.cli.main import (
+    abc_fields_parameters,
+    app,
     config_arg,
     mlem_command,
+    mlem_group,
     option_conf,
     option_data_project,
     option_data_rev,
@@ -20,6 +23,7 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
+from mlem.core.base import load_impl_ext
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
 from mlem.core.import_objects import ImportHook
@@ -120,45 +124,81 @@ def apply(
         )
 
 
-@mlem_command("apply-remote", section="runtime")
-def apply_remote(
-    subtype: str = Argument(
-        "",
-        help=f"Type of client. Choices: {list_implementations(Client)}",
-        show_default=False,
-    ),
-    data: str = Argument(..., help="Path to data object"),
-    project: Optional[str] = option_project,
-    rev: Optional[str] = option_rev,
-    output: Optional[str] = Option(
-        None, "-o", "--output", help="Where to store the outputs."
-    ),
-    target_project: Optional[str] = option_target_project,
-    method: str = option_method,
-    index: bool = option_index,
-    json: bool = option_json,
-    load: Optional[str] = option_load("client"),
-    conf: List[str] = option_conf("client"),
-    file_conf: List[str] = option_file_conf("client"),
-):
-    """Apply a model (deployed somewhere remotely) to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+apply_remote = Typer(
+    name="apply-remote",
+    help="""Apply a model (deployed somewhere remotely) to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
 
     Examples:
         Apply hosted mlem model to local mlem data
         $ mlem apply-remote http mydata -c host="0.0.0.0" -c port=8080 --output myprediction
-    """
-    client = config_arg(Client, load, subtype, conf, file_conf)
+    """,
+    cls=mlem_group("runtime"),
+    subcommand_metavar="client",
+)
+app.add_typer(apply_remote)
 
-    with set_echo(None if json else ...):
-        result = run_apply_remote(
-            client, data, project, rev, index, method, output, target_project
+
+def create_apply_remote(type_name, cls):
+    @mlem_command(
+        type_name,
+        section="clients",
+        parent=apply_remote,
+        dynamic_metavar="__kwargs__",
+        dynamic_options_generator=abc_fields_parameters(cls),
+    )
+    def apply_remote_func(
+        data: str = Argument(..., help="Path to data object"),
+        project: Optional[str] = option_project,
+        rev: Optional[str] = option_rev,
+        output: Optional[str] = Option(
+            None, "-o", "--output", help="Where to store the outputs."
+        ),
+        target_project: Optional[str] = option_target_project,
+        method: str = option_method,
+        index: bool = option_index,
+        json: bool = option_json,
+        load: Optional[str] = option_load("client"),
+        conf: List[str] = option_conf("client"),
+        file_conf: List[str] = option_file_conf("client"),
+        **__kwargs__,
+    ):
+        client = config_arg(
+            Client, load, type_name, conf, file_conf, **__kwargs__
         )
-    if output is None and json:
-        print(
-            dumps(
-                DataAnalyzer.analyze(result).get_serializer().serialize(result)
+
+        with set_echo(None if json else ...):
+            result = run_apply_remote(
+                client,
+                data,
+                project,
+                rev,
+                index,
+                method,
+                output,
+                target_project,
             )
-        )
+        if output is None and json:
+            print(
+                dumps(
+                    DataAnalyzer.analyze(result)
+                    .get_serializer()
+                    .serialize(result)
+                )
+            )
+        apply_remote_func.__doc__ = cls.__doc__
+
+
+any_implementations = False
+for client_type_name in list_implementations(Client):
+    try:
+        client_class = load_impl_ext(Client.abs_name, client_type_name)
+        create_apply_remote(client_type_name, client_class)
+        any_implementations = True
+    except ImportError:
+        pass
+
+if not any_implementations:
+    apply_remote.info.help += """\nNo available client implementations :("""
 
 
 def run_apply_remote(

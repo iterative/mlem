@@ -8,12 +8,21 @@ from gettext import gettext
 from typing import List, Optional, Tuple, Type
 
 import typer
-from click import Abort, ClickException, Command, HelpFormatter, pass_context
+from click import (
+    Abort,
+    ClickException,
+    Command,
+    HelpFormatter,
+    Parameter,
+    pass_context,
+)
 from click.exceptions import Exit
 from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
 from pydantic.error_wrappers import ErrorWrapper
+from pydantic.typing import get_args
+from simple_parsing.docstring import get_attribute_docstring
 from typer import Context, Option, Typer
-from typer.core import TyperCommand, TyperGroup
+from typer.core import TyperCommand, TyperGroup, TyperOption
 from yaml import safe_load
 
 from mlem import LOCAL_CONFIG, version
@@ -24,6 +33,7 @@ from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemObject
 from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
+from mlem.utils.entrypoints import list_implementations
 
 
 class MlemFormatter(HelpFormatter):
@@ -77,8 +87,14 @@ class MlemCommand(
         section: str = "other",
         aliases: List[str] = None,
         help: Optional[str] = None,
+        dynamic_options_generator: t.Callable[
+            [], t.Iterable[Parameter]
+        ] = None,
+        dynamic_metavar: str = None,
         **kwargs,
     ):
+        self.dynamic_metavar = dynamic_metavar
+        self.dynamic_options_generator = dynamic_options_generator
         examples, help = _extract_examples(help)
         super().__init__(
             name=name,
@@ -88,6 +104,19 @@ class MlemCommand(
             help=help,
             **kwargs,
         )
+
+    def get_params(self, ctx) -> List["Parameter"]:
+        res: List[Parameter] = (
+            list(self.dynamic_options_generator())
+            if self.dynamic_options_generator is not None
+            else []
+        )
+        res = res + super().get_params(ctx)
+        if self.dynamic_metavar is not None:
+            kw_param = [p for p in res if p.name == self.dynamic_metavar]
+            if len(kw_param) > 0:
+                res.remove(kw_param[0])
+        return res
 
 
 class MlemGroup(MlemMixin, TyperGroup):
@@ -196,6 +225,114 @@ class Choices(str, Enum, metaclass=ChoicesMeta):
         return name
 
 
+class CliTypeField(BaseModel):
+    required: bool
+    path: str
+    type_: Type
+    help: str
+    default: t.Any
+
+    def to_text(self):
+        req = (
+            color("[required]", "")
+            if self.required
+            else color("[not required]", "white")
+        )
+        if not self.required:
+            default = self.default
+            if isinstance(default, str):
+                default = f'"{default}"'
+            default = f" = {default}"
+        else:
+            default = ""
+        return (
+            req
+            + " "
+            + color(self.path, "green")
+            + ": "
+            + str(self.type_.__name__)
+            + default
+            + "\n\t"
+            + self.help
+        )
+
+
+def get_field_help(cls: Type, field_name: str):
+    return (
+        get_attribute_docstring(cls, field_name).docstring_below
+        or "Field docstring missing"
+    )
+
+
+def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
+    for name, field in sorted(
+        cls.__fields__.items(), key=lambda x: not x[1].required
+    ):
+        name = field.alias or name
+        if issubclass(cls, MlemObject) and name in MlemObject.__fields__:
+            continue
+        if issubclass(cls, MlemABC) and name in cls.__config__.exclude:
+            continue
+        fullname = name if not prefix else f"{prefix}.{name}"
+
+        req = field.required and not force_not_req
+        default = field.default
+        docstring = get_field_help(cls, name)
+        field_type = field.type_
+        if not isinstance(field_type, type):
+            # typing.GenericAlias
+            generic_args = get_args(field_type)
+            if len(generic_args) > 0:
+                field_type = field_type.__args__[0]
+            else:
+                field_type = object
+        if (
+            isinstance(field_type, type)
+            and issubclass(field_type, MlemABC)
+            and field_type.__is_root__
+        ):
+            if isinstance(default, field_type):
+                default = default.__get_alias__()
+            yield CliTypeField(
+                required=req,
+                path=fullname,
+                type_=str,
+                help=f"{docstring}. One of {list_implementations(field_type)}. Run 'mlem types {field_type.abs_name} <subtype>' for list of nested fields for each subtype",
+                default=default,
+            )
+        elif isinstance(field_type, type) and issubclass(
+            field_type, BaseModel
+        ):
+            yield from iterate_type_fields(
+                field_type, fullname, not field.required
+            )
+        else:
+            yield CliTypeField(
+                required=req,
+                path=fullname,
+                type_=field_type,
+                default=default,
+                help=docstring,
+            )
+
+
+def abc_fields_parameters(cls: Type[MlemABC]):
+    def generator():
+        for field in iterate_type_fields(cls):
+            option = TyperOption(
+                param_decls=[f"--{field.path}", field.path.replace(".", "_")],
+                type=field.type_,
+                required=field.required,
+                default=field.default,
+                help=field.help,
+                show_default=True,
+            )
+            option.name = field.path
+            yield option
+
+    return generator
+
+
 app = Typer(
     cls=MlemGroup,
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -260,6 +397,8 @@ def mlem_command(
     options_metavar="[options]",
     parent=app,
     mlem_cls=None,
+    dynamic_metavar=None,
+    dynamic_options_generator=None,
     **kwargs,
 ):
     def decorator(f):
@@ -273,7 +412,11 @@ def mlem_command(
             options_metavar=options_metavar,
             **kwargs,
             cls=partial(
-                mlem_cls or MlemCommand, section=section, aliases=aliases
+                mlem_cls or MlemCommand,
+                section=section,
+                aliases=aliases,
+                dynamic_options_generator=dynamic_options_generator,
+                dynamic_metavar=dynamic_metavar,
             ),
         )
         @wraps(f)
@@ -456,6 +599,7 @@ def config_arg(
     subtype: str,
     conf: Optional[List[str]],
     file_conf: Optional[List[str]],
+    **kwargs,
 ):
     obj: MlemABC
     if load is not None:
@@ -470,6 +614,6 @@ def config_arg(
                 f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
             )
         with wrap_build_error(subtype, model):
-            obj = build_mlem_object(model, subtype, conf, file_conf)
+            obj = build_mlem_object(model, subtype, conf, file_conf, kwargs)
 
     return obj

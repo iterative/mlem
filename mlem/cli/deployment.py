@@ -8,6 +8,7 @@ from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
+    option_conf,
     option_data_project,
     option_data_rev,
     option_external,
@@ -46,12 +47,7 @@ def deploy_run(
     project: Optional[str] = option_project,
     external: bool = option_external,
     index: bool = option_index,
-    conf: Optional[List[str]] = Option(
-        None,
-        "-c",
-        "--conf",
-        help="Configuration for new deployment meta if it does not exist",
-    ),
+    conf: Optional[List[str]] = option_conf(),
 ):
     """Deploy a model to target environment. Can use existing deployment declaration or create a new one on-the-fly
 

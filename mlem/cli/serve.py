@@ -1,42 +1,73 @@
 from typing import List, Optional
 
-from typer import Argument
+from typer import Argument, Typer
 
 from mlem.cli.main import (
+    abc_fields_parameters,
+    app,
     config_arg,
     mlem_command,
+    mlem_group,
     option_conf,
     option_file_conf,
     option_load,
     option_project,
     option_rev,
 )
+from mlem.core.base import load_impl_ext
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
 from mlem.runtime.server import Server
 from mlem.utils.entrypoints import list_implementations
 
-
-@mlem_command("serve", section="runtime")
-def serve(
-    model: str = Argument(..., help="Model to create service from"),
-    subtype: str = Argument(
-        "", help=f"Server type. Choices: {list_implementations(Server)}"
-    ),
-    project: Optional[str] = option_project,
-    rev: Optional[str] = option_rev,
-    load: Optional[str] = option_load("server"),
-    conf: List[str] = option_conf("server"),
-    file_conf: List[str] = option_file_conf("server"),
-):
-    """Serve selected model
+serve = Typer(
+    name="serve",
+    help="""Serve selected model
 
     Examples:
-        $ mlem serve https://github.com/iterative/example-mlem/models/logreg fastapi
-    """
-    from mlem.api.commands import serve
+        $ mlem serve fastapi https://github.com/iterative/example-mlem/models/logreg
+    """,
+    cls=mlem_group("runtime"),
+    subcommand_metavar="server",
+)
+app.add_typer(serve)
 
-    serve(
-        load_meta(model, project, rev, force_type=MlemModel),
-        config_arg(Server, load, subtype, conf, file_conf),
+
+def create_serve(type_name, cls):
+    @mlem_command(
+        type_name,
+        section="servers",
+        parent=serve,
+        dynamic_metavar="__kwargs__",
+        dynamic_options_generator=abc_fields_parameters(cls),
     )
+    def serve_command(
+        model: str = Argument(..., help="Model to create service from"),
+        project: Optional[str] = option_project,
+        rev: Optional[str] = option_rev,
+        load: Optional[str] = option_load("server"),
+        conf: List[str] = option_conf("server"),
+        file_conf: List[str] = option_file_conf("server"),
+        **__kwargs__
+    ):
+        from mlem.api.commands import serve
+
+        serve(
+            load_meta(model, project, rev, force_type=MlemModel),
+            config_arg(Server, load, type_name, conf, file_conf, **__kwargs__),
+        )
+
+    serve_command.__doc__ = cls.__doc__
+
+
+any_implementations = False
+for builder_type_name in list_implementations(Server):
+    try:
+        builder_class = load_impl_ext(Server.abs_name, builder_type_name)
+        create_serve(builder_type_name, builder_class)
+        any_implementations = True
+    except ImportError:
+        pass
+
+if not any_implementations:
+    serve.info.help += """\nNo available server implementations :("""
