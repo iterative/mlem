@@ -45,6 +45,7 @@ def create_build_command(type_name, cls):
         parent=build,
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(cls),
+        hidden=type_name.startswith("_"),
     )
     def build_type(
         model: str = Argument(..., help="Path to model"),

@@ -41,18 +41,13 @@ class NumpyNumberType(
     LibRequirementsMixin, DataType, DataSerializer, DataHook
 ):
     """
-    :class:`.DataType` implementation for `numpy.number` objects which
-    converts them to built-in Python numbers and vice versa.
-
-    :param dtype: `numpy.number` data type as string
+    numpy.number DataType
     """
 
     libraries: ClassVar[List[ModuleType]] = [np]
     type: ClassVar[str] = "number"
     dtype: str
-
-    # def get_spec(self) -> ArgList:
-    #     return [Field(None, python_type_from_np_string_repr(self.dtype), False)]
+    """`numpy.number` type name as string"""
 
     def deserialize(self, obj: dict) -> Any:
         return self.actual_type(obj)  # pylint: disable=not-callable
@@ -83,19 +78,15 @@ class NumpyNumberType(
 class NumpyNdarrayType(
     LibRequirementsMixin, DataType, DataHook, DataSerializer
 ):
-    """
-    :class:`.DataType` implementation for `np.ndarray` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `numpy.ndarray` objects in data
-    :param dtype: data type of `numpy.ndarray` objects in data
-    """
+    """DataType implementation for `np.ndarray`"""
 
     type: ClassVar[str] = "ndarray"
     libraries: ClassVar[List[ModuleType]] = [np]
 
     shape: Optional[Tuple[Optional[int], ...]]
+    """shape of `numpy.ndarray`"""
     dtype: str
+    """data type of elements"""
 
     @staticmethod
     def _abstract_shape(shape):

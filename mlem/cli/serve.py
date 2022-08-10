@@ -40,6 +40,7 @@ def create_serve(type_name, cls):
         parent=serve,
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(cls),
+        hidden=type_name.startswith("_"),
     )
     def serve_command(
         model: str = Argument(..., help="Model to create service from"),
@@ -61,10 +62,10 @@ def create_serve(type_name, cls):
 
 
 any_implementations = False
-for builder_type_name in list_implementations(Server):
+for server_type_name in list_implementations(Server):
     try:
-        builder_class = load_impl_ext(Server.abs_name, builder_type_name)
-        create_serve(builder_type_name, builder_class)
+        server_class = load_impl_ext(Server.abs_name, server_type_name)
+        create_serve(server_type_name, server_class)
         any_implementations = True
     except ImportError:
         pass

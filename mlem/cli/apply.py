@@ -145,6 +145,7 @@ def create_apply_remote(type_name, cls):
         parent=apply_remote,
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(cls),
+        hidden=type_name.startswith("_"),
     )
     def apply_remote_func(
         data: str = Argument(..., help="Path to data object"),

@@ -24,6 +24,7 @@ def explain_type(cls: Type[BaseModel]):
             color("MlemObject type name: ", "")
             + color(cls.object_type, "green")
         )
+    echo(cls.__doc__.strip() or "Class docstring missing")
     fields = list(iterate_type_fields(cls))
     if not fields:
         echo("No fields")
@@ -65,14 +66,16 @@ def list_types(
             if mlem_object_type.__is_root__:
                 echo(
                     "\n".join(
-                        list_implementations(MlemObject, mlem_object_type)
+                        list_implementations(
+                            MlemObject, mlem_object_type, include_hidden=False
+                        )
                     )
                 )
             else:
                 explain_type(mlem_object_type)
     else:
         if sub_type is None:
-            echo("\n".join(list_implementations(abc)))
+            echo("\n".join(list_implementations(abc, include_hidden=False)))
         else:
             cls = load_impl_ext(abc, sub_type, True)
             explain_type(cls)

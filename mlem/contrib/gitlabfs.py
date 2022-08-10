@@ -158,13 +158,13 @@ known_implementations["gitlab"] = {
 
 class GitlabResolver(CloudGitResolver):
     type: ClassVar = "gitlab"
-    FS = GitlabFileSystem
-    PROTOCOL = "gitlab"
-    GITLAB_COM = "https://gitlab.com"
+    FS: ClassVar = GitlabFileSystem
+    PROTOCOL: ClassVar = "gitlab"
+    GITLAB_COM: ClassVar = "https://gitlab.com"
 
     # TODO: support on-prem gitlab (other hosts)
-    PREFIXES = [GITLAB_COM, PROTOCOL + "://"]
-    versioning_support = True
+    PREFIXES: ClassVar = [GITLAB_COM, PROTOCOL + "://"]
+    versioning_support: ClassVar = True
 
     @classmethod
     def get_kwargs(cls, uri):

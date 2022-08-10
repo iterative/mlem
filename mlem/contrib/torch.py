@@ -27,18 +27,14 @@ def python_type_from_torch_string_repr(dtype: str):
 class TorchTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
-    """
-    :class:`.DataType` implementation for `torch.Tensor` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `torch.Tensor` objects in data
-    :param dtype: data type of `torch.Tensor` objects in data
-    """
+    """DataType implementation for `torch.Tensor`"""
 
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.Tensor,)
     shape: Tuple[Optional[int], ...]
+    """shape of `torch.Tensor` object"""
     dtype: str
+    """type name of `torch.Tensor` elements"""
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:

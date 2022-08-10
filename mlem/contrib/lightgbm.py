@@ -42,6 +42,7 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
+    """Inner DataType"""
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)

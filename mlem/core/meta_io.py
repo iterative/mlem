@@ -299,6 +299,7 @@ class CloudGitResolver(UriResolver, ABC):
 class FSSpecResolver(UriResolver):
     """Resolve different fsspec URIs"""
 
+    type: ClassVar = "fsspec"
     low_priority: ClassVar = True
 
     @classmethod

@@ -172,6 +172,7 @@ class PrimitiveType(DataType, DataHook, DataSerializer):
     type: ClassVar[str] = "primitive"
 
     ptype: str
+    """Name of builtin type"""
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
@@ -247,7 +248,9 @@ class ArrayType(DataType, DataSerializer):
 
     type: ClassVar[str] = "array"
     dtype: DataType
+    """DataType of elements"""
     size: Optional[int]
+    """size of the list"""
 
     def get_requirements(self) -> Requirements:
         return self.dtype.get_requirements()
@@ -321,8 +324,11 @@ class _TupleLikeType(DataType, DataSerializer):
     DataType for tuple-like collections
     """
 
-    items: List[DataType]
+    type: ClassVar = "_tuple_like"
     actual_type: ClassVar[type]
+
+    items: List[DataType]
+    """DataTypes of elements"""
 
     def deserialize(self, obj):
         _check_type_and_size(
@@ -515,6 +521,7 @@ class DictType(DataType, DataSerializer):
 
     type: ClassVar[str] = "dict"
     item_types: Dict[Union[StrictStr, StrictInt], DataType]
+    """Mapping key -> nested data type"""
 
     @classmethod
     def process(cls, obj, **kwargs):
@@ -621,7 +628,9 @@ class DynamicDictType(DataType, DataSerializer):
     type: ClassVar[str] = "d_dict"
 
     key_type: PrimitiveType
+    """DataType for key (primitive)"""
     value_type: DataType
+    """DataType for value"""
 
     @validator("key_type")
     def is_valid_key_type(  # pylint: disable=no-self-argument

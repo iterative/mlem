@@ -59,12 +59,12 @@ class GithubResolver(CloudGitResolver):
 
     type: ClassVar = "github"
     FS: ClassVar = GithubFileSystem
-    PROTOCOL = "github"
-    GITHUB_COM = "https://github.com"
+    PROTOCOL: ClassVar = "github"
+    GITHUB_COM: ClassVar = "https://github.com"
 
     # TODO: support on-prem github (other hosts)
-    PREFIXES = [GITHUB_COM, PROTOCOL + "://"]
-    versioning_support = True
+    PREFIXES: ClassVar = [GITHUB_COM, PROTOCOL + "://"]
+    versioning_support: ClassVar = True
 
     @classmethod
     def get_envs(cls):

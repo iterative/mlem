@@ -39,17 +39,15 @@ class TFTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
     """
-    :class:`.DataType` implementation for `tensorflow.Tensor` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `tensorflow.Tensor` objects in data
-    :param dtype: data type of `tensorflow.Tensor` objects in data
+    DataType implementation for `tensorflow.Tensor`
     """
 
     type: ClassVar[str] = "tf_tensor"
     valid_types: ClassVar = (tf.Tensor,)
     shape: Tuple[Optional[int], ...]
+    """shape of `tensorflow.Tensor` objects in data"""
     dtype: str
+    """data type of `tensorflow.Tensor` objects in data"""
 
     @property
     def tf_type(self):

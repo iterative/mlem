@@ -53,6 +53,7 @@ def load_entrypoints(domain: str = MLEM_ENTRY_POINT) -> Dict[str, Entrypoint]:
 def list_implementations(
     base_class: Union[str, Type[MlemABC]],
     meta_subtype: Union[str, Type["MlemObject"]] = None,
+    include_hidden: bool = True,
 ) -> List[str]:
     from mlem.core.objects import MlemObject
 
@@ -77,7 +78,7 @@ def list_implementations(
         if e.abs_name == abs_name and e.name is not None
     }
     eps.update(base_class.non_abstract_subtypes())
-    return list(eps)
+    return [e for e in eps if include_hidden or not e.startswith("_")]
 
 
 def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
