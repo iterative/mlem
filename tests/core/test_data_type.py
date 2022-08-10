@@ -5,6 +5,7 @@ import pytest
 from pydantic import parse_obj_as
 from pytest_lazyfixture import lazy_fixture
 
+from mlem.core.artifacts import Artifact
 from mlem.core.data_type import (
     ArrayReader,
     ArrayType,
@@ -650,3 +651,20 @@ def test_dict_source_int_and_str_types(d_value):
     assert artifacts["1/data"].uri.endswith("data/1")
     assert artifacts["2/data"].uri.endswith("data/2")
     assert artifacts["3/1/data"].uri.endswith("data/3/1")
+
+
+def test_empty_nested_dict():
+    data = {"a": 1, "b": {}}
+
+    data_type = DataType.create(data)
+
+    artifacts = data_write_read_check(
+        data_type,
+        reader_type=DictReader,
+    )
+
+    assert all(isinstance(v, Artifact) for v in artifacts.values()), {
+        k: type(v) for k, v in artifacts.items()
+    }
+    assert list(artifacts.keys()) == ["a/data"]
+    assert artifacts["a/data"].uri.endswith("data/a")
