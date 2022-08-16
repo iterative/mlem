@@ -589,9 +589,11 @@ class DictWriter(DataWriter):
             )
             res[str(key)] = art
             readers[key] = dtype_reader
-        return DictReader(data_type=data, item_readers=readers), dict(
-            flatdict.FlatterDict(res, delimiter="/")
-        )
+        return DictReader(data_type=data, item_readers=readers), {
+            k: v
+            for k, v in dict(flatdict.FlatterDict(res, delimiter="/")).items()
+            if v
+        }
 
 
 class DictReader(DataReader):
@@ -603,7 +605,7 @@ class DictReader(DataReader):
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         data_dict = {}
         for (key, dtype_reader) in self.item_readers.items():
-            v_data_type = dtype_reader.read(artifacts[str(key)])  # type: ignore
+            v_data_type = dtype_reader.read(artifacts.get(str(key), {}))  # type: ignore[arg-type]
             data_dict[key] = v_data_type.data
         return self.data_type.copy().bind(data_dict)
 
