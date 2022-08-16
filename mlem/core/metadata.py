@@ -4,7 +4,7 @@ searching for MLEM object by given path.
 """
 import logging
 import posixpath
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
+from typing import Any, Dict, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
@@ -25,22 +25,19 @@ logger = logging.getLogger(__name__)
 def get_object_metadata(
     obj: Any,
     sample_data=None,
-    description: str = None,
     params: Dict[str, str] = None,
-    labels: List[str] = None,
 ) -> Union[MlemData, MlemModel]:
     """Convert given object to appropriate MlemObject subclass"""
     try:
         return MlemData.from_data(
-            obj, description=description, params=params, labels=labels
+            obj,
+            params=params,
         )
     except HookNotFound:
         return MlemModel.from_obj(
             obj,
             sample_data=sample_data,
-            description=description,
             params=params,
-            labels=labels,
         )
 
 
@@ -52,10 +49,7 @@ def save(
     fs: Union[str, AbstractFileSystem] = None,
     index: bool = None,
     external: Optional[bool] = None,
-    description: str = None,
     params: Dict[str, str] = None,
-    labels: List[str] = None,
-    update: bool = False,
 ) -> MlemObject:
     """Saves given object to a given path
 
@@ -70,31 +64,15 @@ def save(
         fs: FileSystem for the `path` argument
         index: Whether to add object to mlem project index
         external: if obj is saved to project, whether to put it outside of .mlem dir
-        description: description for object
         params: arbitrary params for object
-        labels: labels for object
-        update: whether to keep old description/labels/params if new values were not provided
 
     Returns:
         None
     """
-    if update and (description is None or params is None or labels is None):
-        try:
-            old_meta = load_meta(
-                path, project=project, fs=fs, load_value=False
-            )
-            description = description or old_meta.description
-            params = params or old_meta.params
-            labels = labels or old_meta.labels
-        except MlemObjectNotFound:
-            logger.warning(
-                "Saving with update=True, but no existing object found at %s %s %s",
-                project,
-                path,
-                fs,
-            )
     meta = get_object_metadata(
-        obj, sample_data, description=description, params=params, labels=labels
+        obj,
+        sample_data,
+        params=params,
     )
     meta.dump(path, fs=fs, project=project, index=index, external=external)
     return meta

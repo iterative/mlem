@@ -83,8 +83,6 @@ def main():
         rf,
         "rf",
         sample_data=data,
-        labels=["random-forest", "classifier"],
-        description="Random Forest Classifier",
     )
 
 if __name__ == "__main__":
@@ -108,10 +106,6 @@ artifacts:
     hash: ea4f1bf769414fdacc2075ef9de73be5
     size: 163651
     uri: rf
-description: Random Forest Classifier
-labels:
-- random-forest
-- classifier
 model_type:
   methods:
     predict:
