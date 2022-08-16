@@ -1,4 +1,6 @@
-from typing import ClassVar, Optional
+from typing import ClassVar, List, Optional
+
+import pytest
 
 from mlem.contrib.docker import DockerImageBuilder
 from mlem.contrib.fastapi import FastAPIServer
@@ -64,3 +66,20 @@ def test_build_with_replace():
     )
     assert isinstance(res, MockMlemABC)
     assert isinstance(res.server, FastAPIServer)
+
+
+class MockMlemABCList(MlemABC):
+    abs_name: ClassVar = "mock_list"
+    values: List[str]
+
+
+@pytest.mark.xfail
+def test_build_with_list():
+    res = build_mlem_object(
+        MockMlemABCList,
+        "mock_list",
+        ["values.0=a", "values.1=b"],
+    )
+    assert isinstance(res, MockMlemABCList)
+    assert isinstance(res.values, list)
+    assert res.values == ["a", "b"]

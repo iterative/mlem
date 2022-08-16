@@ -4,13 +4,8 @@ from typing import List, Optional, Type
 
 from typer import Argument, Option
 
-from mlem.cli.main import (
-    Choices,
-    mlem_command,
-    option_json,
-    option_project,
-    option_rev,
-)
+from mlem.cli.main import mlem_command, option_json, option_project, option_rev
+from mlem.cli.utils import Choices
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
 from mlem.ui import echo, set_echo

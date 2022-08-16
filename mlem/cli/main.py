@@ -1,11 +1,17 @@
-import contextlib
 import logging
-import typing as t
 from collections import defaultdict
-from enum import Enum, EnumMeta
 from functools import partial, wraps
 from gettext import gettext
-from typing import List, Optional, Tuple, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import typer
 from click import (
@@ -17,23 +23,16 @@ from click import (
     pass_context,
 )
 from click.exceptions import Exit
-from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
-from pydantic.error_wrappers import ErrorWrapper
-from pydantic.typing import get_args
-from simple_parsing.docstring import get_attribute_docstring
+from pydantic import ValidationError
 from typer import Context, Option, Typer
-from typer.core import TyperCommand, TyperGroup, TyperOption
-from yaml import safe_load
+from typer.core import TyperCommand, TyperGroup
 
 from mlem import LOCAL_CONFIG, version
+from mlem.cli.utils import _extract_examples, _format_validation_error
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
-from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
-from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemObject
 from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
-from mlem.utils.entrypoints import list_implementations
 
 
 class MlemFormatter(HelpFormatter):
@@ -56,7 +55,7 @@ class MlemMixin(Command):
         self.aliases = aliases
         self.rich_help_panel = section.capitalize()
 
-    def collect_usage_pieces(self, ctx: Context) -> t.List[str]:
+    def collect_usage_pieces(self, ctx: Context) -> List[str]:
         return [p.lower() for p in super().collect_usage_pieces(ctx)]
 
     def get_help(self, ctx: Context) -> str:
@@ -87,9 +86,7 @@ class MlemCommand(
         section: str = "other",
         aliases: List[str] = None,
         help: Optional[str] = None,
-        dynamic_options_generator: t.Callable[
-            [], t.Iterable[Parameter]
-        ] = None,
+        dynamic_options_generator: Callable[[], Iterable[Parameter]] = None,
         dynamic_metavar: str = None,
         **kwargs,
     ):
@@ -124,14 +121,14 @@ class MlemGroup(MlemMixin, TyperGroup):
 
     def __init__(
         self,
-        name: t.Optional[str] = None,
-        commands: t.Optional[
-            t.Union[t.Dict[str, Command], t.Sequence[Command]]
+        name: Optional[str] = None,
+        commands: Optional[
+            Union[Dict[str, Command], Sequence[Command]]
         ] = None,
         section: str = "other",
         aliases: List[str] = None,
         help: str = None,
-        **attrs: t.Any,
+        **attrs: Any,
     ) -> None:
         examples, help = _extract_examples(help)
         super().__init__(
@@ -181,7 +178,7 @@ class MlemGroup(MlemMixin, TyperGroup):
                     ):
                         formatter.write_dl(sections[section])
 
-    def get_command(self, ctx: Context, cmd_name: str) -> t.Optional[Command]:
+    def get_command(self, ctx: Context, cmd_name: str) -> Optional[Command]:
         cmd = super().get_command(ctx, cmd_name)
         if cmd is not None:
             return cmd
@@ -202,135 +199,6 @@ def mlem_group(section, aliases: Optional[List[str]] = None):
             super().__init__(*args, section=section, aliases=aliases, **kwargs)
 
     return MlemGroupSection
-
-
-class ChoicesMeta(EnumMeta):
-    def __call__(cls, *names, module=None, qualname=None, type=None, start=1):
-        if len(names) == 1:
-            return super().__call__(names[0])
-        return super().__call__(
-            "Choice",
-            names,
-            module=module,
-            qualname=qualname,
-            type=type,
-            start=start,
-        )
-
-
-class Choices(str, Enum, metaclass=ChoicesMeta):
-    def _generate_next_value_(  # pylint: disable=no-self-argument
-        name, start, count, last_values
-    ):
-        return name
-
-
-class CliTypeField(BaseModel):
-    required: bool
-    path: str
-    type_: Type
-    help: str
-    default: t.Any
-
-    def to_text(self):
-        req = (
-            color("[required]", "")
-            if self.required
-            else color("[not required]", "white")
-        )
-        if not self.required:
-            default = self.default
-            if isinstance(default, str):
-                default = f'"{default}"'
-            default = f" = {default}"
-        else:
-            default = ""
-        return (
-            req
-            + " "
-            + color(self.path, "green")
-            + ": "
-            + str(self.type_.__name__)
-            + default
-            + "\n\t"
-            + self.help
-        )
-
-
-def get_field_help(cls: Type, field_name: str):
-    return (
-        get_attribute_docstring(cls, field_name).docstring_below
-        or "Field docstring missing"
-    )
-
-
-def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
-    for name, field in sorted(
-        cls.__fields__.items(), key=lambda x: not x[1].required
-    ):
-        name = field.alias or name
-        if issubclass(cls, MlemObject) and name in MlemObject.__fields__:
-            continue
-        if issubclass(cls, MlemABC) and name in cls.__config__.exclude:
-            continue
-        fullname = name if not prefix else f"{prefix}.{name}"
-
-        req = field.required and not force_not_req
-        default = field.default
-        docstring = get_field_help(cls, name)
-        field_type = field.type_
-        if not isinstance(field_type, type):
-            # typing.GenericAlias
-            generic_args = get_args(field_type)
-            if len(generic_args) > 0:
-                field_type = field_type.__args__[0]
-            else:
-                field_type = object
-        if (
-            isinstance(field_type, type)
-            and issubclass(field_type, MlemABC)
-            and field_type.__is_root__
-        ):
-            if isinstance(default, field_type):
-                default = default.__get_alias__()
-            yield CliTypeField(
-                required=req,
-                path=fullname,
-                type_=str,
-                help=f"{docstring}. One of {list_implementations(field_type)}. Run 'mlem types {field_type.abs_name} <subtype>' for list of nested fields for each subtype",
-                default=default,
-            )
-        elif isinstance(field_type, type) and issubclass(
-            field_type, BaseModel
-        ):
-            yield from iterate_type_fields(
-                field_type, fullname, not field.required
-            )
-        else:
-            yield CliTypeField(
-                required=req,
-                path=fullname,
-                type_=field_type,
-                default=default,
-                help=docstring,
-            )
-
-
-def abc_fields_parameters(cls: Type[MlemABC]):
-    def generator():
-        for field in iterate_type_fields(cls):
-            option = TyperOption(
-                param_decls=[f"--{field.path}", field.path.replace(".", "_")],
-                type=field.type_,
-                required=field.required,
-                default=field.default,
-                help=field.help,
-                show_default=True,
-            )
-            option.name = field.path
-            yield option
-
-    return generator
 
 
 app = Typer(
@@ -376,18 +244,6 @@ def mlem_callback(
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
     ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
-
-
-def _extract_examples(
-    help_str: Optional[str],
-) -> Tuple[Optional[str], Optional[str]]:
-    if help_str is None:
-        return None, None
-    try:
-        examples = help_str.index("Examples:")
-    except ValueError:
-        return None, help_str
-    return help_str[examples + len("Examples:") + 1 :], help_str[:examples]
 
 
 def mlem_command(
@@ -537,83 +393,3 @@ def option_file_conf(type_: str = None):
         "--file_conf",
         help=f"File with options {type_}in format `field.name=path_to_config`",
     )
-
-
-def _iter_errors(
-    errors: t.Sequence[t.Any], model: Type, loc: Optional[Tuple] = None
-):
-    for error in errors:
-        if isinstance(error, ErrorWrapper):
-
-            if loc:
-                error_loc = loc + error.loc_tuple()
-            else:
-                error_loc = error.loc_tuple()
-
-            if isinstance(error.exc, ValidationError):
-                yield from _iter_errors(
-                    error.exc.raw_errors, error.exc.model, error_loc
-                )
-            else:
-                yield error_loc, model, error.exc
-
-
-def _format_validation_error(error: ValidationError) -> List[str]:
-    res = []
-    for loc, model, exc in _iter_errors(error.raw_errors, error.model):
-        path = ".".join(loc_part for loc_part in loc if loc_part != "__root__")
-        field_type = model.__fields__[loc[-1]].type_
-        if (
-            isinstance(exc, MissingError)
-            and isinstance(field_type, type)
-            and issubclass(field_type, BaseModel)
-        ):
-            msgs = [
-                str(EMOJI_FAIL + f"field `{path}.{f.name}`: {exc}")
-                for f in field_type.__fields__.values()
-                if f.required
-            ]
-            if msgs:
-                res.extend(msgs)
-            else:
-                res.append(str(EMOJI_FAIL + f"field `{path}`: {exc}"))
-        else:
-            res.append(str(EMOJI_FAIL + f"field `{path}`: {exc}"))
-    return res
-
-
-@contextlib.contextmanager
-def wrap_build_error(subtype, model: Type[MlemABC]):
-    try:
-        yield
-    except ValidationError as e:
-        msgs = "\n".join(_format_validation_error(e))
-        raise typer.BadParameter(
-            f"Error on constructing {subtype} {model.abs_name}:\n{msgs}"
-        ) from e
-
-
-def config_arg(
-    model: Type[MlemABC],
-    load: Optional[str],
-    subtype: str,
-    conf: Optional[List[str]],
-    file_conf: Optional[List[str]],
-    **kwargs,
-):
-    obj: MlemABC
-    if load is not None:
-        if issubclass(model, MlemObject):
-            obj = load_meta(load, force_type=model)
-        else:
-            with open(load, "r", encoding="utf8") as of:
-                obj = parse_obj_as(model, safe_load(of))
-    else:
-        if not subtype:
-            raise typer.BadParameter(
-                f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
-            )
-        with wrap_build_error(subtype, model):
-            obj = build_mlem_object(model, subtype, conf, file_conf, kwargs)
-
-    return obj

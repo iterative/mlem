@@ -5,9 +5,7 @@ from typer import Argument, Option, Typer
 
 from mlem.api import import_object
 from mlem.cli.main import (
-    abc_fields_parameters,
     app,
-    config_arg,
     mlem_command,
     mlem_group,
     option_conf,
@@ -23,6 +21,7 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
+from mlem.cli.utils import abc_fields_parameters, config_arg
 from mlem.core.base import load_impl_ext
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading

@@ -6,7 +6,6 @@ from ..core.base import MlemABC, build_mlem_object, load_impl_ext
 from ..core.objects import MlemObject
 from ..utils.entrypoints import list_implementations
 from .main import (
-    abc_fields_parameters,
     app,
     mlem_command,
     mlem_group,
@@ -14,8 +13,8 @@ from .main import (
     option_external,
     option_index,
     option_project,
-    wrap_build_error,
 )
+from .utils import abc_fields_parameters, wrap_build_error
 
 declare = Typer(
     name="declare",

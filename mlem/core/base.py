@@ -168,13 +168,13 @@ def get_recursively(obj: dict, keys: List[str]):
     return get_recursively(obj[key], keys)
 
 
-def smart_split(string: str, char: str, maxsplit: int = None):
+def smart_split(value: str, char: str, maxsplit: int = None):
     SPECIAL = "\0"
     if char != " ":
-        string = string.replace(" ", SPECIAL).replace(char, " ")
+        value = value.replace(" ", SPECIAL).replace(char, " ")
     res = [
         s.replace(" ", char).replace(SPECIAL, " ")
-        for s in shlex.split(string, posix=True)
+        for s in shlex.split(value, posix=True)
     ]
     if maxsplit is None:
         return res

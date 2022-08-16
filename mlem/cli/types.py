@@ -3,7 +3,8 @@ from typing import Optional, Type
 from pydantic import BaseModel
 from typer import Argument
 
-from mlem.cli.main import iterate_type_fields, mlem_command
+from mlem.cli.main import mlem_command
+from mlem.cli.utils import iterate_type_fields
 from mlem.core.base import MlemABC, load_impl_ext
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_BASE, bold, color, echo
@@ -24,7 +25,7 @@ def explain_type(cls: Type[BaseModel]):
             color("MlemObject type name: ", "")
             + color(cls.object_type, "green")
         )
-    echo(cls.__doc__.strip() or "Class docstring missing")
+    echo((cls.__doc__ or "Class docstring missing").strip())
     fields = list(iterate_type_fields(cls))
     if not fields:
         echo("No fields")

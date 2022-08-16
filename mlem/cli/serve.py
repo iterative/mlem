@@ -3,9 +3,7 @@ from typing import List, Optional
 from typer import Argument, Typer
 
 from mlem.cli.main import (
-    abc_fields_parameters,
     app,
-    config_arg,
     mlem_command,
     mlem_group,
     option_conf,
@@ -14,6 +12,7 @@ from mlem.cli.main import (
     option_project,
     option_rev,
 )
+from mlem.cli.utils import abc_fields_parameters, config_arg
 from mlem.core.base import load_impl_ext
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
