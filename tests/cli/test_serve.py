@@ -8,6 +8,8 @@ from tests.cli.conftest import Runner
 
 
 class MockServer(Server):
+    """mock"""
+
     type: ClassVar = "mock"
     param: str = "wrong"
 

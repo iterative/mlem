@@ -8,6 +8,8 @@ from tests.cli.conftest import Runner
 
 
 class BuilderMock(MlemBuilder):
+    """mock"""
+
     type: ClassVar = "mock"
     target: str
 

@@ -57,7 +57,7 @@ def list_types(
         for at in MlemABC.abs_types.values():
             echo(EMOJI_BASE + bold(at.abs_name) + ":")
             echo(
-                f"\tBase class: {at.__module__}.{at.__name__}\n\t{at.__doc__.strip()}"
+                f"\tBase class: {at.__module__}.{at.__name__}\n\t{(at.__doc__ or 'Class docstring missing').strip()}"
             )
     elif abc == MlemObject.abs_name:
         if sub_type is None:
