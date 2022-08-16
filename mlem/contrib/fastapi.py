@@ -34,6 +34,8 @@ def _create_schema_route(app: FastAPI, interface: Interface):
 
 
 class FastAPIServer(Server, LibRequirementsMixin):
+    """Serves model with http"""
+
     libraries: ClassVar[List[ModuleType]] = [uvicorn, fastapi]
     type: ClassVar[str] = "fastapi"
 

@@ -450,6 +450,8 @@ class DockerEnv(MlemEnv[DockerContainer]):
 
 
 class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
+    """Create a directory with docker context to build docker image"""
+
     type: ClassVar[str] = "docker_dir"
     target: str
 
@@ -466,6 +468,8 @@ class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
 
 
 class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
+    """Build docker image from model"""
+
     type: ClassVar[str] = "docker"
     image: DockerImage
     env: DockerEnv = DockerEnv()

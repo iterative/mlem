@@ -52,6 +52,7 @@ def create_declare_subcommand(
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(subtype_cls),
         hidden=subtype.startswith("_"),
+        help=subtype_cls.__doc__,
     )
     def subtype_command(
         path: str = Argument(..., help="Where to save object"),

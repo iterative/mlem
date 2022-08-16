@@ -122,7 +122,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     return {
         MLEM_ENTRY_POINT: [
             f"{obj.abs_name}.{obj.__get_alias__()} = {name}"
-            if not obj.__is_root__ or not hasattr(obj, obj.__type_field__())
+            if not obj.__is_root__ or hasattr(obj, obj.__type_field__())
             else f"{obj.abs_name} = {name}"
             for obj, name in impls.items()
         ]

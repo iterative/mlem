@@ -86,6 +86,8 @@ class PipMixin(SetupTemplate):
 
 
 class PipBuilder(MlemBuilder, PipMixin):
+    """Create a directory python package"""
+
     type: ClassVar = "pip"
     target: str
 
@@ -95,6 +97,8 @@ class PipBuilder(MlemBuilder, PipMixin):
 
 
 class WhlBuilder(MlemBuilder, PipMixin):
+    """Create a wheel with python package"""
+
     type: ClassVar = "whl"
     target: str
 

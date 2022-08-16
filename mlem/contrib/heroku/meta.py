@@ -51,6 +51,8 @@ class HerokuState(DeployState):
 
 
 class HerokuDeployment(MlemDeployment):
+    """Heroku App"""
+
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
     app_name: str
@@ -60,6 +62,8 @@ class HerokuDeployment(MlemDeployment):
 
 
 class HerokuEnv(MlemEnv[HerokuDeployment]):
+    """Heroku Account"""
+
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeployment
     api_key: Optional[str] = None

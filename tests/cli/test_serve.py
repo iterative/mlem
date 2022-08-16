@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from mlem.cli.serve import create_serve
 from mlem.runtime import Interface
 from mlem.runtime.server import Server
 from mlem.ui import echo
@@ -14,7 +15,10 @@ class MockServer(Server):
         echo(self.param)
 
 
+create_serve(MockServer.type, MockServer)
+
+
 def test_serve(runner: Runner, model_single_path):
-    result = runner.invoke(f"serve {model_single_path} mock -c param=aaa")
+    result = runner.invoke(f"serve mock {model_single_path} --param aaa")
     assert result.exit_code == 0, result.exception
     assert result.output.splitlines()[-1] == "aaa"

@@ -249,7 +249,7 @@ class DockerModelDirectory(BaseModel):
 
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
-            sh.write(f"mlem serve {self.model_name} {self.server.type}")
+            sh.write(f"mlem serve {self.server.type} {self.model_name}")
 
     def _build_local_mlem_wheel(self):
         mlem_src_path = os.path.dirname(os.path.dirname(mlem.__file__))

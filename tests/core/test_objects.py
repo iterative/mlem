@@ -13,7 +13,7 @@ from mlem.core.artifacts import Artifacts, LocalArtifact, Storage
 from mlem.core.errors import MlemProjectNotFound, WrongRequirementsError
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load, load_meta
-from mlem.core.model import ModelIO
+from mlem.core.model import ModelIO, ModelType
 from mlem.core.objects import (
     DeployState,
     MlemDeployment,
@@ -426,11 +426,16 @@ def test_remove_old_artifacts(model, tmpdir, train):
     load(path).predict(train)
 
 
+class MockModelType(ModelType):
+    io: ModelIO = MockModelIO(filename="")
+
+
 def test_checkenv():
     model = MlemModel(
         requirements=Requirements.new(
             InstallableRequirement(module="pytest", version=pytest.__version__)
-        )
+        ),
+        model_type=MockModelType(methods={}),
     )
 
     model.checkenv()

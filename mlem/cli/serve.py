@@ -40,6 +40,7 @@ def create_serve(type_name, cls):
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(cls),
         hidden=type_name.startswith("_"),
+        help=cls.__doc__,
     )
     def serve_command(
         model: str = Argument(..., help="Model to create service from"),

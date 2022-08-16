@@ -44,6 +44,8 @@ class RabbitMQMixin(BaseModel):
 
 
 class RabbitMQServer(Server, RabbitMQMixin):
+    """RMQ server that consumes requests and produces model predictions from/to RMQ instance"""
+
     type: ClassVar = "rmq"
 
     def _create_handler(
@@ -96,6 +98,8 @@ class RabbitMQServer(Server, RabbitMQMixin):
 
 
 class RabbitMQClient(Client, RabbitMQMixin):
+    """Access models served with rmq server"""
+
     type: ClassVar = "rmq"
     timeout: float = 0
 

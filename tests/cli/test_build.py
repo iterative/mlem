@@ -1,6 +1,7 @@
 import os.path
 from typing import ClassVar
 
+from mlem.cli.build import create_build_command
 from mlem.core.objects import MlemBuilder, MlemModel
 from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
@@ -15,10 +16,13 @@ class BuilderMock(MlemBuilder):
             f.write(obj.loc.path)
 
 
+create_build_command(BuilderMock.type, BuilderMock)
+
+
 def test_build(runner: Runner, model_meta_saved_single, tmp_path):
     path = os.path.join(tmp_path, "packed")
     result = runner.invoke(
-        f"build {make_posix(model_meta_saved_single.loc.uri)} -c target={make_posix(path)} mock"
+        f"build mock {make_posix(model_meta_saved_single.loc.uri)} --target {make_posix(path)}"
     )
 
     assert result.exit_code == 0, (result.exception, result.output)
