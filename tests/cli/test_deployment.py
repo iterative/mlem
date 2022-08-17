@@ -27,21 +27,30 @@ def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
 
 
 class DeployStateMock(DeployState):
+    """mock"""
+
     def get_client(self) -> Client:
         pass
 
 
 class MlemDeploymentMock(MlemDeployment):
+    """mock"""
+
     class Config:
         use_enum_values = True
 
     type: ClassVar = "mock"
     status: DeployStatus = DeployStatus.NOT_DEPLOYED
+    """status"""
     param: str = ""
+    """param"""
     state: DeployState = DeployStateMock()
+    """state"""
 
 
 class MlemEnvMock(MlemEnv):
+    """mock"""
+
     type: ClassVar = "mock"
     deploy_type: ClassVar = MlemDeploymentMock
 

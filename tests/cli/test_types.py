@@ -67,7 +67,7 @@ def test_iter_type_fields_subclass_multiinheritance():
         """parent"""
 
     class Parent2(BaseModel):
-        parent2: str
+        parent2 = ""
         """parent2"""
 
     class Child(Parent, Parent2):

@@ -46,7 +46,7 @@ class SetupTemplate(TemplateModel):
     def validate_python_version(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
-        return f"=={value}" if value[0] in "0123456789" else value
+        return f"=={value}" if value and value[0] in "0123456789" else value
 
 
 class SourceTemplate(TemplateModel):

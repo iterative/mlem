@@ -53,11 +53,12 @@ def test_build_with_replace():
     res = build_mlem_object(
         MockMlemABC,
         "mock",
-        ["server=fastapi", "server.port=8081"],
+        ["server=fastapi", "server.port=8081", "server.host=localhost"],
     )
     assert isinstance(res, MockMlemABC)
     assert isinstance(res.server, FastAPIServer)
     assert res.server.port == 8081
+    assert res.server.host == "localhost"
 
     res = build_mlem_object(
         MockMlemABC,
@@ -66,6 +67,20 @@ def test_build_with_replace():
     )
     assert isinstance(res, MockMlemABC)
     assert isinstance(res.server, FastAPIServer)
+
+    res = build_mlem_object(
+        MockMlemABC,
+        "mock",
+        conf={
+            "server": "fastapi",
+            "server.port": 8081,
+            "server.host": "localhost",
+        },
+    )
+    assert isinstance(res, MockMlemABC)
+    assert isinstance(res.server, FastAPIServer)
+    assert res.server.port == 8081
+    assert res.server.host == "localhost"
 
 
 class MockMlemABCList(MlemABC):

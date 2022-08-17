@@ -12,6 +12,7 @@ class MockServer(Server):
 
     type: ClassVar = "mock"
     param: str = "wrong"
+    """param"""
 
     def serve(self, interface: Interface):
         echo(self.param)

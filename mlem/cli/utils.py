@@ -1,6 +1,9 @@
+import ast
 import contextlib
+import inspect
 from enum import Enum, EnumMeta
-from typing import Any, List, Optional, Sequence, Tuple, Type
+from functools import lru_cache
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 
 import typer
 from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
@@ -14,16 +17,17 @@ from pydantic.fields import (
     SHAPE_TUPLE_ELLIPSIS,
 )
 from pydantic.typing import get_args
-from simple_parsing.docstring import get_attribute_docstring
 from typer.core import TyperOption
 from yaml import safe_load
 
+from mlem import LOCAL_CONFIG
 from mlem.core.base import MlemABC, build_mlem_object, load_impl_ext
 from mlem.core.errors import ExtensionRequirementError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_FAIL, color
 from mlem.utils.entrypoints import list_implementations
+from mlem.utils.module import lstrip_lines
 
 LIST_LIKE_SHAPES = (
     SHAPE_LIST,
@@ -99,11 +103,43 @@ class CliTypeField(BaseModel):
         )
 
 
+@lru_cache()
+def get_attribute_docstrings(cls) -> Dict[str, str]:
+    res = {}
+    tree = ast.parse(lstrip_lines(inspect.getsource(cls)))
+    class_def = tree.body[0]
+    assert isinstance(class_def, ast.ClassDef)
+    field: Optional[str] = None
+    for statement in class_def.body:
+        if isinstance(statement, ast.AnnAssign) and isinstance(
+            statement.target, ast.Name
+        ):
+            field = statement.target.id
+            continue
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+        ):
+            field = statement.targets[0].id
+            continue
+        if (
+            field is not None
+            and isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Constant)
+            and isinstance(statement.value.value, str)
+        ):
+            res[field] = statement.value.value
+        field = None
+    return res
+
+
+@lru_cache()
 def get_field_help(cls: Type, field_name: str):
     for base_cls in cls.mro():
-        docsting = get_attribute_docstring(
-            base_cls, field_name
-        ).docstring_below
+        if base_cls is object:
+            continue
+        docsting = get_attribute_docstrings(base_cls).get(field_name)
         if docsting:
             return docsting
     return "Field docstring missing"
@@ -174,24 +210,40 @@ def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
             )
 
 
+def _options_from_cls(cls: Type[MlemABC], params: Dict, prefix=""):
+    for field in iterate_type_fields(cls, prefix=prefix):
+        type_ = field.type_
+        if issubclass(type_, MlemABC) and type_.__is_root__:
+            if field.path in params:
+                yield from _options_from_cls(
+                    load_impl_ext(type_.abs_name, params[field.path]),
+                    params,
+                    field.path,
+                )
+            type_ = str
+        if type_ is object:
+            # TODO: dicts and lists
+            continue
+        option = TyperOption(
+            param_decls=[f"--{field.path}", field.path.replace(".", "_")],
+            type=type_,
+            required=field.required,
+            default=field.default,
+            help=field.help,
+            show_default=not field.required,
+            multiple=field.is_list,
+        )
+        option.name = field.path
+        yield option
+
+
 def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
-    def generator():
+    def generator(params: Dict):
         try:
             cls = load_impl_ext(mlem_abc.abs_name, type_name=type_name)
         except ImportError:
             return
-        for field in iterate_type_fields(cls):
-            option = TyperOption(
-                param_decls=[f"--{field.path}", field.path.replace(".", "_")],
-                type=field.type_,
-                required=field.required,
-                default=field.default,
-                help=field.help,
-                show_default=True,
-                multiple=field.is_list,
-            )
-            option.name = field.path
-            yield option
+        yield from _options_from_cls(cls, params)
 
     return generator
 
@@ -263,6 +315,8 @@ def wrap_build_error(subtype, model: Type[MlemABC]):
     try:
         yield
     except ValidationError as e:
+        if LOCAL_CONFIG.DEBUG:
+            raise
         msgs = "\n".join(_format_validation_error(e))
         raise typer.BadParameter(
             f"Error on constructing {subtype} {model.abs_name}:\n{msgs}"

@@ -86,7 +86,9 @@ class MlemCommand(
         section: str = "other",
         aliases: List[str] = None,
         help: Optional[str] = None,
-        dynamic_options_generator: Callable[[], Iterable[Parameter]] = None,
+        dynamic_options_generator: Callable[
+            [Dict], Iterable[Parameter]
+        ] = None,
         dynamic_metavar: str = None,
         lazy_help: Optional[Callable[[], str]] = None,
         **kwargs,
@@ -105,9 +107,30 @@ class MlemCommand(
             **kwargs,
         )
 
+    def make_context(
+        self,
+        info_name: Optional[str],
+        args: List[str],
+        parent: Optional[Context] = None,
+        **extra: Any,
+    ) -> Context:
+        args_copy = args[:]
+        ctx = super().make_context(info_name, args, parent, **extra)
+        if not self.dynamic_options_generator:
+            return ctx
+        extra_args = ctx.args
+        while extra_args:
+            with ctx.scope(cleanup=False):
+                self.parse_args(ctx, args_copy)
+            if ctx.args == extra_args:
+                break
+            extra_args = ctx.args
+
+        return ctx
+
     def get_params(self, ctx) -> List["Parameter"]:
         res: List[Parameter] = (
-            list(self.dynamic_options_generator())
+            list(self.dynamic_options_generator(ctx.params))
             if self.dynamic_options_generator is not None
             else []
         )
@@ -269,6 +292,7 @@ def mlem_command(
     dynamic_metavar=None,
     dynamic_options_generator=None,
     lazy_help=None,
+    pass_ctx: bool = False,
     **kwargs,
 ):
     def decorator(f):
@@ -276,10 +300,16 @@ def mlem_command(
             cmd_name = args[0]
         else:
             cmd_name = kwargs.get("name", f.__name__)
+        context_settings = kwargs.get("context_settings", {})
+        if dynamic_options_generator:
+            context_settings.update(
+                {"allow_extra_args": True, "ignore_unknown_options": True}
+            )
 
         @parent.command(
             *args,
             options_metavar=options_metavar,
+            context_settings=context_settings,
             **kwargs,
             cls=partial(
                 mlem_cls or MlemCommand,
@@ -296,6 +326,8 @@ def mlem_command(
             res = {}
             error = None
             try:
+                if pass_ctx:
+                    iargs = (ctx,) + iargs
                 with cli_echo():
                     res = f(*iargs, **ikwargs) or {}
                 res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}

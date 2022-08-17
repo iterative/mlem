@@ -149,6 +149,9 @@ def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):
         if isinstance(old_value, dict) and isinstance(value, str):
             old_value[subkey] = value
             return
+        if isinstance(old_value, dict) and isinstance(value, dict):
+            old_value.update(value)
+            return
     obj[key] = value
 
 

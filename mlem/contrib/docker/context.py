@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
@@ -17,6 +18,7 @@ from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements, UnixPackageRequirement
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_PACK, echo, no_echo
+from mlem.utils.importing import import_from_path
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
 
@@ -73,7 +75,7 @@ class DockerBuildArgs(BaseModel):
        - `pre_install.j2` - Dockerfile commands to run before pip
        - `post_install.j2` - Dockerfile commands to run after pip
        - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy"""
-    run_cmd: Union[bool, str] = "sh run.sh"
+    run_cmd: str = "sh run.sh"
     """command to run in container"""
     package_install_cmd: str = "apt-get install -y"
     """command to install packages. Default is apt-get, change it for other package manager"""
@@ -182,7 +184,12 @@ class DockerModelDirectory(BaseModel):
             ):  # TODO: https://github.com/iterative/mlem/issues/39
                 cwd = os.getcwd()
                 try:
-                    from setup import setup_args  # only for development
+                    # only for development
+                    setup_mod = import_from_path(
+                        "setup",
+                        str(Path(mlem.__file__).parent.parent / "setup.py"),
+                    )
+                    setup_args = setup_mod.setup_args
 
                     requirements += list(setup_args["install_requires"])
                     logger.debug(
