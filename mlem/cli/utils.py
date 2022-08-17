@@ -123,13 +123,13 @@ def get_attribute_docstrings(cls) -> Dict[str, str]:
         ):
             field = statement.targets[0].id
             continue
-        if (
-            field is not None
-            and isinstance(statement, ast.Expr)
-            and isinstance(statement.value, ast.Constant)
-            and isinstance(statement.value.value, str)
-        ):
-            res[field] = statement.value.value
+        if field is not None and isinstance(statement, ast.Expr):
+            if isinstance(statement.value, ast.Constant) and isinstance(
+                statement.value.value, str
+            ):
+                res[field] = statement.value.value
+            if isinstance(statement.value, ast.Str):
+                res[field] = statement.value.s
         field = None
     return res
 
