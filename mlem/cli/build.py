@@ -12,11 +12,14 @@ from mlem.cli.main import (
     option_project,
     option_rev,
 )
-from mlem.cli.utils import abc_fields_parameters, config_arg
-from mlem.core.base import load_impl_ext
+from mlem.cli.utils import (
+    abc_fields_parameters,
+    config_arg,
+    for_each_impl,
+    lazy_class_docstring,
+)
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemBuilder, MlemModel
-from mlem.utils.entrypoints import list_implementations
 
 build = Typer(
     name="build",
@@ -37,14 +40,18 @@ build = Typer(
 app.add_typer(build)
 
 
-def create_build_command(type_name, cls):
+@for_each_impl(MlemBuilder)
+def create_build_command(type_name):
     @mlem_command(
         type_name,
         section="builders",
         parent=build,
         dynamic_metavar="__kwargs__",
-        dynamic_options_generator=abc_fields_parameters(cls),
+        dynamic_options_generator=abc_fields_parameters(
+            type_name, MlemBuilder
+        ),
         hidden=type_name.startswith("_"),
+        lazy_help=lazy_class_docstring(MlemBuilder.abs_name, type_name),
     )
     def build_type(
         model: str = Argument(..., help="Path to model"),
@@ -63,18 +70,3 @@ def create_build_command(type_name, cls):
             ),
             load_meta(model, project, rev, force_type=MlemModel),
         )
-
-    build_type.__doc__ = cls.__doc__
-
-
-any_implementations = False
-for builder_type_name in list_implementations(MlemBuilder):
-    try:
-        builder_class = load_impl_ext(MlemBuilder.abs_name, builder_type_name)
-        create_build_command(builder_type_name, builder_class)
-        any_implementations = True
-    except ImportError:
-        pass
-
-if not any_implementations:
-    build.info.help += """\nNo available builder implementations :("""

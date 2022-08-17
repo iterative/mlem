@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from mlem.cli.serve import create_serve
+from mlem.cli.serve import create_serve_command
 from mlem.runtime import Interface
 from mlem.runtime.server import Server
 from mlem.ui import echo
@@ -17,7 +17,7 @@ class MockServer(Server):
         echo(self.param)
 
 
-create_serve(MockServer.type, MockServer)
+create_serve_command(MockServer.type)
 
 
 def test_serve(runner: Runner, model_single_path):

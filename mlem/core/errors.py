@@ -147,7 +147,7 @@ class UnknownConfigSection(MlemError):
         super().__init__(f'Unknown config section "{section}"')
 
 
-class ExtensionRequirementError(MlemError):
+class ExtensionRequirementError(MlemError, ImportError):
     def __init__(self, ext: str, reqs: List[str], extra: Optional[str]):
         self.ext = ext
         self.reqs = reqs

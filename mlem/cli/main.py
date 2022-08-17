@@ -88,11 +88,14 @@ class MlemCommand(
         help: Optional[str] = None,
         dynamic_options_generator: Callable[[], Iterable[Parameter]] = None,
         dynamic_metavar: str = None,
+        lazy_help: Optional[Callable[[], str]] = None,
         **kwargs,
     ):
         self.dynamic_metavar = dynamic_metavar
         self.dynamic_options_generator = dynamic_options_generator
         examples, help = _extract_examples(help)
+        self._help = help
+        self.lazy_help = lazy_help
         super().__init__(
             name=name,
             section=section,
@@ -114,6 +117,16 @@ class MlemCommand(
             if len(kw_param) > 0:
                 res.remove(kw_param[0])
         return res
+
+    @property
+    def help(self):
+        if self.lazy_help:
+            return self.lazy_help()
+        return self._help
+
+    @help.setter
+    def help(self, value):
+        self._help = value
 
 
 class MlemGroup(MlemMixin, TyperGroup):
@@ -255,6 +268,7 @@ def mlem_command(
     mlem_cls=None,
     dynamic_metavar=None,
     dynamic_options_generator=None,
+    lazy_help=None,
     **kwargs,
 ):
     def decorator(f):
@@ -273,6 +287,7 @@ def mlem_command(
                 aliases=aliases,
                 dynamic_options_generator=dynamic_options_generator,
                 dynamic_metavar=dynamic_metavar,
+                lazy_help=lazy_help,
             ),
         )
         @wraps(f)

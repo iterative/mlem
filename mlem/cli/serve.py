@@ -12,12 +12,15 @@ from mlem.cli.main import (
     option_project,
     option_rev,
 )
-from mlem.cli.utils import abc_fields_parameters, config_arg
-from mlem.core.base import load_impl_ext
+from mlem.cli.utils import (
+    abc_fields_parameters,
+    config_arg,
+    for_each_impl,
+    lazy_class_docstring,
+)
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
 from mlem.runtime.server import Server
-from mlem.utils.entrypoints import list_implementations
 
 serve = Typer(
     name="serve",
@@ -32,15 +35,16 @@ serve = Typer(
 app.add_typer(serve)
 
 
-def create_serve(type_name, cls):
+@for_each_impl(Server)
+def create_serve_command(type_name):
     @mlem_command(
         type_name,
         section="servers",
         parent=serve,
         dynamic_metavar="__kwargs__",
-        dynamic_options_generator=abc_fields_parameters(cls),
+        dynamic_options_generator=abc_fields_parameters(type_name, Server),
         hidden=type_name.startswith("_"),
-        help=cls.__doc__,
+        lazy_help=lazy_class_docstring(Server.abs_name, type_name),
     )
     def serve_command(
         model: str = Argument(..., help="Model to create service from"),
@@ -57,18 +61,3 @@ def create_serve(type_name, cls):
             load_meta(model, project, rev, force_type=MlemModel),
             config_arg(Server, load, type_name, conf, file_conf, **__kwargs__),
         )
-
-    serve_command.__doc__ = cls.__doc__
-
-
-any_implementations = False
-for server_type_name in list_implementations(Server):
-    try:
-        server_class = load_impl_ext(Server.abs_name, server_type_name)
-        create_serve(server_type_name, server_class)
-        any_implementations = True
-    except ImportError:
-        pass
-
-if not any_implementations:
-    serve.info.help += """\nNo available server implementations :("""

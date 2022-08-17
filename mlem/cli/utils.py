@@ -18,7 +18,8 @@ from simple_parsing.docstring import get_attribute_docstring
 from typer.core import TyperOption
 from yaml import safe_load
 
-from mlem.core.base import MlemABC, build_mlem_object
+from mlem.core.base import MlemABC, build_mlem_object, load_impl_ext
+from mlem.core.errors import ExtensionRequirementError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_FAIL, color
@@ -166,8 +167,12 @@ def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
             )
 
 
-def abc_fields_parameters(cls: Type[MlemABC]):
+def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
     def generator():
+        try:
+            cls = load_impl_ext(mlem_abc.abs_name, type_name=type_name)
+        except ImportError:
+            return
         for field in iterate_type_fields(cls):
             option = TyperOption(
                 param_decls=[f"--{field.path}", field.path.replace(".", "_")],
@@ -182,6 +187,24 @@ def abc_fields_parameters(cls: Type[MlemABC]):
             yield option
 
     return generator
+
+
+def lazy_class_docstring(abs_name: str, type_name: str):
+    def load_docstring():
+        try:
+            return load_impl_ext(abs_name, type_name).__doc__
+        except ExtensionRequirementError as e:
+            return f"Help unavailbale: {e}"
+
+    return load_docstring
+
+
+def for_each_impl(mlem_abc: Type[MlemABC]):
+    def inner(f):
+        for type_name in list_implementations(mlem_abc):
+            f(type_name)
+
+    return inner
 
 
 def _iter_errors(

@@ -21,8 +21,12 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
-from mlem.cli.utils import abc_fields_parameters, config_arg
-from mlem.core.base import load_impl_ext
+from mlem.cli.utils import (
+    abc_fields_parameters,
+    config_arg,
+    for_each_impl,
+    lazy_class_docstring,
+)
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
 from mlem.core.import_objects import ImportHook
@@ -137,15 +141,16 @@ apply_remote = Typer(
 app.add_typer(apply_remote)
 
 
-def create_apply_remote(type_name, cls):
+@for_each_impl(Client)
+def create_apply_remote(type_name):
     @mlem_command(
         type_name,
         section="clients",
         parent=apply_remote,
         dynamic_metavar="__kwargs__",
-        dynamic_options_generator=abc_fields_parameters(cls),
+        dynamic_options_generator=abc_fields_parameters(type_name, Client),
         hidden=type_name.startswith("_"),
-        help=cls.__doc__,
+        lazy_help=lazy_class_docstring(Client.abs_name, type_name),
     )
     def apply_remote_func(
         data: str = Argument(..., help="Path to data object"),
@@ -186,20 +191,6 @@ def create_apply_remote(type_name, cls):
                     .serialize(result)
                 )
             )
-        apply_remote_func.__doc__ = cls.__doc__
-
-
-any_implementations = False
-for client_type_name in list_implementations(Client):
-    try:
-        client_class = load_impl_ext(Client.abs_name, client_type_name)
-        create_apply_remote(client_type_name, client_class)
-        any_implementations = True
-    except ImportError:
-        pass
-
-if not any_implementations:
-    apply_remote.info.help += """\nNo available client implementations :("""
 
 
 def run_apply_remote(

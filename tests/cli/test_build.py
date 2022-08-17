@@ -18,7 +18,7 @@ class BuilderMock(MlemBuilder):
             f.write(obj.loc.path)
 
 
-create_build_command(BuilderMock.type, BuilderMock)
+create_build_command(BuilderMock.type)
 
 
 def test_build(runner: Runner, model_meta_saved_single, tmp_path):
