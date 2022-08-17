@@ -26,13 +26,21 @@ class SetupTemplate(TemplateModel):
     TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
     package_name: str
+    """Name of python package"""
     python_version: Optional[str] = None
+    """Required python version"""
     short_description: str = ""
+    """short_description"""
     url: str = ""
+    """url"""
     email: str = ""
+    """author's email"""
     author: str = ""
+    """author's name"""
     version: str = "0.0.0"
+    """package version"""
     additional_setup_kwargs: Dict = {}
+    """additional parameters for setup()"""
 
     @validator("python_version")
     def validate_python_version(  # pylint: disable=no-self-argument
@@ -46,6 +54,7 @@ class SourceTemplate(TemplateModel):
     TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
     methods: List[str]
+    """list of methods"""
 
 
 class PipMixin(SetupTemplate):
@@ -90,6 +99,7 @@ class PipBuilder(MlemBuilder, PipMixin):
 
     type: ClassVar = "pip"
     target: str
+    """path to save result"""
 
     def build(self, obj: MlemModel):
         fs, root = get_fs(self.target)
@@ -101,6 +111,7 @@ class WhlBuilder(MlemBuilder, PipMixin):
 
     type: ClassVar = "whl"
     target: str
+    """path to save result"""
 
     def build_whl(self, path, target, target_fs):
         target_fs.makedirs(target, exist_ok=True)

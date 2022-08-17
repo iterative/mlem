@@ -191,6 +191,8 @@ class _ModelUnpickler(Unpickler):
 
 
 class CallableModelType(ModelType, ModelHook):
+    """ModelType implementation for arbitrary callables"""
+
     type: ClassVar = "callable"
     priority: ClassVar = LOW_PRIORITY_VALUE
 

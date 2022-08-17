@@ -100,10 +100,13 @@ class CliTypeField(BaseModel):
 
 
 def get_field_help(cls: Type, field_name: str):
-    return (
-        get_attribute_docstring(cls, field_name).docstring_below
-        or "Field docstring missing"
-    )
+    for base_cls in cls.mro():
+        docsting = get_attribute_docstring(
+            base_cls, field_name
+        ).docstring_below
+        if docsting:
+            return docsting
+    return "Field docstring missing"
 
 
 def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
@@ -113,7 +116,11 @@ def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
         name = field.alias or name
         if issubclass(cls, MlemObject) and name in MlemObject.__fields__:
             continue
-        if issubclass(cls, MlemABC) and name in cls.__config__.exclude:
+        if (
+            issubclass(cls, MlemABC)
+            and name in cls.__config__.exclude
+            or field.field_info.exclude
+        ):
             continue
         if name == "__root__":
             fullname = prefix

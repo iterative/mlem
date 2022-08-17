@@ -95,7 +95,9 @@ class HTTPClient(Client):
 
     type: ClassVar[str] = "http"
     host: str = "0.0.0.0"
+    """Server host"""
     port: Optional[int] = 8080
+    """Server port"""
 
     @property
     def base_url(self):

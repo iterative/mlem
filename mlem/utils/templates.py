@@ -13,6 +13,7 @@ class TemplateModel(BaseModel):
     TEMPLATE_DIR: ClassVar[str]
 
     templates_dir: List[str] = []
+    """list of directories to look for jinja templates"""
 
     def prepare_dict(self):
         return self.dict()

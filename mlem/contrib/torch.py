@@ -95,6 +95,8 @@ class TorchTensorDataType(
 
 
 class TorchTensorWriter(DataWriter):
+    """Write torch tensors"""
+
     type: ClassVar[str] = "torch"
 
     def write(
@@ -106,6 +108,8 @@ class TorchTensorWriter(DataWriter):
 
 
 class TorchTensorReader(DataReader):
+    """Read torch tensors"""
+
     type: ClassVar[str] = "torch"
 
     def read(self, artifacts: Artifacts) -> DataType:
@@ -124,12 +128,11 @@ class TorchTensorReader(DataReader):
 
 
 class TorchModelIO(ModelIO):
-    """
-    :class:`.ModelIO` implementation for PyTorch models
-    """
+    """IO for PyTorch models"""
 
     type: ClassVar[str] = "torch_io"
     is_jit: bool = False
+    """Is model jit compiled"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         self.is_jit = isinstance(model, torch.jit.ScriptModule)
@@ -155,6 +158,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.nn.Module,)
     io: ModelIO = TorchModelIO()
+    """TorchModelIO"""
 
     @classmethod
     def process(

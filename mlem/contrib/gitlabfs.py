@@ -157,6 +157,8 @@ known_implementations["gitlab"] = {
 
 
 class GitlabResolver(CloudGitResolver):
+    """Resolve https://gitlab.com URIs"""
+
     type: ClassVar = "gitlab"
     FS: ClassVar = GitlabFileSystem
     PROTOCOL: ClassVar = "gitlab"

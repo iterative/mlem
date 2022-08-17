@@ -222,6 +222,8 @@ def _mathch_path_with_ref(repo, path):
 
 
 class BitBucketResolver(CloudGitResolver):
+    """Resolve bitbucket URIs"""
+
     type: ClassVar = "bitbucket"
     FS = BitBucketFileSystem
     PROTOCOL = "bitbucket"

@@ -127,14 +127,12 @@ class DockerIORegistry(DockerRegistry):
 
 
 class RemoteRegistry(DockerRegistry):
-    """DockerRegistry implementation for official Docker Registry (as in https://docs.docker.com/registry/)
-
-    :param host: adress of the registry"""
+    """DockerRegistry implementation for official Docker Registry (as in https://docs.docker.com/registry/)"""
 
     type: ClassVar = "remote"
-    host: Optional[
-        str
-    ] = None  # TODO: https://github.com/iterative/mlem/issues/38 credentials
+    # TODO: https://github.com/iterative/mlem/issues/38 credentials
+    host: Optional[str] = None
+    """address of the registry"""
 
     def login(self, client):
         """
@@ -227,11 +225,10 @@ class RemoteRegistry(DockerRegistry):
 
 
 class DockerDaemon(MlemABC):
-    """Class that represents docker daemon
-
-    :param host: adress of the docker daemon (empty string for local)"""
+    """Class that represents docker daemon"""
 
     host: str  # TODO: https://github.com/iterative/mlem/issues/38 credentials
+    """adress of the docker daemon (empty string for local)"""
 
     @contextlib.contextmanager
     def client(self) -> Iterator[docker.DockerClient]:
@@ -242,19 +239,18 @@ class DockerDaemon(MlemABC):
 
 class DockerImage(BaseModel):
     """:class:`.Image.Params` implementation for docker images
-    full uri for image looks like registry.host/repository/name:tag
-
-    :param name: name of the image
-    :param tag: tag of the image
-    :param repository: repository of the image
-    :param registry: :class:`.DockerRegistry` instance with this image
-    :param image_id: docker internal id of this image"""
+    full uri for image looks like registry.host/repository/name:tag"""
 
     name: str
+    """name of the image"""
     tag: str = "latest"
+    """tag of the image"""
     repository: Optional[str] = None
+    """repository of the image"""
     registry: DockerRegistry = DockerRegistry()
+    """DockerRegistry instance with this image"""
     image_id: Optional[str] = None
+    """internal docker id of this image"""
 
     @property
     def fullname(self):
@@ -278,10 +274,14 @@ class DockerImage(BaseModel):
 
 
 class DockerContainerState(DeployState):
+    """State of docker container deployment"""
+
     type: ClassVar = "docker_container"
 
     image: Optional[DockerImage]
+    """built image"""
     container_id: Optional[str]
+    """started container id"""
 
     def get_client(self):
         raise NotImplementedError
@@ -289,25 +289,28 @@ class DockerContainerState(DeployState):
 
 class _DockerBuildMixin(BaseModel):
     server: Server
+    """server to use"""
     args: DockerBuildArgs = DockerBuildArgs()
+    """additional docker arguments"""
 
 
 class DockerContainer(MlemDeployment, _DockerBuildMixin):
-    """:class:`.MlemDeployment` implementation for docker containers
-
-    :param name: name of the container
-    :param port_mapping: port mapping in this container
-    :param params: other parameters for docker run cmd
-    :param container_id: internal docker id for this container"""
+    """MlemDeployment implementation for docker containers"""
 
     type: ClassVar = "docker_container"
 
     container_name: str
+    """Name to use for container"""
     image_name: Optional[str] = None
+    """Name to use for image"""
     port_mapping: Dict[int, int] = {}
+    """Expose ports"""
     params: Dict[str, str] = {}
+    """Additional params"""
     rm: bool = True
+    """Remove container on stop"""
     state: Optional[DockerContainerState] = None
+    """state"""
 
     @property
     def ensure_image_name(self):
@@ -315,15 +318,12 @@ class DockerContainer(MlemDeployment, _DockerBuildMixin):
 
 
 class DockerEnv(MlemEnv[DockerContainer]):
-    """:class:`.MlemEnv` implementation for docker environment
-
-    :param registry: default registry to push images to
-    :param daemon: :class:`.DockerDaemon` instance"""
+    """MlemEnv implementation for docker environment"""
 
     type: ClassVar = "docker"
     deploy_type: ClassVar = DockerContainer
     registry: DockerRegistry = DockerRegistry()
-    """Docker registry parameters"""
+    """default registry to push images to"""
     daemon: DockerDaemon = DockerDaemon(host="")
     """Docker daemon parameters"""
 
@@ -454,6 +454,7 @@ class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
 
     type: ClassVar[str] = "docker_dir"
     target: str
+    """path to save result"""
 
     def build(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(
@@ -472,9 +473,13 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
 
     type: ClassVar[str] = "docker"
     image: DockerImage
+    """Image parameters"""
     env: DockerEnv = DockerEnv()
+    """Where to build and push image. Defaults to local docker daemon"""
     force_overwrite: bool = False
+    """Ignore existing image with same name"""
     push: bool = True
+    """Push image to registry after it is built"""
 
     def build(self, obj: MlemModel) -> DockerImage:
         with tempfile.TemporaryDirectory(prefix="mlem_build_") as tempdir:

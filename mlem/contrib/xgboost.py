@@ -117,7 +117,8 @@ class XGBoostModelIO(ModelIO):
     """
 
     type: ClassVar[str] = "xgboost_io"
-    model_file_name = "model.xgb"
+    model_file_name: str = "model.xgb"
+    """filename to use"""
 
     def dump(
         self, storage: Storage, path, model: xgboost.Booster

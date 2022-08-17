@@ -24,9 +24,13 @@ REPLY_TO = "amq.rabbitmq.reply-to"
 
 class RabbitMQMixin(BaseModel):
     host: str
+    """Host of RMQ instance"""
     port: int
+    """Port of RMQ instance"""
     exchange: str = ""
+    """RMQ exchange to use"""
     queue_prefix: str = ""
+    """Queue prefix"""
     channel_cache: Optional[BlockingChannel] = None
 
     class Config:
@@ -102,6 +106,7 @@ class RabbitMQClient(Client, RabbitMQMixin):
 
     type: ClassVar = "rmq"
     timeout: float = 0
+    """Time to wait for response. 0 means indefinite"""
 
     def _interface_factory(self) -> InterfaceDescriptor:
         res, _, payload = self.channel.basic_get(

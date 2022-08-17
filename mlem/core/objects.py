@@ -361,9 +361,13 @@ class MlemLink(MlemObject):
     location"""
 
     path: str
+    """path to object"""
     project: Optional[str] = None
+    """project URI"""
     rev: Optional[str] = None
+    """revision to use"""
     link_type: str
+    """type of underlying object"""
 
     object_type: ClassVar = "link"
 
@@ -450,7 +454,9 @@ class _WithArtifacts(ABC, MlemObject):
 
     __abstract__: ClassVar[bool] = True
     artifacts: Optional[Artifacts] = None
+    """dict with artifacts"""
     requirements: Requirements = Requirements.new()
+    """list of requirements"""
 
     @classmethod
     def get_metafile_path(cls, fullpath: str):
@@ -594,6 +600,7 @@ class MlemModel(_WithArtifacts):
     object_type: ClassVar = "model"
     model_type_cache: Union[ModelType, Dict]
     model_type: ModelType
+    """framework-specific metadata"""
     model_type, model_type_raw, model_type_cache = lazy_field(
         ModelType, "model_type", "model_type_cache"
     )
@@ -648,6 +655,7 @@ class MlemData(_WithArtifacts):
     object_type: ClassVar = "data"
     reader_cache: Union[DataReader, Dict]
     reader: Optional[DataReader]
+    """How to read this data"""
     reader, reader_raw, reader_cache = lazy_field(
         DataReader,
         "reader",
@@ -730,6 +738,7 @@ class DeployState(MlemABC):
     abs_name: ClassVar[str] = "deploy_state"
 
     model_hash: Optional[str] = None
+    """hash of deployed model meta"""
 
     @abstractmethod
     def get_client(self):
@@ -796,10 +805,15 @@ class MlemDeployment(MlemObject):
     type: ClassVar[str]
 
     env_link: MlemLink
+    """Enironment to use"""
     env: Optional[MlemEnv]
+    """Enironment to use"""
     model_link: MlemLink
+    """Model to use"""
     model: Optional[MlemModel]
+    """Model to use"""
     state: Optional[DeployState]
+    """state"""
 
     def get_env(self):
         if self.env is None:

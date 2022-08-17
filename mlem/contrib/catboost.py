@@ -25,8 +25,11 @@ class CatBoostModelIO(ModelIO):
 
     type: ClassVar[str] = "catboost_io"
     classifier_file_name: ClassVar = "clf.cb"
+    """filename for catboost classifier"""
     regressor_file_name: ClassVar = "rgr.cb"
+    """filename for catboost classifier"""
     model_type: CBType = CBType.regressor
+    """type of catboost model"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory() as tmpdir:

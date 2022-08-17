@@ -14,9 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 class HerokuRemoteRegistry(RemoteRegistry):
+    """Heroku docker registry"""
+
     type: ClassVar = "heroku"
     api_key: Optional[str] = None
-    host = DEFAULT_HEROKU_REGISTRY
+    """HEROKU_API_KEY"""
+    host: str = DEFAULT_HEROKU_REGISTRY
+    """Regisrty host"""
 
     def uri(self, image: str):
         return super().uri(image).split(":")[0]

@@ -40,9 +40,7 @@ def np_type_from_string(string_repr) -> np.dtype:
 class NumpyNumberType(
     LibRequirementsMixin, DataType, DataSerializer, DataHook
 ):
-    """
-    numpy.number DataType
-    """
+    """numpy.number DataType"""
 
     libraries: ClassVar[List[ModuleType]] = [np]
     type: ClassVar[str] = "number"
@@ -170,6 +168,8 @@ DATA_KEY = "data"
 
 
 class NumpyNumberWriter(DataWriter):
+    """Write np.number objects"""
+
     type: ClassVar[str] = "numpy_number"
 
     def write(
@@ -181,8 +181,11 @@ class NumpyNumberWriter(DataWriter):
 
 
 class NumpyNumberReader(DataReader):
+    """Read np.number objects"""
+
     type: ClassVar[str] = "numpy_number"
     data_type: NumpyNumberType
+    """resulting data type"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         if DataWriter.art_name not in artifacts:

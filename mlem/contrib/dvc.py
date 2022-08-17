@@ -34,13 +34,15 @@ def find_dvc_repo_root(path: str):
 
 
 class DVCStorage(LocalStorage):
-    """For now this storage is user-managed dvc storage, which means user should
-    track corresponding files with dvc manually.
-    TODO: add support for pipeline-tracked files and for single files with .dvc
-     Also add possibility to automatically add and push every artifact"""
+    """User-managed dvc storage, which means user should
+    track corresponding files with dvc manually."""
+
+    #  TODO: add support for pipeline-tracked files and for single files with .dvc
+    #  Also add possibility to automatically add and push every artifact
 
     type: ClassVar = "dvc"
     uri: str = ""
+    """base storage path"""
 
     def upload(self, local_path: str, target_path: str) -> "DVCArtifact":
         return DVCArtifact(
@@ -64,8 +66,11 @@ class DVCStorage(LocalStorage):
 
 
 class DVCArtifact(LocalArtifact):
+    """Local artifact that can be also read from DVC cache"""
+
     type: ClassVar = "dvc"
     uri: str
+    """local path to file"""
 
     def _download(self, target_path: str) -> LocalArtifact:
         if os.path.isdir(target_path):

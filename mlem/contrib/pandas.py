@@ -675,6 +675,8 @@ class PandasWriter(DataWriter, _PandasIO):
 
 
 class PandasImport(ExtImportHook):
+    """Import files as pd.DataFrame"""
+
     EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
     type: ClassVar = "pandas"
 

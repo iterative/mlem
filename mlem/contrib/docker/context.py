@@ -60,31 +60,29 @@ def use_mlem_source(source="local"):
 
 
 class DockerBuildArgs(BaseModel):
-    """
-    Container for DockerBuild arguments
-
-    :param base_image:  base image for the built image in form of a string or function from python version,
-      default: python:{python_version}
-    :param python_version: Python version to use, default: version of running interpreter
-    :param templates_dir: directory or list of directories for Dockerfile templates, default: ./docker_templates
-       - `pre_install.j2` - Dockerfile commands to run before pip
-       - `post_install.j2` - Dockerfile commands to run after pip
-       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy
-    :param run_cmd: command to run in container, default: sh run.sh
-    :param package_install_cmd: command to install packages. Default is apt-get, change it for other package manager
-    :param prebuild_hook: callable to call before build, accepts python version. Used for pre-building server images
-    :param mlem_whl: a path to mlem .whl file. If it is empty, mlem will be installed from pip TODO
-    :param platform: platform to build docker for, see https://docs.docker.com/desktop/multi-arch/
-    """
+    """Container for DockerBuild arguments"""
 
     base_image: Optional[Union[str, Callable[[str], str]]] = None
+    """base image for the built image in form of a string or function from python version,
+    default: python:{python_version}"""
     python_version: str = get_python_version()
+    """Python version to use
+    default: version of running interpreter"""
     templates_dir: List[str] = []
+    """directory or list of directories for Dockerfile templates
+       - `pre_install.j2` - Dockerfile commands to run before pip
+       - `post_install.j2` - Dockerfile commands to run after pip
+       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy"""
     run_cmd: Union[bool, str] = "sh run.sh"
+    """command to run in container"""
     package_install_cmd: str = "apt-get install -y"
+    """command to install packages. Default is apt-get, change it for other package manager"""
     prebuild_hook: Optional[Callable[[str], Any]] = None
+    """callable to call before build, accepts python version. Used for pre-building server images"""
     mlem_whl: Optional[str] = None
+    """a path to mlem .whl file. If it is empty, mlem will be installed from pip"""
     platform: Optional[str] = None
+    """platform to build docker for, see docs.docker.com/desktop/multi-arch/"""
 
     def get_base_image(self):
         if self.base_image is None:

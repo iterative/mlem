@@ -133,6 +133,7 @@ class DataReader(MlemABC, ABC):
         type_root = True
 
     data_type: DataType
+    """resulting data type"""
     abs_name: ClassVar[str] = "data_reader"
 
     @abstractmethod
@@ -206,6 +207,8 @@ class PrimitiveType(DataType, DataHook, DataSerializer):
 
 
 class PrimitiveWriter(DataWriter):
+    """Writer for primitive types"""
+
     type: ClassVar[str] = "primitive"
 
     def write(
@@ -217,6 +220,8 @@ class PrimitiveWriter(DataWriter):
 
 
 class PrimitiveReader(DataReader):
+    """Reader for primitive types"""
+
     type: ClassVar[str] = "primitive"
     data_type: PrimitiveType
 
@@ -275,6 +280,8 @@ class ArrayType(DataType, DataSerializer):
 
 
 class ArrayWriter(DataWriter):
+    """Writer for lists with single element type"""
+
     type: ClassVar[str] = "array"
 
     def write(
@@ -301,9 +308,12 @@ class ArrayWriter(DataWriter):
 
 
 class ArrayReader(DataReader):
+    """Reader for lists with single element type"""
+
     type: ClassVar[str] = "array"
     data_type: ArrayType
     readers: List[DataReader]
+    """inner readers"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
@@ -383,6 +393,8 @@ def _check_type_and_size(obj, dtype, size, exc_type):
 
 
 class _TupleLikeWriter(DataWriter):
+    """Writer for tuple-like data"""
+
     type: ClassVar[str] = "tuple_like"
 
     def write(
@@ -410,9 +422,12 @@ class _TupleLikeWriter(DataWriter):
 
 
 class _TupleLikeReader(DataReader):
+    """Reader for tuple-like data"""
+
     type: ClassVar[str] = "tuple_like"
     data_type: _TupleLikeType
     readers: List[DataReader]
+    """inner readers"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
@@ -577,6 +592,8 @@ class DictType(DataType, DataSerializer):
 
 
 class DictWriter(DataWriter):
+    """Writer for dicts"""
+
     type: ClassVar[str] = "dict"
 
     def write(
@@ -604,9 +621,12 @@ class DictWriter(DataWriter):
 
 
 class DictReader(DataReader):
+    """Reader for dicts"""
+
     type: ClassVar[str] = "dict"
     data_type: DictType
     item_readers: Dict[Union[StrictStr, StrictInt], DataReader]
+    """nested readers"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
@@ -729,6 +749,8 @@ class DynamicDictType(DataType, DataSerializer):
 
 
 class DynamicDictWriter(DataWriter):
+    """Write dicts without fixed set of keys"""
+
     type: ClassVar[str] = "d_dict"
 
     def write(
@@ -748,6 +770,8 @@ class DynamicDictWriter(DataWriter):
 
 
 class DynamicDictReader(DataReader):
+    """Read dicts without fixed set of keys"""
+
     type: ClassVar[str] = "d_dict"
     data_type: DynamicDictType
 
