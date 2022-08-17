@@ -203,6 +203,7 @@ def for_each_impl(mlem_abc: Type[MlemABC]):
     def inner(f):
         for type_name in list_implementations(mlem_abc):
             f(type_name)
+        return f
 
     return inner
 
