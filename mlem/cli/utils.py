@@ -213,28 +213,41 @@ def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
 def _options_from_cls(cls: Type[MlemABC], params: Dict, prefix=""):
     for field in iterate_type_fields(cls, prefix=prefix):
         type_ = field.type_
+        path = field.path
+
         if issubclass(type_, MlemABC) and type_.__is_root__:
-            if field.path in params:
+            if path in params:
                 yield from _options_from_cls(
-                    load_impl_ext(type_.abs_name, params[field.path]),
+                    load_impl_ext(type_.abs_name, params[path]),
                     params,
-                    field.path,
+                    path,
                 )
             type_ = str
         if type_ is object:
-            # TODO: dicts and lists
+            # TODO: dicts
             continue
-        option = TyperOption(
-            param_decls=[f"--{field.path}", field.path.replace(".", "_")],
-            type=type_,
-            required=field.required,
-            default=field.default,
-            help=field.help,
-            show_default=not field.required,
-            multiple=field.is_list,
-        )
-        option.name = field.path
-        yield option
+        if field.is_list:
+            index = 0
+            next_path = f"{path}.{index}"
+            while next_path in params:
+                yield _option_from_field(field, next_path, type_)
+                index += 1
+                next_path = f"{path}.{index}"
+            path += f".{index}"
+        yield _option_from_field(field, path, type_)
+
+
+def _option_from_field(field, path, type_):
+    option = TyperOption(
+        param_decls=[f"--{path}", path.replace(".", "_")],
+        type=type_,
+        required=field.required,
+        default=field.default,
+        help=field.help,
+        show_default=not field.required,
+    )
+    option.name = path
+    return option
 
 
 def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
