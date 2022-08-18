@@ -1,6 +1,16 @@
 import shlex
 from inspect import isabstract
-from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, overload
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Literal
@@ -135,33 +145,65 @@ class MlemABC(PolyModel):
             raise UnknownImplementation(type_name, cls.abs_name) from e
 
 
-def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):
+_not_set = object()
+
+
+# pylint: disable=too-many-return-statements
+def set_or_replace(
+    obj: Union[dict, list], key: str, value: Any, subkey: str = "type"
+):
+    if isinstance(obj, list):
+        # [a], 1:b -> [a, b]
+        if not key.isnumeric():
+            raise ValueError("Key should be numeric for list")
+        index = int(key)
+        if len(obj) <= index:
+            obj.extend([_not_set] * (index + 1 - len(obj)))
+        obj[index] = value
+        return obj
+    if key.isnumeric():
+        # {}, 0:a -> [a]
+        if obj:
+            raise ValueError("Can use numeric keys for objects")
+        index = int(key)
+        obj = [_not_set] * (index + 1)
+        obj[index] = value
+        return obj
     if key in obj:
         old_value = obj[key]
+        if isinstance(old_value, list) and not value:
+            # {k: [...]}, k:{} -> {k: [...]}
+            return obj
         if (
             isinstance(old_value, str)
             and isinstance(value, dict)
             and subkey not in value
         ):
+            # {k: subtype}, k:{...} -> {k: {type: subtype, ...}}
             value[subkey] = old_value
             obj[key] = value
-            return
+            return obj
         if isinstance(old_value, dict) and isinstance(value, str):
+            # {k: {...}}, k: subtype -> {k: {type: subtype, ...}}
             old_value[subkey] = value
-            return
+            return obj
         if isinstance(old_value, dict) and isinstance(value, dict):
+            # {k: {...}}, k:{...} -> {k: {......}}
             old_value.update(value)
-            return
+            return obj
+    # {...}, k:v -> {k:v, ...}
     obj[key] = value
+    return obj
 
 
 def set_recursively(obj: dict, keys: List[str], value: Any):
     if len(keys) == 1:
-        set_or_replace(obj, keys[0], value)
-        return
+        return set_or_replace(obj, keys[0], value)
     key, keys = keys[0], keys[1:]
-    set_or_replace(obj, key, {})
-    set_recursively(obj[key], keys, value)
+    obj = set_or_replace(obj, key, {})
+    index_or_key = int(key) if key.isnumeric() else key
+    obj[index_or_key] = set_recursively(obj[index_or_key], keys, value)
+    return obj
 
 
 def get_recursively(obj: dict, keys: List[str]):
@@ -254,17 +296,17 @@ def build_model(
     kwargs.update(conf or {})
     model_dict.update()
     for key, c in kwargs.items():
-        set_recursively(model_dict, smart_split(key, "."), c)
+        model_dict = set_recursively(model_dict, smart_split(key, "."), c)
 
     for file in file_conf or []:
         keys, path = smart_split(make_posix(file), "=")
         with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
-        set_recursively(model_dict, smart_split(keys, "."), value)
+        model_dict = set_recursively(model_dict, smart_split(keys, "."), value)
 
     for c in str_conf or []:
         keys, value = smart_split(c, "=", 1)
         if value == "None":
             value = None
-        set_recursively(model_dict, smart_split(keys, "."), value)
+        model_dict = set_recursively(model_dict, smart_split(keys, "."), value)
     return parse_obj_as(model, model_dict)

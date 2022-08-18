@@ -1,6 +1,6 @@
 from typing import ClassVar, List, Optional
 
-import pytest
+from pydantic import BaseModel
 
 from mlem.contrib.docker import DockerImageBuilder
 from mlem.contrib.fastapi import FastAPIServer
@@ -83,13 +83,11 @@ def test_build_with_replace():
     assert res.server.host == "localhost"
 
 
-class MockMlemABCList(MlemABC):
-    abs_name: ClassVar = "mock_list"
-    values: List[str]
-
-
-@pytest.mark.xfail
 def test_build_with_list():
+    class MockMlemABCList(MlemABC):
+        abs_name: ClassVar = "mock_list"
+        values: List[str]
+
     res = build_mlem_object(
         MockMlemABCList,
         "mock_list",
@@ -98,3 +96,21 @@ def test_build_with_list():
     assert isinstance(res, MockMlemABCList)
     assert isinstance(res.values, list)
     assert res.values == ["a", "b"]
+
+
+def test_build_with_list_complex():
+    class Value(BaseModel):
+        field: str
+
+    class MockMlemABCListComplex(MlemABC):
+        abs_name: ClassVar = "mock_list_complex"
+        values: List[Value]
+
+    res = build_mlem_object(
+        MockMlemABCListComplex,
+        "mock_list_complex",
+        ["values.0.field=a", "values.1.field=b"],
+    )
+    assert isinstance(res, MockMlemABCListComplex)
+    assert isinstance(res.values, list)
+    assert res.values == [Value(field="a"), Value(field="b")]
