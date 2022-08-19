@@ -14,6 +14,7 @@ from mlem.core.objects import (
     MlemEnv,
     MlemModel,
 )
+from mlem.runtime.client import Client, HTTPClient
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_OK, echo, set_offset
 
@@ -46,11 +47,20 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     state_type: ClassVar = K8sDeploymentState
     kube_config_file_path: Optional[str] = None
 
-    def _get_client(self, state: K8sDeploymentState):
+    def load_kube_config(self):
         config.load_kube_config(
             config_file=self.kube_config_file_path
             or os.getenv("KUBECONFIG", default="~/.kube/config")
         )
+
+    def _get_client(self, state: K8sDeploymentState) -> Client:
+        self.load_kube_config()
+        service = client.CoreV1Api().list_namespaced_service(
+            f"mlem-{state.deployment_name}-app"
+        )
+        port = service.items[0].spec.ports[0].port
+        host = service.items[0].status.load_balancer.ingress[0].ip
+        return HTTPClient(host=host, port=port)
 
 
 class K8sEnv(MlemEnv[K8sDeployment]):
@@ -71,7 +81,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
         self.check_type(meta)
         redeploy = False
         with meta.lock_state():
-            meta.get_client()
+            meta.load_kube_config()
             state: K8sDeploymentState = meta.get_state()
             if state.image is None or meta.model_changed():
                 from ..docker.helpers import build_model_image
@@ -123,7 +133,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
     def remove(self, meta: K8sDeployment):
         self.check_type(meta)
         with meta.lock_state():
-            meta.get_client()
+            meta.load_kube_config()
             state: K8sDeploymentState = meta.get_state()
             if state.deployment_name is not None:
                 client.AppsV1Api().delete_namespaced_deployment(
@@ -137,6 +147,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                 client.CoreV1Api().delete_namespace(
                     name=f"mlem-{meta.name}-app"
                 )
+                sleep(0.5)
             echo(
                 EMOJI_OK
                 + f"Deployment {state.deployment_name} and the corresponding service are removed from mlem-{meta.name}-app namespace"
@@ -148,7 +159,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
         self, meta: K8sDeployment, raise_on_error=True
     ) -> DeployStatus:
         self.check_type(meta)
-        meta.get_client()
+        meta.load_kube_config()
         state: K8sDeploymentState = meta.get_state()
         if state.deployment_name is None:
             return DeployStatus.NOT_DEPLOYED
