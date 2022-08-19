@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from pydantic import BaseModel
 
@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class K8sYamlBuildArgs(BaseModel):
-    name: Optional[str] = "mlem-app"
-    image_uri: Optional[str] = "mlem-app"
-    image_pull_policy: Optional[str] = "Always"
-    port: Optional[int] = 8080
-    service_type: Optional[str] = "NodePort"
+    name: str = "mlem-app"
+    image_uri: str = "mlem-app"
+    image_pull_policy: str = "Always"
+    port: int = 8080
+    service_type: str = "NodePort"
 
 
 class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
@@ -29,11 +29,6 @@ class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
 
         logger.debug('Docker image is based on "%s".', self.image_uri)
 
-        k8s_yaml_args = {
-            "name": self.name,
-            "image_uri": self.image_uri,
-            "image_pull_policy": self.image_pull_policy,
-            "port": self.port,
-            "service_type": self.service_type,
-        }
+        k8s_yaml_args = self.dict().copy()
+        k8s_yaml_args.pop("templates_dir")
         return k8s_yaml_args

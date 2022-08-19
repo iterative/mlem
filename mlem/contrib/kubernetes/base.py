@@ -24,6 +24,7 @@ from ..docker.base import (
     DockerRegistry,
     generate_docker_container_name,
 )
+from ..docker.helpers import build_model_image
 from .context import K8sYamlBuildArgs, K8sYamlGenerator
 
 POD_STATE_MAPPING = {
@@ -37,8 +38,8 @@ POD_STATE_MAPPING = {
 
 class K8sDeploymentState(DeployState):
     type: ClassVar = "kubernetes"
-    image: Optional[DockerImage]
-    deployment_name: Optional[str]
+    image: Optional[DockerImage] = None
+    deployment_name: Optional[str] = None
 
 
 class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
@@ -84,7 +85,6 @@ class K8sEnv(MlemEnv[K8sDeployment]):
             meta.load_kube_config()
             state: K8sDeploymentState = meta.get_state()
             if state.image is None or meta.model_changed():
-                from ..docker.helpers import build_model_image
 
                 image_name = meta.name or generate_docker_container_name()
                 echo(EMOJI_BUILD + f"Creating docker image {image_name}")
