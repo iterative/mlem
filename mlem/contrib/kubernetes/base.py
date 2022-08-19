@@ -37,14 +37,13 @@ POD_STATE_MAPPING = {
 class K8sDeploymentState(DeployState):
     type: ClassVar = "kubernetes"
     image: Optional[DockerImage]
-    pod_name: Optional[str]
+    deployment_name: Optional[str]
 
 
-class K8sDeployment(MlemDeployment):
+class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     type: ClassVar = "kubernetes"
     server: Optional[Server] = None
     state_type: ClassVar = K8sDeploymentState
-    image_name: Optional[str] = None
     kube_config_file_path: Optional[str] = None
 
     def _get_client(self, state: K8sDeploymentState):
@@ -72,13 +71,12 @@ class K8sEnv(MlemEnv[K8sDeployment]):
         self.check_type(meta)
         redeploy = False
         with meta.lock_state():
+            meta.get_client()
             state: K8sDeploymentState = meta.get_state()
             if state.image is None or meta.model_changed():
                 from ..docker.helpers import build_model_image
 
-                image_name = (
-                    meta.image_name or generate_docker_container_name()
-                )
+                image_name = meta.name or generate_docker_container_name()
                 echo(EMOJI_BUILD + f"Creating docker image {image_name}")
                 with set_offset(2):
                     state.image = build_model_image(
@@ -94,8 +92,13 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                 meta.update_model_hash(state=state)
                 redeploy = True
 
-            if state.pod_name is None or redeploy:
-                k8s_yaml_builder = K8sYamlBuilder(image=state.image)
+            if state.deployment_name is None or redeploy:
+                k8s_yaml_builder = K8sYamlBuilder(
+                    image=state.image,
+                    image_pull_policy=meta.image_pull_policy,
+                    port=meta.port,
+                    service_type=meta.service_type,
+                )
                 generator = K8sYamlGenerator(
                     **k8s_yaml_builder.get_resource_args().dict()
                 )
@@ -103,36 +106,58 @@ class K8sEnv(MlemEnv[K8sDeployment]):
 
                 sleep(0.5)
 
-                core_client = client.CoreV1Api()
-                pods_list = core_client.list_namespaced_pod("default")
+                deployments_list = (
+                    client.AppsV1Api().list_namespaced_deployment(
+                        namespace=f"mlem-{meta.name}-app"
+                    )
+                )
 
-                state.pod_name = pods_list.items[0].metadata.name
+                state.deployment_name = deployments_list.items[0].metadata.name
                 meta.update_state(state)
 
-            echo(EMOJI_OK + f"Pod {state.pod_name} is up")
+            echo(
+                EMOJI_OK
+                + f"Deployment {state.deployment_name} is up in mlem-{meta.name}-app namespace"
+            )
 
     def remove(self, meta: K8sDeployment):
         self.check_type(meta)
         with meta.lock_state():
+            meta.get_client()
             state: K8sDeploymentState = meta.get_state()
-            if state.pod_name is not None:
-                # use kubernetes client to delete deployment and service
-                ...
-            state.pod_name = None
+            if state.deployment_name is not None:
+                client.AppsV1Api().delete_namespaced_deployment(
+                    name=state.deployment_name,
+                    namespace=f"mlem-{meta.name}-app",
+                )
+                client.CoreV1Api().delete_namespaced_service(
+                    name=state.deployment_name,
+                    namespace=f"mlem-{meta.name}-app",
+                )
+                client.CoreV1Api().delete_namespace(
+                    name=f"mlem-{meta.name}-app"
+                )
+            echo(
+                EMOJI_OK
+                + f"Deployment {state.deployment_name} and the corresponding service are removed from mlem-{meta.name}-app namespace"
+            )
+            state.deployment_name = None
             meta.update_state(state)
 
     def get_status(
         self, meta: K8sDeployment, raise_on_error=True
     ) -> DeployStatus:
         self.check_type(meta)
+        meta.get_client()
         state: K8sDeploymentState = meta.get_state()
-        if state.pod_name is None:
+        if state.deployment_name is None:
             return DeployStatus.NOT_DEPLOYED
 
-        core_client = client.CoreV1Api()
-        pods_list = core_client.list_namespaced_pod("default")
+        pods_list = client.CoreV1Api().list_namespaced_pod(
+            f"mlem-{meta.name}-app"
+        )
 
-        return POD_STATE_MAPPING[pods_list.items[0].metadata.phase]
+        return POD_STATE_MAPPING[pods_list.items[0].status.phase]
 
 
 class K8sYamlBuilder(MlemBuilder, K8sYamlBuildArgs):

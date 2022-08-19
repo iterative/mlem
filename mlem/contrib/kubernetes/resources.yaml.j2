@@ -1,7 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlem-{{ name }}-app
+  labels:
+    name: mlem-{{ name }}-app
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ name }}
+  namespace: mlem-{{ name }}-app
 spec:
   selector:
     matchLabels:
@@ -24,6 +34,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ name }}
+  namespace: mlem-{{ name }}-app
   labels:
     run: {{ name }}
 spec:

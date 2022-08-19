@@ -14,7 +14,7 @@ class K8sYamlBuildArgs(BaseModel):
     image_uri: Optional[str] = "mlem-app"
     image_pull_policy: Optional[str] = "Always"
     port: Optional[int] = 8080
-    service_type: Optional["str"] = "NodePort"
+    service_type: Optional[str] = "NodePort"
 
 
 class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
