@@ -1,9 +1,10 @@
 import ast
 import contextlib
 import inspect
+from dataclasses import dataclass
 from enum import Enum, EnumMeta
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Type
 
 import typer
 from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
@@ -15,9 +16,11 @@ from pydantic.fields import (
     SHAPE_SET,
     SHAPE_TUPLE,
     SHAPE_TUPLE_ELLIPSIS,
+    ModelField,
 )
 from pydantic.typing import get_args
 from typer.core import TyperOption
+from typing_extensions import get_origin
 from yaml import safe_load
 
 from mlem import LOCAL_CONFIG
@@ -145,7 +148,73 @@ def get_field_help(cls: Type, field_name: str):
     return "Field docstring missing"
 
 
-def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
+def anything(type_):
+    if not isinstance(type_, type):
+        type_ = get_origin(type_)
+    name = type_.__name__ if type_ is not None else "any"
+    return type(name, (), {"__new__": lambda cls, value: value})
+
+
+def parse_type_field(
+    path: str,
+    type_: Type,
+    help_: str,
+    is_list: bool,
+    is_mapping: bool,
+    required: bool,
+    default: Any,
+) -> Iterator[CliTypeField]:
+    if is_list or is_mapping:
+        yield CliTypeField(
+            required=required,
+            path=path,
+            type_=type_,
+            default=default,
+            help=help_,
+            is_list=is_list,
+            is_mapping=is_mapping,
+            mapping_key_type=str,
+        )
+        return
+
+    if (
+        isinstance(type_, type)
+        and issubclass(type_, MlemABC)
+        and type_.__is_root__
+    ):
+        if isinstance(default, type_):
+            default = default.__get_alias__()
+        yield CliTypeField(
+            required=required,
+            path=path,
+            type_=type_,
+            help=f"{help_}. One of {list_implementations(type_, include_hidden=False)}. Run 'mlem types {type_.abs_name} <subtype>' for list of nested fields for each subtype",
+            default=default,
+            is_list=is_list,
+            is_mapping=is_mapping,
+            mapping_key_type=str,
+        )
+        return
+    if isinstance(type_, type) and issubclass(type_, BaseModel):
+        yield from iterate_type_fields(type_, path, not required)
+        return
+
+    yield CliTypeField(
+        required=required,
+        path=path,
+        type_=type_,
+        default=default,
+        help=help_,
+        is_list=is_list,
+        is_mapping=is_mapping,
+        mapping_key_type=str,
+    )
+
+
+def iterate_type_fields(
+    cls: Type[BaseModel], path: str = "", force_not_req: bool = False
+) -> Iterator[CliTypeField]:
+    field: ModelField
     for name, field in sorted(
         cls.__fields__.items(), key=lambda x: not x[1].required
     ):
@@ -159,90 +228,151 @@ def iterate_type_fields(cls: Type[BaseModel], prefix="", force_not_req=False):
         ):
             continue
         if name == "__root__":
-            fullname = prefix
+            fullname = path
         else:
-            fullname = name if not prefix else f"{prefix}.{name}"
+            fullname = name if not path else f"{path}.{name}"
 
-        req = field.required and not force_not_req
-        default = field.default
-        docstring = get_field_help(cls, name)
         field_type = field.type_
+
         if not isinstance(field_type, type):
             # typing.GenericAlias
             generic_args = get_args(field_type)
             if len(generic_args) > 0:
                 field_type = field_type.__args__[0]
             else:
-                field_type = object
-        if (
-            isinstance(field_type, type)
-            and issubclass(field_type, MlemABC)
-            and field_type.__is_root__
-        ):
-            if isinstance(default, field_type):
-                default = default.__get_alias__()
-            yield CliTypeField(
-                required=req,
-                path=fullname,
-                type_=field_type,
-                help=f"{docstring}. One of {list_implementations(field_type, include_hidden=False)}. Run 'mlem types {field_type.abs_name} <subtype>' for list of nested fields for each subtype",
-                default=default,
-                is_list=field.shape in LIST_LIKE_SHAPES,
-                is_mapping=field.shape in MAPPING_LIKE_SHAPES,
-                mapping_key_type=str,
-            )
-        elif isinstance(field_type, type) and issubclass(
-            field_type, BaseModel
-        ):
-            yield from iterate_type_fields(
-                field_type, fullname, not field.required
-            )
-        else:
-            yield CliTypeField(
-                required=req,
-                path=fullname,
-                type_=field_type,
-                default=default,
-                help=docstring,
-                is_list=field.shape in LIST_LIKE_SHAPES,
-                is_mapping=field.shape in MAPPING_LIKE_SHAPES,
-                mapping_key_type=str,
-            )
+                field_type = anything(field_type)
+        yield from parse_type_field(
+            path=fullname,
+            type_=field_type,
+            help_=get_field_help(cls, name),
+            is_list=field.shape in LIST_LIKE_SHAPES,
+            is_mapping=field.shape in MAPPING_LIKE_SHAPES,
+            required=not force_not_req and bool(field.required),
+            default=field.default,
+        )
 
 
-def _options_from_cls(cls: Type[MlemABC], params: Dict, prefix=""):
-    for field in iterate_type_fields(cls, prefix=prefix):
-        type_ = field.type_
+@dataclass
+class CallContext:
+    params: Dict[str, Any]
+    extra_keys: List[str]
+
+
+def _options_from_model(
+    cls: Type[BaseModel],
+    ctx: CallContext,
+    path="",
+    force_not_set: bool = False,
+) -> Iterator[TyperOption]:
+    for field in iterate_type_fields(cls, path=path):
         path = field.path
 
-        if issubclass(type_, MlemABC) and type_.__is_root__:
-            if path in params:
-                yield from _options_from_cls(
-                    load_impl_ext(type_.abs_name, params[path]),
-                    params,
-                    path,
-                )
-            type_ = str
-        if type_ is object:
-            # TODO: dicts
-            continue
         if field.is_list:
-            index = 0
-            next_path = f"{path}.{index}"
-            while next_path in params:
-                yield _option_from_field(field, next_path, type_)
-                index += 1
-                next_path = f"{path}.{index}"
-            path += f".{index}"
-        yield _option_from_field(field, path, type_)
+            yield from _options_from_list(path, field, ctx)
+            continue
+        if field.is_mapping:
+            yield from _options_from_mapping(path, field, ctx)
+            continue
+        if issubclass(field.type_, MlemABC) and field.type_.__is_root__:
+            yield from _options_from_mlem_abc(
+                ctx, field, path, force_not_set=force_not_set
+            )
+            continue
+
+        yield _option_from_field(field, path, force_not_set=force_not_set)
 
 
-def _option_from_field(field, path, type_):
+def _options_from_mlem_abc(
+    ctx: CallContext,
+    field: CliTypeField,
+    path: str,
+    force_not_set: bool = False,
+):
+    assert issubclass(field.type_, MlemABC) and field.type_.__is_root__
+    if path in ctx.params and ctx.params[path] != NOT_SET:
+        yield from _options_from_model(
+            load_impl_ext(field.type_.abs_name, ctx.params[path]),
+            ctx,
+            path,
+        )
+    yield _option_from_field(
+        field, path, override_type=str, force_not_set=force_not_set
+    )
+
+
+def _options_from_mapping(path: str, field: CliTypeField, ctx: CallContext):
+    mapping_keys = [
+        key[len(path) + 1 :].split(".", maxsplit=1)[0]
+        for key in ctx.extra_keys
+        if key.startswith(path + ".")
+    ]
+    for key in mapping_keys:
+        yield from _options_from_collection_element(
+            f"{path}.{key}", field, ctx
+        )
+
+    override_type = Dict[str, field.type_]  # type: ignore[name-defined]
+    yield _option_from_field(
+        field, path, override_type=override_type, force_not_set=True
+    )
+    yield from _options_from_collection_element(f"{path}.key", field, ctx)
+
+
+def _options_from_list(path: str, field: CliTypeField, ctx: CallContext):
+    index = 0
+    next_path = f"{path}.{index}"
+    while any(p.startswith(next_path) for p in ctx.params) and any(
+        v != NOT_SET for p, v in ctx.params.items() if p.startswith(next_path)
+    ):
+        yield from _options_from_collection_element(next_path, field, ctx)
+        index += 1
+        next_path = f"{path}.{index}"
+
+    override_type = List[field.type_]  # type: ignore[name-defined]
+    yield _option_from_field(
+        field, path, override_type=override_type, force_not_set=True
+    )
+    yield from _options_from_collection_element(
+        f"{path}.{index}", field, ctx, force_not_set=True
+    )
+
+
+def _options_from_collection_element(
+    path: str,
+    field: CliTypeField,
+    ctx: CallContext,
+    force_not_set: bool = False,
+) -> Iterator[TyperOption]:
+    if issubclass(field.type_, MlemABC) and field.type_.__is_root__:
+        yield from _options_from_mlem_abc(
+            ctx, field, path, force_not_set=force_not_set
+        )
+        return
+    if issubclass(field.type_, BaseModel):
+        yield from _options_from_model(
+            field.type_, ctx, path, force_not_set=force_not_set
+        )
+        return
+    yield _option_from_field(field, path, force_not_set=force_not_set)
+
+
+NOT_SET = "__NOT_SET__"
+
+
+def _option_from_field(
+    field: CliTypeField,
+    path: str,
+    override_type: Type = None,
+    force_not_set: bool = False,
+) -> TyperOption:
+    type_ = override_type or field.type_
     option = TyperOption(
         param_decls=[f"--{path}", path.replace(".", "_")],
-        type=type_,
-        required=field.required,
-        default=field.default,
+        type=type_ if not force_not_set else anything(type_),
+        required=field.required and not force_not_set,
+        default=field.default
+        if not field.is_list and not field.is_mapping and not force_not_set
+        else NOT_SET,
         help=field.help,
         show_default=not field.required,
     )
@@ -251,14 +381,18 @@ def _option_from_field(field, path, type_):
 
 
 def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
-    def generator(params: Dict):
+    def generator(ctx: CallContext):
         try:
             cls = load_impl_ext(mlem_abc.abs_name, type_name=type_name)
         except ImportError:
             return
-        yield from _options_from_cls(cls, params)
+        yield from _options_from_model(cls, ctx)
 
     return generator
+
+
+def get_extra_keys(args):
+    return [a[2:] for a in args if a.startswith("--")]
 
 
 def lazy_class_docstring(abs_name: str, type_name: str):

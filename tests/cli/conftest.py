@@ -4,6 +4,8 @@ from typer.testing import CliRunner
 
 from mlem.cli import app
 
+app.pretty_exceptions_short = False
+
 
 class Runner:
     def __init__(self):

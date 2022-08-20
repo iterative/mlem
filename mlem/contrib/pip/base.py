@@ -4,7 +4,7 @@ import os.path
 import posixpath
 import subprocess
 import tempfile
-from typing import ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
@@ -39,7 +39,7 @@ class SetupTemplate(TemplateModel):
     """author's name"""
     version: str = "0.0.0"
     """package version"""
-    additional_setup_kwargs: Dict = {}
+    additional_setup_kwargs: Dict[str, Any] = {}
     """additional parameters for setup()"""
 
     @validator("python_version")

@@ -28,7 +28,13 @@ from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
 
 from mlem import LOCAL_CONFIG, version
-from mlem.cli.utils import _extract_examples, _format_validation_error
+from mlem.cli.utils import (
+    NOT_SET,
+    CallContext,
+    _extract_examples,
+    _format_validation_error,
+    get_extra_keys,
+)
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
 from mlem.telemetry import telemetry
@@ -87,7 +93,7 @@ class MlemCommand(
         aliases: List[str] = None,
         help: Optional[str] = None,
         dynamic_options_generator: Callable[
-            [Dict], Iterable[Parameter]
+            [CallContext], Iterable[Parameter]
         ] = None,
         dynamic_metavar: str = None,
         lazy_help: Optional[Callable[[], str]] = None,
@@ -128,9 +134,17 @@ class MlemCommand(
 
         return ctx
 
+    def invoke(self, ctx: Context) -> Any:
+        ctx.params = {k: v for k, v in ctx.params.items() if v != NOT_SET}
+        return super().invoke(ctx)
+
     def get_params(self, ctx) -> List["Parameter"]:
         res: List[Parameter] = (
-            list(self.dynamic_options_generator(ctx.params))
+            list(
+                self.dynamic_options_generator(
+                    CallContext(ctx.params, get_extra_keys(ctx.args))
+                )
+            )
             if self.dynamic_options_generator is not None
             else []
         )

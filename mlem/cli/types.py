@@ -4,11 +4,27 @@ from pydantic import BaseModel
 from typer import Argument
 
 from mlem.cli.main import mlem_command
-from mlem.cli.utils import iterate_type_fields
+from mlem.cli.utils import iterate_type_fields, parse_type_field
 from mlem.core.base import MlemABC, load_impl_ext
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_BASE, bold, color, echo
 from mlem.utils.entrypoints import list_implementations
+
+
+def type_fields_with_collection_examples(cls):
+    for field in iterate_type_fields(cls):
+        yield field
+        if field.is_list or field.is_mapping:
+            key = ".key" if field.is_mapping else ".0"
+            yield from parse_type_field(
+                field.path + key,
+                field.type_,
+                field.help,
+                False,
+                False,
+                False,
+                None,
+            )
 
 
 def explain_type(cls: Type[BaseModel]):
@@ -26,7 +42,7 @@ def explain_type(cls: Type[BaseModel]):
             + color(cls.object_type, "green")
         )
     echo((cls.__doc__ or "Class docstring missing").strip())
-    fields = list(iterate_type_fields(cls))
+    fields = list(type_fields_with_collection_examples(cls))
     if not fields:
         echo("No fields")
     else:
