@@ -20,7 +20,7 @@ class HerokuRemoteRegistry(RemoteRegistry):
     api_key: Optional[str] = None
     """HEROKU_API_KEY"""
     host: str = DEFAULT_HEROKU_REGISTRY
-    """Regisrty host"""
+    """Registry host"""
 
     def uri(self, image: str):
         return super().uri(image).split(":")[0]
