@@ -240,18 +240,18 @@ class MockComplexBuilder(_MockBuilder):
     string: str
     str_list: List[str] = []
     str_dict: Dict[str, str] = {}
-    # str_list_dict: List[Dict[str, str]] = []
-    # str_dict_list: Dict[str, List[str]] = {}
+    str_list_dict: List[Dict[str, str]] = []
+    str_dict_list: Dict[str, List[str]] = {}
     value: ComplexValue
 
     value_list: List[ComplexValue] = []
     value_dict: Dict[str, ComplexValue] = {}
-    # root_value: RootValue
-    # root_list: List[RootValue] = []
-    # root_dict: Dict[str, RootValue] = {}
+    root_value: RootValue
+    root_list: List[RootValue] = []
+    root_dict: Dict[str, RootValue] = {}
     server: Server
     server_list: List[Server] = []
-    # server_dict: Dict[str, Server] = {}
+    server_dict: Dict[str, Server] = {}
 
 
 create_declare_subcommand(
@@ -302,16 +302,16 @@ def test_declare_all_together(runner: Runner, tmp_path):
         "value_dict.k2.field_list.1",
         "value_dict.k2.field_dict.k1",
         "value_dict.k2.field_dict.k2",
-        # "root_value.0",
-        # "root_value.1",
-        # "root_list.0.0",
-        # "root_list.0.1",
-        # "root_list.1.0",
-        # "root_list.1.1",
-        # "root_dict.k1.0",
-        # "root_dict.k1.1"
-        # "root_dict.k2.0",
-        # "root_dict.k2.1"
+        "root_value.0",
+        "root_value.1",
+        "root_list.0.0",
+        "root_list.0.1",
+        "root_list.1.0",
+        "root_list.1.1",
+        "root_dict.k1.0",
+        "root_dict.k1.1",
+        "root_dict.k2.0",
+        "root_dict.k2.1",
     ]
     server_args: Dict[str, Any] = {
         "server": "fastapi",

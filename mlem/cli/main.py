@@ -1,5 +1,4 @@
 import logging
-import traceback
 from collections import defaultdict
 from functools import partial, wraps
 from gettext import gettext
@@ -126,22 +125,21 @@ class MlemCommand(
         if not self.dynamic_options_generator:
             return ctx
         extra_args = ctx.args
+        params = ctx.params.copy()
         while extra_args:
+            ctx.params = params
+            ctx.args = args_copy[:]
             with ctx.scope(cleanup=False):
-                try:
-                    self.parse_args(ctx, args_copy[:])
-                except Exception:
-                    traceback.print_exc()
-                    raise
+                self.parse_args(ctx, args_copy[:])
+                params.update(ctx.params)
+
             if ctx.args == extra_args:
-                print("extra", extra_args)
                 break
             extra_args = ctx.args
 
         return ctx
 
     def invoke(self, ctx: Context) -> Any:
-        print(ctx.params)
         ctx.params = {k: v for k, v in ctx.params.items() if v != NOT_SET}
         return super().invoke(ctx)
 

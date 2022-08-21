@@ -184,6 +184,16 @@ def test_smart_split_dict_with_nested():
     }
 
 
+def test_smart_split_dict_nested_list():
+    d = SmartSplitDict()
+    d["r.k1.0"] = "lol"
+    d["r.k1.1"] = "lol"
+    d["r.k2.0"] = "lol"
+    d["r.k2.1"] = "lol"
+
+    assert d.build() == {"r": {"k1": ["lol", "lol"], "k2": ["lol", "lol"]}}
+
+
 def test_smart_split_dict_with_type():
     d = SmartSplitDict(sep=".")
     d["server"] = "fastapi"
