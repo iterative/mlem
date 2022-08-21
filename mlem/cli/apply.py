@@ -8,7 +8,6 @@ from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
-    option_conf,
     option_data_project,
     option_data_rev,
     option_external,
@@ -164,12 +163,16 @@ def create_apply_remote(type_name):
         index: bool = option_index,
         json: bool = option_json,
         load: Optional[str] = option_load("client"),
-        conf: List[str] = option_conf("client"),
         file_conf: List[str] = option_file_conf("client"),
         **__kwargs__,
     ):
         client = config_arg(
-            Client, load, type_name, conf, file_conf, **__kwargs__
+            Client,
+            load,
+            type_name,
+            conf=None,
+            file_conf=file_conf,
+            **__kwargs__,
         )
 
         with set_echo(None if json else ...):

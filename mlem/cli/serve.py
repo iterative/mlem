@@ -6,7 +6,6 @@ from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
-    option_conf,
     option_file_conf,
     option_load,
     option_project,
@@ -51,7 +50,6 @@ def create_serve_command(type_name):
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         load: Optional[str] = option_load("server"),
-        conf: List[str] = option_conf("server"),
         file_conf: List[str] = option_file_conf("server"),
         **__kwargs__
     ):
@@ -59,5 +57,12 @@ def create_serve_command(type_name):
 
         serve(
             load_meta(model, project, rev, force_type=MlemModel),
-            config_arg(Server, load, type_name, conf, file_conf, **__kwargs__),
+            config_arg(
+                Server,
+                load,
+                type_name,
+                str_conf=None,
+                file_conf=file_conf,
+                **__kwargs__
+            ),
         )

@@ -66,18 +66,33 @@ def list_implementations(
         else:
             base_class = meta_subtype.object_type
         abs_name = "meta"
+    resolved_base_class: Optional[Type[MlemABC]] = None
     if isinstance(base_class, str):
         abs_name = base_class
         try:
-            base_class = MlemABC.abs_types[abs_name]
+            resolved_base_class = MlemABC.abs_types[abs_name]
         except KeyError:
-            base_class = load_impl_ext(abs_name, None)
+            try:
+                resolved_base_class = load_impl_ext(abs_name, None)
+            except ValueError:
+                pass
+    else:
+        resolved_base_class = base_class
     eps = {
         e.name
         for e in load_entrypoints().values()
         if e.abs_name == abs_name and e.name is not None
     }
-    eps.update(base_class.non_abstract_subtypes())
+    if resolved_base_class is not None:
+        eps.update(resolved_base_class.non_abstract_subtypes())
+    return [e for e in eps if include_hidden or not e.startswith("_")]
+
+
+def list_abstractions(
+    include_hidden: bool = True,
+) -> List[str]:
+    eps = {e.abs_name for e in load_entrypoints().values()}
+    eps.update(MlemABC.abs_types)
     return [e for e in eps if include_hidden or not e.startswith("_")]
 
 

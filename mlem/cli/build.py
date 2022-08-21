@@ -6,7 +6,6 @@ from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
-    option_conf,
     option_file_conf,
     option_load,
     option_project,
@@ -58,7 +57,6 @@ def create_build_command(type_name):
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         load: Optional[str] = option_load("builder"),
-        conf: List[str] = option_conf("builder"),
         file_conf: List[str] = option_file_conf("builder"),
         **__kwargs__
     ):
@@ -66,7 +64,12 @@ def create_build_command(type_name):
 
         build(
             config_arg(
-                MlemBuilder, load, type_name, conf, file_conf, **__kwargs__
+                MlemBuilder,
+                load,
+                type_name,
+                conf=None,
+                file_conf=file_conf,
+                **__kwargs__
             ),
             load_meta(model, project, rev, force_type=MlemModel),
         )

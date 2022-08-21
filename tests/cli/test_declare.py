@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 import pytest
 from pydantic import BaseModel
 
-from mlem.cli.declare import create_declare_subcommand, declare
+from mlem.cli.declare import create_declare_mlem_object_subcommand, declare
 from mlem.contrib.docker import DockerDirBuilder
 from mlem.contrib.docker.context import DockerBuildArgs
 from mlem.contrib.fastapi import FastAPIServer
@@ -272,7 +272,7 @@ all_test_params.append(
 
 @lru_cache()
 def _declare_builder_command(type_: str):
-    create_declare_subcommand(
+    create_declare_mlem_object_subcommand(
         builder_typer,
         type_,
         MlemBuilder.object_type,
@@ -320,7 +320,7 @@ class MockComplexBuilder(_MockBuilder):
     server_dict: Dict[str, Server] = {}
 
 
-create_declare_subcommand(
+create_declare_mlem_object_subcommand(
     builder_typer,
     MockComplexBuilder.type,
     MlemBuilder.object_type,
