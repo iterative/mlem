@@ -106,6 +106,8 @@ def test_declare_dict(runner: Runner, tmp_path, args, res):
 
 
 class MockListComplexValue(_MockBuilder):
+    """mock"""
+
     field: List[ComplexValue] = []
 
 
@@ -138,6 +140,8 @@ all_test_params.append(
 
 
 class MockListListValue(_MockBuilder):
+    """mock"""
+
     f: List[ListValue] = []
 
 
@@ -156,6 +160,8 @@ all_test_params.append(
 
 
 class MockModelListBuilder(_MockBuilder):
+    """mock"""
+
     field: List[SimpleValue] = []
 
 
@@ -174,6 +180,8 @@ all_test_params.append(
 
 
 class MockModelDictBuilder(_MockBuilder):
+    """mock"""
+
     field: Dict[str, SimpleValue] = {}
 
 
@@ -195,6 +203,8 @@ all_test_params.append(
 
 
 class MockFlatList(_MockBuilder):
+    """mock"""
+
     f: List[List[str]] = []
 
 
@@ -211,6 +221,8 @@ all_test_params.append(
 
 
 class MockFlatListDict(_MockBuilder):
+    """mock"""
+
     f: List[Dict[str, str]] = []
 
 
@@ -227,6 +239,8 @@ all_test_params.append(
 
 
 class MockFlatDictList(_MockBuilder):
+    """mock"""
+
     f: Dict[str, List[str]] = {}
 
 
@@ -243,6 +257,8 @@ all_test_params.append(
 
 
 class MockFlatDict(_MockBuilder):
+    """mock"""
+
     f: Dict[str, Dict[str, str]] = {}
 
 
@@ -257,6 +273,8 @@ all_test_params.append(
 
 
 class MaskedField(_MockBuilder):
+    """mock"""
+
     field: ListValue
     index: str
 
