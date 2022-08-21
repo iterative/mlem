@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any, ClassVar, Dict, List
+from typing import Any, Dict, List
 
 import pytest
 from pydantic import BaseModel
@@ -25,6 +25,25 @@ builder_typer = [
 builder_typer.pretty_exceptions_short = False
 
 all_test_params = []
+
+
+class SimpleValue(BaseModel):
+    value: str
+
+
+class ComplexValue(BaseModel):
+    field: str
+    field_list: List[str] = []
+    field_dict: Dict[str, str] = {}
+
+
+class ListValue(BaseModel):
+    f: List[str] = []
+
+
+class _MockBuilder(MlemBuilder):
+    def build(self, obj: MlemModel):
+        pass
 
 
 def test_declare(runner: Runner, tmp_path):
@@ -61,47 +80,6 @@ def test_declare_list(runner: Runner, tmp_path, args, res):
     assert builder.args.templates_dir == res
 
 
-class SimpleModel(BaseModel):
-    value: str
-
-
-class MockModelListBuilder(MlemBuilder):
-    type: ClassVar = "mock_model_list_builder"
-    field: List[SimpleModel] = []
-
-    def build(self, obj: MlemModel):
-        pass
-
-
-create_declare_subcommand(
-    builder_typer,
-    MockModelListBuilder.type,
-    MlemBuilder.object_type,
-    MlemBuilder,
-)
-
-
-@pytest.mark.parametrize(
-    "args, res",
-    [
-        ("", []),
-        (
-            "--field.0.value kek --field.1.value kek2",
-            [SimpleModel(value="kek"), SimpleModel(value="kek2")],
-        ),
-    ],
-)
-def test_declare_list_model(runner: Runner, tmp_path, args, res):
-    result = runner.invoke(
-        f"declare builder {MockModelListBuilder.type} {make_posix(str(tmp_path))} "
-        + args
-    )
-    assert result.exit_code == 0, (result.exception, result.output)
-    builder = load_meta(str(tmp_path))
-    assert isinstance(builder, MockModelListBuilder)
-    assert builder.field == res
-
-
 @pytest.mark.parametrize(
     "args, res",
     [
@@ -125,76 +103,45 @@ def test_declare_dict(runner: Runner, tmp_path, args, res):
     assert builder.additional_setup_kwargs == res
 
 
-class MockModelDictBuilder(MlemBuilder):
-    type: ClassVar = "mock_model_dict_builder"
-    field: Dict[str, SimpleModel] = {}
-
-    def build(self, obj: MlemModel):
-        pass
-
-
-create_declare_subcommand(
-    builder_typer,
-    MockModelDictBuilder.type,
-    MlemBuilder.object_type,
-    MlemBuilder,
-)
-
-
-@pytest.mark.parametrize(
-    "args, res",
-    [
-        ("", {}),
-        (
-            "--field.k1.value kek --field.k2.value kek2",
-            {"k1": SimpleModel(value="kek"), "k2": SimpleModel(value="kek2")},
-        ),
-    ],
-)
-def test_declare_dict_model(runner: Runner, tmp_path, args, res):
-    result = runner.invoke(
-        f"declare builder {MockModelDictBuilder.type} {make_posix(str(tmp_path))} "
-        + args
-    )
-    assert result.exit_code == 0, (result.exception, result.output)
-    builder = load_meta(str(tmp_path))
-    assert isinstance(builder, MockModelDictBuilder)
-    assert builder.field == res
-
-
-class ComplexValue(BaseModel):
-    field: str
-    field_list: List[str] = []
-    field_dict: Dict[str, str] = {}
-
-
-class ListValue(BaseModel):
-    f: List[str] = []
-
-
-class _MockBuilder(MlemBuilder):
-    def build(self, obj: MlemModel):
-        pass
-
-
 class MockListComplexValue(_MockBuilder):
     field: List[ComplexValue] = []
+
+
+all_test_params.append(
+    pytest.param(
+        MockListComplexValue(), "", id=f"{MockListComplexValue.type}_empty"
+    )
+)
+all_test_params.append(
+    pytest.param(
+        MockListComplexValue(
+            field=[
+                ComplexValue(
+                    field="a",
+                    field_list=["a", "a"],
+                    field_dict={"a": "a", "b": "b"},
+                ),
+                ComplexValue(
+                    field="a",
+                    field_list=["a", "a"],
+                    field_dict={"a": "a", "b": "b"},
+                ),
+            ]
+        ),
+        "--field.0.field a --field.0.field_list.0 a --field.0.field_list.1 a --field.0.field_dict.a a --field.0.field_dict.b b"
+        "--field.1.field a --field.1.field_list.0 a --field.1.field_list.1 a --field.1.field_dict.a a --field.1.field_dict.b b",
+        id=f"{MockListComplexValue.type}_full",
+    )
+)
 
 
 class MockListListValue(_MockBuilder):
     f: List[ListValue] = []
 
 
-# all_test_params.append(pytest.param(MockModelAllListBuilder(), "", id=f"{MockModelAllListBuilder.type}_empty"))
-# all_test_params.append(pytest.param(MockListComplexValue(field=[
-#     ComplexValue(field="a", field_list=["a", "a"], field_dict={"a": "a", "b": "b"}),
-#     ComplexValue(field="a", field_list=["a", "a"], field_dict={"a": "a", "b": "b"})
-# ]),
-#     "--field.0.field a --field.0.field_list.0 a --field.0.field_list.1 a --field.0.field_dict.a a --field.0.field_dict.b b"
-#     "--field.1.field a --field.1.field_list.0 a --field.1.field_list.1 a --field.1.field_dict.a a --field.1.field_dict.b b",
-#     id=f"{MockListComplexValue.type}_full"
-# ))
-# all_test_params.append(pytest.param(MockListListValue(), "", id="list_list_value_empty"))
+all_test_params.append(
+    pytest.param(MockListListValue(), "", id="list_list_value_empty")
+)
 all_test_params.append(
     pytest.param(
         MockListListValue(
@@ -202,6 +149,45 @@ all_test_params.append(
         ),
         "--f.0.f.0 a --f.0.f.1 b --f.1.f.0 a --f.1.f.1 b",
         id="list_list_value_full",
+    )
+)
+
+
+class MockModelListBuilder(_MockBuilder):
+    field: List[SimpleValue] = []
+
+
+all_test_params.append(
+    pytest.param(MockModelListBuilder(), "", id="model_list_empty")
+)
+all_test_params.append(
+    pytest.param(
+        MockModelListBuilder(
+            field=[SimpleValue(value="kek"), SimpleValue(value="kek2")]
+        ),
+        "--field.0.value kek --field.1.value kek2",
+        id="model_list_full",
+    )
+)
+
+
+class MockModelDictBuilder(_MockBuilder):
+    field: Dict[str, SimpleValue] = {}
+
+
+all_test_params.append(
+    pytest.param(MockModelDictBuilder(), "", id="model_dict_empty")
+)
+all_test_params.append(
+    pytest.param(
+        MockModelDictBuilder(
+            field={
+                "k1": SimpleValue(value="kek"),
+                "k2": SimpleValue(value="kek2"),
+            }
+        ),
+        "--field.k1.value kek --field.k2.value kek2",
+        id="model_dict_empty",
     )
 )
 

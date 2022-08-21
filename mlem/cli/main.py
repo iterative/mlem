@@ -155,7 +155,6 @@ class MlemCommand(
         )
         res = res + super().get_params(ctx)
         if self.dynamic_metavar is not None:
-            print(" ".join(r.name for r in res))
             kw_param = [p for p in res if p.name == self.dynamic_metavar]
             if len(kw_param) > 0:
                 res.remove(kw_param[0])
