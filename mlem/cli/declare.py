@@ -28,7 +28,7 @@ declare = Typer(
         Create heroku deployment
         $ mlem declare env heroku production --api_key <...>
     """,
-    cls=mlem_group("objects"),
+    cls=mlem_group("object"),
     subcommand_metavar="subtype",
 )
 app.add_typer(declare)
