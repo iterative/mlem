@@ -276,7 +276,8 @@ class SmartSplitDict(dict):
             if postponed == prefix_values:
                 raise RuntimeError("infinite loop on smartdict builing")
             prefix_values = postponed
-        raise RuntimeError()
+        # this can only be reached if loop was not entered
+        return {}
 
     def _merge_aggregates(self, values: List[KeyValue]) -> Any:
         if all(isinstance(k, int) for k, _ in values):

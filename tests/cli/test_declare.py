@@ -42,6 +42,8 @@ class ListValue(BaseModel):
 
 
 class _MockBuilder(MlemBuilder):
+    """mock"""
+
     def build(self, obj: MlemModel):
         pass
 
@@ -128,7 +130,7 @@ all_test_params.append(
                 ),
             ]
         ),
-        "--field.0.field a --field.0.field_list.0 a --field.0.field_list.1 a --field.0.field_dict.a a --field.0.field_dict.b b"
+        "--field.0.field a --field.0.field_list.0 a --field.0.field_list.1 a --field.0.field_dict.a a --field.0.field_dict.b b "
         "--field.1.field a --field.1.field_list.0 a --field.1.field_list.1 a --field.1.field_dict.a a --field.1.field_dict.b b",
         id=f"{MockListComplexValue.type}_full",
     )
@@ -192,6 +194,82 @@ all_test_params.append(
 )
 
 
+class MockFlatList(_MockBuilder):
+    f: List[List[str]] = []
+
+
+all_test_params.append(
+    pytest.param(MockFlatList(f=[]), "", id="flat_list_empty")
+)
+all_test_params.append(
+    pytest.param(
+        MockFlatList(f=[["a", "a"], ["a", "a"]]),
+        "--f.0.0 a --f.0.1 a --f.1.0 a --f.1.1 a",
+        id="flat_list_full",
+    )
+)
+
+
+class MockFlatListDict(_MockBuilder):
+    f: List[Dict[str, str]] = []
+
+
+all_test_params.append(
+    pytest.param(MockFlatListDict(), "", id="flat_list_dict_empty")
+)
+all_test_params.append(
+    pytest.param(
+        MockFlatListDict(f=[{"k1": "a"}, {"k2": "b"}]),
+        "--f.0.k1 a --f.1.k2 b",
+        id="flat_list_dict_full",
+    )
+)
+
+
+class MockFlatDictList(_MockBuilder):
+    f: Dict[str, List[str]] = {}
+
+
+all_test_params.append(
+    pytest.param(MockFlatDictList(), "", id="flat_dict_list_empty")
+)
+all_test_params.append(
+    pytest.param(
+        MockFlatDictList(f={"k1": ["a"], "k2": ["b"]}),
+        "--f.k1.0 a --f.k2.0 b",
+        id="flat_dict_list_full",
+    )
+)
+
+
+class MockFlatDict(_MockBuilder):
+    f: Dict[str, Dict[str, str]] = {}
+
+
+all_test_params.append(pytest.param(MockFlatDict(), "", id="flat_dict_empty"))
+all_test_params.append(
+    pytest.param(
+        MockFlatDict(f={"k1": {"k1": "a"}, "k2": {"k2": "b"}}),
+        "--f.k1.k1 a --f.k2.k2 b",
+        id="flat_dict_full",
+    )
+)
+
+
+class MaskedField(_MockBuilder):
+    field: ListValue
+    index: str
+
+
+all_test_params.append(
+    pytest.param(
+        MaskedField(index="a", field=ListValue(f=["a"])),
+        "--.index a --field.f.0 a",
+        id="masked",
+    )
+)
+
+
 @lru_cache()
 def _declare_builder_command(type_: str):
     create_declare_subcommand(
@@ -203,7 +281,7 @@ def _declare_builder_command(type_: str):
 
 
 @pytest.mark.parametrize("expected, args", all_test_params)
-def test_declare_model_list_value(
+def test_declare_models(
     runner: Runner, tmp_path, args: str, expected: MlemBuilder
 ):
     _declare_builder_command(expected.__get_alias__())
@@ -223,6 +301,8 @@ class RootValue(BaseModel):
 
 
 class MockComplexBuilder(_MockBuilder):
+    """mock"""
+
     string: str
     str_list: List[str] = []
     str_dict: Dict[str, str] = {}
@@ -255,14 +335,14 @@ def test_declare_all_together(runner: Runner, tmp_path):
         "str_list.1",
         "str_dict.k1",
         "str_dict.k2",
-        # "str_list_dict.0.k1",
-        # "str_list_dict.0.k2",
-        # "str_list_dict.1.k1",
-        # "str_list_dict.1.k2",
-        # "str_dict_list.k1.0",
-        # "str_dict_list.k1.1",
-        # "str_dict_list.k2.0",
-        # "str_dict_list.k2.1",
+        "str_list_dict.0.k1",
+        "str_list_dict.0.k2",
+        "str_list_dict.1.k1",
+        "str_list_dict.1.k2",
+        "str_dict_list.k1.0",
+        "str_dict_list.k1.1",
+        "str_dict_list.k2.0",
+        "str_dict_list.k2.1",
         "value.field",
         "value.field_list.0",
         "value.field_list.1",

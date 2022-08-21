@@ -64,6 +64,9 @@ def use_mlem_source(source="local"):
 class DockerBuildArgs(BaseModel):
     """Container for DockerBuild arguments"""
 
+    class Config:
+        fields = {"prebuild_hook": {"exclude": True}}
+
     base_image: Optional[Union[str, Callable[[str], str]]] = None
     """base image for the built image in form of a string or function from python version,
     default: python:{python_version}"""

@@ -144,16 +144,21 @@ class MlemCommand(
         return super().invoke(ctx)
 
     def get_params(self, ctx) -> List["Parameter"]:
+        regular_options = super().get_params(ctx)
         res: List[Parameter] = (
             list(
                 self.dynamic_options_generator(
-                    CallContext(ctx.params, get_extra_keys(ctx.args))
+                    CallContext(
+                        ctx.params,
+                        get_extra_keys(ctx.args),
+                        [o.name for o in regular_options],
+                    )
                 )
             )
             if self.dynamic_options_generator is not None
             else []
-        )
-        res = res + super().get_params(ctx)
+        ) + regular_options
+
         if self.dynamic_metavar is not None:
             kw_param = [p for p in res if p.name == self.dynamic_metavar]
             if len(kw_param) > 0:

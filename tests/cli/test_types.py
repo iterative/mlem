@@ -36,7 +36,8 @@ def test_types_abs_name(runner: Runner, abs_name):
 def test_types_abs_name_subtype(runner: Runner, abs_name, subtype):
     result = runner.invoke(f"types {abs_name} {subtype}")
     assert result.exit_code == 0, result.exception
-    assert "docstring missing" not in result.output
+    if not subtype.startswith("tests."):
+        assert "docstring missing" not in result.output
 
 
 def test_iter_type_fields_subclass():

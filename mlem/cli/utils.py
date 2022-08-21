@@ -7,7 +7,13 @@ from functools import lru_cache
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Type
 
 import typer
-from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
+from pydantic import (
+    BaseModel,
+    MissingError,
+    ValidationError,
+    create_model,
+    parse_obj_as,
+)
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import (
     MAPPING_LIKE_SHAPES,
@@ -18,7 +24,7 @@ from pydantic.fields import (
     SHAPE_TUPLE_ELLIPSIS,
     ModelField,
 )
-from pydantic.typing import get_args
+from pydantic.typing import display_as_type, get_args, is_union
 from typer.core import TyperOption
 from typing_extensions import get_origin
 from yaml import safe_load
@@ -63,8 +69,11 @@ class Choices(str, Enum, metaclass=ChoicesMeta):
 
 
 class CliTypeField(BaseModel):
-    required: bool
+    """A descriptor of model field to build cli option"""
+
     path: str
+    """a.dotted.path from schema root"""
+    required: bool
     type_: Type
     help: str
     default: Any
@@ -108,6 +117,7 @@ class CliTypeField(BaseModel):
 
 @lru_cache()
 def get_attribute_docstrings(cls) -> Dict[str, str]:
+    """Parses cls source to find all classfields followed by docstring expr"""
     res = {}
     tree = ast.parse(lstrip_lines(inspect.getsource(cls)))
     class_def = tree.body[0]
@@ -139,16 +149,22 @@ def get_attribute_docstrings(cls) -> Dict[str, str]:
 
 @lru_cache()
 def get_field_help(cls: Type, field_name: str):
+    """Parses all class mro to find classfield docstring"""
     for base_cls in cls.mro():
         if base_cls is object:
             continue
-        docsting = get_attribute_docstrings(base_cls).get(field_name)
-        if docsting:
-            return docsting
+        try:
+            docsting = get_attribute_docstrings(base_cls).get(field_name)
+            if docsting:
+                return docsting
+        except OSError:
+            pass
     return "Field docstring missing"
 
 
 def anything(type_):
+    """Creates special type that is named as original type or collection type
+    It returns original object on creation and is needed for nice typename in cli option help"""
     if not isinstance(type_, type):
         type_ = get_origin(type_)
     name = type_.__name__ if type_ is not None else "any"
@@ -164,7 +180,9 @@ def parse_type_field(
     required: bool,
     default: Any,
 ) -> Iterator[CliTypeField]:
+    """Recursively creates CliTypeFields from field description"""
     if is_list or is_mapping:
+        # collection
         yield CliTypeField(
             required=required,
             path=path,
@@ -182,6 +200,7 @@ def parse_type_field(
         and issubclass(type_, MlemABC)
         and type_.__is_root__
     ):
+        # mlem abstraction: substitute default and extend help
         if isinstance(default, type_):
             default = default.__get_alias__()
         yield CliTypeField(
@@ -196,9 +215,10 @@ def parse_type_field(
         )
         return
     if isinstance(type_, type) and issubclass(type_, BaseModel):
+        # BaseModel (including MlemABC non-root classes): reqursively get nested
         yield from iterate_type_fields(type_, path, not required)
         return
-
+    # probably primitive field
     yield CliTypeField(
         required=required,
         path=path,
@@ -214,18 +234,21 @@ def parse_type_field(
 def iterate_type_fields(
     cls: Type[BaseModel], path: str = "", force_not_req: bool = False
 ) -> Iterator[CliTypeField]:
+    """Recursively get CliTypeFields from BaseModel"""
     field: ModelField
     for name, field in sorted(
         cls.__fields__.items(), key=lambda x: not x[1].required
     ):
         name = field.alias or name
         if issubclass(cls, MlemObject) and name in MlemObject.__fields__:
+            # Skip base MlemObject fields
             continue
         if (
             issubclass(cls, MlemABC)
             and name in cls.__config__.exclude
             or field.field_info.exclude
         ):
+            # Skip excluded fields
             continue
         if name == "__root__":
             fullname = path
@@ -233,14 +256,27 @@ def iterate_type_fields(
             fullname = name if not path else f"{path}.{name}"
 
         field_type = field.type_
+        # field.type_ is element type for collections/mappings
 
         if not isinstance(field_type, type):
-            # typing.GenericAlias
-            generic_args = get_args(field_type)
-            if len(generic_args) > 0:
-                field_type = field_type.__args__[0]
-            else:
+            # Handle generics. Probably will break in complex cases
+            origin = get_origin(field_type)
+            if is_union(origin):
+                # get first type for union
+                generic_args = get_args(field_type)
+                field_type = generic_args[0]
+            if origin is list or origin is dict:
+                # replace with dynamic __root__: Dict/List model
+                field_type = create_model(
+                    display_as_type(field_type), __root__=(field_type, ...)
+                )
+            if field_type is Any:
                 field_type = anything(field_type)
+
+        if not isinstance(field_type, type):
+            # skip too complicated stuff
+            continue
+
         yield from parse_type_field(
             path=fullname,
             type_=field_type,
@@ -256,6 +292,7 @@ def iterate_type_fields(
 class CallContext:
     params: Dict[str, Any]
     extra_keys: List[str]
+    regular_options: List[str]
 
 
 def _options_from_model(
@@ -264,8 +301,13 @@ def _options_from_model(
     path="",
     force_not_set: bool = False,
 ) -> Iterator[TyperOption]:
+    """Generate additional cli options from model field"""
     for field in iterate_type_fields(cls, path=path):
         path = field.path
+        if path in ctx.regular_options:
+            # add dot if path shadows existing parameter
+            # it will be ignored on model building
+            path = f".{path}"
 
         if field.is_list:
             yield from _options_from_list(path, field, ctx)
@@ -288,6 +330,8 @@ def _options_from_mlem_abc(
     path: str,
     force_not_set: bool = False,
 ):
+    """Generate str option for mlem abc type.
+    If param is already set, also generate respective implementation fields"""
     assert issubclass(field.type_, MlemABC) and field.type_.__is_root__
     if path in ctx.params and ctx.params[path] != NOT_SET:
         yield from _options_from_model(
@@ -301,6 +345,8 @@ def _options_from_mlem_abc(
 
 
 def _options_from_mapping(path: str, field: CliTypeField, ctx: CallContext):
+    """Generate options for mapping and example element.
+    If some keys are already set, also generate options for them"""
     mapping_keys = [
         key[len(path) + 1 :].split(".", maxsplit=1)[0]
         for key in ctx.extra_keys
@@ -321,6 +367,8 @@ def _options_from_mapping(path: str, field: CliTypeField, ctx: CallContext):
 
 
 def _options_from_list(path: str, field: CliTypeField, ctx: CallContext):
+    """Generate option for list and example element.
+    If some indexes are already set, also generate options for them"""
     index = 0
     next_path = f"{path}.{index}"
     while any(p.startswith(next_path) for p in ctx.params) and any(
@@ -345,6 +393,7 @@ def _options_from_collection_element(
     ctx: CallContext,
     force_not_set: bool = False,
 ) -> Iterator[TyperOption]:
+    """Generate options for collection/mapping values"""
     if issubclass(field.type_, MlemABC) and field.type_.__is_root__:
         yield from _options_from_mlem_abc(
             ctx, field, path, force_not_set=force_not_set
@@ -367,6 +416,7 @@ def _option_from_field(
     override_type: Type = None,
     force_not_set: bool = False,
 ) -> TyperOption:
+    """Create cli option from field descriptor"""
     type_ = override_type or field.type_
     option = TyperOption(
         param_decls=[f"--{path}", path.replace(".", "_")],
@@ -383,6 +433,8 @@ def _option_from_field(
 
 
 def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
+    """Create a dynamic options generator that adds implementation fields"""
+
     def generator(ctx: CallContext):
         try:
             cls = load_impl_ext(mlem_abc.abs_name, type_name=type_name)

@@ -1,30 +1,38 @@
-from typing import Optional, Type
+from typing import Iterator, Optional, Type
 
 from pydantic import BaseModel
 from typer import Argument
 
 from mlem.cli.main import mlem_command
-from mlem.cli.utils import iterate_type_fields, parse_type_field
+from mlem.cli.utils import CliTypeField, iterate_type_fields, parse_type_field
 from mlem.core.base import MlemABC, load_impl_ext
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_BASE, bold, color, echo
 from mlem.utils.entrypoints import list_implementations
 
 
-def type_fields_with_collection_examples(cls):
-    for field in iterate_type_fields(cls):
+def _add_examples(generator: Iterator[CliTypeField], parent_help=None):
+    for field in generator:
+        field.help = parent_help or field.help
         yield field
         if field.is_list or field.is_mapping:
             key = ".key" if field.is_mapping else ".0"
-            yield from parse_type_field(
-                field.path + key,
-                field.type_,
-                field.help,
-                False,
-                False,
-                False,
-                None,
+            yield from _add_examples(
+                parse_type_field(
+                    field.path + key,
+                    field.type_,
+                    field.help,
+                    False,
+                    False,
+                    False,
+                    None,
+                ),
+                parent_help=f"Element of {field.path}",
             )
+
+
+def type_fields_with_collection_examples(cls):
+    yield from _add_examples(iterate_type_fields(cls))
 
 
 def explain_type(cls: Type[BaseModel]):
