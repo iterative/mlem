@@ -4,7 +4,13 @@ from pydantic import BaseModel
 
 from mlem.contrib.docker import DockerImageBuilder
 from mlem.contrib.fastapi import FastAPIServer
-from mlem.core.base import MlemABC, build_mlem_object, parse_links, smart_split
+from mlem.core.base import (
+    MlemABC,
+    SmartSplitDict,
+    build_mlem_object,
+    parse_links,
+    smart_split,
+)
 from mlem.core.objects import MlemBuilder, MlemLink, MlemModel, MlemObject
 from mlem.runtime.server import Server
 from tests.conftest import resource_path
@@ -114,3 +120,100 @@ def test_build_with_list_complex():
     assert isinstance(res, MockMlemABCListComplex)
     assert isinstance(res.values, list)
     assert res.values == [Value(field="a"), Value(field="b")]
+
+
+def test_build_with_list_nested():
+    class MockMlemABCListNested(MlemABC):
+        abs_name: ClassVar = "mock_list_complex"
+        values: List[List[str]]
+
+    res = build_mlem_object(
+        MockMlemABCListNested,
+        MockMlemABCListNested.abs_name,
+        ["values.0.0=a", "values.0.1=b"],
+    )
+    assert isinstance(res, MockMlemABCListNested)
+    assert isinstance(res.values, list)
+    assert res.values == [["a", "b"]]
+
+
+def test_smart_split_dict():
+    d = SmartSplitDict(sep=".")
+    d["a.b.c"] = 1
+    d["a.b.d"] = 2
+    d["a.e"] = 3
+    d["a.f"] = 4
+    d["g"] = 5
+
+    assert d.build() == {"g": 5, "a": {"f": 4, "e": 3, "b": {"d": 2, "c": 1}}}
+
+
+def test_smart_split_dict_with_list():
+    d = SmartSplitDict(sep=".")
+    d["a.0"] = 1
+    d["a.1"] = 2
+    d["b"] = 3
+
+    assert d.build() == {"a": [1, 2], "b": 3}
+
+
+def test_smart_split_dict_with_nested():
+    d = SmartSplitDict(sep=".")
+    d["ll.0.0"] = 1
+    d["ll.0.1"] = 2
+    d["ll.1.0"] = 3
+    d["ll.1.1"] = 4
+    d["ld.0.a"] = 5
+    d["ld.0.b"] = 6
+    d["ld.1.a"] = 7
+    d["ld.1.b"] = 8
+    d["dl.a.0"] = 9
+    d["dl.a.1"] = 10
+    d["dl.b.0"] = 11
+    d["dl.b.1"] = 12
+    d["dd.a.a"] = 13
+    d["dd.a.b"] = 14
+    d["dd.b.a"] = 15
+    d["dd.b.b"] = 16
+
+    assert d.build() == {
+        "ll": [[1, 2], [3, 4]],
+        "ld": [{"a": 5, "b": 6}, {"a": 7, "b": 8}],
+        "dl": {"a": [9, 10], "b": [11, 12]},
+        "dd": {"a": {"a": 13, "b": 14}, "b": {"a": 15, "b": 16}},
+    }
+
+
+def test_smart_split_dict_with_type():
+    d = SmartSplitDict(sep=".")
+    d["server"] = "fastapi"
+    d["server.port"] = 8080
+    assert d.build() == {"server": {"type": "fastapi", "port": 8080}}
+
+
+def test_smart_split_dict_prebuilt():
+    d = SmartSplitDict(sep=".")
+    d["a.b.c"] = 1
+    d["a"] = {"b": {"d": 2}}
+    assert d.build() == {"a": {"b": {"c": 1, "d": 2}}}
+
+
+def test_smart_split_dict_list_with_type():
+    d = SmartSplitDict(sep=".")
+    d["server.0"] = "fastapi"
+    d["server.0.port"] = 8080
+    assert d.build() == {"server": [{"type": "fastapi", "port": 8080}]}
+
+
+def test_smart_split_dict_dict_with_type():
+    d = SmartSplitDict(sep=".")
+    d["server.a"] = "fastapi"
+    d["server.a.port"] = 8080
+    d["server.b"] = "fastapi"
+    d["server.b.port"] = 8080
+    assert d.build() == {
+        "server": {
+            "a": {"type": "fastapi", "port": 8080},
+            "b": {"type": "fastapi", "port": 8080},
+        }
+    }

@@ -721,6 +721,7 @@ class MlemBuilder(MlemObject):
         type_root = True
         type_field = "type"
 
+    type: ClassVar[str]
     object_type: ClassVar = "builder"
     abs_name: ClassVar[str] = "builder"
 

@@ -1,4 +1,5 @@
-from typing import ClassVar, Dict, List
+from functools import lru_cache
+from typing import Any, ClassVar, Dict, List
 
 import pytest
 from pydantic import BaseModel
@@ -9,8 +10,10 @@ from mlem.contrib.docker.context import DockerBuildArgs
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.heroku.meta import HerokuEnv
 from mlem.contrib.pip.base import PipBuilder
+from mlem.core.base import build_mlem_object
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemBuilder, MlemModel
+from mlem.runtime.server import Server
 from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
 
@@ -20,6 +23,8 @@ builder_typer = [
     if g.typer_instance.info.name == "builder"
 ][0]
 builder_typer.pretty_exceptions_short = False
+
+all_test_params = []
 
 
 def test_declare(runner: Runner, tmp_path):
@@ -35,7 +40,7 @@ def test_declare(runner: Runner, tmp_path):
 @pytest.mark.parametrize(
     "args, res",
     [
-        # ("", []),
+        ("", []),
         (
             "--args.templates_dir.0 kek --args.templates_dir.1 kek2",
             ["kek", "kek2"],
@@ -120,36 +125,133 @@ def test_declare_dict(runner: Runner, tmp_path, args, res):
     assert builder.additional_setup_kwargs == res
 
 
-class Value(BaseModel):
+class MockModelDictBuilder(MlemBuilder):
+    type: ClassVar = "mock_model_dict_builder"
+    field: Dict[str, SimpleModel] = {}
+
+    def build(self, obj: MlemModel):
+        pass
+
+
+create_declare_subcommand(
+    builder_typer,
+    MockModelDictBuilder.type,
+    MlemBuilder.object_type,
+    MlemBuilder,
+)
+
+
+@pytest.mark.parametrize(
+    "args, res",
+    [
+        ("", {}),
+        (
+            "--field.k1.value kek --field.k2.value kek2",
+            {"k1": SimpleModel(value="kek"), "k2": SimpleModel(value="kek2")},
+        ),
+    ],
+)
+def test_declare_dict_model(runner: Runner, tmp_path, args, res):
+    result = runner.invoke(
+        f"declare builder {MockModelDictBuilder.type} {make_posix(str(tmp_path))} "
+        + args
+    )
+    assert result.exit_code == 0, (result.exception, result.output)
+    builder = load_meta(str(tmp_path))
+    assert isinstance(builder, MockModelDictBuilder)
+    assert builder.field == res
+
+
+class ComplexValue(BaseModel):
     field: str
     field_list: List[str] = []
     field_dict: Dict[str, str] = {}
+
+
+class ListValue(BaseModel):
+    f: List[str] = []
+
+
+class _MockBuilder(MlemBuilder):
+    def build(self, obj: MlemModel):
+        pass
+
+
+class MockListComplexValue(_MockBuilder):
+    field: List[ComplexValue] = []
+
+
+class MockListListValue(_MockBuilder):
+    f: List[ListValue] = []
+
+
+# all_test_params.append(pytest.param(MockModelAllListBuilder(), "", id=f"{MockModelAllListBuilder.type}_empty"))
+# all_test_params.append(pytest.param(MockListComplexValue(field=[
+#     ComplexValue(field="a", field_list=["a", "a"], field_dict={"a": "a", "b": "b"}),
+#     ComplexValue(field="a", field_list=["a", "a"], field_dict={"a": "a", "b": "b"})
+# ]),
+#     "--field.0.field a --field.0.field_list.0 a --field.0.field_list.1 a --field.0.field_dict.a a --field.0.field_dict.b b"
+#     "--field.1.field a --field.1.field_list.0 a --field.1.field_list.1 a --field.1.field_dict.a a --field.1.field_dict.b b",
+#     id=f"{MockListComplexValue.type}_full"
+# ))
+# all_test_params.append(pytest.param(MockListListValue(), "", id="list_list_value_empty"))
+all_test_params.append(
+    pytest.param(
+        MockListListValue(
+            f=[ListValue(f=["a", "b"]), ListValue(f=["a", "b"])]
+        ),
+        "--f.0.f.0 a --f.0.f.1 b --f.1.f.0 a --f.1.f.1 b",
+        id="list_list_value_full",
+    )
+)
+
+
+@lru_cache()
+def _declare_builder_command(type_: str):
+    create_declare_subcommand(
+        builder_typer,
+        type_,
+        MlemBuilder.object_type,
+        MlemBuilder,
+    )
+
+
+@pytest.mark.parametrize("expected, args", all_test_params)
+def test_declare_model_list_value(
+    runner: Runner, tmp_path, args: str, expected: MlemBuilder
+):
+    _declare_builder_command(expected.__get_alias__())
+    result = runner.invoke(
+        f"declare builder {expected.__get_alias__()} {make_posix(str(tmp_path))} "
+        + args,
+        raise_on_error=True,
+    )
+    assert result.exit_code == 0, (result.exception, result.output)
+    builder = load_meta(str(tmp_path))
+    assert isinstance(builder, type(expected))
+    assert builder == expected
 
 
 class RootValue(BaseModel):
     __root__: List[str] = []
 
 
-class MockComplexBuilder(MlemBuilder):
-    type: ClassVar = "mock_complex"
-
+class MockComplexBuilder(_MockBuilder):
     string: str
-    # str_list: List[str] = []
-    # str_dict: Dict[str, str] = {}
+    str_list: List[str] = []
+    str_dict: Dict[str, str] = {}
     # str_list_dict: List[Dict[str, str]] = []
     # str_dict_list: Dict[str, List[str]] = {}
-    # value: Value
-    value_list: List[Value] = []
-    # value_dict: Dict[str, Value] = {}
+    value: ComplexValue
+
+    value_list: List[ComplexValue] = []
+    value_dict: Dict[str, ComplexValue] = {}
     # root_value: RootValue
     # root_list: List[RootValue] = []
     # root_dict: Dict[str, RootValue] = {}
-    # server: Server
-    # server_list: List[Server] = []
+    server: Server
+    server_list: List[Server] = []
     # server_dict: Dict[str, Server] = {}
-
-    def build(self, obj: MlemModel):
-        pass
 
 
 create_declare_subcommand(
@@ -163,10 +265,10 @@ create_declare_subcommand(
 def test_declare_all_together(runner: Runner, tmp_path):
     args = [
         "string",
-        # "str_list.0",
-        # "str_list.1",
-        # "str_dict.k1",
-        # "str_dict.k2",
+        "str_list.0",
+        "str_list.1",
+        "str_dict.k1",
+        "str_dict.k2",
         # "str_list_dict.0.k1",
         # "str_list_dict.0.k2",
         # "str_list_dict.1.k1",
@@ -175,11 +277,11 @@ def test_declare_all_together(runner: Runner, tmp_path):
         # "str_dict_list.k1.1",
         # "str_dict_list.k2.0",
         # "str_dict_list.k2.1",
-        # "value.field",
-        # "value.field_list.0",
-        # "value.field_list.1",
-        # "value.field_dict.k1",
-        # "value.field_dict.k2",
+        "value.field",
+        "value.field_list.0",
+        "value.field_list.1",
+        "value.field_dict.k1",
+        "value.field_dict.k2",
         "value_list.0.field",
         "value_list.0.field_list.0",
         "value_list.0.field_list.1",
@@ -190,16 +292,16 @@ def test_declare_all_together(runner: Runner, tmp_path):
         "value_list.1.field_list.1",
         "value_list.1.field_dict.k1",
         "value_list.1.field_dict.k2",
-        # "value_dict.k1.field",
-        # "value_dict.k1.field_list.0",
-        # "value_dict.k1.field_list.1",
-        # "value_dict.k1.field_dict.k1",
-        # "value_dict.k1.field_dict.k2",
-        # "value_dict.k2.field",
-        # "value_dict.k2.field_list.0",
-        # "value_dict.k2.field_list.1",
-        # "value_dict.k2.field_dict.k1",
-        # "value_dict.k2.field_dict.k2",
+        "value_dict.k1.field",
+        "value_dict.k1.field_list.0",
+        "value_dict.k1.field_list.1",
+        "value_dict.k1.field_dict.k1",
+        "value_dict.k1.field_dict.k2",
+        "value_dict.k2.field",
+        "value_dict.k2.field_list.0",
+        "value_dict.k2.field_list.1",
+        "value_dict.k2.field_dict.k1",
+        "value_dict.k2.field_dict.k2",
         # "root_value.0",
         # "root_value.1",
         # "root_list.0.0",
@@ -211,26 +313,30 @@ def test_declare_all_together(runner: Runner, tmp_path):
         # "root_dict.k2.0",
         # "root_dict.k2.1"
     ]
-    server_args: Dict[str, str] = {
-        # "server": "fastapi",
-        # "server.port": 0,
-        # "server_list.0": "fastapi",
-        # "server_list.0.port": 0,
-        # "server_list.1": "fastapi",
-        # "server_list.1.port": 0,
-        # "server_dict.k1": "fastapi",
-        # "server_dict.k1.port": 0,
-        # "server_dict.k2": "fastapi",
-        # "server_dict.k2.port": 0,
+    server_args: Dict[str, Any] = {
+        "server": "fastapi",
+        "server.port": 0,
+        "server_list.0": "fastapi",
+        "server_list.0.port": 0,
+        "server_list.1": "fastapi",
+        "server_list.1.port": 0,
+        "server_dict.k1": "fastapi",
+        "server_dict.k1.port": 0,
+        "server_dict.k2": "fastapi",
+        "server_dict.k2.port": 0,
     }
     args_str = " ".join(f"--{k} lol" for k in args)
     args_str += " " + " ".join(f"--{k} {v}" for k, v in server_args.items())
     result = runner.invoke(
-        f"declare builder {MockComplexBuilder.type} {make_posix(str(tmp_path))} {args_str}"
+        f"declare builder {MockComplexBuilder.type} {make_posix(str(tmp_path))} {args_str}",
+        raise_on_error=True,
     )
     assert result.exit_code == 0, (result.exception, result.output)
     builder = load_meta(str(tmp_path))
     assert isinstance(builder, MockComplexBuilder)
-    # assert builder.package_name == "lol"
-    # assert builder.target == "lol"
-    # assert builder.additional_setup_kwargs == res
+    assert builder == build_mlem_object(
+        MlemBuilder,
+        MockComplexBuilder.type,
+        str_conf=[f"{k}=lol" for k in args],
+        conf=server_args,
+    )

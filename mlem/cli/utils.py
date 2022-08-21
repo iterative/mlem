@@ -315,7 +315,9 @@ def _options_from_mapping(path: str, field: CliTypeField, ctx: CallContext):
     yield _option_from_field(
         field, path, override_type=override_type, force_not_set=True
     )
-    yield from _options_from_collection_element(f"{path}.key", field, ctx)
+    yield from _options_from_collection_element(
+        f"{path}.key", field, ctx, force_not_set=True
+    )
 
 
 def _options_from_list(path: str, field: CliTypeField, ctx: CallContext):

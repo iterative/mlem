@@ -1,4 +1,5 @@
 import logging
+import traceback
 from collections import defaultdict
 from functools import partial, wraps
 from gettext import gettext
@@ -127,14 +128,20 @@ class MlemCommand(
         extra_args = ctx.args
         while extra_args:
             with ctx.scope(cleanup=False):
-                self.parse_args(ctx, args_copy)
+                try:
+                    self.parse_args(ctx, args_copy[:])
+                except Exception:
+                    traceback.print_exc()
+                    raise
             if ctx.args == extra_args:
+                print("extra", extra_args)
                 break
             extra_args = ctx.args
 
         return ctx
 
     def invoke(self, ctx: Context) -> Any:
+        print(ctx.params)
         ctx.params = {k: v for k, v in ctx.params.items() if v != NOT_SET}
         return super().invoke(ctx)
 
@@ -150,6 +157,7 @@ class MlemCommand(
         )
         res = res + super().get_params(ctx)
         if self.dynamic_metavar is not None:
+            print(" ".join(r.name for r in res))
             kw_param = [p for p in res if p.name == self.dynamic_metavar]
             if len(kw_param) > 0:
                 res.remove(kw_param[0])

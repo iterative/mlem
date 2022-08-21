@@ -1,4 +1,5 @@
 import shlex
+from collections import defaultdict
 from inspect import isabstract
 from typing import (
     Any,
@@ -6,6 +7,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -148,64 +150,6 @@ class MlemABC(PolyModel):
 _not_set = object()
 
 
-# pylint: disable=too-many-return-statements
-def set_or_replace(
-    obj: Union[dict, list], key: str, value: Any, subkey: str = "type"
-):
-    if isinstance(obj, list):
-        # [a], 1:b -> [a, b]
-        if not key.isnumeric():
-            raise ValueError("Key should be numeric for list")
-        index = int(key)
-        if len(obj) <= index:
-            obj.extend([_not_set] * (index + 1 - len(obj)))
-        obj[index] = value
-        return obj
-    if key.isnumeric():
-        # {}, 0:a -> [a]
-        if obj:
-            raise ValueError("Can use numeric keys for objects")
-        index = int(key)
-        obj = [_not_set] * (index + 1)
-        obj[index] = value
-        return obj
-    if key in obj:
-        old_value = obj[key]
-        if isinstance(old_value, list) and not value:
-            # {k: [...]}, k:{} -> {k: [...]}
-            return obj
-        if (
-            isinstance(old_value, str)
-            and isinstance(value, dict)
-            and subkey not in value
-        ):
-            # {k: subtype}, k:{...} -> {k: {type: subtype, ...}}
-            value[subkey] = old_value
-            obj[key] = value
-            return obj
-        if isinstance(old_value, dict) and isinstance(value, str):
-            # {k: {...}}, k: subtype -> {k: {type: subtype, ...}}
-            old_value[subkey] = value
-            return obj
-        if isinstance(old_value, dict) and isinstance(value, dict):
-            # {k: {...}}, k:{...} -> {k: {......}}
-            old_value.update(value)
-            return obj
-    # {...}, k:v -> {k:v, ...}
-    obj[key] = value
-    return obj
-
-
-def set_recursively(obj: dict, keys: List[str], value: Any):
-    if len(keys) == 1:
-        return set_or_replace(obj, keys[0], value)
-    key, keys = keys[0], keys[1:]
-    obj = set_or_replace(obj, key, {})
-    index_or_key = int(key) if key.isnumeric() else key
-    obj[index_or_key] = set_recursively(obj[index_or_key], keys, value)
-    return obj
-
-
 def get_recursively(obj: dict, keys: List[str]):
     if len(keys) == 1:
         return obj[keys[0]]
@@ -277,12 +221,117 @@ def parse_links(model: Type["BaseModel"], str_conf: List[str]):
     return not_links, links
 
 
+IntStr = Union[int, str]
+Keys = Tuple[IntStr, ...]
+KeyValue = Tuple[IntStr, Any]
+Aggregates = Dict[Keys, List[KeyValue]]
+
+
+class SmartSplitDict(dict):
+    def __init__(self, value=None, sep=".", type_field="type"):
+        self.type_field = type_field
+        self.sep = sep
+        super().__init__(value or ())
+
+    def update(self, __m: Dict[Any, Any], **kwargs) -> None:  # type: ignore[override]
+        for k, v in __m.items():
+            self[k] = v
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            key = tuple(smart_split(key, self.sep))
+
+        for keys, val in self._disassemble(value, key):
+            super().__setitem__(keys, val)
+
+    def _disassemble(self, value: Any, key_prefix):
+        if isinstance(value, list):
+            for i, v in enumerate(value):
+                yield from self._disassemble(v, key_prefix + (i,))
+            return
+        if isinstance(value, dict):
+            for k, v in value.items():
+                yield from self._disassemble(v, key_prefix + (k,))
+            return
+        yield key_prefix, value
+
+    def build(self) -> Dict[str, Any]:
+        prefix_values: Aggregates = self._aggregate_by_prefix()
+        while prefix_values:
+            if len(prefix_values) == 1 and () in prefix_values:
+                return self._merge_aggregates(prefix_values[()])
+            max_len = max(len(k) for k in prefix_values)
+            to_aggregate: Dict[Keys, Any] = {}
+            postponed: Aggregates = defaultdict(list)
+            for prefix, values in prefix_values.items():
+                if len(prefix) == max_len:
+                    to_aggregate[prefix] = self._merge_aggregates(values)
+                    continue
+                postponed[prefix] = values
+            aggregated: Aggregates = self._aggregate_by_prefix(to_aggregate)
+            for prefix in set(postponed).union(aggregated):
+                postponed[prefix].extend(aggregated.get(prefix, []))
+            if postponed == prefix_values:
+                raise RuntimeError("infinite loop on smartdict builing")
+            prefix_values = postponed
+        raise RuntimeError()
+
+    def _merge_aggregates(self, values: List[KeyValue]) -> Any:
+        if all(isinstance(k, int) for k, _ in values):
+            return self._merge_as_list(values)
+        return self._merge_as_dict(values)
+
+    def _merge_as_list(self, values: List[KeyValue]):
+        assert all(isinstance(k, int) for k, _ in values)
+        index_values = defaultdict(list)
+        for index, value in values:
+            index_values[index].append(value)
+        res = [_not_set] * (int(max(k for k, _ in values)) + 1)
+        for i, v in index_values.items():
+            res[i] = self._merge_values(v)  # type: ignore[index]
+        return res
+
+    def _merge_as_dict(self, values: List[KeyValue]) -> Dict[Any, Any]:
+        key_values = defaultdict(list)
+        for key, value in values:
+            key_values[key].append(value)
+        return {k: self._merge_values(v) for k, v in key_values.items()}
+
+    def _merge_values(self, values: List[Any]) -> Any:
+        if len(values) == 1:
+            return values[0]
+        merged = {}
+        for value in values:
+            if isinstance(value, dict):
+                merged.update(value)
+            elif isinstance(value, str):
+                merged[self.type_field] = value
+            else:
+                raise ValueError(f"Cannot merge {value.__class__} into dict")
+        return merged
+
+    def _aggregate_by_prefix(
+        self, values: Dict[Keys, Any] = None
+    ) -> Aggregates:
+        values = values if values is not None else self
+        prefix_values: Aggregates = defaultdict(list)
+
+        for keys, value in values.items():
+            prefix, key = keys[:-1], keys[-1]
+            if isinstance(key, str) and key.isnumeric():
+                key = int(key)
+            prefix_values[prefix].append((key, value))
+        return prefix_values
+
+
 def parse_string_conf(conf: List[str]) -> Dict[str, Any]:
-    res: Dict[str, Any] = {}
+    res = SmartSplitDict()
     for c in conf:
         keys, value = smart_split(c, "=")
-        set_recursively(res, smart_split(keys, "."), value)
-    return res
+        res[keys] = value
+    return res.build()
 
 
 def build_model(
@@ -292,21 +341,19 @@ def build_model(
     conf: Dict[str, Any] = None,
     **kwargs,
 ):
-    model_dict: Dict[str, Any] = {}
-    kwargs.update(conf or {})
-    model_dict.update()
-    for key, c in kwargs.items():
-        model_dict = set_recursively(model_dict, smart_split(key, "."), c)
+    model_dict = SmartSplitDict()
+    model_dict.update(kwargs)
+    model_dict.update(conf or {})
 
     for file in file_conf or []:
         keys, path = smart_split(make_posix(file), "=")
         with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
-        model_dict = set_recursively(model_dict, smart_split(keys, "."), value)
+        model_dict[keys] = value
 
     for c in str_conf or []:
         keys, value = smart_split(c, "=", 1)
         if value == "None":
             value = None
-        model_dict = set_recursively(model_dict, smart_split(keys, "."), value)
-    return parse_obj_as(model, model_dict)
+        model_dict[keys] = value
+    return parse_obj_as(model, model_dict.build())
