@@ -74,6 +74,7 @@ class CliTypeField(BaseModel):
     path: str
     """a.dotted.path from schema root"""
     required: bool
+    allow_none: bool
     type_: Type
     help: str
     default: Any
@@ -162,13 +163,32 @@ def get_field_help(cls: Type, field_name: str):
     return "Field docstring missing"
 
 
+def _get_type_name_alias(type_):
+    if not isinstance(type_, type):
+        type_ = get_origin(type_)
+    return type_.__name__ if type_ is not None else "any"
+
+
 def anything(type_):
     """Creates special type that is named as original type or collection type
     It returns original object on creation and is needed for nice typename in cli option help"""
-    if not isinstance(type_, type):
-        type_ = get_origin(type_)
-    name = type_.__name__ if type_ is not None else "any"
-    return type(name, (), {"__new__": lambda cls, value: value})
+    return type(
+        _get_type_name_alias(type_), (), {"__new__": lambda cls, value: value}
+    )
+
+
+def optional(type_):
+    """Creates special type that is named as original type or collection type
+    It allows use string `None` to indicate None value"""
+    return type(
+        _get_type_name_alias(type_),
+        (),
+        {
+            "__new__": lambda cls, value: None
+            if value == "None"
+            else type_(value)
+        },
+    )
 
 
 def parse_type_field(
@@ -178,6 +198,7 @@ def parse_type_field(
     is_list: bool,
     is_mapping: bool,
     required: bool,
+    allow_none: bool,
     default: Any,
 ) -> Iterator[CliTypeField]:
     """Recursively creates CliTypeFields from field description"""
@@ -185,6 +206,7 @@ def parse_type_field(
         # collection
         yield CliTypeField(
             required=required,
+            allow_none=allow_none,
             path=path,
             type_=type_,
             default=default,
@@ -205,6 +227,7 @@ def parse_type_field(
             default = default.__get_alias__()
         yield CliTypeField(
             required=required,
+            allow_none=allow_none,
             path=path,
             type_=type_,
             help=f"{help_}. One of {list_implementations(type_, include_hidden=False)}. Run 'mlem types {type_.abs_name} <subtype>' for list of nested fields for each subtype",
@@ -221,6 +244,7 @@ def parse_type_field(
     # probably primitive field
     yield CliTypeField(
         required=required,
+        allow_none=allow_none,
         path=path,
         type_=type_,
         default=default,
@@ -284,6 +308,7 @@ def iterate_type_fields(
             is_list=field.shape in LIST_LIKE_SHAPES,
             is_mapping=field.shape in MAPPING_LIKE_SHAPES,
             required=not force_not_req and bool(field.required),
+            allow_none=field.allow_none,
             default=field.default,
         )
 
@@ -418,6 +443,10 @@ def _option_from_field(
 ) -> TyperOption:
     """Create cli option from field descriptor"""
     type_ = override_type or field.type_
+    if force_not_set:
+        type_ = anything(type_)
+    elif field.allow_none:
+        type_ = optional(type_)
     option = TyperOption(
         param_decls=[f"--{path}", path.replace(".", "_")],
         type=type_ if not force_not_set else anything(type_),

@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pytest
 from pydantic import BaseModel
@@ -284,6 +284,53 @@ all_test_params.append(
         MaskedField(index="a", field=ListValue(f=["a"])),
         "--.index a --field.f.0 a",
         id="masked",
+    )
+)
+
+
+class BooleanField(_MockBuilder):
+    field: bool
+
+
+all_test_params.extend(
+    (
+        pytest.param(
+            BooleanField(field=True),
+            "--field 1",
+            id="bool_true_1",
+        ),
+        pytest.param(
+            BooleanField(field=False),
+            "--field 0",
+            id="bool_false_0",
+        ),
+        pytest.param(
+            BooleanField(field=True),
+            "--field True",
+            id="bool_true",
+        ),
+        pytest.param(
+            BooleanField(field=False),
+            "--field False",
+            id="bool_false",
+        ),
+    )
+)
+
+
+class AllowNoneField(_MockBuilder):
+    field: Optional[int] = 0
+
+
+all_test_params.extend(
+    (
+        pytest.param(
+            AllowNoneField(field=10), "--field 10", id="allow_none_value"
+        ),
+        pytest.param(
+            AllowNoneField(field=None), "--field None", id="allow_none_none"
+        ),
+        pytest.param(AllowNoneField(), "", id="allow_none_default"),
     )
 )
 

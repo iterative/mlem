@@ -19,13 +19,14 @@ def _add_examples(generator: Iterator[CliTypeField], parent_help=None):
             key = ".key" if field.is_mapping else ".0"
             yield from _add_examples(
                 parse_type_field(
-                    field.path + key,
-                    field.type_,
-                    field.help,
-                    False,
-                    False,
-                    False,
-                    None,
+                    path=field.path + key,
+                    type_=field.type_,
+                    help_=field.help,
+                    is_list=False,
+                    is_mapping=False,
+                    required=False,
+                    allow_none=False,
+                    default=None,
                 ),
                 parent_help=f"Element of {field.path}",
             )

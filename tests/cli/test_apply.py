@@ -219,13 +219,14 @@ def test_apply_remote(mlem_client, runner, data_path):
                 "apply-remote",
                 "http",
                 data_path,
-                "-c",
-                "host=''",
-                "-c",
-                "port=None",
+                "--host",
+                "",
+                "--port",
+                "None",
                 "-o",
                 path,
             ],
+            raise_on_error=True,
         )
         assert result.exit_code == 0, (result.output, result.exception)
         predictions = load(path)

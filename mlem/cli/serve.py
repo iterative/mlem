@@ -61,7 +61,7 @@ def create_serve_command(type_name):
                 Server,
                 load,
                 type_name,
-                str_conf=None,
+                conf=None,
                 file_conf=file_conf,
                 **__kwargs__
             ),
