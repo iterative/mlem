@@ -598,7 +598,7 @@ class MlemModel(_WithArtifacts):
     """MlemObject representing a ML model"""
 
     object_type: ClassVar = "model"
-    model_type_cache: Union[Dict, ModelType]
+    model_type_cache: Any
     model_type: ModelType
     """framework-specific metadata"""
     model_type, model_type_raw, model_type_cache = lazy_field(
@@ -653,7 +653,7 @@ class MlemData(_WithArtifacts):
         exclude = {"data_type"}
 
     object_type: ClassVar = "data"
-    reader_cache: Union[Dict, DataReader]
+    reader_cache: Any
     reader: Optional[DataReader]
     """How to read this data"""
     reader, reader_raw, reader_cache = lazy_field(
