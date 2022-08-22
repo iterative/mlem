@@ -47,6 +47,10 @@ class _MockBuilder(MlemBuilder):
     def build(self, obj: MlemModel):
         pass
 
+    def __init_subclass__(cls):
+        cls.__doc__ = "mock"
+        super().__init_subclass__()
+
 
 def test_declare(runner: Runner, tmp_path):
     result = runner.invoke(
