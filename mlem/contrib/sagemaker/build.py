@@ -70,15 +70,13 @@ class ECRegistry(RemoteRegistry):
     def get_host(self) -> Optional[str]:
         return f"{self.account}.dkr.ecr.{self.region}.amazonaws.com"
 
-    def image_exists(self, client, image: "DockerImage"):
+    def image_exists(self, client, image: DockerImage):
         images = self.ecr_client.list_images(repositoryName=image.name)[
             "imageIds"
         ]
         return len(images) > 0
 
-    def delete_image(
-        self, client, image: "DockerImage", force=False, **kwargs
-    ):
+    def delete_image(self, client, image: DockerImage, force=False, **kwargs):
         self.ecr_client.batch_delete_image(
             repositoryName=image.name,
             imageIds=[{"imageTag": image.tag}],
