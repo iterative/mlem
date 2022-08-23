@@ -186,12 +186,7 @@ class RemoteRegistry(DockerRegistry):
             status = json.loads(line)
             if "error" in status:
                 error_msg = status["error"]
-                auth = (
-                    client.api._auth_configs  # pylint: disable=protected-access
-                )
-                raise DeploymentError(
-                    f"Cannot push docker image: {error_msg} {auth}"
-                )
+                raise DeploymentError(f"Cannot push docker image: {error_msg}")
         echo(EMOJI_OK + f"Pushed image {tag} to {self.host}")
 
     def uri(self, image: str):
