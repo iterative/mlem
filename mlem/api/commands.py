@@ -458,8 +458,8 @@ def deploy(
         deploy_type = env_meta.deploy_type
         deploy_meta = deploy_type(
             model_cache=model_meta,
+            model=model_meta.make_link(),
             env=env,
-            model=model,
             **deploy_kwargs,
         )
         deploy_meta.dump(deploy_path, fs, project, index, external)
