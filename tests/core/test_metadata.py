@@ -28,28 +28,9 @@ from tests.conftest import (
 @pytest.mark.parametrize("obj", [lazy_fixture("model"), lazy_fixture("train")])
 def test_save_with_meta_fields(obj, tmpdir):
     path = str(tmpdir / "obj")
-    save(obj, path, description="desc", params={"a": "b"}, labels=["tag"])
+    save(obj, path, params={"a": "b"})
     new = load_meta(path)
-    assert new.description == "desc"
     assert new.params == {"a": "b"}
-    assert new.labels == ["tag"]
-
-
-def test_save_with_meta_fields_update(model, train, tmpdir):
-    path = str(tmpdir / "obj")
-    save(
-        model,
-        path,
-        description="desc",
-        params={"a": "b"},
-        labels=["tag"],
-        update=True,
-    )
-    save(train, path, update=True)
-    new = load_meta(path)
-    assert new.description == "desc"
-    assert new.params == {"a": "b"}
-    assert new.labels == ["tag"]
 
 
 def test_saving_with_project(model, tmpdir):

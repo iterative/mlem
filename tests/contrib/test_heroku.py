@@ -179,7 +179,7 @@ def test_env_deploy_full(
 
     _check_heroku_deployment(meta)
 
-    model.description = "New version"
+    model.params = {"version": "new"}
     model.update()
     redeploy_meta = deploy(meta, model, heroku_env)
 

@@ -19,7 +19,6 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
-    List,
     Optional,
     Tuple,
     Type,
@@ -97,9 +96,7 @@ class MlemObject(MlemABC):
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     location: Optional[Location] = None
-    description: Optional[str] = None
     params: Dict[str, str] = {}
-    labels: List[str] = []
 
     @property
     def loc(self) -> Location:
@@ -680,8 +677,6 @@ class MlemModel(_WithArtifacts):
         cls,
         model: Any,
         sample_data: Any = None,
-        description: str = None,
-        labels: List[str] = None,
         params: Dict[str, str] = None,
     ) -> "MlemModel":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
@@ -691,8 +686,6 @@ class MlemModel(_WithArtifacts):
         return MlemModel(
             model_type=mt,
             requirements=mt.get_requirements().expanded,
-            description=description,
-            labels=labels or [],
             params=params or {},
         )
 
@@ -746,18 +739,14 @@ class MlemData(_WithArtifacts):
     def from_data(
         cls,
         data: Any,
-        description: str = None,
         params: Dict[str, str] = None,
-        labels: List[str] = None,
     ) -> "MlemData":
         data_type = DataType.create(
             data,
         )
         meta = MlemData(
             requirements=data_type.get_requirements().expanded,
-            description=description,
             params=params or {},
-            labels=labels or [],
         )
         meta.data_type = data_type
         return meta
