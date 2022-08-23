@@ -7,16 +7,15 @@ from mlem.ui import echo
 MLEM_TF = "mlem_sagemaker.tf"
 
 
-def _tf_command(tf_dir, command, *flags, **vars):
-    vars = " ".join(f"-var='{k}={v}'" for k, v in vars.items())
+def _tf_command(tf_dir, command, *flags, **args):
+    args = " ".join(f"-var='{k}={v}'" for k, v in args.items())
     return " ".join(
         [
-            # f"TF_DATA_DIR={tf_dir}",
             "terraform",
             f"-chdir={tf_dir}",
             command,
             *flags,
-            vars,
+            args,
         ]
     )
 
@@ -90,5 +89,5 @@ export AWS_SECRET_ACCESS_KEY={access_secret}
 export AWS_REGION={region}
 """
             print(f"Source envs:\nsource {export_secret}")
-        with open(export_secret, "w") as f:
+        with open(export_secret, "w", encoding="utf8") as f:
             f.write(secrets)

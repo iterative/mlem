@@ -1,7 +1,3 @@
-#terraform {
-#    backend "local" {}
-#}
-
 variable "profile" {
   description = "AWS Profile to use for API calls"
   type = string

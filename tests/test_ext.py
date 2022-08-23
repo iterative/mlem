@@ -26,14 +26,14 @@ def test_find_implementations():
 
 def _write_entrypoints(impls_sorted):
     setup_path = Path(__file__).parent.parent / "setup.py"
-    with open(setup_path) as f:
+    with open(setup_path, encoding="utf8") as f:
         setup_py = f.read()
     impls_string = ",\n".join(f'            "{i}"' for i in impls_sorted)
     new_entrypoints = f'"mlem.contrib": [\n{impls_string},\n        ]'
     setup_py = re.subn(
         r'"mlem\.contrib": \[\n[^]]*]', new_entrypoints, setup_py
     )[0]
-    with open(setup_path, "w") as f:
+    with open(setup_path, "w", encoding="utf8") as f:
         f.write(setup_py)
 
 
