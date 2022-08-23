@@ -289,7 +289,6 @@ def test_import_model_pickle_remote_in_project(
 
 def test_build_lazy(model_meta, tmp_path):
     model_meta.dump(str(tmp_path / "model"))
-    print(model_meta.model_type_raw)
     model_meta.model_type_cache = model_meta.model_type_raw
     model_meta.model_type_cache["type"] = "__lol__"
     build(
