@@ -25,14 +25,17 @@ def get_data_value(data: Any, batch_size: Optional[int] = None) -> Any:
     return data
 
 
-def get_model_meta(model: Union[str, MlemModel]) -> MlemModel:
+def get_model_meta(
+    model: Union[str, MlemModel], load_value: bool = True
+) -> MlemModel:
     if isinstance(model, MlemModel):
-        if model.get_value() is None:
+        if load_value and model.get_value() is None:
             model.load_value()
         return model
     if isinstance(model, str):
         model = load_meta(model, force_type=MlemModel)
-        model.load_value()
+        if load_value:
+            model.load_value()
         return model
     raise InvalidArgumentError(
         f"The object {model} is neither MlemModel nor path to it"

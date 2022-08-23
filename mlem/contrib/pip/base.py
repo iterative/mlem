@@ -61,7 +61,7 @@ class PipMixin(SetupTemplate):
         self.write(posixpath.join(root, "setup.py"), fs)
 
         # TODO: methods with correct signatures
-        SourceTemplate(methods=list(obj.model_type.methods)).write(
+        SourceTemplate(methods=list(obj.model_type_raw["methods"])).write(
             posixpath.join(path, "__init__.py"), fs
         )
         with no_echo():
