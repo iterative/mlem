@@ -52,6 +52,8 @@ def generate_image_name(deploy_id):
 
 
 class SagemakerClient(Client):
+    type: ClassVar = "sagemaker"
+
     endpoint_name: str
     aws_vars: AWSVars
     signature: Signature

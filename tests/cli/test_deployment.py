@@ -126,11 +126,12 @@ def test_deploy_meta_link_str_model(mlem_project, model_meta, mock_env_path):
 
 def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
     model_meta.dump("model", project=mlem_project)
+    load_meta(mock_env_path).clone("project_env", project=mlem_project)
 
     deployment = MlemDeploymentMock(
         model=MlemLink(path="model", project=mlem_project, link_type="model"),
         env=MlemLink(
-            path=mock_env_path, project=mlem_project, link_type="env"
+            path="project_env", project=mlem_project, link_type="env"
         ),
     )
     deployment.dump("deployment", project=mlem_project)
@@ -142,7 +143,7 @@ def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
             "object_type": "deployment",
             "type": "mock",
             "env": {
-                "path": make_posix(mock_env_path),
+                "path": "project_env",
                 "project": mlem_project,
             },
         }
@@ -241,6 +242,8 @@ def test_deploy_apply(
     mock_deploy_path,
     data_path,
     tmp_path,
+    request_get_mock,
+    request_post_mock,
 ):
     path = os.path.join(tmp_path, "output")
     result = runner.invoke(

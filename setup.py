@@ -187,6 +187,7 @@ setup_args = dict(  # noqa: C408
             "client.rmq = mlem.contrib.rabbitmq:RabbitMQClient",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "docker_registry.ecr = mlem.contrib.sagemaker.build:ECRegistry",
+            "client.sagemaker = mlem.contrib.sagemaker.meta:SagemakerClient",
             "deploy_state.sagemaker = mlem.contrib.sagemaker.meta:SagemakerDeployState",
             "deployment.sagemaker = mlem.contrib.sagemaker.meta:SagemakerDeployment",
             "env.sagemaker = mlem.contrib.sagemaker.meta:SagemakerEnv",

@@ -1083,8 +1083,12 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
             if isinstance(self.env, str):
                 link = MlemLink(
                     path=self.env,
-                    project=self.loc.project,
-                    rev=self.loc.rev,
+                    project=self.loc.project
+                    if not posixpath.isabs(self.env)
+                    else None,
+                    rev=self.loc.rev
+                    if not posixpath.isabs(self.env)
+                    else None,
                     link_type=MlemEnv.object_type,
                 )
                 self.env_cache = link.load_link(force_type=MlemEnv)
