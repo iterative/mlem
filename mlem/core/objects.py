@@ -1076,6 +1076,8 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
                 return value.path
             if not isinstance(value, EnvLink):
                 return EnvLink(**value.dict())
+        if isinstance(value, str):
+            return make_posix(value)
         return value
 
     def get_env(self) -> ET:
@@ -1084,11 +1086,9 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
                 link = MlemLink(
                     path=self.env,
                     project=self.loc.project
-                    if not posixpath.isabs(self.env)
+                    if not os.path.isabs(self.env)
                     else None,
-                    rev=self.loc.rev
-                    if not posixpath.isabs(self.env)
-                    else None,
+                    rev=self.loc.rev if not os.path.isabs(self.env) else None,
                     link_type=MlemEnv.object_type,
                 )
                 self.env_cache = link.load_link(force_type=MlemEnv)
@@ -1118,6 +1118,8 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
                 return value.path
             if not isinstance(value, ModelLink):
                 return ModelLink(**value.dict())
+        if isinstance(value, str):
+            return make_posix(value)
         return value
 
     def get_model(self) -> MlemModel:
@@ -1125,8 +1127,12 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
             if isinstance(self.model, str):
                 link = MlemLink(
                     path=self.model,
-                    project=self.loc.project,
-                    rev=self.loc.rev,
+                    project=self.loc.project
+                    if not os.path.isabs(self.model)
+                    else None,
+                    rev=self.loc.rev
+                    if not os.path.isabs(self.model)
+                    else None,
                     link_type=MlemModel.object_type,
                 )
                 if self.is_saved:

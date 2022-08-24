@@ -2,6 +2,7 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import contextlib
+import os
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
@@ -67,7 +68,7 @@ class Location(BaseModel):
     def update_path(self, path):
         if not self.uri.endswith(self.path):
             raise ValueError("cannot automatically update uri")
-        if posixpath.isabs(self.path) and not posixpath.isabs(path):
+        if os.path.isabs(self.path) and not os.path.isabs(path):
             path = posixpath.join(posixpath.dirname(self.path), path)
         self.uri = self.uri[: -len(self.path)] + path
         self.path = path

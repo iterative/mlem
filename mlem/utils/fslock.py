@@ -27,7 +27,7 @@ class FSLock:
         salt=None,
     ):
         self.fs = fs
-        self.dirpath = dirpath
+        self.dirpath = make_posix(str(dirpath))
         self.name = name
         self.timeout = timeout
         self.retry_timeout = retry_timeout

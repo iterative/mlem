@@ -139,12 +139,12 @@ def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
     with deployment.loc.open("r") as f:
         data = safe_load(f)
         assert data == {
-            "model": {"path": "model", "project": mlem_project},
+            "model": {"path": "model", "project": make_posix(mlem_project)},
             "object_type": "deployment",
             "type": "mock",
             "env": {
                 "path": "project_env",
-                "project": mlem_project,
+                "project": make_posix(mlem_project),
             },
         }
 
