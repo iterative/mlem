@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class K8sYamlBuildArgs(BaseModel):
-    name: str = "mlem-app"
-    image_uri: str = "mlem-app"
+    image_name: str = "ml"
+    image_uri: str = "ml:latest"
     image_pull_policy: str = "Always"
     port: int = 8080
     service_type: str = "NodePort"

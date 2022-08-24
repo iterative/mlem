@@ -1,28 +1,28 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: mlem-{{ name }}-app
+  name: mlem-{{ image_name }}-app
   labels:
-    name: mlem-{{ name }}-app
+    name: mlem-{{ image_name }}-app
 
 ---
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ name }}
-  namespace: mlem-{{ name }}-app
+  name: {{ image_name }}
+  namespace: mlem-{{ image_name }}-app
 spec:
   selector:
     matchLabels:
-      app: {{ name }}
+      app: {{ image_name }}
   template:
     metadata:
       labels:
-        app: {{ name }}
+        app: {{ image_name }}
     spec:
       containers:
-      - name: {{ name }}
+      - name: {{ image_name }}
         image: {{ image_uri }}
         imagePullPolicy: {{ image_pull_policy }}
         ports:
@@ -33,15 +33,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ name }}
-  namespace: mlem-{{ name }}-app
+  name: {{ image_name }}
+  namespace: mlem-{{ image_name }}-app
   labels:
-    run: {{ name }}
+    run: {{ image_name }}
 spec:
   ports:
   - port: {{ port }}
     protocol: TCP
     targetPort: {{ port }}
   selector:
-    app: {{ name }}
+    app: {{ image_name }}
   type: {{ service_type }}
