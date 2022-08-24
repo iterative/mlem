@@ -49,6 +49,7 @@ tests = [
     "tables",
     "pyarrow",
     "skl2onnx",
+    "dvc[s3]",
 ]
 
 extras = {
