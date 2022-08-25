@@ -32,7 +32,7 @@ def test_fslock(tmpdir):
 
 
 def _work(dirname, num):
-    time.sleep(0.2 + num / 10)
+    time.sleep(0.3 + num / 10)
     with FSLock(LocalFileSystem(), dirname, NAME, salt=num):
         path = os.path.join(dirname, NAME)
         if os.path.exists(path):
