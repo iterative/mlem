@@ -44,13 +44,15 @@ class MyDeployState(DeployState):
     def destroy(self):
         pass
 
-    def get_client(self):
+
+class MyMlemDeployment(MlemDeployment):
+    def _get_client(self, state):
         pass
 
 
 @pytest.fixture()
 def meta():
-    return MlemDeployment(
+    return MyMlemDeployment(
         env="",
         model=MlemLink(path="", link_type="model"),
     )

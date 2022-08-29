@@ -187,10 +187,10 @@ class RemoteRegistry(DockerRegistry):
             if "error" in status:
                 error_msg = status["error"]
                 raise DeploymentError(f"Cannot push docker image: {error_msg}")
-        echo(EMOJI_OK + f"Pushed image {tag} to {self.host}")
+        echo(EMOJI_OK + f"Pushed image {tag} to {self.get_host()}")
 
     def uri(self, image: str):
-        return f"{self.host}/{image}"
+        return f"{self.get_host()}/{image}"
 
     def _get_digest(self, name, tag):
         r = requests.head(
@@ -286,9 +286,6 @@ class DockerContainerState(DeployState):
     container_name: Optional[str]
     container_id: Optional[str]
 
-    def get_client(self):
-        raise NotImplementedError
-
 
 class _DockerBuildMixin(BaseModel):
     server: Optional[Server] = None
@@ -319,6 +316,9 @@ class DockerContainer(MlemDeployment, _DockerBuildMixin):
     @property
     def ensure_image_name(self):
         return self.image_name or self.container_name
+
+    def _get_client(self, state: DockerContainerState):
+        raise NotImplementedError
 
 
 class DockerEnv(MlemEnv[DockerContainer]):

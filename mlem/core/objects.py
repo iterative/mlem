@@ -3,6 +3,7 @@ Base classes for meta objects in MLEM
 """
 import contextlib
 import hashlib
+import itertools
 import os
 import posixpath
 import time
@@ -49,6 +50,8 @@ from mlem.core.errors import (
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemProjectNotFound,
+    WrongABCType,
+    WrongMetaSubType,
     WrongMetaType,
 )
 from mlem.core.meta_io import (
@@ -804,10 +807,6 @@ class DeployState(MlemABC):
 
     model_hash: Optional[str] = None
 
-    @abstractmethod
-    def get_client(self):
-        raise NotImplementedError
-
 
 DT = TypeVar("DT", bound="MlemDeployment")
 
@@ -1007,8 +1006,10 @@ class FSSpecStateManager(StateManager):
 EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)
 ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)
 
+ET = TypeVar("ET", bound=MlemEnv)
 
-class MlemDeployment(MlemObject, Generic[ST]):
+
+class MlemDeployment(MlemObject, Generic[ST, ET]):
     """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
@@ -1022,7 +1023,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
     abs_name: ClassVar = "deployment"
     type: ClassVar[str]
     state_type: ClassVar[Type[ST]]
-    env_type: ClassVar[MlemEnv]
+    env_type: ClassVar[Type[ET]]
 
     env: Union[str, MlemEnv, EnvLink, None] = None
     env_cache: Optional[MlemEnv] = None
@@ -1059,8 +1060,14 @@ class MlemDeployment(MlemObject, Generic[ST]):
     def purge_state(self):
         self._state_manager.purge_state(self)
 
-    def get_client(self) -> "Client":
-        return self.get_state().get_client()
+    def get_client(self, state: DeployState = None) -> "Client":
+        if state is not None and not isinstance(state, self.state_type):
+            raise WrongABCType(state, self.state_type)
+        return self._get_client(state or self.get_state())
+
+    @abstractmethod
+    def _get_client(self, state: ST) -> "Client":
+        raise NotImplementedError
 
     @validator("env")
     def validate_env(cls, value):  # pylint: disable=no-self-argument
@@ -1069,15 +1076,19 @@ class MlemDeployment(MlemObject, Generic[ST]):
                 return value.path
             if not isinstance(value, EnvLink):
                 return EnvLink(**value.dict())
+        if isinstance(value, str):
+            return make_posix(value)
         return value
 
-    def get_env(self):
+    def get_env(self) -> ET:
         if self.env_cache is None:
             if isinstance(self.env, str):
                 link = MlemLink(
                     path=self.env,
-                    project=self.loc.project,
-                    rev=self.loc.rev,
+                    project=self.loc.project
+                    if not os.path.isabs(self.env)
+                    else None,
+                    rev=self.loc.rev if not os.path.isabs(self.env) else None,
                     link_type=MlemEnv.object_type,
                 )
                 self.env_cache = link.load_link(force_type=MlemEnv)
@@ -1092,6 +1103,12 @@ class MlemDeployment(MlemObject, Generic[ST]):
                     raise MlemError(
                         f"{self.env_type} env does not have default value, please set `env` field"
                     ) from e
+            else:
+                raise ValueError(
+                    "env should be one of [str, MlemLink, MlemEnv]"
+                )
+        if not isinstance(self.env_cache, self.env_type):
+            raise WrongMetaSubType(self.env_cache, self.env_type)
         return self.env_cache
 
     @validator("model")
@@ -1101,6 +1118,8 @@ class MlemDeployment(MlemObject, Generic[ST]):
                 return value.path
             if not isinstance(value, ModelLink):
                 return ModelLink(**value.dict())
+        if isinstance(value, str):
+            return make_posix(value)
         return value
 
     def get_model(self) -> MlemModel:
@@ -1108,12 +1127,20 @@ class MlemDeployment(MlemObject, Generic[ST]):
             if isinstance(self.model, str):
                 link = MlemLink(
                     path=self.model,
-                    project=self.loc.project,
-                    rev=self.loc.rev,
+                    project=self.loc.project
+                    if not os.path.isabs(self.model)
+                    else None,
+                    rev=self.loc.rev
+                    if not os.path.isabs(self.model)
+                    else None,
                     link_type=MlemModel.object_type,
                 )
+                if self.is_saved:
+                    link.bind(self.loc)
                 self.model_cache = link.load_link(force_type=MlemModel)
             elif isinstance(self.model, MlemLink):
+                if self.is_saved:
+                    self.model.bind(self.loc)
                 self.model_cache = self.model.load_link(force_type=MlemModel)
             else:
                 raise ValueError(
@@ -1139,7 +1166,7 @@ class MlemDeployment(MlemObject, Generic[ST]):
             DeployStatus, Iterable[DeployStatus]
         ] = None,
         raise_on_timeout: bool = True,
-    ):
+    ) -> object:
         if isinstance(status, DeployStatus):
             statuses = {status}
         else:
@@ -1151,7 +1178,12 @@ class MlemDeployment(MlemObject, Generic[ST]):
             allowed = set(allowed_intermediate)
 
         current = DeployStatus.UNKNOWN
-        for _ in range(times):
+        iterator: Iterable
+        if times == 0:
+            iterator = itertools.count()
+        else:
+            iterator = range(times)
+        for _ in iterator:
             current = self.get_status(raise_on_error=False)
             if current in statuses:
                 return True
@@ -1163,13 +1195,14 @@ class MlemDeployment(MlemObject, Generic[ST]):
                 return False
             time.sleep(timeout)
         if raise_on_timeout:
+            # TODO: count actual time passed
             raise DeploymentError(
                 f"Deployment status is still {current} after {times * timeout} seconds"
             )
         return False
 
-    def model_changed(self):
-        state = self.get_state()
+    def model_changed(self, state: Optional[ST] = None):
+        state = state or self.get_state()
         if state.model_hash is None:
             return True
         return self.get_model().meta_hash() != state.model_hash

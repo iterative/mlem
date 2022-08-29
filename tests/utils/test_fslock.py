@@ -5,6 +5,7 @@ from threading import Thread
 from fsspec.implementations.local import LocalFileSystem
 
 from mlem.utils.fslock import LOCK_EXT, FSLock
+from mlem.utils.path import make_posix
 
 NAME = "testlock"
 
@@ -17,8 +18,10 @@ def test_fslock(tmpdir):
     with lock:
         assert lock._timestamp is not None
         assert lock._salt is not None
-        lock_path = os.path.join(
-            tmpdir, f"{NAME}.{lock._timestamp}.{lock._salt}.{LOCK_EXT}"
+        lock_path = make_posix(
+            os.path.join(
+                tmpdir, f"{NAME}.{lock._timestamp}.{lock._salt}.{LOCK_EXT}"
+            )
         )
         assert lock.lock_path == lock_path
         assert fs.exists(lock_path)
@@ -29,7 +32,7 @@ def test_fslock(tmpdir):
 
 
 def _work(dirname, num):
-    time.sleep(0.2 + num / 10)
+    time.sleep(0.3 + num / 5)
     with FSLock(LocalFileSystem(), dirname, NAME, salt=num):
         path = os.path.join(dirname, NAME)
         if os.path.exists(path):

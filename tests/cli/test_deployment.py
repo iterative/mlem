@@ -20,19 +20,8 @@ from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
 
 
-@pytest.fixture
-def mock_deploy_get_client(mocker, request_get_mock, request_post_mock):
-    return mocker.patch(
-        "tests.cli.test_deployment.DeployStateMock.get_client",
-        return_value=HTTPClient(host="", port=None),
-    )
-
-
 class DeployStateMock(DeployState):
     allow_default: ClassVar = True
-
-    def get_client(self) -> Client:
-        pass
 
 
 class MlemDeploymentMock(MlemDeployment):
@@ -44,6 +33,9 @@ class MlemDeploymentMock(MlemDeployment):
 
     status: DeployStatus = DeployStatus.NOT_DEPLOYED
     param: str = ""
+
+    def _get_client(self, state) -> Client:
+        return HTTPClient(host="", port=None)
 
 
 class MlemEnvMock(MlemEnv):
@@ -98,12 +90,12 @@ def test_deploy_meta_str_model(mlem_project, model_meta, mock_env_path):
             "env": make_posix(mock_env_path),
         }
 
-    assert (
-        load_meta(
-            "deployment", project=mlem_project, force_type=MlemDeployment
-        )
-        == deployment
+    deployment2 = load_meta(
+        "deployment", project=mlem_project, force_type=MlemDeployment
     )
+    assert deployment2 == deployment
+    assert deployment2.get_model() == model_meta
+    assert deployment2.get_env() == load_meta(mock_env_path)
 
 
 def test_deploy_meta_link_str_model(mlem_project, model_meta, mock_env_path):
@@ -124,21 +116,22 @@ def test_deploy_meta_link_str_model(mlem_project, model_meta, mock_env_path):
             "env": make_posix(mock_env_path),
         }
 
-    assert (
-        load_meta(
-            "deployment", project=mlem_project, force_type=MlemDeployment
-        )
-        == deployment
+    deployment2 = load_meta(
+        "deployment", project=mlem_project, force_type=MlemDeployment
     )
+    assert deployment2 == deployment
+    assert deployment2.get_model() == model_meta
+    assert deployment2.get_env() == load_meta(mock_env_path)
 
 
 def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
     model_meta.dump("model", project=mlem_project)
+    load_meta(mock_env_path).clone("project_env", project=mlem_project)
 
     deployment = MlemDeploymentMock(
         model=MlemLink(path="model", project=mlem_project, link_type="model"),
         env=MlemLink(
-            path=mock_env_path, project=mlem_project, link_type="env"
+            path="project_env", project=mlem_project, link_type="env"
         ),
     )
     deployment.dump("deployment", project=mlem_project)
@@ -146,21 +139,64 @@ def test_deploy_meta_link_model(mlem_project, model_meta, mock_env_path):
     with deployment.loc.open("r") as f:
         data = safe_load(f)
         assert data == {
-            "model": {"path": "model", "project": mlem_project},
+            "model": {"path": "model", "project": make_posix(mlem_project)},
             "object_type": "deployment",
             "type": "mock",
             "env": {
-                "path": make_posix(mock_env_path),
-                "project": mlem_project,
+                "path": "project_env",
+                "project": make_posix(mlem_project),
             },
         }
 
-    assert (
-        load_meta(
-            "deployment", project=mlem_project, force_type=MlemDeployment
-        )
-        == deployment
+    deployment2 = load_meta(
+        "deployment", project=mlem_project, force_type=MlemDeployment
     )
+    assert deployment2 == deployment
+    assert deployment2.get_model() == model_meta
+    assert deployment2.get_env() == load_meta(mock_env_path)
+
+
+def test_deploy_meta_link_model_no_project(tmpdir, model_meta, mock_env_path):
+    model_path = os.path.join(tmpdir, "model")
+    model_meta.dump(model_path)
+
+    deployment = MlemDeploymentMock(
+        model=MlemLink(path="model", link_type="model"),
+        env=MlemLink(path=mock_env_path, link_type="env"),
+    )
+    deployment_path = os.path.join(tmpdir, "deployment")
+    deployment.dump(deployment_path)
+
+    with deployment.loc.open("r") as f:
+        data = safe_load(f)
+        assert data == {
+            "model": "model",
+            "object_type": "deployment",
+            "type": "mock",
+            "env": make_posix(mock_env_path),
+        }
+
+    deployment2 = load_meta(deployment_path, force_type=MlemDeployment)
+    assert deployment2 == deployment
+    assert deployment2.get_model() == model_meta
+    assert deployment2.get_env() == load_meta(mock_env_path)
+
+
+def test_read_relative_model_from_remote_deploy_meta():
+    """TODO
+    path = "s3://..."
+    model.dump(path / "model");
+    deployment = MlemDeploymentMock(
+        model=model,
+        env=MlemLink(
+            path=mock_env_path, link_type="env"
+        ),
+    )
+    deployment.dump(path / deployment)
+
+    deployment2 = load_meta(...)
+    deployment2.get_model()
+    """
 
 
 def test_deploy_create_new(
@@ -205,8 +241,9 @@ def test_deploy_apply(
     runner: Runner,
     mock_deploy_path,
     data_path,
-    mock_deploy_get_client,
     tmp_path,
+    request_get_mock,
+    request_post_mock,
 ):
     path = os.path.join(tmp_path, "output")
     result = runner.invoke(

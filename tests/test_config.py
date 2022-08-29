@@ -32,4 +32,4 @@ def test_loading_remote(s3_tmp_path, s3_storage_fs):
 
 
 def test_default_server():
-    assert project_config().server == FastAPIServer()
+    assert project_config("").server == FastAPIServer()

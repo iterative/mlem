@@ -2,6 +2,7 @@
 Base classes to work with requirements which come with ML models and data
 """
 import base64
+import collections
 import contextlib
 import glob
 import itertools
@@ -490,7 +491,8 @@ def resolve_requirements(other: "AnyRequirements") -> Requirements:
         if isinstance(other[0], str):
             return Requirements(
                 __root__=[
-                    InstallableRequirement.from_str(r) for r in set(other)
+                    InstallableRequirement.from_str(r)
+                    for r in collections.OrderedDict.fromkeys(other)
                 ]
             )
 
