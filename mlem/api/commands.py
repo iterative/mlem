@@ -325,7 +325,7 @@ def build(
             Out-of-the-box supported string values are "docker_dir" and "docker".
         model (Union[str, MlemModel]): The model to build.
     """
-    model = get_model_meta(model)
+    model = get_model_meta(model, load_value=False)
     return ensure_mlem_object(MlemBuilder, builder, **builder_kwargs).build(
         model
     )

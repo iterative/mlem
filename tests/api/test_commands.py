@@ -8,7 +8,7 @@ from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, apply_remote, link, load_meta
-from mlem.api.commands import import_object, init, ls
+from mlem.api.commands import build, import_object, init, ls
 from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import LocalArtifact
@@ -285,3 +285,12 @@ def test_import_model_pickle_remote_in_project(
     )
     _check_meta(meta, out_path, s3_storage_fs)
     _check_load_artifact(meta, out_path, False, train)
+
+
+def test_build_lazy(model_meta, tmp_path):
+    model_meta.dump(str(tmp_path / "model"))
+    model_meta.model_type_cache = model_meta.model_type_raw
+    model_meta.model_type_cache["type"] = "__lol__"
+    build(
+        "pip", model_meta, target=str(tmp_path / "build"), package_name="lol"
+    )
