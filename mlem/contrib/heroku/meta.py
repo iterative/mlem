@@ -73,6 +73,11 @@ class HerokuDeployment(MlemDeployment):
             host=urlparse(state.ensured_app.web_url).netloc, port=80
         )
 
+    def _get_client(self, state: HerokuState) -> Client:
+        return HTTPClient(
+            host=urlparse(state.ensured_app.web_url).netloc, port=80
+        )
+
 
 class HerokuEnv(MlemEnv[HerokuDeployment]):
     """Heroku Account"""
