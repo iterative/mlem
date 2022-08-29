@@ -164,7 +164,7 @@ class GitlabResolver(CloudGitResolver):
     PROTOCOL: ClassVar = "gitlab"
     GITLAB_COM: ClassVar = "https://gitlab.com"
 
-    # TODO: support on-prem gitlab (other hosts)
+    # TODO: https://github.com//issues/388
     PREFIXES: ClassVar = [GITLAB_COM, PROTOCOL + "://"]
     versioning_support: ClassVar = True
 

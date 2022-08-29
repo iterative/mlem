@@ -62,7 +62,7 @@ class GithubResolver(CloudGitResolver):
     PROTOCOL: ClassVar = "github"
     GITHUB_COM: ClassVar = "https://github.com"
 
-    # TODO: support on-prem github (other hosts)
+    # TODO: https://github.com//issues/388
     PREFIXES: ClassVar = [GITHUB_COM, PROTOCOL + "://"]
     versioning_support: ClassVar = True
 

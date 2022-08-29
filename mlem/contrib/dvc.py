@@ -37,8 +37,7 @@ class DVCStorage(LocalStorage):
     """User-managed dvc storage, which means user should
     track corresponding files with dvc manually."""
 
-    #  TODO: add support for pipeline-tracked files and for single files with .dvc
-    #  Also add possibility to automatically add and push every artifact
+    #  TODO: https://github.com//issues/47
 
     type: ClassVar = "dvc"
     uri: str = ""
