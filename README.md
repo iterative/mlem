@@ -269,7 +269,7 @@ Contributions are welcome! Please see our [Contributing Guide](https://mlem.ai/d
 for more details.
 
 Check out the [MLEM weekly board](https://github.com/orgs/iterative/projects/322/views/1)
-to learn about what we do and what new exciting functionality is going to be added soon.
+to learn about what we do, and about the exciting new functionality that is going to be added soon.
 
 Thanks to all our contributors!
 
