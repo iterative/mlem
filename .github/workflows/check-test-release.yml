@@ -58,7 +58,7 @@ jobs:
         # no HDF5 support installed for tables
         - os: windows-latest
           python: "3.9"
-      fail-fast: true
+      fail-fast: false
     steps:
     - uses: actions/checkout@v3
       with:

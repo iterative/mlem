@@ -6,9 +6,10 @@ from typer import Argument
 from mlem.cli.main import mlem_command
 from mlem.cli.utils import CliTypeField, iterate_type_fields, parse_type_field
 from mlem.core.base import MlemABC, load_impl_ext
+from mlem.core.errors import MlemError
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_BASE, bold, color, echo
-from mlem.utils.entrypoints import list_implementations
+from mlem.utils.entrypoints import list_abstractions, list_implementations
 
 
 def _add_examples(generator: Iterator[CliTypeField], parent_help=None):
@@ -101,7 +102,17 @@ def list_types(
                 explain_type(mlem_object_type)
     else:
         if sub_type is None:
+            abcs = list_abstractions(include_hidden=False)
+            if abc not in abcs:
+                raise MlemError(
+                    f"Unknown abc \"{abc}\". Known abcs: {' '.join(abcs)}"
+                )
             echo("\n".join(list_implementations(abc, include_hidden=False)))
         else:
-            cls = load_impl_ext(abc, sub_type, True)
+            try:
+                cls = load_impl_ext(abc, sub_type, True)
+            except ValueError as e:
+                raise MlemError(
+                    f"Unknown implementation \"{sub_type}\" of abc \"{abc}\". Known implementations: {' '.join(list_implementations(abc, include_hidden=False))}"
+                ) from e
             explain_type(cls)
