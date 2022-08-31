@@ -2,7 +2,7 @@ import subprocess
 import threading
 
 
-class Command(object):
+class Command:
     """
     Enables to run subprocess commands in a different thread
     with TIMEOUT option!
@@ -16,7 +16,11 @@ class Command(object):
 
     def run(self, timeout=0, **kwargs):
         def target(**kwargs):
-            self.process = subprocess.Popen(self.cmd, **kwargs)
+            self.process = (
+                subprocess.Popen(  # pylint: disable=consider-using-with
+                    self.cmd, **kwargs
+                )
+            )
             self.process.communicate()
 
         thread = threading.Thread(target=target, kwargs=kwargs)

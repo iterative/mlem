@@ -1,6 +1,5 @@
 from mlem.contrib.kubernetes.context import K8sYamlBuildArgs, K8sYamlGenerator
-
-from .conftest import _cut_empty_lines
+from tests.contrib.test_kubernetes.conftest import _cut_empty_lines
 
 
 def test_k8s_yaml_build_args_default(k8s_default_manifest):

@@ -92,9 +92,12 @@ jobs:
         pip install pre-commit .[tests]
     - run: pre-commit run pylint -a -v --show-diff-on-failure
       if: matrix.python != '3.7'
+    - name: Start minikube
+      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
+      uses: medyagh/setup-minikube@master
     - name: Run tests
       timeout-minutes: 40
-      run: pytest --ignore tests/contrib/test_kubernetes/test_base.py
+      run: pytest
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -111,22 +114,6 @@ jobs:
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
-  test-kubernetes:
-    name: Test deployment to Kubernetes
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v4
-    - name: Install
-      run: |
-        pip install --upgrade pip setuptools wheel
-        pip install pre-commit .[tests]
-    - name: Start minikube
-      uses: medyagh/setup-minikube@master
-    - name: Set env variables
-      run: eval $(minikube docker-env)
-    - name: Run K8s tests
-      run: pytest tests/contrib/test_kubernetes/test_base.py
   deploy:
     name: PyPI Deploy
     needs: [check, test]
