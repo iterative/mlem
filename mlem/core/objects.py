@@ -936,10 +936,11 @@ class LocalFileStateManager(StateManager):
     def lock(self, deployment: "MlemDeployment"):
         if self.locking:
             loc = self.location(deployment)
+            dirname, filename = posixpath.split(loc.fullpath)
             return FSLock(
                 loc.fs,
-                loc.dirname,
-                deployment.loc.basename,
+                dirname,
+                filename,
                 timeout=self.lock_timeout,
             )
         return super().lock(deployment)
@@ -968,6 +969,7 @@ class FSSpecStateManager(StateManager):
         return self.fs
 
     def _get_path(self, deployment: "MlemDeployment"):
+        self.get_fs()
         return posixpath.join(self.path, MLEM_STATE_DIR, deployment.name)
 
     def _get_state(
@@ -994,10 +996,12 @@ class FSSpecStateManager(StateManager):
 
     def lock(self, deployment: "MlemDeployment"):
         if self.locking:
+            fullpath = self._get_path(deployment)
+            dirname, filename = posixpath.split(fullpath)
             return FSLock(
                 self.get_fs(),
-                posixpath.join(self.path, MLEM_STATE_DIR),
-                deployment.name,
+                dirname,
+                filename,
                 timeout=self.lock_timeout,
             )
         return super().lock(deployment)
