@@ -69,7 +69,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
     type: ClassVar = "kubernetes"
     deploy_type: ClassVar = K8sDeployment
     registry: Optional[DockerRegistry] = DockerRegistry()
-    daemon: Optional[DockerDaemon] = DockerDaemon(host="")
+    daemon: Optional[DockerDaemon] = DockerDaemon(host=os.getenv("DOCKER_HOST", default=""))
 
     def create_k8s_resources(self, generator):
         k8s_client = client.ApiClient()
