@@ -266,7 +266,12 @@ $ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
 ## Contributing
 
 Contributions are welcome! Please see our [Contributing Guide](https://mlem.ai/doc/contributing/core)
-for more details. Thanks to all our contributors!
+for more details.
+
+Check out the [MLEM weekly board](https://github.com/orgs/iterative/projects/322/views/4)
+to learn about what we do, and about the exciting new functionality that is going to be added soon.
+
+Thanks to all our contributors!
 
 ## Copyright
 

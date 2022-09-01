@@ -79,7 +79,7 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "docker": ["docker"],
-    "heroku": ["docker"],
+    "heroku": ["docker", "fastapi", "uvicorn"],
     "dvc": ["dvc~=2.0"],
 }
 
