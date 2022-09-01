@@ -5,7 +5,7 @@ from pydantic import conlist, create_model
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
-from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.artifacts import Artifacts, FSSpecArtifact, Storage
 from mlem.core.data_type import (
     DataHook,
     DataReader,
@@ -15,7 +15,10 @@ from mlem.core.data_type import (
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
+from mlem.core.import_objects import LoadAndAnlyzeImportHook
+from mlem.core.meta_io import Location
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
@@ -187,6 +190,26 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     def get_requirements(self) -> Requirements:
         return super().get_requirements() + InstallableRequirement.from_module(
             mod=torch
+        )
+
+
+class TorchModelImport(LoadAndAnlyzeImportHook):
+    type: ClassVar = "torch"
+    force_type: ClassVar = MlemModel
+
+    @classmethod
+    def is_object_valid(cls, obj: Location) -> bool:
+        # TODO only manual import type specification for now
+        return False
+
+    @classmethod
+    def load_obj(cls, location: Location, modifier: Optional[str], **kwargs):
+        return TorchModelIO().load(
+            {
+                TorchModelIO.art_name: FSSpecArtifact(
+                    uri=location.uri, size=0, hash=""
+                )
+            }
         )
 
 
