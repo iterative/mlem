@@ -39,7 +39,7 @@ def test_dockerfile_generator_unix_packages():
     dockerfile = _cut_empty_lines(
         f"""FROM python:3.6-slim
 WORKDIR /app
-RUN kek aaa bbb
+RUN kek aaa bbb lol
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 RUN pip install mlem=={mlem.__version__}
@@ -48,7 +48,11 @@ CMD sh run.sh
 """
     )
 
-    kwargs = {"python_version": "3.6", "package_install_cmd": "kek"}
+    kwargs = {
+        "python_version": "3.6",
+        "package_install_cmd": "kek",
+        "package_clean_cmd": "lol",
+    }
     with use_mlem_source("pip"):
         assert (
             _generate_dockerfile(

@@ -394,6 +394,7 @@ class DockerfileGenerator(DockerBuildArgs, TemplateModel):
             "run_cmd": self.run_cmd,
             "mlem_install": mlem_install,
             "package_install_cmd": self.package_install_cmd,
+            "package_clean_cmd": self.package_clean_cmd,
         }
         return docker_args
 

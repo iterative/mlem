@@ -1,7 +1,7 @@
 FROM {{ base_image }}
 WORKDIR /app
 {% include "pre_install.j2" ignore missing %}
-{% if packages %}RUN {{ package_install_cmd }} {{ packages|join(" ")  }} {{ package_clean_cmd }} {% endif %}
+{% if packages %}RUN {{ package_install_cmd }} {{ packages|join(" ")  }} {{ package_clean_cmd }}{% endif %}
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 {{ mlem_install }}

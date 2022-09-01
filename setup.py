@@ -204,6 +204,7 @@ setup_args = dict(  # noqa: C408
             "model_io.xgboost_io = mlem.contrib.xgboost:XGBoostModelIO",
         ],
         "mlem.config": [
+            "core = mlem.config:MlemConfig",
             "bitbucket = mlem.contrib.bitbucketfs:BitbucketConfig",
             "docker = mlem.contrib.docker.context:DockerConfig",
             "heroku = mlem.contrib.heroku.config:HerokuConfig",
