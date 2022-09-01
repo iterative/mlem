@@ -72,6 +72,13 @@ def test_all_configs_in_entrypoints():
         assert exts == impls_sorted
 
 
+def test_all_configs_in_entrypoints():
+    impls = find_implementations(MlemConfigBase)
+    assert {
+        e.entry for e in load_entrypoints(MLEM_CONFIG_ENTRY_POINT).values()
+    } == {f"{i.__config__.section} = {k}" for i, k in impls.items()}
+
+
 def test_all_ext_has_pip_extra():
     from setup import extras
 
