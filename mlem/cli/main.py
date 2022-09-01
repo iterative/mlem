@@ -298,7 +298,7 @@ def mlem_command(
                     raise
                 msgs = "\n".join(_format_validation_error(e))
                 with cli_echo():
-                    echo(msgs)
+                    echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
                 raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
@@ -416,7 +416,13 @@ def _format_validation_error(error: ValidationError) -> List[str]:
     res = []
     for loc, model, exc in _iter_errors(error.raw_errors, error.model):
         path = ".".join(loc_part for loc_part in loc if loc_part != "__root__")
-        field_type = model.__fields__[loc[-1]].type_
+        field_name = loc[-1]
+        if field_name not in model.__fields__:
+            res.append(
+                f"Unknown field '{field_name}'. Fields available: {', '.join(model.__fields__)}"
+            )
+            continue
+        field_type = model.__fields__[field_name].type_
         if (
             isinstance(exc, MissingError)
             and isinstance(field_type, type)
