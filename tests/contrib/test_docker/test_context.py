@@ -5,7 +5,11 @@ import docker
 
 import mlem
 from mlem.contrib.docker.base import DockerImage, DockerIORegistry
-from mlem.contrib.docker.context import DockerfileGenerator, use_mlem_source
+from mlem.contrib.docker.context import (
+    MLEM_LOCAL_WHL,
+    DockerfileGenerator,
+    use_mlem_source,
+)
 from mlem.core.requirements import UnixPackageRequirement
 from tests.contrib.test_docker.conftest import docker_test
 
@@ -18,7 +22,10 @@ def test_dockerfile_generator_custom_python_version():
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-RUN pip install mlem=={mlem.__version__}
+COPY mlem_requirements.txt .
+RUN pip install -r mlem_requirements.txt
+COPY {MLEM_LOCAL_WHL} .
+RUN pip install {MLEM_LOCAL_WHL}
 COPY . ./
 CMD sh run.sh
 """
@@ -42,16 +49,17 @@ CMD sh run.sh
     )
 
     kwargs = {"python_version": "3.6", "package_install_cmd": "kek"}
-    assert (
-        _generate_dockerfile(
-            **kwargs,
-            unix_packages=[
-                UnixPackageRequirement(package_name="aaa"),
-                UnixPackageRequirement(package_name="bbb"),
-            ],
+    with use_mlem_source("pip"):
+        assert (
+            _generate_dockerfile(
+                **kwargs,
+                unix_packages=[
+                    UnixPackageRequirement(package_name="aaa"),
+                    UnixPackageRequirement(package_name="bbb"),
+                ],
+            )
+            == dockerfile
         )
-        == dockerfile
-    )
 
 
 def test_dockerfile_generator_super_custom():
@@ -81,17 +89,17 @@ CMD echo "cmd" && sh run.sh
             "templates_dir": [tmpdir],
             "run_cmd": 'echo "cmd" && sh run.sh',
         }
-        assert _generate_dockerfile(**kwargs) == dockerfile
+        with use_mlem_source("pip"):
+            assert _generate_dockerfile(**kwargs) == dockerfile
 
 
 def test_use_wheel_installation(tmpdir):
     distr = tmpdir.mkdir("distr").join("somewhatwheel.txt")
     distr.write("wheel goes brrr")
-    with use_mlem_source(str(distr)):
-        dockerfile = DockerfileGenerator(
-            mlem_whl=str(os.path.basename(distr))
-        ).generate(env={}, packages=[])
-        assert "RUN pip install somewhatwheel.txt" in dockerfile
+    with use_mlem_source("whl"):
+        os.environ["MLEM_DOCKER_WHEEL_PATH"] = str(os.path.basename(distr))
+        dockerfile = DockerfileGenerator().generate(env={}, packages=[])
+        assert f"RUN pip install {MLEM_LOCAL_WHL}" in dockerfile
 
 
 def _cut_empty_lines(string):
@@ -99,12 +107,11 @@ def _cut_empty_lines(string):
 
 
 def _generate_dockerfile(unix_packages=None, **kwargs):
-    with use_mlem_source():
-        return _cut_empty_lines(
-            DockerfileGenerator(**kwargs).generate(
-                env={}, packages=[p.package_name for p in unix_packages or []]
-            )
+    return _cut_empty_lines(
+        DockerfileGenerator(**kwargs).generate(
+            env={}, packages=[p.package_name for p in unix_packages or []]
         )
+    )
 
 
 @docker_test
