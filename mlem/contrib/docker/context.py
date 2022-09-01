@@ -55,7 +55,7 @@ class MlemSource:
         raise NotImplementedError
 
     @abstractmethod
-    def get_install_command(self) -> str:
+    def get_install_command(self, args: "DockerBuildArgs") -> str:
         raise NotImplementedError
 
     def __init_subclass__(cls):
@@ -116,12 +116,14 @@ class WhlSource(MlemSource):
             return os.path.basename(LOCAL_DOCKER_CONFIG.whl_path)
         return MLEM_LOCAL_WHL
 
-    def get_install_command(self):
+    def get_install_command(self, args: "DockerBuildArgs"):
         name = WhlSource._whl_name()
-        return f"""COPY {MLEM_REQUIREMENTS} .
-RUN pip install -r {MLEM_REQUIREMENTS}
-COPY {name} .
-RUN pip install {name}"""
+        return (
+            f"COPY {MLEM_REQUIREMENTS} .\n"
+            f"RUN pip install -r {MLEM_REQUIREMENTS}\n"
+            f"COPY {name} .\n"
+            f"RUN pip install {name}\n"
+        )
 
 
 class PipSource(MlemSource):
@@ -130,7 +132,7 @@ class PipSource(MlemSource):
     def build(self, path):
         pass
 
-    def get_install_command(self):
+    def get_install_command(self, args: "DockerBuildArgs"):
         return f"RUN pip install mlem=={LOCAL_DOCKER_CONFIG.pip_version}"
 
 
@@ -140,11 +142,14 @@ class GitSource(MlemSource):
     def build(self, path):
         pass
 
-    def get_install_command(self):
+    def get_install_command(self, args: "DockerBuildArgs"):
         rev = ""
         if LOCAL_DOCKER_CONFIG.git_rev is not None:
             rev = f"@{LOCAL_DOCKER_CONFIG.git_rev}"
-        return f"RUN pip install git+https://github.com/iterative/mlem{rev}#egg=mlem"
+        return (
+            f"RUN {args.package_install_cmd} git {args.package_clean_cmd}\n"
+            f"RUN pip install git+https://github.com/iterative/mlem{rev}#egg=mlem"
+        )
 
 
 @contextmanager
@@ -211,7 +216,8 @@ class DockerBuildArgs(BaseModel):
     python_version: str = get_python_version()
     templates_dir: List[str] = []
     run_cmd: Union[bool, str] = "sh run.sh"
-    package_install_cmd: str = "apt-get install -y"
+    package_install_cmd: str = "apt-get update && apt-get -y upgrade && apt-get install --no-install-recommends -y"
+    package_clean_cmd: str = "&& apt-get clean && rm -rf /var/lib/apt/lists/*"
     prebuild_hook: Optional[Callable[[str], Any]] = None
     platform: Optional[str] = None
 
@@ -380,7 +386,7 @@ class DockerfileGenerator(DockerBuildArgs, TemplateModel):
 
         logger.debug('Docker image is based on "%s".', self.base_image)
 
-        mlem_install = get_mlem_source().get_install_command()
+        mlem_install = get_mlem_source().get_install_command(self)
 
         docker_args = {
             "python_version": self.python_version,
