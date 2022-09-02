@@ -63,7 +63,7 @@ class ExtImportHook(ImportHook, ABC):
         return any(obj.path.endswith(e) for e in cls.EXTS)
 
 
-class LoadAndAnlyzeImportHook(ImportHook, ABC):
+class LoadAndAnalyzeImportHook(ImportHook, ABC):
     force_type: ClassVar[Union[MlemModel, MlemData, None]] = None
 
     @classmethod
@@ -96,7 +96,7 @@ class LoadAndAnlyzeImportHook(ImportHook, ABC):
         raise NotImplementedError
 
 
-class PickleImportHook(ExtImportHook, LoadAndAnlyzeImportHook):
+class PickleImportHook(ExtImportHook, LoadAndAnalyzeImportHook):
     """Import hook for pickle files"""
 
     EXTS: ClassVar = (".pkl", ".pickle")

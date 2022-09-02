@@ -15,7 +15,7 @@ from mlem.core.data_type import (
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
-from mlem.core.import_objects import LoadAndAnlyzeImportHook
+from mlem.core.import_objects import LoadAndAnalyzeImportHook
 from mlem.core.meta_io import Location
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.objects import MlemModel
@@ -193,7 +193,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
         )
 
 
-class TorchModelImport(LoadAndAnlyzeImportHook):
+class TorchModelImport(LoadAndAnalyzeImportHook):
     type: ClassVar = "torch"
     force_type: ClassVar = MlemModel
 

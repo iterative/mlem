@@ -44,7 +44,7 @@ from mlem.core.errors import (
     SerializationError,
     UnsupportedDataBatchLoadingType,
 )
-from mlem.core.import_objects import ExtImportHook, LoadAndAnlyzeImportHook
+from mlem.core.import_objects import ExtImportHook, LoadAndAnalyzeImportHook
 from mlem.core.meta_io import Location
 from mlem.core.objects import MlemData
 from mlem.core.requirements import LibRequirementsMixin
@@ -668,7 +668,7 @@ class PandasWriter(DataWriter, _PandasIO):
         }
 
 
-class PandasImport(ExtImportHook, LoadAndAnlyzeImportHook):
+class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):
     EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
     type: ClassVar = "pandas"
     force_type: ClassVar = MlemData
