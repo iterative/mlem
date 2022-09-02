@@ -4,13 +4,7 @@ from typer import Argument, Option
 
 from ..core.base import build_mlem_object
 from ..core.objects import MlemObject
-from .main import (
-    mlem_command,
-    option_external,
-    option_index,
-    option_project,
-    wrap_build_error,
-)
+from .main import mlem_command, option_project, wrap_build_error
 
 
 @mlem_command("declare", section="object")
@@ -25,8 +19,6 @@ def declare(
     ),
     path: str = Argument(..., help="Where to save object"),
     project: str = option_project,
-    external: bool = option_external,
-    index: bool = option_index,
 ):
     """Creates new mlem object metafile from conf args and config files
 
@@ -37,4 +29,4 @@ def declare(
     cls = MlemObject.__type_map__[object_type]
     with wrap_build_error(subtype, cls):
         meta = build_mlem_object(cls, subtype, conf, [])
-    meta.dump(path, project=project, index=index, external=external)
+    meta.dump(path, project=project)

@@ -10,9 +10,7 @@ from mlem.cli.main import (
     option_conf,
     option_data_project,
     option_data_rev,
-    option_external,
     option_file_conf,
-    option_index,
     option_json,
     option_load,
     option_method,
@@ -61,8 +59,6 @@ def apply(
         "--batch_size",
         help="Batch size for reading data in batches.",
     ),
-    index: bool = option_index,
-    external: bool = option_external,
     json: bool = option_json,
 ):
     """Apply a model to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
@@ -108,8 +104,6 @@ def apply(
             data,
             method=method,
             output=output,
-            index=index,
-            external=external,
             batch_size=batch_size,
         )
     if output is None and json:
@@ -135,7 +129,6 @@ def apply_remote(
     ),
     target_project: Optional[str] = option_target_project,
     method: str = option_method,
-    index: bool = option_index,
     json: bool = option_json,
     load: Optional[str] = option_load("client"),
     conf: List[str] = option_conf("client"),
@@ -151,7 +144,7 @@ def apply_remote(
 
     with set_echo(None if json else ...):
         result = run_apply_remote(
-            client, data, project, rev, index, method, output, target_project
+            client, data, project, rev, method, output, target_project
         )
     if output is None and json:
         print(
@@ -166,7 +159,6 @@ def run_apply_remote(
     data_path: str,
     project,
     rev,
-    index,
     method,
     output,
     target_project,
@@ -186,6 +178,5 @@ def run_apply_remote(
         method=method,
         output=output,
         target_project=target_project,
-        index=index,
     )
     return result

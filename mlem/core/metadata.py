@@ -47,8 +47,6 @@ def save(
     project: Optional[str] = None,
     sample_data=None,
     fs: Union[str, AbstractFileSystem] = None,
-    index: bool = None,
-    external: Optional[bool] = None,
     params: Dict[str, str] = None,
 ) -> MlemObject:
     """Saves given object to a given path
@@ -62,8 +60,6 @@ def save(
             provide input data sample, so MLEM will include it's schema
             in the model's metadata
         fs: FileSystem for the `path` argument
-        index: Whether to add object to mlem project index
-        external: if obj is saved to project, whether to put it outside of .mlem dir
         params: arbitrary params for object
 
     Returns:
@@ -74,7 +70,7 @@ def save(
         sample_data,
         params=params,
     )
-    meta.dump(path, fs=fs, project=project, index=index, external=external)
+    meta.dump(path, fs=fs, project=project)
     return meta
 
 

@@ -201,14 +201,14 @@ def model_path(model_train_target, tmp_path_factory):
     model, train, _ = model_train_target
     # because of index=False we test reading by path here
     # reading by link name is not tested
-    save(model, path, sample_data=train, index=False)
+    save(model, path, sample_data=train)
     yield path
 
 
 @pytest.fixture
 def data_path(train, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(train, temp_dir, index=False)
+    save(train, temp_dir)
     yield temp_dir
 
 
@@ -285,7 +285,7 @@ def filled_mlem_project(mlem_project):
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
-    model.dump("model1", project=mlem_project, external=True)
+    model.dump("model1", project=mlem_project)
 
     model.make_link("latest", project=mlem_project)
     yield mlem_project
@@ -297,7 +297,7 @@ def model_path_mlem_project(model_train_target, tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, sample_data=train, index=True, external=True)
+    save(model, model_dir, sample_data=train)
     yield model_dir, dir
 
 

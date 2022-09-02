@@ -42,11 +42,9 @@ from mlem.core.errors import (
     DeploymentError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
-    MlemProjectNotFound,
     WrongMetaType,
 )
 from mlem.core.meta_io import (
-    MLEM_DIR,
     MLEM_EXT,
     Location,
     UriResolver,
@@ -88,11 +86,7 @@ class MlemObject(MlemABC):
     @property
     def name(self):
         """Name of the object in the project"""
-        project_path = self.loc.path_in_project[: -len(MLEM_EXT)]
-        prefix = posixpath.join(MLEM_DIR, self.object_type)
-        if project_path.startswith(prefix):
-            project_path = project_path[len(prefix) + 1 :]
-        return project_path
+        return self.loc.path_in_project[: -len(MLEM_EXT)]
 
     @property
     def is_saved(self):
@@ -119,8 +113,6 @@ class MlemObject(MlemABC):
         path: str,
         project: Optional[str],
         fs: Optional[AbstractFileSystem],
-        external: bool,
-        ensure_mlem_root: bool,
         metafile_path: bool = True,
     ) -> Location:
         """Create location from arguments"""
@@ -134,24 +126,6 @@ class MlemObject(MlemABC):
             find_project_root(
                 loc.project, loc.fs, raise_on_missing=True, recursive=False
             )
-        if ensure_mlem_root and loc.project is None:
-            raise MlemProjectNotFound(loc.fullpath, loc.fs)
-        if (
-            loc.project is None
-            or external
-            or loc.fullpath.startswith(
-                posixpath.join(loc.project, MLEM_DIR, cls.object_type)
-            )
-        ):
-            # orphan or external or inside .mlem
-            return loc
-
-        internal_path = posixpath.join(
-            MLEM_DIR,
-            cls.object_type,
-            loc.path_in_project,
-        )
-        loc.update_path(internal_path)
         return loc
 
     @classmethod
@@ -204,8 +178,6 @@ class MlemObject(MlemABC):
         path: str,
         fs: Union[str, AbstractFileSystem] = None,
         project: Optional[str] = None,
-        index: Optional[bool] = None,
-        external: Optional[bool] = None,
     ):
         """Dumps metafile and possible artifacts to path.
 
@@ -213,23 +185,14 @@ class MlemObject(MlemABC):
             path: name of the object. Relative to project, if it is provided.
             fs: filesystem to save to. if not provided, inferred from project and path
             project: path to mlem project
-            index: whether add to index if object is external.
-                If set to True, checks existanse of mlem project
-                defaults to True if mlem project exists and external is true
-            external: whether to save object inside mlem dir or not.
-                Defaults to false if project is provided
-                Forced to false if path points inside mlem dir
         """
-        location, index = self._parse_dump_args(
-            path, project, fs, index, external
-        )
-        self._write_meta(location, index)
+        location = self._parse_dump_args(path, project, fs)
+        self._write_meta(location)
         return self
 
     def _write_meta(
         self,
         location: Location,
-        index: bool,
     ):
         """Write metadata to path in fs and possibly create link in mlem dir"""
         echo(EMOJI_SAVE + f"Saving {self.object_type} to {location.uri_repr}")
@@ -238,50 +201,27 @@ class MlemObject(MlemABC):
         )
         with location.open("w") as f:
             safe_dump(self.dict(), f)
-        if index and location.project:
-            project_config(location.project, location.fs).index.index(
-                self, location
-            )
 
     def _parse_dump_args(
         self,
         path: str,
         project: Optional[str],
         fs: Optional[AbstractFileSystem],
-        index: Optional[bool],
-        external: Optional[bool],
-    ) -> Tuple[Location, bool]:
+    ) -> Location:
         """Parse arguments for .dump and bind meta"""
-        if external is None:
-            external = project_config(project, fs=fs).EXTERNAL
-        # by default we index only external non-orphan objects
-        if index is None:
-            index = True
-            ensure_mlem_root = False
-        else:
-            # if index manually set to True, there should be mlem project
-            ensure_mlem_root = index
         location = self._get_location(
             make_posix(path),
             make_posix(project),
             fs,
-            external,
-            ensure_mlem_root,
         )
         self.bind(location)
-        if location.project is not None:
-            # force external=False if fullpath inside MLEM_DIR
-            external = posixpath.join(MLEM_DIR, "") not in posixpath.dirname(
-                location.fullpath
-            )
-        return location, index
+        return location
 
     def make_link(
         self,
         path: str = None,
         fs: Optional[AbstractFileSystem] = None,
         project: Optional[str] = None,
-        external: Optional[bool] = None,
         absolute: bool = False,
     ) -> "MlemLink":
         if self.location is None:
@@ -295,11 +235,10 @@ class MlemObject(MlemABC):
             link_type=self.resolved_type,
         )
         if path is not None:
-            (
-                location,
-                _,
-            ) = link._parse_dump_args(  # pylint: disable=protected-access
-                path, project, fs, False, external=external
+            location = (
+                link._parse_dump_args(  # pylint: disable=protected-access
+                    path, project, fs
+                )
             )
             if (
                 not absolute
@@ -309,9 +248,7 @@ class MlemObject(MlemABC):
                 link.path = self.get_metafile_path(self.name)
                 link.link_type = self.resolved_type
                 link.project = None
-            link._write_meta(  # pylint: disable=protected-access
-                location, True
-            )
+            link._write_meta(location)  # pylint: disable=protected-access
         return link
 
     def clone(
@@ -319,8 +256,6 @@ class MlemObject(MlemABC):
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
         project: Optional[str] = None,
-        index: Optional[bool] = None,
-        external: Optional[bool] = None,
     ):
         """
         Clone existing object to `path`.
@@ -331,7 +266,7 @@ class MlemObject(MlemABC):
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         new: "MlemObject" = self.deepcopy()
         new.dump(
-            path, fs, project, index, external
+            path, fs, project
         )  # only dump meta TODO: https://github.com/iterative/mlem/issues/37
         return new
 
@@ -348,7 +283,7 @@ class MlemObject(MlemABC):
             + f"Updating {self.object_type} at {self.location.uri_repr}"
         )
         with no_echo():
-            self._write_meta(self.location, False)
+            self._write_meta(self.location)
 
     def meta_hash(self):
         return hashlib.md5(safe_dump(self.dict()).encode("utf8")).hexdigest()
@@ -460,9 +395,6 @@ class _WithArtifacts(ABC, MlemObject):
     @property
     def name(self):
         project_path = self.location.path_in_project
-        prefix = posixpath.join(MLEM_DIR, self.object_type)
-        if project_path.startswith(prefix):
-            project_path = project_path[len(prefix) + 1 :]
         if project_path.endswith(MLEM_EXT):
             project_path = project_path[: -len(MLEM_EXT)]
         return project_path
@@ -486,12 +418,8 @@ class _WithArtifacts(ABC, MlemObject):
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
         project: Optional[str] = None,
-        index: Optional[bool] = None,
-        external: Optional[bool] = None,
     ):
-        location, index = self._parse_dump_args(
-            path, project, fs, index, external
-        )
+        location = self._parse_dump_args(path, project, fs)
         try:
             if location.exists():
                 with no_echo():
@@ -502,35 +430,27 @@ class _WithArtifacts(ABC, MlemObject):
         except (MlemObjectNotFound, FileNotFoundError, ValidationError):
             pass
         self.artifacts = self.get_artifacts()
-        self._write_meta(location, index)
+        self._write_meta(location)
         return self
 
     @abstractmethod
     def write_value(self) -> Artifacts:
         raise NotImplementedError
 
-    # def ensure_saved(self):
-    #     if self.fs is None:
-    #         raise ValueError(f"Can't load {self}: it's not saved")
-
     def clone(
         self,
         path: str,
         fs: Union[str, AbstractFileSystem, None] = None,
         project: Optional[str] = None,
-        index: Optional[bool] = None,
-        external: Optional[bool] = None,
     ):
         if self.location is None:
             raise MlemObjectNotSavedError("Cannot clone not saved object")
         # clone is just dump with copying artifacts
         new: "_WithArtifacts" = self.deepcopy()
         new.artifacts = {}
-        (
-            location,
-            index,
-        ) = new._parse_dump_args(  # pylint: disable=protected-access
-            path, project, fs, index, external
+
+        location = new._parse_dump_args(  # pylint: disable=protected-access
+            path, project, fs
         )
 
         for art_name, art in (self.artifacts or {}).items():
@@ -544,7 +464,7 @@ class _WithArtifacts(ABC, MlemObject):
             new.artifacts[art_name] = LocalArtifact(
                 uri=posixpath.relpath(art_path, new.dirname), **download.info
             )
-        new._write_meta(location, index)  # pylint: disable=protected-access
+        new._write_meta(location)  # pylint: disable=protected-access
         return new
 
     @property
@@ -890,8 +810,6 @@ def find_object(
             tp,
             posixpath.join(
                 project or "",
-                MLEM_DIR,
-                cls.object_type,
                 cls.get_metafile_path(path),
             ),
         )

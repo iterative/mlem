@@ -10,11 +10,9 @@ from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseSettings, Field, parse_obj_as, root_validator
 from pydantic.env_settings import InitSettingsSource
 
-from mlem.constants import MLEM_DIR
+from mlem.constants import MLEM_CONFIG_FILE_NAME
 from mlem.core.errors import UnknownConfigSection
 from mlem.utils.entrypoints import MLEM_CONFIG_ENTRY_POINT, load_entrypoints
-
-CONFIG_FILE_NAME = "config.yaml"
 
 
 def _set_location_init_source(init_source: InitSettingsSource):
@@ -41,7 +39,7 @@ def mlem_config_settings_source(section: Optional[str]):
         project = find_project_root(config_path, fs=fs, raise_on_missing=False)
         if project is None:
             return {}
-        config_file = posixpath.join(project, MLEM_DIR, CONFIG_FILE_NAME)
+        config_file = posixpath.join(project, MLEM_CONFIG_FILE_NAME)
         if not fs.exists(config_file):
             return {}
         with fs.open(config_file, encoding=encoding) as f:
@@ -116,8 +114,6 @@ class MlemConfig(MlemConfigBase):
     NO_ANALYTICS: bool = False
     TESTS: bool = False
     STORAGE: Dict = {}
-    INDEX: Dict = {}
-    EXTERNAL: bool = False
     EMOJIS: bool = True
 
     @property
@@ -128,14 +124,6 @@ class MlemConfig(MlemConfigBase):
             return LOCAL_STORAGE
         s = parse_obj_as(Storage, self.STORAGE)
         return s
-
-    @property
-    def index(self):
-        from mlem.core.index import Index, LinkIndex
-
-        if not self.INDEX:
-            return LinkIndex()
-        return parse_obj_as(Index, self.INDEX)
 
     @property
     def additional_extensions(self) -> List[str]:

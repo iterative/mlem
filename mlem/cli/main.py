@@ -17,7 +17,7 @@ from typer.core import TyperCommand, TyperGroup
 from yaml import safe_load
 
 from mlem import LOCAL_CONFIG, version
-from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
@@ -333,18 +333,6 @@ option_method = Option(
     help="Which model method is to be applied",
 )
 option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
-option_index = Option(
-    None,
-    "--index/--no-index",
-    help="Whether to index output in .mlem directory",
-)
-option_external = Option(
-    None,
-    "--external",
-    "-e",
-    is_flag=True,
-    help=f"Save result not in {MLEM_DIR}, but directly in project",
-)
 option_target_project = Option(
     None,
     "--target-project",

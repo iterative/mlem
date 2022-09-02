@@ -65,9 +65,7 @@ class PipMixin(SetupTemplate):
             posixpath.join(path, "__init__.py"), fs
         )
         with no_echo():
-            obj.clone(
-                posixpath.join(path, "model"), fs, external=True, index=False
-            )
+            obj.clone(posixpath.join(path, "model"), fs)
         with fs.open(posixpath.join(root, "requirements.txt"), "w") as f:
             f.write(
                 "\n".join(

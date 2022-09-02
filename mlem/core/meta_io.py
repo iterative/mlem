@@ -19,7 +19,7 @@ from mlem.core.errors import (
     MlemObjectNotFound,
     RevisionNotFound,
 )
-from mlem.utils.root import MLEM_DIR, find_project_root
+from mlem.utils.root import find_project_root
 
 MLEM_EXT = ".mlem"
 
@@ -373,15 +373,10 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     if uri.endswith(MLEM_EXT) and fs.isfile(uri):
         # .../<META_FILE_NAME>.<MLEM_EXT>
         return uri
-    # if fs.isdir(uri) and fs.isfile(posixpath.join(uri, META_FILE_NAME)):
-    #     # .../path and .../path/<META_FILE_NAME> exists
-    #     return posixpath.join(uri, META_FILE_NAME)
+
     if fs.isfile(uri + MLEM_EXT):
         # .../name without <MLEM_EXT>
         return uri + MLEM_EXT
-    if MLEM_DIR in uri and fs.isfile(uri):
-        # .../<MLEM_DIR>/.../file
-        return uri
     if fs.exists(uri):
         raise MlemObjectNotFound(
             f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or data"

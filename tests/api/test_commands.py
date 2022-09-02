@@ -8,18 +8,15 @@ from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, apply_remote, link, load_meta
-from mlem.api.commands import build, import_object, init, ls
-from mlem.config import CONFIG_FILE_NAME
-from mlem.constants import PREDICT_METHOD_NAME
+from mlem.api.commands import build, import_object, init
+from mlem.constants import MLEM_CONFIG_FILE_NAME, PREDICT_METHOD_NAME
 from mlem.core.artifacts import LocalArtifact
-from mlem.core.errors import MlemProjectNotFound
-from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
+from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemData, MlemLink, MlemModel
+from mlem.core.objects import MlemLink, MlemModel
 from mlem.runtime.client import HTTPClient
-from mlem.utils.path import make_posix
-from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
+from tests.conftest import MLEM_TEST_REPO, long
 
 IMPORT_MODEL_FILENAME = "mymodel"
 
@@ -61,7 +58,7 @@ def test_apply_remote(mlem_client, train):
 def test_link_as_separate_file(model_path_mlem_project):
     model_path, mlem_project = model_path_mlem_project
     link_path = os.path.join(mlem_project, "latest.mlem")
-    link(model_path, target=link_path, external=True)
+    link(model_path, target=link_path)
     assert os.path.exists(link_path)
     link_object = load_meta(link_path, follow_links=False)
     assert isinstance(link_object, MlemLink)
@@ -76,12 +73,9 @@ def test_link_in_mlem_dir(model_path_mlem_project):
         model_path,
         target=link_name,
         target_project=mlem_project,
-        external=False,
     )
     assert isinstance(link_obj, MlemLink)
-    link_dumped_to = os.path.join(
-        mlem_project, MLEM_DIR, "link", link_name + MLEM_EXT
-    )
+    link_dumped_to = os.path.join(mlem_project, link_name + MLEM_EXT)
     assert os.path.exists(link_dumped_to)
     loaded_link_object = load_meta(link_dumped_to, follow_links=False)
     assert isinstance(loaded_link_object, MlemLink)
@@ -115,62 +109,16 @@ def test_link_from_remote_to_local(current_test_branch, mlem_project):
     assert isinstance(model, MlemModel)
 
 
-def test_ls_local(filled_mlem_project):
-    objects = ls(filled_mlem_project)
-    assert len(objects) == 1
-    assert MlemModel in objects
-    models = objects[MlemModel]
-    assert len(models) == 2
-    model, lnk = models
-    if isinstance(model, MlemLink):
-        model, lnk = lnk, model
-
-    assert isinstance(model, MlemModel)
-    assert isinstance(lnk, MlemLink)
-    assert (
-        posixpath.join(make_posix(filled_mlem_project), lnk.path)
-        == model.loc.fullpath
-    )
-
-
-def test_ls_no_project(tmpdir):
-    with pytest.raises(MlemProjectNotFound):
-        ls(str(tmpdir))
-
-
-@long
-@need_test_repo_auth
-def test_ls_remote(current_test_branch):
-    objects = ls(
-        os.path.join(MLEM_TEST_REPO, f"tree/{current_test_branch}/simple")
-    )
-    assert len(objects) == 2
-    assert MlemModel in objects
-    models = objects[MlemModel]
-    assert len(models) == 2
-    model, lnk = models
-    if isinstance(model, MlemLink):
-        model, lnk = lnk, model
-
-    assert isinstance(model, MlemModel)
-    assert isinstance(lnk, MlemLink)
-
-    assert MlemData in objects
-    assert len(objects[MlemData]) == 4
-
-
 def test_init(tmpdir):
     init(str(tmpdir))
-    assert os.path.isdir(tmpdir / MLEM_DIR)
-    assert os.path.isfile(tmpdir / MLEM_DIR / CONFIG_FILE_NAME)
+    assert os.path.isfile(tmpdir / MLEM_CONFIG_FILE_NAME)
 
 
 @long
 def test_init_remote(s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("init")
     init(path)
-    assert s3_storage_fs.isdir(f"{path}/{MLEM_DIR}")
-    assert s3_storage_fs.isfile(f"{path}/{MLEM_DIR}/{CONFIG_FILE_NAME}")
+    assert s3_storage_fs.isfile(f"{path}/{MLEM_CONFIG_FILE_NAME}")
 
 
 def _check_meta(meta, out_path, fs=None):
@@ -246,9 +194,7 @@ def test_import_model_pickle__no_copy_in_mlem_project(
     write_model_pickle(path)
 
     out_path = os.path.join(mlem_project, "mlem_model")
-    meta = import_object(
-        path, target=out_path, type_=type_, copy_data=False, external=True
-    )
+    meta = import_object(path, target=out_path, type_=type_, copy_data=False)
     _check_meta(meta, out_path)
     _check_load_artifact(meta, out_path, False, train, filename)
 
@@ -281,7 +227,7 @@ def test_import_model_pickle_remote_in_project(
     write_model_pickle(path, s3_storage_fs)
     out_path = posixpath.join(project_path, "mlem_model")
     meta = import_object(
-        path, target=out_path, copy_data=False, type_="pickle", external=True
+        path, target=out_path, copy_data=False, type_="pickle"
     )
     _check_meta(meta, out_path, s3_storage_fs)
     _check_load_artifact(meta, out_path, False, train)

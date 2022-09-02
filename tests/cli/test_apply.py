@@ -10,7 +10,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
 from mlem.core.data_type import ArrayType
-from mlem.core.errors import MlemProjectNotFound
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData
 from mlem.runtime.client import HTTPClient
@@ -35,7 +34,6 @@ def test_apply(runner, model_path, data_path):
                 "predict",
                 "-o",
                 path,
-                "--no-index",
             ],
         )
         assert result.exit_code == 0, (result.output, result.exception)
@@ -56,14 +54,14 @@ def model_train_batch():
 def model_path_batch(model_train_batch, tmp_path_factory):
     path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model")
     model, train = model_train_batch
-    save(model, path, sample_data=train, index=False)
+    save(model, path, sample_data=train)
     yield path
 
 
 @pytest.fixture
 def data_path_batch(model_train_batch, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(model_train_batch[1], temp_dir, index=False)
+    save(model_train_batch[1], temp_dir)
     yield temp_dir
 
 
@@ -80,7 +78,6 @@ def test_apply_batch(runner, model_path_batch, data_path_batch):
                 "predict",
                 "-o",
                 path,
-                "--no-index",
                 "-b",
                 "5",
             ],
@@ -110,7 +107,6 @@ def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):
                 "predict",
                 "-o",
                 path,
-                "--no-index",
                 "--import",
                 "--it",
                 "pandas[csv]",
@@ -138,7 +134,6 @@ def test_apply_batch_with_import(
                 "predict",
                 "-o",
                 path,
-                "--no-index",
                 "--import",
                 "--it",
                 "pandas[csv]",
@@ -155,29 +150,10 @@ def test_apply_batch_with_import(
 
 def test_apply_no_output(runner, model_path, data_path):
     result = runner.invoke(
-        ["apply", model_path, data_path, "-m", "predict", "--no-index"],
+        ["apply", model_path, data_path, "-m", "predict"],
     )
     assert result.exit_code == 0, (result.output, result.exception)
     assert len(result.output) > 0
-
-
-def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
-    with tempfile.TemporaryDirectory() as dir:
-        result = runner.invoke(
-            [
-                "--tb",
-                "apply",
-                model_path,
-                data_path,
-                "-m",
-                "predict",
-                "-o",
-                dir,
-                "--index",
-            ],
-        )
-        assert result.exit_code == 1, (result.output, result.exception)
-        assert isinstance(result.exception, MlemProjectNotFound)
 
 
 @long
@@ -203,7 +179,6 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
             current_test_branch,
             "-o",
             out,
-            "--no-index",
         ],
     )
     assert result.exit_code == 0, (result.output, result.exception)

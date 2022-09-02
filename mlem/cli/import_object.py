@@ -4,8 +4,6 @@ from typer import Argument, Option
 
 from mlem.cli.main import (
     mlem_command,
-    option_external,
-    option_index,
     option_project,
     option_rev,
     option_target_project,
@@ -26,8 +24,6 @@ def import_object(
         help="Whether to create a copy of file in target location or just link existing file",
     ),
     type_: Optional[str] = Option(None, "--type", help=f"Specify how to read file Available types: {list_implementations(ImportHook)}", show_default="auto infer"),  # type: ignore
-    index: bool = option_index,
-    external: bool = option_external,
 ):
     """Create MLEM model or data metadata from file/dir
 
@@ -51,6 +47,4 @@ def import_object(
         target_project=target_project,
         copy_data=copy,
         type_=type_,
-        external=external,
-        index=index,
     )

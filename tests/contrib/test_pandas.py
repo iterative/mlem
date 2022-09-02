@@ -14,8 +14,7 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
 from mlem.api.commands import import_object
-from mlem.config import CONFIG_FILE_NAME
-from mlem.constants import MLEM_DIR
+from mlem.constants import MLEM_CONFIG_FILE_NAME
 from mlem.contrib.pandas import (
     PANDAS_FORMATS,
     PANDAS_SERIES_FORMATS,
@@ -466,7 +465,7 @@ def iris_data():
 
 def test_save_load(iris_data, tmpdir):
     tmpdir = str(tmpdir / "data")
-    save(iris_data, tmpdir, index=False)
+    save(iris_data, tmpdir)
     data2 = load(tmpdir)
 
     pandas_assert(data2, iris_data)
@@ -596,7 +595,7 @@ def test_series(series_data2: pd.Series, series_df_type2, df_type2):
 
 def test_change_format(mlem_project, data):
     with open(
-        os.path.join(mlem_project, MLEM_DIR, CONFIG_FILE_NAME),
+        os.path.join(mlem_project, MLEM_CONFIG_FILE_NAME),
         "w",
         encoding="utf8",
     ) as f:

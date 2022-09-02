@@ -4,8 +4,6 @@ from typer import Argument
 
 from mlem.cli.main import (
     mlem_command,
-    option_external,
-    option_index,
     option_project,
     option_rev,
     option_target_project,
@@ -19,8 +17,6 @@ def clone(
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     target_project: Optional[str] = option_target_project,
-    external: Optional[bool] = option_external,
-    index: Optional[bool] = option_index,
 ):
     """Download MLEM object from `uri` and save it to `target`
 
@@ -39,6 +35,4 @@ def clone(
         project=project,
         rev=rev,
         target_project=target_project,
-        external=external,
-        index=index,
     )

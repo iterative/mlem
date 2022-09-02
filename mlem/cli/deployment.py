@@ -10,8 +10,6 @@ from mlem.cli.main import (
     mlem_group,
     option_data_project,
     option_data_rev,
-    option_external,
-    option_index,
     option_json,
     option_method,
     option_project,
@@ -44,8 +42,6 @@ def deploy_run(
         None, "-t", "--env", help="Path to target environment"
     ),
     project: Optional[str] = option_project,
-    external: bool = option_external,
-    index: bool = option_index,
     conf: Optional[List[str]] = Option(
         None,
         "-c",
@@ -72,8 +68,6 @@ def deploy_run(
         model,
         env,
         project,
-        external=external,
-        index=index,
         **parse_string_conf(conf or []),
     )
 
@@ -123,7 +117,6 @@ def deploy_apply(
     ),
     target_project: Optional[str] = option_target_project,
     method: str = option_method,
-    index: bool = option_index,
     json: bool = option_json,
 ):
     """Apply method of deployed service
@@ -147,7 +140,6 @@ def deploy_apply(
             data,
             data_project,
             data_rev,
-            index,
             method,
             output,
             target_project,
