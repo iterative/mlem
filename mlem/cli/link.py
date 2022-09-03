@@ -12,7 +12,9 @@ from mlem.cli.main import (
 
 @mlem_command("link", section="object")
 def link(
-    source: str = Argument(..., help="URI to object you are crating link to"),
+    source: str = Argument(
+        ..., help="URI of the object you are creating a link to"
+    ),
     target: str = Argument(..., help="Path to save link object"),
     source_project: Optional[str] = Option(
         None,
@@ -36,14 +38,15 @@ def link(
         help="Which path to linked object to specify: absolute or relative.",
     ),
 ):
-    """Create link for MLEM object
+    """Create a link (read alias) for an existing MLEM Object, including from
+    remote MLEM projects.
 
-    Examples:
-        Add alias to local object
-        $ mlem link my_model latest
+        Examples:
+            Add alias to local object
+            $ mlem link my_model latest
 
-        Add remote object to your project without copy
-        $ mlem link models/logreg --source-project https://github.com/iteartive/example-mlem remote_model
+            Add remote object to your project without copy
+            $ mlem link models/logreg --source-project https://github.com/iteartive/example-mlem remote_model
     """
     from mlem.api.commands import link
 

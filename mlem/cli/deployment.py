@@ -28,7 +28,7 @@ from mlem.ui import echo, no_echo, set_echo
 
 deployment = Typer(
     name="deployment",
-    help="Manage deployments",
+    help="A set of commands to set up and manage deployments.",
     cls=mlem_group("runtime", aliases=["deploy"]),
 )
 app.add_typer(deployment)
@@ -49,17 +49,18 @@ def deploy_run(
     index: bool = option_index,
     conf: Optional[List[str]] = option_conf(),
 ):
-    """Deploy a model to target environment. Can use existing deployment declaration or create a new one on-the-fly
+    """Deploy a model to a target environment. Can use an existing deployment
+    declaration or create a new one on-the-fly.
 
-    Examples:
-        Create new deployment
-        $ mlem declare env heroku staging -c api_key=...
-        $ mlem deploy run service_name -m model -t staging -c name=my_service
+        Examples:
+            Create new deployment
+            $ mlem declare env heroku staging -c api_key=...
+            $ mlem deploy run service_name -m model -t staging -c name=my_service
 
-        Deploy existing meta
-        $ mlem declare env heroku staging -c api_key=...
-        $ mlem declare deployment heroku service_name -c app_name=my_service -c model=model -c env=staging
-        $ mlem deploy run service_name
+            Deploy existing meta
+            $ mlem declare env heroku staging -c api_key=...
+            $ mlem declare deployment heroku service_name -c app_name=my_service -c model=model -c env=staging
+            $ mlem deploy run service_name
     """
     from mlem.api.commands import deploy
 
@@ -79,7 +80,7 @@ def deploy_remove(
     path: str = Argument(..., help="Path to deployment meta"),
     project: Optional[str] = option_project,
 ):
-    """Stop and destroy deployed instance
+    """Stop and destroy deployed instance.
 
     Examples:
         $ mlem deployment remove service_name
@@ -93,7 +94,7 @@ def deploy_status(
     path: str = Argument(..., help="Path to deployment meta"),
     project: Optional[str] = option_project,
 ):
-    """Print status of deployed service
+    """Print status of deployed service.
 
     Examples:
         $ mlem deployment status service_name
@@ -122,7 +123,7 @@ def deploy_apply(
     index: bool = option_index,
     json: bool = option_json,
 ):
-    """Apply method of deployed service
+    """Apply a deployed model to data.
 
     Examples:
         $ mlem deployment apply service_name

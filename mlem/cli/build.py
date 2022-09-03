@@ -23,7 +23,8 @@ from mlem.core.objects import MlemBuilder, MlemModel
 build = Typer(
     name="build",
     help="""
-        Build/export model
+        Build models to create re-usable, ship-able entities such as a Docker image or
+Python package.
 
         Examples:
             Build docker image from model

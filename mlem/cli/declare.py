@@ -23,7 +23,7 @@ from .utils import (
 
 declare = Typer(
     name="declare",
-    help="""Creates new mlem object metafile from conf args and config files
+    help="""Declares a new MLEM Object metafile from config args and config files.
 
     Examples:
         Create heroku deployment

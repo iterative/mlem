@@ -23,7 +23,8 @@ from mlem.runtime.server import Server
 
 serve = Typer(
     name="serve",
-    help="""Serve selected model
+    help="""Deploy the model locally using a server implementation and expose its methods as
+endpoints.
 
     Examples:
         $ mlem serve fastapi https://github.com/iterative/example-mlem/models/logreg

@@ -38,7 +38,7 @@ from mlem.utils.entrypoints import list_implementations
 
 @mlem_command("apply", section="runtime")
 def apply(
-    model: str = Argument(..., help="Path to model object"),
+    model: str = Argument(..., metavar="model", help="Path to model object"),
     data_path: str = Argument(..., metavar="data", help="Path to data object"),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
@@ -71,7 +71,8 @@ def apply(
     external: bool = option_external,
     json: bool = option_json,
 ):
-    """Apply a model to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+    """Apply a model to data. The result will be saved as a MLEM object to `output` if
+    provided. Otherwise, it will be printed to `stdout`.
 
     Examples:
         Apply local mlem model to local mlem data
@@ -128,7 +129,9 @@ def apply(
 
 apply_remote = Typer(
     name="apply-remote",
-    help="""Apply a model (deployed somewhere remotely) to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+    help="""Apply a deployed-model (possibly remotely) to data. The results will be saved as
+a MLEM object to `output` if provided. Otherwise, it will be printed to
+`stdout`.
 
     Examples:
         Apply hosted mlem model to local mlem data

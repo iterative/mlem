@@ -52,14 +52,15 @@ def ls(
     ),
     rev: Optional[str] = option_rev,
     links: bool = Option(
-        True, "+l/-l", "--links/--no-links", help="Include links"
+        True, "+l/-l", "--links/--no-links", help="Whether to include links"
     ),
     json: bool = option_json,
     ignore_errors: bool = Option(
         False, "-i", "--ignore-errors", help="Ignore corrupted objects"
     ),
 ):
-    """List MLEM objects of in project
+    """List MLEM objects inside a MLEM project (location should be [initialized](/doc/command-reference/init)).
+
 
     Examples:
         $ mlem list https://github.com/iterative/example-mlem
@@ -109,14 +110,15 @@ def pretty_print(
     ),
     json: bool = option_json,
 ):
-    """Print specified MLEM object
+    """Display all details about a specific MLEM Object from an existing MLEM
+    project.
 
-    Examples:
-        Print local object
-        $ mlem pprint mymodel
+        Examples:
+            Print local object
+            $ mlem pprint mymodel
 
-        Print remote object
-        $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
+            Print remote object
+            $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
     """
     with set_echo(None if json else ...):
         meta = load_meta(

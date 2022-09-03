@@ -29,7 +29,7 @@ def import_object(
     index: bool = option_index,
     external: bool = option_external,
 ):
-    """Create MLEM model or data metadata from file/dir
+    """Create a `.mlem` metafile for a model or data in any file or directory.
 
     Examples:
         Create MLEM data from local csv
