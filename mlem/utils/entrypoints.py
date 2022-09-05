@@ -85,7 +85,7 @@ def list_implementations(
     }
     if resolved_base_class is not None:
         eps.update(resolved_base_class.non_abstract_subtypes())
-    return [e for e in eps if include_hidden or not e.startswith("_")]
+    return sorted(e for e in eps if include_hidden or not e.startswith("_"))
 
 
 def list_abstractions(
