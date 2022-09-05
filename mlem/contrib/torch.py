@@ -194,6 +194,8 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
 
 
 class TorchModelImport(LoadAndAnalyzeImportHook):
+    """Import torch models saved with `torch.save`"""
+
     type: ClassVar = "torch"
     force_type: ClassVar = MlemModel
 
