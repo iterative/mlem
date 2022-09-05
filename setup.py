@@ -79,7 +79,7 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "docker": ["docker"],
-    "heroku": ["docker"],
+    "heroku": ["docker", "fastapi", "uvicorn"],
     "dvc": ["dvc~=2.0"],
 }
 
@@ -205,6 +205,9 @@ setup_args = dict(  # noqa: C408
         ],
         "mlem.config": [
             "core = mlem.config:MlemConfig",
+            "bitbucket = mlem.contrib.bitbucketfs:BitbucketConfig",
+            "docker = mlem.contrib.docker.context:DockerConfig",
+            "heroku = mlem.contrib.heroku.config:HerokuConfig",
             "pandas = mlem.contrib.pandas:PandasConfig",
         ],
     },
