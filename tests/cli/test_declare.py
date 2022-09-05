@@ -75,7 +75,8 @@ def test_declare(runner: Runner, tmp_path):
 def test_declare_list(runner: Runner, tmp_path, args, res):
     result = runner.invoke(
         f"declare builder docker_dir {make_posix(str(tmp_path))} --server fastapi --target lol "
-        + args
+        + args,
+        raise_on_error=True,
     )
     assert result.exit_code == 0, (result.exception, result.output)
     builder = load_meta(str(tmp_path))

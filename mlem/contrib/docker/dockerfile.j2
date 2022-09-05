@@ -10,4 +10,4 @@ COPY . ./
 {% for name, value in env.items() %}ENV {{ name }}={{ value }}
 {% endfor %}
 {% include "post_copy.j2" ignore missing %}
-{% if run_cmd is not false %}CMD {{ run_cmd }}{% endif %}
+{% if run_cmd is not none %}CMD {{ run_cmd }}{% endif %}

@@ -211,7 +211,7 @@ class DockerBuildArgs(BaseModel):
        - `pre_install.j2` - Dockerfile commands to run before pip
        - `post_install.j2` - Dockerfile commands to run after pip
        - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy"""
-    run_cmd: Union[bool, str] = "sh run.sh"
+    run_cmd: Optional[str] = "sh run.sh"
     """command to run in container"""
     package_install_cmd: str = "apt-get update && apt-get -y upgrade && apt-get install --no-install-recommends -y"
     """command to install packages. Default is apt-get, change it for other package manager"""

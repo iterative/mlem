@@ -97,6 +97,12 @@ CMD echo "cmd" && sh run.sh
             assert _generate_dockerfile(**kwargs) == dockerfile
 
 
+def test_dockerfile_generator_no_cmd():
+    kwargs = {"run_cmd": None}
+    with use_mlem_source("pip"):
+        assert "CMD" not in _generate_dockerfile(**kwargs)
+
+
 def test_use_wheel_installation(tmpdir):
     distr = tmpdir.mkdir("distr").join("somewhatwheel.txt")
     distr.write("wheel goes brrr")
