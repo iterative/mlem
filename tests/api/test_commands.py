@@ -11,12 +11,13 @@ from mlem.api import apply, apply_remote, link, load_meta
 from mlem.api.commands import build, import_object, init, ls
 from mlem.config import CONFIG_FILE_NAME
 from mlem.constants import PREDICT_METHOD_NAME
+from mlem.contrib.heroku.meta import HerokuEnv
 from mlem.core.artifacts import LocalArtifact
 from mlem.core.errors import MlemProjectNotFound
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemData, MlemLink, MlemModel
+from mlem.core.objects import MlemData, MlemEnv, MlemLink, MlemModel
 from mlem.runtime.client import HTTPClient
 from mlem.utils.path import make_posix
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
@@ -157,6 +158,21 @@ def test_ls_remote(current_test_branch):
 
     assert MlemData in objects
     assert len(objects[MlemData]) == 4
+
+
+@long
+def test_ls_remote_s3(s3_tmp_path):
+    path = s3_tmp_path("ls_remote_s3")
+    init(path)
+    meta = HerokuEnv()
+    meta.dump(posixpath.join(path, "env"))
+    meta.dump(posixpath.join(path, "subdir", "env"))
+    meta.dump(posixpath.join(path, "subdir", "subsubdir", "env"))
+    objects = ls(path)
+    assert MlemEnv in objects
+    envs = objects[MlemEnv]
+    assert len(envs) == 3
+    assert all(o == meta for o in envs)
 
 
 def test_init(tmpdir):

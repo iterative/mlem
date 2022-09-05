@@ -84,7 +84,7 @@ class LinkIndex(Index):
         res = defaultdict(list)
         root_path = posixpath.join(location.project or "", MLEM_DIR)
         files = location.fs.glob(
-            posixpath.join(root_path, f"**{MLEM_EXT}"), recursive=True
+            posixpath.join(root_path, f"**{MLEM_EXT}"),
         )
         for cls in _type_filter:
             type_path = posixpath.join(root_path, cls.object_type)
