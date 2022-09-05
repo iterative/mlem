@@ -520,7 +520,13 @@ def _format_validation_error(error: ValidationError) -> List[str]:
     res = []
     for loc, model, exc in _iter_errors(error.raw_errors, error.model):
         path = ".".join(loc_part for loc_part in loc if loc_part != "__root__")
-        field_type = model.__fields__[loc[-1]].type_
+        field_name = loc[-1]
+        if field_name not in model.__fields__:
+            res.append(
+                f"Unknown field '{field_name}'. Fields available: {', '.join(model.__fields__)}"
+            )
+            continue
+        field_type = model.__fields__[field_name].type_
         if (
             isinstance(exc, MissingError)
             and isinstance(field_type, type)

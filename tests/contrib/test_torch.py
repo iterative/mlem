@@ -3,13 +3,19 @@ import os
 import pytest
 import torch
 
-from mlem.api import save
+from mlem.api import import_object, save
 from mlem.constants import PREDICT_METHOD_NAME
-from mlem.contrib.torch import TorchModelIO, TorchTensorReader
+from mlem.contrib.torch import (
+    TorchModel,
+    TorchModelImport,
+    TorchModelIO,
+    TorchTensorReader,
+)
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
+from mlem.core.objects import MlemModel
 from tests.conftest import data_write_read_check
 
 
@@ -151,6 +157,21 @@ def check_model(net, input_data, tmpdir):
     assert set(tmw.get_requirements().modules) == {"torch"}
 
     save(net, str(tmpdir / "torch-net"), sample_data=input_data)
+
+
+@pytest.mark.parametrize(
+    "net,torchsave",
+    [
+        (torch.nn.Linear(5, 1), torch.save),
+        (torch.jit.script(torch.nn.Linear(5, 1)), torch.jit.save),
+    ],
+)
+def test_torch_import(tmp_path, net, torchsave):
+    path = tmp_path / "model"
+    torchsave(net, path)
+    meta = import_object(str(path), type_=TorchModelImport.type)
+    assert isinstance(meta, MlemModel)
+    assert isinstance(meta.model_type, TorchModel)
 
 
 # Copyright 2019 Zyfra

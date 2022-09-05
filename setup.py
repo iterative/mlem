@@ -79,7 +79,7 @@ extras = {
     "ssh": ["bcrypt", "sshfs[bcrypt]>=2021.11.2"],
     "rmq": ["pika"],
     "docker": ["docker"],
-    "heroku": ["docker"],
+    "heroku": ["docker", "fastapi", "uvicorn"],
     "dvc": ["dvc~=2.0"],
 }
 
@@ -178,6 +178,7 @@ setup_args = dict(  # noqa: C408
             "model_type.onnx = mlem.contrib.onnx:ONNXModel",
             "data_type.dataframe = mlem.contrib.pandas:DataFrameType",
             "import.pandas = mlem.contrib.pandas:PandasImport",
+            "import.torch = mlem.contrib.torch:TorchModelImport",
             "data_reader.pandas = mlem.contrib.pandas:PandasReader",
             "data_reader.pandas_series = mlem.contrib.pandas:PandasSeriesReader",
             "data_writer.pandas_series = mlem.contrib.pandas:PandasSeriesWriter",
@@ -205,6 +206,9 @@ setup_args = dict(  # noqa: C408
         ],
         "mlem.config": [
             "core = mlem.config:MlemConfig",
+            "bitbucket = mlem.contrib.bitbucketfs:BitbucketConfig",
+            "docker = mlem.contrib.docker.context:DockerConfig",
+            "heroku = mlem.contrib.heroku.config:HerokuConfig",
             "pandas = mlem.contrib.pandas:PandasConfig",
         ],
     },

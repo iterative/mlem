@@ -4,7 +4,7 @@ from mlem.cli.main import app, mlem_command, mlem_group
 from mlem.ui import echo
 from mlem.utils.entrypoints import (
     MLEM_ENTRY_POINT,
-    find_implementations,
+    find_abc_implementations,
     load_entrypoints,
 )
 
@@ -28,7 +28,7 @@ def find_implementations_diff(
         $ mlem dev fi
     """
     exts = {e.entry for e in load_entrypoints().values()}
-    impls = set(find_implementations(root)[MLEM_ENTRY_POINT])
+    impls = set(find_abc_implementations(root)[MLEM_ENTRY_POINT])
     extra = exts.difference(impls)
     if extra:
         echo("Remove implementations:")

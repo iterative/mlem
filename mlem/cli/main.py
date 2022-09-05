@@ -371,7 +371,7 @@ def mlem_command(
                     raise
                 msgs = "\n".join(_format_validation_error(e))
                 with cli_echo():
-                    echo(msgs)
+                    echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
                 raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"

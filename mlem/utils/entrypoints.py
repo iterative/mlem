@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from inspect import isabstract
-from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Type, TypeVar, Union
 
 import entrypoints
 
@@ -96,7 +96,12 @@ def list_abstractions(
     return [e for e in eps if include_hidden or not e.startswith("_")]
 
 
-def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
+IT = TypeVar("IT")
+
+
+def find_implementations(
+    base: Type[IT], root_module_name: str = MLEM_ENTRY_POINT
+) -> Dict[Type[IT], str]:
     """Generates dict with MLEM entrypoints which should appear in setup.py.
     Can be used by plugin developers to check if they populated all existing
     entrypoints in setup.py
@@ -105,7 +110,7 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     assert root_module.__file__ is not None
     path = os.path.dirname(root_module.__file__)
 
-    impls = {}
+    impls: Dict[Type[IT], str] = {}
     for pyfile in glob.glob(os.path.join(path, "**", "*.py"), recursive=True):
         module_name = (
             root_module_name
@@ -128,17 +133,21 @@ def find_implementations(root_module_name: str = MLEM_ENTRY_POINT):
             if (
                 isinstance(obj, type)
                 and obj.__module__ == module.__name__
-                and issubclass(obj, MlemABC)
+                and issubclass(obj, base)
                 and not isabstract(obj)
-                and hasattr(obj, "abs_name")
             ):
                 impls[obj] = f"{obj.__module__}:{obj.__name__}"
+    return impls
 
+
+def find_abc_implementations(root_module_name: str = MLEM_ENTRY_POINT):
+    impls = find_implementations(MlemABC, root_module_name)
     return {
         MLEM_ENTRY_POINT: [
             f"{obj.abs_name}.{obj.__get_alias__()} = {name}"
             if not obj.__is_root__ or hasattr(obj, obj.__type_field__())
             else f"{obj.abs_name} = {name}"
             for obj, name in impls.items()
+            if hasattr(obj, "abs_name")
         ]
     }
