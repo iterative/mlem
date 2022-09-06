@@ -13,6 +13,7 @@ from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
+from yaml import safe_dump
 
 import mlem
 from mlem.config import MlemConfigBase, project_config
@@ -26,6 +27,7 @@ from mlem.utils.templates import TemplateModel
 
 REQUIREMENTS = "requirements.txt"
 MLEM_REQUIREMENTS = "mlem_requirements.txt"
+SERVER = "server.yaml"
 TEMPLATE_FILE = "dockerfile.j2"
 MLEM_LOCAL_WHL = f"mlem-{mlem.__version__}-py3-none-any.whl"
 
@@ -341,7 +343,10 @@ class DockerModelDirectory(BaseModel):
             df.write(dockerfile)
 
     def write_configs(self):
-        pass
+        with self.fs.open(
+            posixpath.join(self.path, SERVER), "w", encoding="utf8"
+        ) as f:
+            safe_dump(self.server.dict(), f)
 
     def write_local_sources(self, requirements: Requirements):
         echo(EMOJI_PACK + "Adding sources...")
@@ -366,7 +371,7 @@ class DockerModelDirectory(BaseModel):
 
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
-            sh.write(f"mlem serve {self.server.type} {self.model_name}")
+            sh.write(f"mlem serve -l {SERVER} -m {self.model_name}")
 
     def write_mlem_source(self):
         source = get_mlem_source()

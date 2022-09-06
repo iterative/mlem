@@ -4,7 +4,7 @@ from typer import Argument, Typer
 from yaml import safe_dump
 
 from ..core.base import MlemABC, build_mlem_object, load_impl_ext
-from ..core.meta_io import UriResolver
+from ..core.meta_io import Location
 from ..core.objects import MlemObject
 from ..utils.entrypoints import list_abstractions, list_implementations
 from .main import (
@@ -128,7 +128,7 @@ def create_declare_mlem_abc_subcommand(
             obj = build_mlem_object(
                 root_cls, subtype, str_conf=None, file_conf=[], **__kwargs__
             )
-        location = UriResolver.resolve(
+        location = Location.resolve(
             path=path, project=project, rev=None, fs=None
         )
         with location.fs.open(location.fullpath, "w") as f:

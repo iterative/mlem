@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Type
 
 import typer
+from click import Context, MissingParameter
 from pydantic import (
     BaseModel,
     MissingError,
@@ -30,8 +31,14 @@ from typing_extensions import get_origin
 from yaml import safe_load
 
 from mlem import LOCAL_CONFIG
-from mlem.core.base import MlemABC, build_mlem_object, load_impl_ext
-from mlem.core.errors import ExtensionRequirementError
+from mlem.core.base import (
+    MlemABC,
+    build_mlem_object,
+    load_impl_ext,
+    smart_split,
+)
+from mlem.core.errors import ExtensionRequirementError, MlemObjectNotFound
+from mlem.core.meta_io import Location
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemObject
 from mlem.ui import EMOJI_FAIL, color
@@ -433,6 +440,25 @@ def _options_from_collection_element(
 
 
 NOT_SET = "__NOT_SET__"
+FILE_CONF_PARAM_NAME = "file_conf"
+LOAD_PARAM_NAME = "load"
+
+
+class SetViaFileTyperOption(TyperOption):
+    def process_value(self, ctx: Context, value: Any) -> Any:
+        try:
+            return super().process_value(ctx, value)
+        except MissingParameter:
+            if (
+                LOAD_PARAM_NAME in ctx.params
+                or FILE_CONF_PARAM_NAME in ctx.params
+                and any(
+                    smart_split(v, "=", 1)[0] == self.name
+                    for v in ctx.params[FILE_CONF_PARAM_NAME]
+                )
+            ):
+                return NOT_SET
+            raise
 
 
 def _option_from_field(
@@ -447,7 +473,7 @@ def _option_from_field(
         type_ = anything(type_)
     elif field.allow_none:
         type_ = optional(type_)
-    option = TyperOption(
+    option = SetViaFileTyperOption(
         param_decls=[f"--{path}", path.replace(".", "_")],
         type=type_ if not force_not_set else anything(type_),
         required=field.required and not force_not_set,
@@ -562,27 +588,25 @@ def wrap_build_error(subtype, model: Type[MlemABC]):
 def config_arg(
     model: Type[MlemABC],
     load: Optional[str],
-    subtype: str,
+    subtype: Optional[str],
     conf: Optional[List[str]],
     file_conf: Optional[List[str]],
     **kwargs,
 ):
-    obj: MlemABC
     if load is not None:
         if issubclass(model, MlemObject):
-            obj = load_meta(load, force_type=model)
-        else:
-            with open(load, "r", encoding="utf8") as of:
-                obj = parse_obj_as(model, safe_load(of))
-    else:
-        if not subtype:
-            raise typer.BadParameter(
-                f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
-            )
-        with wrap_build_error(subtype, model):
-            obj = build_mlem_object(model, subtype, conf, file_conf, kwargs)
-
-    return obj
+            try:
+                return load_meta(load, force_type=model)
+            except MlemObjectNotFound:
+                pass
+        with Location.resolve(load).open("r", encoding="utf8") as of:
+            return parse_obj_as(model, safe_load(of))
+    if not subtype:
+        raise typer.BadParameter(
+            f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
+        )
+    with wrap_build_error(subtype, model):
+        return build_mlem_object(model, subtype, conf, file_conf, kwargs)
 
 
 def _extract_examples(

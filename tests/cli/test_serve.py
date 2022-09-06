@@ -22,6 +22,6 @@ create_serve_command(MockServer.type)
 
 
 def test_serve(runner: Runner, model_single_path):
-    result = runner.invoke(f"serve mock {model_single_path} --param aaa")
+    result = runner.invoke(f"serve mock -m {model_single_path} --param aaa")
     assert result.exit_code == 0, result.exception
     assert result.output.splitlines()[-1] == "aaa"

@@ -218,6 +218,7 @@ def test_apply_remote(mlem_client, runner, data_path):
             [
                 "apply-remote",
                 "http",
+                "-d",
                 data_path,
                 "--host",
                 "",

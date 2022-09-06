@@ -45,13 +45,7 @@ from mlem.core.errors import (
     MlemProjectNotFound,
     WrongMetaType,
 )
-from mlem.core.meta_io import (
-    MLEM_DIR,
-    MLEM_EXT,
-    Location,
-    UriResolver,
-    get_path_by_fs_path,
-)
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, get_path_by_fs_path
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
@@ -128,7 +122,7 @@ class MlemObject(MlemABC):
         """Create location from arguments"""
         if metafile_path:
             path = cls.get_metafile_path(path)
-        loc = UriResolver.resolve(
+        loc = Location.resolve(
             path, project, rev=None, fs=fs, find_project=True
         )
         if loc.project is not None:
@@ -412,7 +406,7 @@ class MlemLink(MlemObject):
 
         if self.project is None and self.rev is None:
             # is it possible to have rev without project?
-            location = UriResolver.resolve(
+            location = Location.resolve(
                 path=self.path, project=None, rev=None, fs=None
             )
             if (
@@ -430,7 +424,7 @@ class MlemLink(MlemObject):
             return find_meta_location(location)
         # link is absolute
         return find_meta_location(
-            UriResolver.resolve(
+            Location.resolve(
                 path=self.path, project=self.project, rev=self.rev, fs=None
             )
         )

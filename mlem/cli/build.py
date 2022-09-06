@@ -1,11 +1,12 @@
 from typing import List, Optional
 
-from typer import Argument, Typer
+from typer import Option, Typer
 
 from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
+    mlem_group_callback,
     option_file_conf,
     option_load,
     option_project,
@@ -40,6 +41,27 @@ Python package.
 app.add_typer(build)
 
 
+@mlem_group_callback(build, required=["model", "load"])
+def build_load(
+    model: str = Option(None, "-m", "--model", help="Path to model"),
+    project: Optional[str] = option_project,
+    rev: Optional[str] = option_rev,
+    load: str = option_load("builder"),
+):
+    from mlem.api.commands import build
+
+    build(
+        config_arg(
+            MlemBuilder,
+            load,
+            None,
+            conf=None,
+            file_conf=None,
+        ),
+        load_meta(model, project, rev, force_type=MlemModel),
+    )
+
+
 @for_each_impl(MlemBuilder)
 def create_build_command(type_name):
     @mlem_command(
@@ -52,12 +74,12 @@ def create_build_command(type_name):
         ),
         hidden=type_name.startswith("_"),
         lazy_help=lazy_class_docstring(MlemBuilder.abs_name, type_name),
+        no_pass_from_parent=["file_conf"],
     )
     def build_type(
-        model: str = Argument(..., help="Path to model"),
+        model: str = Option(..., "-m", "--model", help="Path to model"),
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
-        load: Optional[str] = option_load("builder"),
         file_conf: List[str] = option_file_conf("builder"),
         **__kwargs__
     ):
@@ -66,7 +88,7 @@ def create_build_command(type_name):
         build(
             config_arg(
                 MlemBuilder,
-                load,
+                None,
                 type_name,
                 conf=None,
                 file_conf=file_conf,

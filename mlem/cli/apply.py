@@ -8,6 +8,7 @@ from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
+    mlem_group_callback,
     option_data_project,
     option_data_rev,
     option_external,
@@ -143,6 +144,81 @@ a MLEM object to `output` if provided. Otherwise, it will be printed to
 app.add_typer(apply_remote)
 
 
+def _apply_remote(
+    data,
+    project,
+    rev,
+    index,
+    method,
+    output,
+    target_project,
+    json,
+    type_name,
+    load,
+    file_conf,
+    kwargs,
+):
+    client = config_arg(
+        Client,
+        load,
+        type_name,
+        conf=None,
+        file_conf=file_conf,
+        **(kwargs or {}),
+    )
+
+    with set_echo(None if json else ...):
+        result = run_apply_remote(
+            client,
+            data,
+            project,
+            rev,
+            index,
+            method,
+            output,
+            target_project,
+        )
+    if output is None and json:
+        print(
+            dumps(
+                DataAnalyzer.analyze(result).get_serializer().serialize(result)
+            )
+        )
+
+
+option_output = Option(
+    None, "-o", "--output", help="Where to store the outputs."
+)
+
+
+@mlem_group_callback(apply_remote, required=["data", "load"])
+def apply_remote_load(
+    data: str = Option(None, "-d", "--data", help="Path to data object"),
+    project: Optional[str] = option_project,
+    rev: Optional[str] = option_rev,
+    output: Optional[str] = option_output,
+    target_project: Optional[str] = option_target_project,
+    method: str = option_method,
+    index: bool = option_index,
+    json: bool = option_json,
+    load: Optional[str] = option_load("client"),
+):
+    return _apply_remote(
+        data,
+        project,
+        rev,
+        index,
+        method,
+        output,
+        target_project,
+        json,
+        None,
+        load,
+        None,
+        None,
+    )
+
+
 @for_each_impl(Client)
 def create_apply_remote(type_name):
     @mlem_command(
@@ -153,50 +229,34 @@ def create_apply_remote(type_name):
         dynamic_options_generator=abc_fields_parameters(type_name, Client),
         hidden=type_name.startswith("_"),
         lazy_help=lazy_class_docstring(Client.abs_name, type_name),
+        no_pass_from_parent=["file_conf"],
     )
     def apply_remote_func(
-        data: str = Argument(..., help="Path to data object"),
+        data: str = Option(..., "-d", "--data", help="Path to data object"),
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
-        output: Optional[str] = Option(
-            None, "-o", "--output", help="Where to store the outputs."
-        ),
+        output: Optional[str] = option_output,
         target_project: Optional[str] = option_target_project,
         method: str = option_method,
         index: bool = option_index,
         json: bool = option_json,
-        load: Optional[str] = option_load("client"),
         file_conf: List[str] = option_file_conf("client"),
         **__kwargs__,
     ):
-        client = config_arg(
-            Client,
-            load,
+        return _apply_remote(
+            data,
+            project,
+            rev,
+            index,
+            method,
+            output,
+            target_project,
+            json,
             type_name,
-            conf=None,
-            file_conf=file_conf,
-            **__kwargs__,
+            None,
+            file_conf,
+            __kwargs__,
         )
-
-        with set_echo(None if json else ...):
-            result = run_apply_remote(
-                client,
-                data,
-                project,
-                rev,
-                index,
-                method,
-                output,
-                target_project,
-            )
-        if output is None and json:
-            print(
-                dumps(
-                    DataAnalyzer.analyze(result)
-                    .get_serializer()
-                    .serialize(result)
-                )
-            )
 
 
 def run_apply_remote(
