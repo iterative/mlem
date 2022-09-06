@@ -58,7 +58,7 @@ def test_build_with_file_conf(
         safe_dump(FastAPIServer(port=9999).dict(), f)
 
     result = runner.invoke(
-        f"build mock -m {make_posix(model_meta_saved_single.loc.uri)} --target {make_posix(path)} --file_conf server={server_path}"
+        f"build mock -m {make_posix(model_meta_saved_single.loc.uri)} --target {make_posix(path)} --file_conf server={make_posix(server_path)}"
     )
 
     assert result.exit_code == 0, (result.exception, result.output)
@@ -83,7 +83,7 @@ def test_build_with_load(runner: Runner, model_meta_saved_single, tmp_path):
         safe_dump(builder.dict(), f)
 
     result = runner.invoke(
-        f"build -m {make_posix(model_meta_saved_single.loc.uri)} --load {load_path}"
+        f"build -m {make_posix(model_meta_saved_single.loc.uri)} --load {make_posix(load_path)}"
     )
 
     assert result.exit_code == 0, (result.exception, result.output)
