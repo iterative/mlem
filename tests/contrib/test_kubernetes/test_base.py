@@ -39,7 +39,7 @@ def load_kube_config():
 
 
 @pytest.fixture
-def k8s_deployment(model_meta_saved_single):
+def k8s_deployment(minikube_env_variables, model_meta_saved_single):
     return K8sDeployment(
         name="ml",
         model=model_meta_saved_single.make_link(),
@@ -50,7 +50,7 @@ def k8s_deployment(model_meta_saved_single):
 
 
 @pytest.fixture
-def docker_image(minikube_env_variables, k8s_deployment):
+def docker_image(k8s_deployment):
     tmpdir = tempfile.mkdtemp()
     k8s_deployment.dump(os.path.join(tmpdir, "deploy"))
     return build_model_image(
