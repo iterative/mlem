@@ -16,7 +16,7 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client, HTTPClient
 from mlem.runtime.server import Server
-from mlem.ui import EMOJI_BUILD, EMOJI_OK, echo, set_offset
+from mlem.ui import EMOJI_BUILD, EMOJI_FAIL, EMOJI_OK, echo, set_offset
 
 from ..docker.base import (
     DockerDaemon,
@@ -47,6 +47,8 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     type: ClassVar = "kubernetes"
     server: Optional[Server] = None
     state_type: ClassVar = K8sDeploymentState
+    registry: Optional[DockerRegistry] = DockerRegistry()
+    daemon: Optional[DockerDaemon] = DockerDaemon(host="")
     kube_config_file_path: Optional[str] = None
 
     def load_kube_config(self):
@@ -68,10 +70,7 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
 class K8sEnv(MlemEnv[K8sDeployment]):
     type: ClassVar = "kubernetes"
     deploy_type: ClassVar = K8sDeployment
-    registry: Optional[DockerRegistry] = DockerRegistry()
-    daemon: Optional[DockerDaemon] = DockerDaemon(
-        host=os.getenv("DOCKER_HOST", default="")
-    )
+    registry: Optional[DockerRegistry] = None
 
     def create_k8s_resources(self, generator):
         k8s_client = client.ApiClient()
@@ -89,11 +88,23 @@ class K8sEnv(MlemEnv[K8sDeployment]):
             meta.load_kube_config()
             state: K8sDeploymentState = meta.get_state()
             if state.image is None or meta.model_changed():
-
                 image_name = (
                     meta.image_name or generate_docker_container_name()
                 )
                 echo(EMOJI_BUILD + f"Creating docker image {image_name}")
+                if self.registry is None and meta.registry is None:
+                    echo(
+                        EMOJI_FAIL
+                        + "Error: No registry set to be used by Docker"
+                    )
+                    raise ValueError(
+                        "registry to be used by Docker is not set or supplied"
+                    )
+                registry = (
+                    meta.registry
+                    if meta.registry is not None
+                    else self.registry
+                )
                 with set_offset(2):
                     state.image = build_model_image(
                         meta.get_model(),
@@ -102,8 +113,10 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                         or project_config(
                             meta.loc.project if meta.is_saved else None
                         ).server,
-                        DockerEnv(registry=self.registry, daemon=self.daemon),
+                        DockerEnv(registry=registry, daemon=meta.daemon),
                         force_overwrite=True,
+                        # runners usually do not support arm64 images built on Mac M1 devices
+                        platform="linux/amd64",
                     )
                 meta.update_model_hash(state=state)
                 redeploy = True

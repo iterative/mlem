@@ -45,6 +45,7 @@ def k8s_deployment(model_meta_saved_single):
         model=model_meta_saved_single.make_link(),
         image_pull_policy="Never",
         service_type="LoadBalancer",
+        daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
     )
 
 
@@ -76,9 +77,7 @@ def k8s_deployment_state(docker_image, model_meta_saved_single):
 
 @pytest.fixture
 def k8s_env():
-    return K8sEnv(
-        daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default=""))
-    )
+    return K8sEnv()
 
 
 @k8s_test
