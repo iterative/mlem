@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from functools import wraps
 from threading import Lock
-from typing import Any, Generator, Iterator, Tuple, Union
+from typing import Any, Dict, Generator, Iterator, List, Optional, Tuple, Union
 
 import docker
 import requests
@@ -108,23 +108,35 @@ def create_docker_client(
         client.close()
 
 
-def image_exists_at_dockerhub(tag):
+def image_exists_at_dockerhub(tag, library=False):
     repo, tag = tag.split(":")
+    lib = "library/" if library else ""
     resp = requests.get(
-        f"https://registry.hub.docker.com/v1/repositories/{repo}/tags/{tag}"
+        f"https://registry.hub.docker.com/v2/repositories/{lib}{repo}/tags/{tag}"
     )
     time.sleep(1)  # rate limiting
     return resp.status_code == 200
 
 
-def repository_tags_at_dockerhub(repo):
-    resp = requests.get(
-        f"https://registry.hub.docker.com/v1/repositories/{repo}/tags"
+def repository_tags_at_dockerhub(
+    repo, library=False, max_results: Optional[int] = 100
+):
+    lib = "library/" if library else ""
+    res: List[Dict] = []
+    next_page = (
+        f"https://registry.hub.docker.com/v2/repositories/{lib}{repo}/tags"
     )
-    time.sleep(1)  # rate limiting
-    if resp.status_code != 200:
-        return {}
-    return {tag["name"] for tag in resp.json()}
+    while next_page is not None and (
+        max_results is None or len(res) <= max_results
+    ):
+        resp = requests.get(next_page, params={"page_size": 1000})
+        if resp.status_code != 200:
+            return {}
+        res.extend(resp.json()["results"])
+        next_page = resp.json()["next"]
+        time.sleep(0.1)  # rate limiting
+
+    return {tag["name"] for tag in res}
 
 
 def wrap_docker_error(f):
