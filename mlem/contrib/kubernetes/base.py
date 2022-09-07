@@ -57,13 +57,32 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
             or os.getenv("KUBECONFIG", default="~/.kube/config")
         )
 
+    def find_index(nodes_list, node_name):
+        for i, each_node in enumerate(nodes_list):
+            if each_node.metadata.name == node_name:
+                return i
+        return -1
+
     def _get_client(self, state: K8sDeploymentState) -> Client:
         self.load_kube_config()
         service = client.CoreV1Api().list_namespaced_service(
             f"mlem-{state.deployment_name}-app"
         )
-        port = service.items[0].spec.ports[0].port
-        host = service.items[0].status.load_balancer.ingress[0].ip
+        if self.service_type == "NodePort":
+            port = service.items[0].spec.ports[0].node_port
+            node_name = client.CoreV1Api().list_namespaced_pod(
+                        f"mlem-{state.deployment_name}-app"
+                    ).items[0].spec.node_name
+            node_list = client.CoreV1Api().list_node().items
+            node_index = self.find_index(node_list, node_name)
+            address_dict = node_list[node_index].status.addresses
+            for each_address in address_dict:
+                if each_address.type == "ExternalDNS":
+                    host = each_address.address
+        elif self.service_type == "LoadBalancer":
+            port = service.items[0].spec.ports[0].port
+            ingress = service.items[0].status.load_balancer.ingress[0]
+            host = ingress.hostname or ingress.ip
         return HTTPClient(host=host, port=port)
 
 
