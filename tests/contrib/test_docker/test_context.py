@@ -129,11 +129,11 @@ def test_docker_registry_io():
     registry = DockerIORegistry()
     client = docker.DockerClient()
 
-    client.images.pull("hello-world:latest")
+    client.images.pull("library/hello-world:latest")
 
     assert registry.get_host() == "https://index.docker.io/v1/"
-    registry.push(client, "hello-world:latest")
-    image = DockerImage(name="hello-world")
+    registry.push(client, "library/hello-world:latest")
+    image = DockerImage(name="library/hello-world")
     assert registry.image_exists(client, image)
 
 
