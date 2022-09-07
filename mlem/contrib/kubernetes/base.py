@@ -57,7 +57,7 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
             or os.getenv("KUBECONFIG", default="~/.kube/config")
         )
 
-    def find_index(nodes_list, node_name):
+    def find_index(self, nodes_list, node_name):
         for i, each_node in enumerate(nodes_list):
             if each_node.metadata.name == node_name:
                 return i
@@ -70,9 +70,12 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
         )
         if self.service_type == "NodePort":
             port = service.items[0].spec.ports[0].node_port
-            node_name = client.CoreV1Api().list_namespaced_pod(
-                        f"mlem-{state.deployment_name}-app"
-                    ).items[0].spec.node_name
+            node_name = (
+                client.CoreV1Api()
+                .list_namespaced_pod(f"mlem-{state.deployment_name}-app")
+                .items[0]
+                .spec.node_name
+            )
             node_list = client.CoreV1Api().list_node().items
             node_index = self.find_index(node_list, node_name)
             address_dict = node_list[node_index].status.addresses
