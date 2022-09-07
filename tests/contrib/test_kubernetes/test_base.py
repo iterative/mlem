@@ -101,7 +101,7 @@ def test_deploy(
     k8s_env.remove(k8s_deployment)
     time.sleep(5)
     assert k8s_env.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
-    with k8s_env.daemon.client() as client:
+    with k8s_deployment.daemon.client() as client:
         k8s_deployment_state.image.delete(client, force=True)
     time.sleep(5)
 
