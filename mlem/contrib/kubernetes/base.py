@@ -4,7 +4,7 @@ from typing import ClassVar, Optional
 from kubernetes import client, config
 
 from mlem.config import project_config
-from mlem.core.errors import DeploymentError
+from mlem.core.errors import DeploymentError, MlemError
 from mlem.core.objects import (
     DeployState,
     DeployStatus,
@@ -15,7 +15,7 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client, HTTPClient
 from mlem.runtime.server import Server
-from mlem.ui import EMOJI_FAIL, EMOJI_OK, echo
+from mlem.ui import EMOJI_OK, echo
 
 from ..docker.base import (
     DockerDaemon,
@@ -51,11 +51,11 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     """MlemDeployment implementation for Kubernetes deployments"""
 
     type: ClassVar = "kubernetes"
+    state_type: ClassVar = K8sDeploymentState
+    """type of state for Kubernetes deployments"""
 
     server: Optional[Server] = None
     """type of Server to use, with options such as FastAPI, RabbitMQ etc."""
-    state_type: ClassVar = K8sDeploymentState
-    """type of state for Kubernetes deployments"""
     registry: Optional[DockerRegistry] = DockerRegistry()
     """docker registry"""
     daemon: Optional[DockerDaemon] = DockerDaemon(host="")
@@ -103,10 +103,8 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
                     f"service_type supplied is {self.service_type}, valid values are [ClusterIP, NodePort, LoadBalancer] only"
                 )
         except (IndexError, ValueError, TypeError) as e:
-            print(
-                "Couldn't determine host and port from the service deployed:",
-                e,
-            )
+            print("Couldn't determine host and port from the service deployed")
+            raise e
         if host is not None and port is not None:
             return HTTPClient(host=host, port=port)
         raise TypeError(
@@ -118,16 +116,15 @@ class K8sEnv(MlemEnv[K8sDeployment]):
     """MlemEnv implementation for Kubernetes Environments"""
 
     type: ClassVar = "kubernetes"
-
     deploy_type: ClassVar = K8sDeployment
     """type of deployment being used for the Kubernetes environment"""
+
     registry: Optional[DockerRegistry] = None
     """docker registry"""
 
     def get_registry(self, meta: K8sDeployment):
         if self.registry is None and meta.registry is None:
-            echo(EMOJI_FAIL + "Error: No registry set to be used by Docker")
-            raise ValueError(
+            raise MlemError(
                 "registry to be used by Docker is not set or supplied"
             )
         registry = (

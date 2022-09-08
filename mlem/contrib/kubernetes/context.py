@@ -48,6 +48,6 @@ class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
 
         logger.debug('Docker image is based on "%s".', self.image_uri)
 
-        k8s_yaml_args = self.dict().copy()
+        k8s_yaml_args = self.dict()
         k8s_yaml_args.pop("templates_dir")
         return k8s_yaml_args
