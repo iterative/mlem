@@ -24,6 +24,7 @@ from tests.contrib.test_kubernetes.utils import Command
 
 @pytest.fixture
 def minikube_env_variables():
+    old_environ = dict(os.environ)
     output = subprocess.check_output(
         ["minikube", "-p", "minikube", "docker-env"]
     )
@@ -31,6 +32,11 @@ def minikube_env_variables():
     export_pairs = export_re.findall(output.decode("UTF-8"))
     for k, v in export_pairs:
         os.environ[k] = v
+
+    yield
+
+    os.environ.clear()
+    os.environ.update(old_environ)
 
 
 @pytest.fixture
@@ -57,9 +63,7 @@ def docker_image(k8s_deployment):
         k8s_deployment.get_model(),
         k8s_deployment.image_name,
         k8s_deployment.server
-        or project_config(
-            k8s_deployment.loc.project if k8s_deployment.is_saved else None
-        ).server,
+        or project_config(None).server,
         DockerEnv(
             daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default=""))
         ),
@@ -81,8 +85,8 @@ def k8s_env():
 
 
 @k8s_test
+@pytest.mark.usefixtures("load_kube_config")
 def test_deploy(
-    load_kube_config,  # pylint: disable=unused-argument
     k8s_deployment,
     k8s_deployment_state,
     k8s_env,
@@ -107,8 +111,8 @@ def test_deploy(
 
 
 @k8s_test
+@pytest.mark.usefixtures("load_kube_config")
 def test_deployed_service(
-    load_kube_config,  # pylint: disable=unused-argument
     k8s_deployment,
     k8s_deployment_state,
     k8s_env,

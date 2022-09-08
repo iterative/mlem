@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class K8sYamlBuildArgs(BaseModel):
+    """class encapsulating parameters for Kubernetes manifests/yamls"""
+
     image_name: str = "ml"
     image_uri: str = "ml:latest"
     image_pull_policy: str = "Always"

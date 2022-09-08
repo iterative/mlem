@@ -1,11 +1,11 @@
 import os
-import tempfile
 from time import sleep
 from typing import ClassVar, Optional
 
-from kubernetes import client, config, utils, watch
+from kubernetes import client, config
 
 from mlem.config import project_config
+from mlem.core.errors import DeploymentError
 from mlem.core.objects import (
     DeployState,
     DeployStatus,
@@ -16,17 +16,17 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client, HTTPClient
 from mlem.runtime.server import Server
-from mlem.ui import EMOJI_BUILD, EMOJI_FAIL, EMOJI_OK, echo, set_offset
+from mlem.ui import EMOJI_FAIL, EMOJI_OK, echo
 
 from ..docker.base import (
     DockerDaemon,
-    DockerEnv,
     DockerImage,
     DockerRegistry,
     generate_docker_container_name,
 )
-from ..docker.helpers import build_model_image
+from .build import build_k8s_docker
 from .context import K8sYamlBuildArgs, K8sYamlGenerator
+from .utils import create_k8s_resources, pod_is_running
 
 POD_STATE_MAPPING = {
     "Pending": DeployStatus.STARTING,
@@ -38,18 +38,31 @@ POD_STATE_MAPPING = {
 
 
 class K8sDeploymentState(DeployState):
+    """DeployState implementation for Kubernetes deployments"""
+
     type: ClassVar = "kubernetes"
+
     image: Optional[DockerImage] = None
+    """Docker Image being used for Deployment"""
     deployment_name: Optional[str] = None
+    """Name of Deployment"""
 
 
 class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
+    """MlemDeployment implementation for Kubernetes deployments"""
+
     type: ClassVar = "kubernetes"
+
     server: Optional[Server] = None
+    """type of Server to use, with options such as FastAPI, RabbitMQ etc."""
     state_type: ClassVar = K8sDeploymentState
+    """type of state for Kubernetes deployments"""
     registry: Optional[DockerRegistry] = DockerRegistry()
+    """docker registry"""
     daemon: Optional[DockerDaemon] = DockerDaemon(host="")
+    """docker daemon"""
     kube_config_file_path: Optional[str] = None
+    """path for kube config file of the cluster"""
 
     def load_kube_config(self):
         config.load_kube_config(
@@ -64,44 +77,77 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
         return -1
 
     def _get_client(self, state: K8sDeploymentState) -> Client:
+        host, port = None, None
         self.load_kube_config()
         service = client.CoreV1Api().list_namespaced_service(
             f"mlem-{state.deployment_name}-app"
         )
-        if self.service_type == "NodePort":
-            port = service.items[0].spec.ports[0].node_port
-            node_name = (
-                client.CoreV1Api()
-                .list_namespaced_pod(f"mlem-{state.deployment_name}-app")
-                .items[0]
-                .spec.node_name
+        try:
+            if self.service_type == "NodePort":
+                port = service.items[0].spec.ports[0].node_port
+                node_name = (
+                    client.CoreV1Api()
+                    .list_namespaced_pod(f"mlem-{state.deployment_name}-app")
+                    .items[0]
+                    .spec.node_name
+                )
+                node_list = client.CoreV1Api().list_node().items
+                node_index = self.find_index(node_list, node_name)
+                address_dict = node_list[node_index].status.addresses
+                for each_address in address_dict:
+                    if each_address.type == "ExternalDNS":
+                        host = each_address.address
+            elif self.service_type == "LoadBalancer":
+                port = service.items[0].spec.ports[0].port
+                ingress = service.items[0].status.load_balancer.ingress[0]
+                host = ingress.hostname or ingress.ip
+            else:
+                raise ValueError(
+                    f"service_type supplied is {self.service_type}, valid values are [ClusterIP, NodePort, LoadBalancer] only"
+                )
+        except (IndexError, ValueError, TypeError) as e:
+            print(
+                "Couldn't determine host and port from the service deployed:",
+                e,
             )
-            node_list = client.CoreV1Api().list_node().items
-            node_index = self.find_index(node_list, node_name)
-            address_dict = node_list[node_index].status.addresses
-            for each_address in address_dict:
-                if each_address.type == "ExternalDNS":
-                    host = each_address.address
-        elif self.service_type == "LoadBalancer":
-            port = service.items[0].spec.ports[0].port
-            ingress = service.items[0].status.load_balancer.ingress[0]
-            host = ingress.hostname or ingress.ip
-        return HTTPClient(host=host, port=port)
+        if host is not None and port is not None:
+            return HTTPClient(host=host, port=port)
+        raise TypeError(
+            f"host and port determined are not valid, received host as {host} and port as {port}"
+        )
 
 
 class K8sEnv(MlemEnv[K8sDeployment]):
-    type: ClassVar = "kubernetes"
-    deploy_type: ClassVar = K8sDeployment
-    registry: Optional[DockerRegistry] = None
+    """MlemEnv implementation for Kubernetes Environments"""
 
-    def create_k8s_resources(self, generator):
-        k8s_client = client.ApiClient()
-        with tempfile.TemporaryDirectory(
-            prefix="mlem_k8s_yaml_build_"
-        ) as tempdir:
-            filename = os.path.join(tempdir, "resource.yaml")
-            generator.write(filename)
-            utils.create_from_yaml(k8s_client, filename, verbose=True)
+    type: ClassVar = "kubernetes"
+
+    deploy_type: ClassVar = K8sDeployment
+    """type of deployment being used for the Kubernetes environment"""
+    registry: Optional[DockerRegistry] = None
+    """docker registry"""
+
+    def get_registry(self, meta: K8sDeployment):
+        if self.registry is None and meta.registry is None:
+            echo(EMOJI_FAIL + "Error: No registry set to be used by Docker")
+            raise ValueError(
+                "registry to be used by Docker is not set or supplied"
+            )
+        registry = (
+            meta.registry if meta.registry is not None else self.registry
+        )
+        return registry
+
+    def get_image_name(self, meta: K8sDeployment):
+        return meta.image_name or generate_docker_container_name()
+
+    def get_server(self, meta: K8sDeployment):
+        return (
+            meta.server
+            or project_config(
+                meta.loc.project if meta.is_saved else None
+            ).server
+        )
 
     def deploy(self, meta: K8sDeployment):
         self.check_type(meta)
@@ -110,36 +156,14 @@ class K8sEnv(MlemEnv[K8sDeployment]):
             meta.load_kube_config()
             state: K8sDeploymentState = meta.get_state()
             if state.image is None or meta.model_changed():
-                image_name = (
-                    meta.image_name or generate_docker_container_name()
+                image_name = self.get_image_name(meta)
+                state.image = build_k8s_docker(
+                    meta=meta.get_model(),
+                    image_name=image_name,
+                    registry=self.get_registry(meta),
+                    daemon=meta.daemon,
+                    server=self.get_server(meta),
                 )
-                echo(EMOJI_BUILD + f"Creating docker image {image_name}")
-                if self.registry is None and meta.registry is None:
-                    echo(
-                        EMOJI_FAIL
-                        + "Error: No registry set to be used by Docker"
-                    )
-                    raise ValueError(
-                        "registry to be used by Docker is not set or supplied"
-                    )
-                registry = (
-                    meta.registry
-                    if meta.registry is not None
-                    else self.registry
-                )
-                with set_offset(2):
-                    state.image = build_model_image(
-                        meta.get_model(),
-                        image_name,
-                        meta.server
-                        or project_config(
-                            meta.loc.project if meta.is_saved else None
-                        ).server,
-                        DockerEnv(registry=registry, daemon=meta.daemon),
-                        force_overwrite=True,
-                        # runners usually do not support arm64 images built on Mac M1 devices
-                        platform="linux/amd64",
-                    )
                 meta.update_model_hash(state=state)
                 redeploy = True
 
@@ -153,30 +177,28 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                 generator = K8sYamlGenerator(
                     **k8s_yaml_builder.get_resource_args().dict()
                 )
-                self.create_k8s_resources(generator)
+                create_k8s_resources(generator)
 
-                w = watch.Watch()
-                for event in w.stream(
-                    func=client.CoreV1Api().list_namespaced_pod,
-                    namespace=f"mlem-{meta.image_name}-app",
-                    timeout_seconds=60,
-                ):
-                    if event["object"].status.phase == "Running":
-                        w.stop()
-
-                deployments_list = (
-                    client.AppsV1Api().list_namespaced_deployment(
-                        namespace=f"mlem-{meta.image_name}-app"
+                if pod_is_running(namespace=f"mlem-{meta.image_name}-app"):
+                    deployments_list = (
+                        client.AppsV1Api().list_namespaced_deployment(
+                            namespace=f"mlem-{meta.image_name}-app"
+                        )
                     )
-                )
 
-                state.deployment_name = deployments_list.items[0].metadata.name
-                meta.update_state(state)
+                    if len(deployments_list.items):
+                        dpl_name = deployments_list.items[0].metadata.name
+                        state.deployment_name = dpl_name
+                        meta.update_state(state)
 
-            echo(
-                EMOJI_OK
-                + f"Deployment {state.deployment_name} is up in mlem-{meta.image_name}-app namespace"
-            )
+                        echo(
+                            EMOJI_OK
+                            + f"Deployment {state.deployment_name} is up in mlem-{meta.image_name}-app namespace"
+                        )
+                else:
+                    raise DeploymentError(
+                        f"Deployment {image_name} couldn't be set-up on the Kubernetes cluster"
+                    )
 
     def remove(self, meta: K8sDeployment):
         self.check_type(meta)
@@ -220,8 +242,12 @@ class K8sEnv(MlemEnv[K8sDeployment]):
 
 
 class K8sYamlBuilder(MlemBuilder, K8sYamlBuildArgs):
+    """MlemBuilder implementation for building Kubernetes manifests/yamls"""
+
     type: ClassVar = "kubernetes"
+
     image: DockerImage
+    """docker image"""
 
     def get_resource_args(self):
         return K8sYamlBuildArgs(
