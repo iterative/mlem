@@ -24,7 +24,7 @@ from ..docker.base import (
     generate_docker_container_name,
 )
 from .build import build_k8s_docker
-from .context import K8sYamlBuildArgs, K8sYamlGenerator
+from .context import K8sYamlBuildArgs, K8sYamlGenerator, ServiceType
 from .utils import create_k8s_resources, namespace_deleted, pod_is_running
 
 POD_STATE_MAPPING = {
@@ -80,7 +80,7 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
         self.load_kube_config()
         service = client.CoreV1Api().list_namespaced_service(self.namespace)
         try:
-            if self.service_type == "NodePort":
+            if self.service_type == ServiceType.node_port:
                 port = service.items[0].spec.ports[0].node_port
                 node_name = (
                     client.CoreV1Api()
@@ -94,13 +94,13 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
                 for each_address in address_dict:
                     if each_address.type == "ExternalDNS":
                         host = each_address.address
-            elif self.service_type == "LoadBalancer":
+            elif self.service_type == ServiceType.load_balancer:
                 port = service.items[0].spec.ports[0].port
                 ingress = service.items[0].status.load_balancer.ingress[0]
                 host = ingress.hostname or ingress.ip
             else:
                 raise ValueError(
-                    f"service_type supplied is {self.service_type}, valid values are [ClusterIP, NodePort, LoadBalancer] only"
+                    f"service_type supplied is {self.service_type}, valid values are {[e.value for e in ServiceType]} only"
                 )
         except (IndexError, ValueError, TypeError) as e:
             print("Couldn't determine host and port from the service deployed")
