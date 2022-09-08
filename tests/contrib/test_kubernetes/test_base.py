@@ -100,10 +100,8 @@ def test_deploy(
         timeout=10,
         times=5,
     )
-    time.sleep(5)
     assert k8s_env.get_status(k8s_deployment) == DeployStatus.RUNNING
     k8s_env.remove(k8s_deployment)
-    time.sleep(5)
     assert k8s_env.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
     with k8s_deployment.daemon.client() as client:
         k8s_deployment_state.image.delete(client, force=True)
@@ -117,7 +115,6 @@ def test_deployed_service(
     k8s_deployment_state,
     k8s_env,
 ):
-    time.sleep(15)
     k8s_deployment.update_state(k8s_deployment_state)
     k8s_env.deploy(k8s_deployment)
     cmd = Command("minikube tunnel")

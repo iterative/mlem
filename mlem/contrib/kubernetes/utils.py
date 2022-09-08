@@ -19,8 +19,22 @@ def pod_is_running(namespace, timeout=60) -> bool:
         namespace=namespace,
         timeout_seconds=timeout,
     ):
-        print(event["object"].status.phase)
         if event["object"].status.phase == "Running":
+            w.stop()
+            return True
+    return False
+
+
+def namespace_deleted(namespace, timeout=60) -> bool:
+    w = watch.Watch()
+    for event in w.stream(
+        func=client.CoreV1Api().list_namespace,
+        timeout_seconds=timeout,
+    ):
+        if (
+            namespace == event["object"].metadata.name
+            and event["type"] == "DELETED"
+        ):
             w.stop()
             return True
     return False

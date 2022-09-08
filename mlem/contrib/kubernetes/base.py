@@ -1,5 +1,4 @@
 import os
-from time import sleep
 from typing import ClassVar, Optional
 
 from kubernetes import client, config
@@ -26,7 +25,7 @@ from ..docker.base import (
 )
 from .build import build_k8s_docker
 from .context import K8sYamlBuildArgs, K8sYamlGenerator
-from .utils import create_k8s_resources, pod_is_running
+from .utils import create_k8s_resources, namespace_deleted, pod_is_running
 
 POD_STATE_MAPPING = {
     "Pending": DeployStatus.STARTING,
@@ -191,7 +190,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
 
                         echo(
                             EMOJI_OK
-                            + f"Deployment {state.deployment_name} is up in mlem-{meta.image_name}-app namespace"
+                            + f"Deployment {state.deployment_name} is up in {meta.namespace} namespace"
                         )
                 else:
                     raise DeploymentError(
@@ -204,22 +203,14 @@ class K8sEnv(MlemEnv[K8sDeployment]):
             meta.load_kube_config()
             state: K8sDeploymentState = meta.get_state()
             if state.deployment_name is not None:
-                client.AppsV1Api().delete_namespaced_deployment(
-                    name=state.deployment_name,
-                    namespace=meta.namespace,
-                )
-                client.CoreV1Api().delete_namespaced_service(
-                    name=state.deployment_name,
-                    namespace=meta.namespace,
-                )
                 client.CoreV1Api().delete_namespace(name=meta.namespace)
-                sleep(0.5)
-            echo(
-                EMOJI_OK
-                + f"Deployment {state.deployment_name} and the corresponding service are removed from mlem-{meta.image_name}-app namespace"
-            )
-            state.deployment_name = None
-            meta.update_state(state)
+                if namespace_deleted(meta.namespace):
+                    echo(
+                        EMOJI_OK
+                        + f"Deployment {state.deployment_name} and the corresponding service are removed from {meta.namespace} namespace"
+                    )
+                    state.deployment_name = None
+                    meta.update_state(state)
 
     def get_status(
         self, meta: K8sDeployment, raise_on_error=True
@@ -259,9 +250,6 @@ class K8sYamlBuilder(MlemBuilder, K8sYamlBuildArgs):
         resource_yaml = generator.generate()
 
         generator.write("resources.yaml")
-        echo(
-            EMOJI_OK
-            + f"resources.yaml generated for {obj.basename}, apply manualy using kubectl OR use mlem deploy"
-        )
+        echo(EMOJI_OK + f"resources.yaml generated for {obj.basename}")
 
         return resource_yaml
