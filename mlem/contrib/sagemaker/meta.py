@@ -52,11 +52,16 @@ def generate_image_name(deploy_id):
 
 
 class SagemakerClient(Client):
+    """Client to make SageMaker requests"""
+
     type: ClassVar = "sagemaker"
 
     endpoint_name: str
+    """Name of SageMaker Endpoint"""
     aws_vars: AWSVars
+    """AWS Configuration"""
     signature: Signature
+    """Signature of deployed method"""
 
     def _interface_factory(self) -> InterfaceDescriptor:
         return InterfaceDescriptor(methods={"predict": self.signature})
@@ -76,15 +81,26 @@ class SagemakerClient(Client):
 
 
 class SagemakerDeployState(DeployState):
+    """State of SageMaker deployment"""
+
     type: ClassVar = "sagemaker"
+
     image: Optional[DockerImage] = None
+    """Built image"""
     image_tag: Optional[str] = None
+    """Built image tag"""
     model_location: Optional[str] = None
+    """Location of uploaded model"""
     endpoint_name: Optional[str] = None
+    """Name of SageMaker endpoint"""
     endpoint_model_hash: Optional[str] = None
+    """Hash of deployed model"""
     method_signature: Optional[Signature] = None
+    """Signature of deployed method"""
     region: Optional[str] = None
+    """AWS Region"""
     previous: Optional["SagemakerDeployState"] = None
+    """Previous state"""
 
     @property
     def image_uri(self):
@@ -107,6 +123,8 @@ class SagemakerDeployState(DeployState):
 
 
 class SagemakerDeployment(MlemDeployment):
+    """SageMaker Deployment"""
+
     type: ClassVar = "sagemaker"
     state_type: ClassVar = SagemakerDeployState
 
@@ -162,15 +180,23 @@ ENDPOINT_STATUS_MAPPING = {
 
 
 class SagemakerEnv(MlemEnv):
+    """SageMaker environment"""
+
     type: ClassVar = "sagemaker"
     deploy_type: ClassVar = SagemakerDeployment
 
     role: Optional[str] = None
+    """Default role"""
     account: Optional[str] = None
+    """Default account"""
     region: Optional[str] = None
+    """Default region"""
     bucket: Optional[str] = None
+    """Default bucket"""
     profile: Optional[str] = None
+    """Default profile"""
     ecr_repository: Optional[str] = None
+    """Default ECR repository"""
 
     @property
     def role_name(self):

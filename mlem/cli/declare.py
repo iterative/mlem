@@ -149,6 +149,7 @@ _internal = {
     "requirement",
     "resolver",
     "storage",
+    "state",
 }
 for abs_name in list_abstractions(include_hidden=False):
     if abs_name in {"builder", "env", "deployment"}:

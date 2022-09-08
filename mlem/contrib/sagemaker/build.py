@@ -16,11 +16,18 @@ IMAGE_NAME = "mlem-sagemaker-runner"
 
 
 class AWSVars(BaseModel):
+    """AWS Configuration"""
+
     profile: str
+    """AWS Profile"""
     bucket: str
+    """S3 Bucket"""
     region: str
+    """AWS Region"""
     account: str
+    """AWS Account name"""
     role_name: str
+    """AWS Role name"""
 
     @property
     def role(self):
@@ -48,14 +55,19 @@ def ecr_repo_check(region, repository, session: boto3.Session):
 
 
 class ECRegistry(RemoteRegistry):
+    """ECR registry"""
+
     class Config:
         exclude = {"aws_vars"}
 
     type: ClassVar = "ecr"
     account: str
+    """AWS Account"""
     region: str
+    """AWS Region"""
 
     aws_vars: Optional[AWSVars] = None
+    """AWS Configuration cache"""
 
     def login(self, client):
         auth_data = self.ecr_client.get_authorization_token()

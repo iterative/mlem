@@ -503,6 +503,7 @@ class MlemLink(MlemObject):
                     exclude_none,
                 )
 
+        TypedMlemLink.__doc__ = f"""Link to {type_name} MLEM object"""
         return TypedMlemLink
 
     @property
@@ -512,6 +513,9 @@ class MlemLink(MlemObject):
 
 
 class TypedLink(MlemLink, ABC):
+    """Base class for specific type link classes"""
+
+    object_type: ClassVar = "_typed_link"
     _link_type: ClassVar
 
     def __init_subclass__(cls, **kwargs):
@@ -910,10 +914,14 @@ class StateManager(MlemABC):
 
 
 class LocalFileStateManager(StateManager):
+    """StateMagers that stores state as yaml file locally"""
+
     type: ClassVar = "local"
 
     locking: bool = True
+    """Enable state locking"""
     lock_timeout: float = 10 * 60
+    """Lock timeout"""
 
     @staticmethod
     def location(deployment: "MlemDeployment") -> Location:
@@ -953,6 +961,8 @@ class LocalFileStateManager(StateManager):
 
 
 class FSSpecStateManager(StateManager):
+    """StateMagers that stores state as yaml file in fsspec-supported filesystem"""
+
     type: ClassVar = "fsspec"
 
     class Config:
@@ -960,12 +970,18 @@ class FSSpecStateManager(StateManager):
         arbitrary_types_allowed = True
 
     uri: str
+    """URI of directory to store state files"""
     storage_options: Dict = {}
+    """Additional options"""
     locking: bool = True
+    """Enable state locking"""
     lock_timeout: float = 10 * 60
+    """Lock timeout"""
 
     fs: Optional[AbstractFileSystem] = None
+    """Filesystem cache"""
     path: str = ""
+    """Path inside filesystem cache"""
 
     def get_fs(self) -> AbstractFileSystem:
         if self.fs is None:

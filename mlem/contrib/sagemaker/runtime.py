@@ -31,7 +31,9 @@ def ping():
 
 
 class SageMakerServer(FastAPIServer):
-    type: ClassVar = "sagemaker"
+    """Server to use inside SageMaker containers"""
+
+    type: ClassVar = "_sagemaker"
     libraries: ClassVar[List[ModuleType]] = [
         uvicorn,
         fastapi,
@@ -39,8 +41,11 @@ class SageMakerServer(FastAPIServer):
         boto3,
     ]
     method: str = local_config.METHOD
+    """Method to expose"""
     port: int = local_config.PORT
+    """Port to use"""
     host: str = local_config.HOST
+    """Host to use"""
 
     def app_init(self, interface: Interface):
         app = super().app_init(interface)

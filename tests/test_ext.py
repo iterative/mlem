@@ -27,15 +27,15 @@ def test_find_implementations():
         assert not i.startswith("None")
 
 
-def _write_entrypoints(impls_sorted):
+def _write_entrypoints(impls_sorted, section: str):
     setup_path = Path(__file__).parent.parent / "setup.py"
     with open(setup_path, encoding="utf8") as f:
         setup_py = f.read()
     impls_string = ",\n".join(f'            "{i}"' for i in impls_sorted)
-    new_entrypoints = f'"mlem.contrib": [\n{impls_string},\n        ]'
-    setup_py = re.subn(
-        r'"mlem\.contrib": \[\n[^]]*]', new_entrypoints, setup_py
-    )[0]
+    new_entrypoints = f'"{section}": [\n{impls_string},\n        ]'
+    setup_py = re.subn(rf'"{section}": \[\n[^]]*]', new_entrypoints, setup_py)[
+        0
+    ]
     with open(setup_path, "w", encoding="utf8") as f:
         f.write(setup_py)
 
@@ -51,7 +51,7 @@ def test_all_impls_in_entrypoints():
     )
     impls_set = set(impls)
     if exts != impls_set:
-        _write_entrypoints(impls_sorted)
+        _write_entrypoints(impls_sorted, "mlem.contrib")
         assert (
             exts == impls_set
         ), "New enrtypoints written to setup.py, please reinstall"
@@ -60,9 +60,16 @@ def test_all_impls_in_entrypoints():
 def test_all_configs_in_entrypoints():
     impls = find_implementations(MlemConfigBase)
     impls[MlemConfig] = f"{MlemConfig.__module__}:{MlemConfig.__name__}"
-    assert {
+    impls_sorted = sorted(
+        {f"{i.__config__.section} = {k}" for i, k in impls.items()},
+        key=lambda x: tuple(x.split(" = ")[1].split(":")),
+    )
+    exts = {
         e.entry for e in load_entrypoints(MLEM_CONFIG_ENTRY_POINT).values()
-    } == {f"{i.__config__.section} = {k}" for i, k in impls.items()}
+    }
+    if exts != set(impls_sorted):
+        _write_entrypoints(impls_sorted, "mlem.config")
+        assert exts == impls_sorted
 
 
 def test_all_ext_has_pip_extra():
