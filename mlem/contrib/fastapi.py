@@ -34,11 +34,15 @@ def _create_schema_route(app: FastAPI, interface: Interface):
 
 
 class FastAPIServer(Server, LibRequirementsMixin):
+    """Serves model with http"""
+
     libraries: ClassVar[List[ModuleType]] = [uvicorn, fastapi]
     type: ClassVar[str] = "fastapi"
 
     host: str = "0.0.0.0"
+    """net interface to use"""
     port: int = 8080
+    """port to use"""
 
     @classmethod
     def _create_handler(

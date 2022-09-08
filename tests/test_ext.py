@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 from mlem import ExtensionLoader
-from mlem.config import MlemConfigBase
+from mlem.config import MlemConfig, MlemConfigBase
 from mlem.utils.entrypoints import (
     MLEM_CONFIG_ENTRY_POINT,
     MLEM_ENTRY_POINT,
@@ -59,6 +59,7 @@ def test_all_impls_in_entrypoints():
 
 def test_all_configs_in_entrypoints():
     impls = find_implementations(MlemConfigBase)
+    impls[MlemConfig] = f"{MlemConfig.__module__}:{MlemConfig.__name__}"
     assert {
         e.entry for e in load_entrypoints(MLEM_CONFIG_ENTRY_POINT).values()
     } == {f"{i.__config__.section} = {k}" for i, k in impls.items()}

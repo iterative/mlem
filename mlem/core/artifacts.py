@@ -38,8 +38,11 @@ class Artifact(MlemABC, ABC):
 
     abs_name: ClassVar = "artifact"
     uri: str
+    """location"""
     size: int
+    """size in bytes"""
     hash: str
+    """md5 hash"""
 
     @overload
     def materialize(
@@ -101,6 +104,7 @@ class FSSpecArtifact(Artifact):
 
     type: ClassVar = "fsspec"
     uri: str
+    """Path to file"""
 
     def _download(self, target_path: str) -> "LocalArtifact":
         fs, path = get_fs(self.uri)
@@ -135,7 +139,9 @@ class PlaceholderArtifact(Artifact):
     """On dumping this artifact will be replaced with actual artifact that
     is relative to project root (if there is a project)"""
 
+    type: ClassVar = "_placeholder"
     location: Location
+    """location of artifact"""
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
         raise NotImplementedError
@@ -201,7 +207,9 @@ class FSSpecStorage(Storage):
     fs: Optional[AbstractFileSystem] = None
     base_path: str = ""
     uri: str
+    """Path to storage dir"""
     storage_options: Optional[Dict[str, str]] = {}
+    """Additional options for FS"""
 
     def upload(self, local_path: str, target_path: str) -> FSSpecArtifact:
         fs = self.get_fs()

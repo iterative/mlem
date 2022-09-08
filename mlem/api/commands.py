@@ -25,7 +25,7 @@ from mlem.core.errors import (
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
-from mlem.core.meta_io import MLEM_DIR, Location, UriResolver, get_fs
+from mlem.core.meta_io import MLEM_DIR, Location, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     MlemBuilder,
@@ -367,7 +367,7 @@ def ls(  # pylint: disable=too-many-locals
     include_links: bool = True,
     ignore_errors: bool = False,
 ) -> Dict[Type[MlemObject], List[MlemObject]]:
-    loc = UriResolver.resolve(
+    loc = Location.resolve(
         "", project=project, rev=rev, fs=fs, find_project=True
     )
     _validate_ls_project(loc, project)
@@ -392,7 +392,7 @@ def import_object(
     """Try to load an object as MLEM model (or data) and return it,
     optionally saving to the specified target location
     """
-    loc = UriResolver.resolve(path, project, rev, fs)
+    loc = Location.resolve(path, project, rev, fs)
     echo(EMOJI_LOAD + f"Importing object from {loc.uri_repr}")
     if type_ is not None:
         type_, modifier = parse_import_type_modifier(type_)

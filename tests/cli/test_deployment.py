@@ -21,10 +21,14 @@ from tests.cli.conftest import Runner
 
 
 class DeployStateMock(DeployState):
+    """mock"""
+
     allow_default: ClassVar = True
 
 
 class MlemDeploymentMock(MlemDeployment):
+    """mock"""
+
     class Config:
         use_enum_values = True
 
@@ -32,13 +36,17 @@ class MlemDeploymentMock(MlemDeployment):
     state_type: ClassVar = DeployStateMock
 
     status: DeployStatus = DeployStatus.NOT_DEPLOYED
+    """status"""
     param: str = ""
+    """param"""
 
     def _get_client(self, state) -> Client:
         return HTTPClient(host="", port=None)
 
 
 class MlemEnvMock(MlemEnv):
+    """mock"""
+
     type: ClassVar = "mock"
     deploy_type: ClassVar = MlemDeploymentMock
 
@@ -215,7 +223,9 @@ def test_deploy_create_new(
 
 
 def test_deploy_create_existing(runner: Runner, mock_deploy_path):
-    result = runner.invoke(f"deploy run {mock_deploy_path}".split())
+    result = runner.invoke(
+        f"deploy run {mock_deploy_path}".split(), raise_on_error=True
+    )
     assert result.exit_code == 0, result.output
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)

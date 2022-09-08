@@ -20,7 +20,7 @@ install_requires = [
     "gitpython",
     "python-gitlab",
     "flatdict",
-    "iterative-telemetry==0.0.0",
+    "iterative-telemetry",
 ]
 
 tests = [
@@ -151,7 +151,7 @@ setup_args = dict(  # noqa: C408
             "env.docker = mlem.contrib.docker.base:DockerEnv",
             "docker_registry.docker_io = mlem.contrib.docker.base:DockerIORegistry",
             "builder.docker = mlem.contrib.docker.base:DockerImageBuilder",
-            "docker_registry = mlem.contrib.docker.base:DockerRegistry",
+            "docker_registry.local = mlem.contrib.docker.base:DockerRegistry",
             "docker_registry.remote = mlem.contrib.docker.base:RemoteRegistry",
             "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
@@ -162,7 +162,7 @@ setup_args = dict(  # noqa: C408
             "deployment.heroku = mlem.contrib.heroku.meta:HerokuDeployment",
             "env.heroku = mlem.contrib.heroku.meta:HerokuEnv",
             "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
-            "server.heroku = mlem.contrib.heroku.server:HerokuServer",
+            "server._heroku = mlem.contrib.heroku.server:HerokuServer",
             "data_reader.lightgbm = mlem.contrib.lightgbm:LightGBMDataReader",
             "data_type.lightgbm = mlem.contrib.lightgbm:LightGBMDataType",
             "data_writer.lightgbm = mlem.contrib.lightgbm:LightGBMDataWriter",
@@ -178,6 +178,7 @@ setup_args = dict(  # noqa: C408
             "model_type.onnx = mlem.contrib.onnx:ONNXModel",
             "data_type.dataframe = mlem.contrib.pandas:DataFrameType",
             "import.pandas = mlem.contrib.pandas:PandasImport",
+            "import.torch = mlem.contrib.torch:TorchModelImport",
             "data_reader.pandas = mlem.contrib.pandas:PandasReader",
             "data_reader.pandas_series = mlem.contrib.pandas:PandasSeriesReader",
             "data_writer.pandas_series = mlem.contrib.pandas:PandasSeriesWriter",
@@ -210,6 +211,7 @@ setup_args = dict(  # noqa: C408
             "model_io.xgboost_io = mlem.contrib.xgboost:XGBoostModelIO",
         ],
         "mlem.config": [
+            "core = mlem.config:MlemConfig",
             "bitbucket = mlem.contrib.bitbucketfs:BitbucketConfig",
             "docker = mlem.contrib.docker.context:DockerConfig",
             "heroku = mlem.contrib.heroku.config:HerokuConfig",
