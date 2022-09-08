@@ -1,27 +1,39 @@
-import contextlib
+import inspect
 import logging
-import typing as t
 from collections import defaultdict
-from enum import Enum, EnumMeta
 from functools import partial, wraps
 from gettext import gettext
-from typing import List, Optional, Tuple, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 
+import click
 import typer
-from click import Abort, ClickException, Command, HelpFormatter, pass_context
-from click.exceptions import Exit
-from pydantic import BaseModel, MissingError, ValidationError, parse_obj_as
-from pydantic.error_wrappers import ErrorWrapper
+from click import Abort, ClickException, Command, HelpFormatter, Parameter
+from click.exceptions import Exit, MissingParameter
+from pydantic import ValidationError
 from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
-from yaml import safe_load
 
 from mlem import LOCAL_CONFIG, version
+from mlem.cli.utils import (
+    FILE_CONF_PARAM_NAME,
+    LOAD_PARAM_NAME,
+    NOT_SET,
+    CallContext,
+    _extract_examples,
+    _format_validation_error,
+    get_extra_keys,
+)
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
-from mlem.core.base import MlemABC, build_mlem_object
 from mlem.core.errors import MlemError
-from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemObject
 from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
@@ -46,7 +58,7 @@ class MlemMixin(Command):
         self.aliases = aliases
         self.rich_help_panel = section.capitalize()
 
-    def collect_usage_pieces(self, ctx: Context) -> t.List[str]:
+    def collect_usage_pieces(self, ctx: Context) -> List[str]:
         return [p.lower() for p in super().collect_usage_pieces(ctx)]
 
     def get_help(self, ctx: Context) -> str:
@@ -77,9 +89,20 @@ class MlemCommand(
         section: str = "other",
         aliases: List[str] = None,
         help: Optional[str] = None,
+        dynamic_options_generator: Callable[
+            [CallContext], Iterable[Parameter]
+        ] = None,
+        dynamic_metavar: str = None,
+        lazy_help: Optional[Callable[[], str]] = None,
+        pass_from_parent: Optional[List[str]] = None,
         **kwargs,
     ):
+        self.dynamic_metavar = dynamic_metavar
+        self.dynamic_options_generator = dynamic_options_generator
         examples, help = _extract_examples(help)
+        self._help = help
+        self.lazy_help = lazy_help
+        self.pass_from_parent = pass_from_parent
         super().__init__(
             name=name,
             section=section,
@@ -89,20 +112,90 @@ class MlemCommand(
             **kwargs,
         )
 
+    def make_context(
+        self,
+        info_name: Optional[str],
+        args: List[str],
+        parent: Optional[Context] = None,
+        **extra: Any,
+    ) -> Context:
+        args_copy = args[:]
+        ctx = super().make_context(info_name, args, parent, **extra)
+        if not self.dynamic_options_generator:
+            return ctx
+        extra_args = ctx.args
+        params = ctx.params.copy()
+        while extra_args:
+            ctx.params = params
+            ctx.args = args_copy[:]
+            with ctx.scope(cleanup=False):
+                self.parse_args(ctx, args_copy[:])
+                params.update(ctx.params)
+
+            if ctx.args == extra_args:
+                break
+            extra_args = ctx.args
+
+        return ctx
+
+    def invoke(self, ctx: Context) -> Any:
+        ctx.params = {k: v for k, v in ctx.params.items() if v != NOT_SET}
+        return super().invoke(ctx)
+
+    def get_params(self, ctx) -> List["Parameter"]:
+        regular_options = super().get_params(ctx)
+        res: List[Parameter] = (
+            list(
+                self.dynamic_options_generator(
+                    CallContext(
+                        ctx.params,
+                        get_extra_keys(ctx.args),
+                        [o.name for o in regular_options],
+                    )
+                )
+            )
+            if self.dynamic_options_generator is not None
+            else []
+        ) + regular_options
+
+        if self.dynamic_metavar is not None:
+            kw_param = [p for p in res if p.name == self.dynamic_metavar]
+            if len(kw_param) > 0:
+                res.remove(kw_param[0])
+        if self.pass_from_parent is not None:
+            res = [
+                o
+                for o in res
+                if o.name not in self.pass_from_parent
+                or o.name not in ctx.parent.params
+                or ctx.parent.params[o.name] is None
+            ]
+        return res
+
+    @property
+    def help(self):
+        if self.lazy_help:
+            return self.lazy_help()
+        return self._help
+
+    @help.setter
+    def help(self, value):
+        self._help = value
+
 
 class MlemGroup(MlemMixin, TyperGroup):
     order = ["common", "object", "runtime", "other"]
 
     def __init__(
         self,
-        name: t.Optional[str] = None,
-        commands: t.Optional[
-            t.Union[t.Dict[str, Command], t.Sequence[Command]]
+        name: Optional[str] = None,
+        commands: Optional[
+            Union[Dict[str, Command], Sequence[Command]]
         ] = None,
         section: str = "other",
         aliases: List[str] = None,
         help: str = None,
-        **attrs: t.Any,
+        **attrs: Any,
     ) -> None:
         examples, help = _extract_examples(help)
         super().__init__(
@@ -152,7 +245,7 @@ class MlemGroup(MlemMixin, TyperGroup):
                     ):
                         formatter.write_dl(sections[section])
 
-    def get_command(self, ctx: Context, cmd_name: str) -> t.Optional[Command]:
+    def get_command(self, ctx: Context, cmd_name: str) -> Optional[Command]:
         cmd = super().get_command(ctx, cmd_name)
         if cmd is not None:
             return cmd
@@ -175,25 +268,29 @@ def mlem_group(section, aliases: Optional[List[str]] = None):
     return MlemGroupSection
 
 
-class ChoicesMeta(EnumMeta):
-    def __call__(cls, *names, module=None, qualname=None, type=None, start=1):
-        if len(names) == 1:
-            return super().__call__(names[0])
-        return super().__call__(
-            "Choice",
-            names,
-            module=module,
-            qualname=qualname,
-            type=type,
-            start=start,
+def mlem_group_callback(group: Typer, required: Optional[List[str]] = None):
+    def decorator(f):
+        @wraps(f)
+        def inner(*args, **kwargs):
+            ctx = click.get_current_context()
+            if ctx.invoked_subcommand is not None:
+                return None
+            if required is not None:
+                for req in required:
+                    if req not in kwargs or kwargs[req] is None:
+                        param = [
+                            p
+                            for p in ctx.command.get_params(ctx)
+                            if p.name == req
+                        ][0]
+                        raise MissingParameter(ctx=ctx, param=param)
+            return f(*args, **kwargs)
+
+        return group.callback(invoke_without_command=True)(
+            wrap_mlem_cli_call(inner, None)
         )
 
-
-class Choices(str, Enum, metaclass=ChoicesMeta):
-    def _generate_next_value_(  # pylint: disable=no-self-argument
-        name, start, count, last_values
-    ):
-        return name
+    return decorator
 
 
 app = Typer(
@@ -241,16 +338,12 @@ def mlem_callback(
     ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
 
 
-def _extract_examples(
-    help_str: Optional[str],
-) -> Tuple[Optional[str], Optional[str]]:
-    if help_str is None:
-        return None, None
-    try:
-        examples = help_str.index("Examples:")
-    except ValueError:
-        return None, help_str
-    return help_str[examples + len("Examples:") + 1 :], help_str[:examples]
+def get_cmd_name(ctx: Context):
+    pieces = []
+    while ctx.parent is not None:
+        pieces.append(ctx.info_name)
+        ctx = ctx.parent
+    return " ".join(reversed(pieces))
 
 
 def mlem_command(
@@ -259,68 +352,106 @@ def mlem_command(
     aliases=None,
     options_metavar="[options]",
     parent=app,
+    mlem_cls=None,
+    dynamic_metavar=None,
+    dynamic_options_generator=None,
+    lazy_help=None,
+    pass_from_parent: Optional[List[str]] = None,
+    no_pass_from_parent: Optional[List[str]] = None,
     **kwargs,
 ):
     def decorator(f):
-        if len(args) > 0:
-            cmd_name = args[0]
+        context_settings = kwargs.get("context_settings", {})
+        if dynamic_options_generator:
+            context_settings.update(
+                {"allow_extra_args": True, "ignore_unknown_options": True}
+            )
+        if no_pass_from_parent is not None:
+            _pass_from_parent = [
+                a
+                for a in inspect.getfullargspec(f).args
+                if a not in no_pass_from_parent
+            ]
         else:
-            cmd_name = kwargs.get("name", f.__name__)
-
-        @parent.command(
+            _pass_from_parent = pass_from_parent
+        call = wrap_mlem_cli_call(f, _pass_from_parent)
+        return parent.command(
             *args,
             options_metavar=options_metavar,
+            context_settings=context_settings,
             **kwargs,
-            cls=partial(MlemCommand, section=section, aliases=aliases),
-        )
-        @wraps(f)
-        @pass_context
-        def inner(ctx, *iargs, **ikwargs):
-            res = {}
-            error = None
-            try:
-                with cli_echo():
-                    res = f(*iargs, **ikwargs) or {}
-                res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
-            except (ClickException, Exit, Abort) as e:
-                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-                raise
-            except MlemError as e:
-                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-                if ctx.obj["traceback"]:
-                    raise
-                with cli_echo():
-                    echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
-                raise typer.Exit(1)
-            except ValidationError as e:
-                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-                if ctx.obj["traceback"]:
-                    raise
-                msgs = "\n".join(_format_validation_error(e))
-                with cli_echo():
-                    echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
-                raise typer.Exit(1)
-            except Exception as e:  # pylint: disable=broad-except
-                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-                if ctx.obj["traceback"]:
-                    raise
-                with cli_echo():
-                    echo(
-                        EMOJI_FAIL
-                        + color(
-                            "Unexpected error: " + str(e), col=typer.colors.RED
-                        )
-                    )
-                    echo(
-                        "Please report it here: <https://github.com/iterative/mlem/issues>"
-                    )
-                raise typer.Exit(1)
-            finally:
-                telemetry.send_cli_call(cmd_name, error=error, **res)
-
-        return inner
+            cls=partial(
+                mlem_cls or MlemCommand,
+                section=section,
+                aliases=aliases,
+                dynamic_options_generator=dynamic_options_generator,
+                dynamic_metavar=dynamic_metavar,
+                lazy_help=lazy_help,
+                pass_from_parent=pass_from_parent,
+            ),
+        )(call)
 
     return decorator
+
+
+def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
+    @wraps(f)
+    def inner(*iargs, **ikwargs):
+        res = {}
+        error = None
+        ctx = click.get_current_context()
+        cmd_name = get_cmd_name(ctx)
+        try:
+            if pass_from_parent is not None:
+                ikwargs.update(
+                    {
+                        o: ctx.parent.params[o]
+                        for o in pass_from_parent
+                        if o in ctx.parent.params
+                        and (o not in ikwargs or ikwargs[o] is None)
+                    }
+                )
+            with cli_echo():
+                res = f(*iargs, **ikwargs) or {}
+            res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
+        except (ClickException, Exit, Abort) as e:
+            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+            raise
+        except MlemError as e:
+            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+            if ctx.obj["traceback"]:
+                raise
+            with cli_echo():
+                echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
+            raise typer.Exit(1)
+        except ValidationError as e:
+            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+            if ctx.obj["traceback"]:
+                raise
+            msgs = "\n".join(_format_validation_error(e))
+            with cli_echo():
+                echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
+            raise typer.Exit(1)
+        except Exception as e:  # pylint: disable=broad-except
+            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+            if ctx.obj["traceback"]:
+                raise
+            with cli_echo():
+                echo(
+                    EMOJI_FAIL
+                    + color(
+                        "Unexpected error: " + str(e), col=typer.colors.RED
+                    )
+                )
+                echo(
+                    "Please report it here: <https://github.com/iterative/mlem/issues>"
+                )
+            raise typer.Exit(1)
+        finally:
+            if error is not None or ctx.invoked_subcommand is None:
+                telemetry.send_cli_call(cmd_name, error=error, **res)
+
+    return inner
 
 
 option_project = Option(
@@ -369,7 +500,10 @@ option_data_rev = Option(
 def option_load(type_: str = None):
     type_ = type_ + " " if type_ is not None else ""
     return Option(
-        None, "-l", "--load", help=f"File to load {type_}config from"
+        None,
+        "-l",
+        f"--{LOAD_PARAM_NAME}",
+        help=f"File to load {type_}config from",
     )
 
 
@@ -388,91 +522,6 @@ def option_file_conf(type_: str = None):
     return Option(
         None,
         "-f",
-        "--file_conf",
+        f"--{FILE_CONF_PARAM_NAME}",
         help=f"File with options {type_}in format `field.name=path_to_config`",
     )
-
-
-def _iter_errors(
-    errors: t.Sequence[t.Any], model: Type, loc: Optional[Tuple] = None
-):
-    for error in errors:
-        if isinstance(error, ErrorWrapper):
-
-            if loc:
-                error_loc = loc + error.loc_tuple()
-            else:
-                error_loc = error.loc_tuple()
-
-            if isinstance(error.exc, ValidationError):
-                yield from _iter_errors(
-                    error.exc.raw_errors, error.exc.model, error_loc
-                )
-            else:
-                yield error_loc, model, error.exc
-
-
-def _format_validation_error(error: ValidationError) -> List[str]:
-    res = []
-    for loc, model, exc in _iter_errors(error.raw_errors, error.model):
-        path = ".".join(loc_part for loc_part in loc if loc_part != "__root__")
-        field_name = loc[-1]
-        if field_name not in model.__fields__:
-            res.append(
-                f"Unknown field '{field_name}'. Fields available: {', '.join(model.__fields__)}"
-            )
-            continue
-        field_type = model.__fields__[field_name].type_
-        if (
-            isinstance(exc, MissingError)
-            and isinstance(field_type, type)
-            and issubclass(field_type, BaseModel)
-        ):
-            msgs = [
-                str(EMOJI_FAIL + f"field `{path}.{f.name}`: {exc}")
-                for f in field_type.__fields__.values()
-                if f.required
-            ]
-            if msgs:
-                res.extend(msgs)
-            else:
-                res.append(str(EMOJI_FAIL + f"field `{path}`: {exc}"))
-        else:
-            res.append(str(EMOJI_FAIL + f"field `{path}`: {exc}"))
-    return res
-
-
-@contextlib.contextmanager
-def wrap_build_error(subtype, model: Type[MlemABC]):
-    try:
-        yield
-    except ValidationError as e:
-        msgs = "\n".join(_format_validation_error(e))
-        raise typer.BadParameter(
-            f"Error on constructing {subtype} {model.abs_name}:\n{msgs}"
-        ) from e
-
-
-def config_arg(
-    model: Type[MlemABC],
-    load: Optional[str],
-    subtype: str,
-    conf: Optional[List[str]],
-    file_conf: Optional[List[str]],
-):
-    obj: MlemABC
-    if load is not None:
-        if issubclass(model, MlemObject):
-            obj = load_meta(load, force_type=model)
-        else:
-            with open(load, "r", encoding="utf8") as of:
-                obj = parse_obj_as(model, safe_load(of))
-    else:
-        if not subtype:
-            raise typer.BadParameter(
-                f"Cannot configure {model.abs_name}: either subtype or --load should be provided"
-            )
-        with wrap_build_error(subtype, model):
-            obj = build_mlem_object(model, subtype, conf, file_conf)
-
-    return obj

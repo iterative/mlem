@@ -22,13 +22,13 @@ from mlem.utils.module import get_object_base_module, get_object_requirements
 
 
 class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
-    """
-    :class:`mlem.core.model.ModelType implementation for `scikit-learn` models
-    """
+    """ModelType implementation for `scikit-learn` models"""
 
     type: ClassVar[str] = "sklearn"
-    io: ModelIO = SimplePickleIO()
     valid_types: ClassVar = (RegressorMixin, ClassifierMixin)
+
+    io: ModelIO = SimplePickleIO()
+    """IO"""
 
     @classmethod
     def process(
@@ -85,6 +85,8 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
 
 
 class SklearnPipelineType(SklearnModel):
+    """ModelType implementation for `scikit-learn` pipelines"""
+
     valid_types: ClassVar = (Pipeline,)
     type: ClassVar = "sklearn_pipeline"
 

@@ -45,13 +45,7 @@ from mlem.core.errors import (
     MlemProjectNotFound,
     WrongMetaType,
 )
-from mlem.core.meta_io import (
-    MLEM_DIR,
-    MLEM_EXT,
-    Location,
-    UriResolver,
-    get_path_by_fs_path,
-)
+from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, get_path_by_fs_path
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
@@ -77,7 +71,9 @@ class MlemObject(MlemABC):
     __abstract__: ClassVar[bool] = True
     object_type: ClassVar[str]
     location: Optional[Location] = None
+    """MlemObject location [transient]"""
     params: Dict[str, str] = {}
+    """Arbitrary map of additional parameters"""
 
     @property
     def loc(self) -> Location:
@@ -126,7 +122,7 @@ class MlemObject(MlemABC):
         """Create location from arguments"""
         if metafile_path:
             path = cls.get_metafile_path(path)
-        loc = UriResolver.resolve(
+        loc = Location.resolve(
             path, project, rev=None, fs=fs, find_project=True
         )
         if loc.project is not None:
@@ -359,9 +355,13 @@ class MlemLink(MlemObject):
     location"""
 
     path: str
+    """path to object"""
     project: Optional[str] = None
+    """project URI"""
     rev: Optional[str] = None
+    """revision to use"""
     link_type: str
+    """type of underlying object"""
 
     object_type: ClassVar = "link"
 
@@ -406,7 +406,7 @@ class MlemLink(MlemObject):
 
         if self.project is None and self.rev is None:
             # is it possible to have rev without project?
-            location = UriResolver.resolve(
+            location = Location.resolve(
                 path=self.path, project=None, rev=None, fs=None
             )
             if (
@@ -424,7 +424,7 @@ class MlemLink(MlemObject):
             return find_meta_location(location)
         # link is absolute
         return find_meta_location(
-            UriResolver.resolve(
+            Location.resolve(
                 path=self.path, project=self.project, rev=self.rev, fs=None
             )
         )
@@ -448,7 +448,9 @@ class _WithArtifacts(ABC, MlemObject):
 
     __abstract__: ClassVar[bool] = True
     artifacts: Optional[Artifacts] = None
+    """dict with artifacts"""
     requirements: Requirements = Requirements.new()
+    """list of requirements"""
 
     @classmethod
     def get_metafile_path(cls, fullpath: str):
@@ -592,6 +594,7 @@ class MlemModel(_WithArtifacts):
     object_type: ClassVar = "model"
     model_type_cache: Any
     model_type: ModelType
+    """framework-specific metadata"""
     model_type, model_type_raw, model_type_cache = lazy_field(
         ModelType, "model_type", "model_type_cache"
     )
@@ -644,8 +647,9 @@ class MlemData(_WithArtifacts):
         exclude = {"data_type"}
 
     object_type: ClassVar = "data"
-    reader_cache: Optional[Dict]
+    reader_cache: Any
     reader: Optional[DataReader]
+    """How to read this data"""
     reader, reader_raw, reader_cache = lazy_field(
         DataReader,
         "reader",
@@ -711,6 +715,7 @@ class MlemBuilder(MlemObject):
         type_root = True
         type_field = "type"
 
+    type: ClassVar[str]
     object_type: ClassVar = "builder"
     abs_name: ClassVar[str] = "builder"
 
@@ -728,6 +733,7 @@ class DeployState(MlemABC):
     abs_name: ClassVar[str] = "deploy_state"
 
     model_hash: Optional[str] = None
+    """hash of deployed model meta"""
 
     @abstractmethod
     def get_client(self):
@@ -794,10 +800,15 @@ class MlemDeployment(MlemObject):
     type: ClassVar[str]
 
     env_link: MlemLink
+    """Enironment to use"""
     env: Optional[MlemEnv]
+    """Enironment to use"""
     model_link: MlemLink
+    """Model to use"""
     model: Optional[MlemModel]
+    """Model to use"""
     state: Optional[DeployState]
+    """state"""
 
     def get_env(self):
         if self.env is None:

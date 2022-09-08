@@ -11,7 +11,7 @@ from s3fs import S3FileSystem
 
 from mlem import LOCAL_CONFIG
 from mlem.core.errors import RevisionNotFound
-from mlem.core.meta_io import UriResolver, get_fs, get_path_by_fs_path, read
+from mlem.core.meta_io import Location, get_fs, get_path_by_fs_path, read
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -84,7 +84,7 @@ def test_get_fs_github(uri, rev):
 @long
 def test_github_wrong_rev():
     with pytest.raises(RevisionNotFound):
-        UriResolver.resolve(
+        Location.resolve(
             MLEM_TEST_REPO, project=None, rev="__not_exists__kek", fs=None
         )
 

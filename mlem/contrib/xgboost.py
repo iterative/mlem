@@ -41,19 +41,18 @@ class DMatrixDataType(
     IsInstanceHookMixin,
 ):
     """
-    :class:`~.DataType` implementation for xgboost.DMatrix type
-
-    :param is_from_list: whether DMatrix can be constructed from list
-    :param feature_type_names: string representation of feature types
-    :param feature_names: list of feature names
+    DataType implementation for xgboost.DMatrix type
     """
 
     type: ClassVar[str] = "xgboost_dmatrix"
     valid_types: ClassVar = (xgboost.DMatrix,)
 
     is_from_list: bool
+    """whether DMatrix can be constructed from list"""
     feature_type_names: Optional[List[str]]
+    """string representation of feature types"""
     feature_names: Optional[List[str]] = None
+    """list of feature names"""
 
     @property
     def feature_types(self):
@@ -118,7 +117,8 @@ class XGBoostModelIO(ModelIO):
     """
 
     type: ClassVar[str] = "xgboost_io"
-    model_file_name = "model.xgb"
+    model_file_name: str = "model.xgb"
+    """filename to use"""
 
     def dump(
         self, storage: Storage, path, model: xgboost.Booster

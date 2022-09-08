@@ -5,7 +5,7 @@ from pytest_lazyfixture import lazy_fixture
 
 from mlem.contrib.bitbucketfs import BitBucketFileSystem
 from mlem.core.errors import RevisionNotFound
-from mlem.core.meta_io import UriResolver, get_fs
+from mlem.core.meta_io import Location, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
 from tests.conftest import long
@@ -71,7 +71,7 @@ def test_uri_resolver(uri):
     ["main", "branch", "tag", "3897d2ab"],
 )
 def test_uri_resolver_rev(rev):
-    location = UriResolver.resolve(MLEM_TEST_REPO_URI, None, rev=rev, fs=None)
+    location = Location.resolve(MLEM_TEST_REPO_URI, None, rev=rev, fs=None)
     assert isinstance(location.fs, BitBucketFileSystem)
     assert location.fs.root == rev
     assert "README.md" in location.fs.ls("")
@@ -80,7 +80,7 @@ def test_uri_resolver_rev(rev):
 @long
 def test_uri_resolver_wrong_rev():
     with pytest.raises(RevisionNotFound):
-        UriResolver.resolve(
+        Location.resolve(
             MLEM_TEST_REPO_URI, None, rev="__not_exists__", fs=None
         )
 

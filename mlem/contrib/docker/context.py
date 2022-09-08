@@ -13,6 +13,7 @@ from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
+from yaml import safe_dump
 
 import mlem
 from mlem.config import MlemConfigBase, project_config
@@ -26,6 +27,7 @@ from mlem.utils.templates import TemplateModel
 
 REQUIREMENTS = "requirements.txt"
 MLEM_REQUIREMENTS = "mlem_requirements.txt"
+SERVER = "server.yaml"
 TEMPLATE_FILE = "dockerfile.j2"
 MLEM_LOCAL_WHL = f"mlem-{mlem.__version__}-py3-none-any.whl"
 
@@ -195,31 +197,34 @@ def get_mlem_requirements():
 
 
 class DockerBuildArgs(BaseModel):
-    """
-    Container for DockerBuild arguments
+    """Container for DockerBuild arguments"""
 
-    :param base_image:  base image for the built image in form of a string or function from python version,
-      default: python:{python_version}
-    :param python_version: Python version to use, default: version of running interpreter
-    :param templates_dir: directory or list of directories for Dockerfile templates, default: ./docker_templates
-       - `pre_install.j2` - Dockerfile commands to run before pip
-       - `post_install.j2` - Dockerfile commands to run after pip
-       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy
-    :param run_cmd: command to run in container, default: sh run.sh
-    :param package_install_cmd: command to install packages. Default is apt-get, change it for other package manager
-    :param prebuild_hook: callable to call before build, accepts python version. Used for pre-building server images
-    :param mlem_whl: a path to mlem .whl file. If it is empty, mlem will be installed from pip TODO
-    :param platform: platform to build docker for, see https://docs.docker.com/desktop/multi-arch/
-    """
+    class Config:
+        fields = {"prebuild_hook": {"exclude": True}}
 
     base_image: Optional[Union[str, Callable[[str], str]]] = None
+    """base image for the built image in form of a string or function from python version,
+    default: python:{python_version}"""
     python_version: str = get_python_version()
+    """Python version to use
+    default: version of running interpreter"""
     templates_dir: List[str] = []
-    run_cmd: Union[bool, str] = "sh run.sh"
+    """directory or list of directories for Dockerfile templates
+       - `pre_install.j2` - Dockerfile commands to run before pip
+       - `post_install.j2` - Dockerfile commands to run after pip
+       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy"""
+    run_cmd: Optional[str] = "sh run.sh"
+    """command to run in container"""
     package_install_cmd: str = "apt-get update && apt-get -y upgrade && apt-get install --no-install-recommends -y"
+    """command to install packages. Default is apt-get, change it for other package manager"""
     package_clean_cmd: str = "&& apt-get clean && rm -rf /var/lib/apt/lists/*"
+    """command to clean after package installation"""
     prebuild_hook: Optional[Callable[[str], Any]] = None
+    """callable to call before build, accepts python version. Used for pre-building server images"""
+    mlem_whl: Optional[str] = None
+    """a path to mlem .whl file. If it is empty, mlem will be installed from pip"""
     platform: Optional[str] = None
+    """platform to build docker for, see docs.docker.com/desktop/multi-arch/"""
 
     def get_base_image(self):
         if self.base_image is None:
@@ -338,7 +343,10 @@ class DockerModelDirectory(BaseModel):
             df.write(dockerfile)
 
     def write_configs(self):
-        pass
+        with self.fs.open(
+            posixpath.join(self.path, SERVER), "w", encoding="utf8"
+        ) as f:
+            safe_dump(self.server.dict(), f)
 
     def write_local_sources(self, requirements: Requirements):
         echo(EMOJI_PACK + "Adding sources...")
@@ -363,7 +371,7 @@ class DockerModelDirectory(BaseModel):
 
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
-            sh.write(f"mlem serve {self.model_name} {self.server.type}")
+            sh.write(f"mlem serve -l {SERVER} -m {self.model_name}")
 
     def write_mlem_source(self):
         source = get_mlem_source()

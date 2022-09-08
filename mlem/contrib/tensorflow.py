@@ -39,17 +39,15 @@ class TFTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
     """
-    :class:`.DataType` implementation for `tensorflow.Tensor` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `tensorflow.Tensor` objects in data
-    :param dtype: data type of `tensorflow.Tensor` objects in data
+    DataType implementation for `tensorflow.Tensor`
     """
 
     type: ClassVar[str] = "tf_tensor"
     valid_types: ClassVar = (tf.Tensor,)
     shape: Tuple[Optional[int], ...]
+    """shape of `tensorflow.Tensor` objects in data"""
     dtype: str
+    """data type of `tensorflow.Tensor` objects in data"""
 
     @property
     def tf_type(self):
@@ -117,6 +115,8 @@ DATA_KEY = "data"
 
 
 class TFTensorWriter(DataWriter):
+    """Write tensorflow tensors to np format"""
+
     type: ClassVar[str] = "tf_tensor"
 
     def write(
@@ -128,6 +128,8 @@ class TFTensorWriter(DataWriter):
 
 
 class TFTensorReader(DataReader):
+    """Read tensorflow tensors from np format"""
+
     type: ClassVar[str] = "tf_tensor"
 
     def read(self, artifacts: Artifacts) -> DataType:
@@ -157,11 +159,12 @@ def is_custom_net(model):
 
 class TFKerasModelIO(BufferModelIO):
     """
-    :class:`.ModelIO` implementation for Tensorflow Keras models (:class:`tensorflow.keras.Model` objects)
+    IO for Tensorflow Keras models (:class:`tensorflow.keras.Model` objects)
     """
 
     type: ClassVar[str] = "tf_keras"
     save_format: Optional[str] = None
+    """`tf` for custom net classes and `h5` otherwise"""
 
     def save_model(self, model: tf.keras.Model, path: str):
         if self.save_format is None:
@@ -198,6 +201,7 @@ class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "tf_keras"
     valid_types: ClassVar = (tf.keras.Model,)
     io: ModelIO = TFKerasModelIO()
+    """IO"""
 
     @classmethod
     def process(

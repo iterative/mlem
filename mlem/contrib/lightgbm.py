@@ -42,6 +42,7 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
+    """Inner DataType"""
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
@@ -77,6 +78,8 @@ class LightGBMDataType(
 
 
 class LightGBMDataWriter(DataWriter):
+    """Wrapper writer for lightgbm.Dataset objects"""
+
     type: ClassVar[str] = "lightgbm"
 
     def write(
@@ -103,10 +106,14 @@ class LightGBMDataWriter(DataWriter):
 
 
 class LightGBMDataReader(DataReader):
+    """Wrapper reader for lightgbm.Dataset objects"""
+
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
+    """inner reader"""
     label: List
+    """list of labels"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         inner_data_type = self.inner.read(artifacts)
@@ -128,7 +135,8 @@ class LightGBMModelIO(ModelIO):
     """
 
     type: ClassVar[str] = "lightgbm_io"
-    model_file_name = "model.lgb"
+    model_file_name: str = "model.lgb"
+    """filename to use"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory(prefix="mlem_lightgbm_dump") as f:
@@ -161,6 +169,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Booster,)
     io: ModelIO = LightGBMModelIO()
+    """LightGBMModelIO"""
 
     @classmethod
     def process(

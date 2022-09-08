@@ -28,15 +28,23 @@ HEROKU_STATE_MAPPING = {
 
 class HerokuAppMeta(BaseModel):
     name: str
+    """App name"""
     web_url: str
+    """App web url"""
     meta_info: dict
+    """additional metadata"""
 
 
 class HerokuState(DeployState):
+    """State of heroku deployment"""
+
     type: ClassVar = "heroku"
     app: Optional[HerokuAppMeta]
+    """created heroku app"""
     image: Optional[DockerImage]
+    """built docker image"""
     release_state: Optional[Union[dict, list]]
+    """state of the release"""
 
     @property
     def ensured_app(self) -> HerokuAppMeta:
@@ -51,18 +59,28 @@ class HerokuState(DeployState):
 
 
 class HerokuDeployment(MlemDeployment):
+    """Heroku App"""
+
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
+    """state"""
     app_name: str
+    """Heroku application name"""
     region: str = "us"
+    """heroku region"""
     stack: str = "container"
+    """stack to use"""
     team: Optional[str] = None
+    """heroku team"""
 
 
 class HerokuEnv(MlemEnv[HerokuDeployment]):
+    """Heroku Account"""
+
     type: ClassVar = "heroku"
     deploy_type: ClassVar = HerokuDeployment
     api_key: Optional[str] = None
+    """HEROKU_API_KEY - advised to set via env variable or `heroku login`"""
 
     def deploy(self, meta: HerokuDeployment):
         from .utils import create_app, release_docker_app

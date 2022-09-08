@@ -97,6 +97,12 @@ CMD echo "cmd" && sh run.sh
             assert _generate_dockerfile(**kwargs) == dockerfile
 
 
+def test_dockerfile_generator_no_cmd():
+    kwargs = {"run_cmd": None}
+    with use_mlem_source("pip"):
+        assert "CMD" not in _generate_dockerfile(**kwargs)
+
+
 def test_use_wheel_installation(tmpdir):
     distr = tmpdir.mkdir("distr").join("somewhatwheel.txt")
     distr.write("wheel goes brrr")
@@ -123,11 +129,11 @@ def test_docker_registry_io():
     registry = DockerIORegistry()
     client = docker.DockerClient()
 
-    client.images.pull("hello-world:latest")
+    client.images.pull("library/hello-world:latest")
 
     assert registry.get_host() == "https://index.docker.io/v1/"
-    registry.push(client, "hello-world:latest")
-    image = DockerImage(name="hello-world")
+    registry.push(client, "library/hello-world:latest")
+    image = DockerImage(name="library/hello-world")
     assert registry.image_exists(client, image)
 
 

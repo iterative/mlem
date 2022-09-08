@@ -52,26 +52,48 @@ def load_entrypoints(domain: str = MLEM_ENTRY_POINT) -> Dict[str, Entrypoint]:
 
 def list_implementations(
     base_class: Union[str, Type[MlemABC]],
-    meta_subtype: Type["MlemObject"] = None,
+    meta_subtype: Union[str, Type["MlemObject"]] = None,
+    include_hidden: bool = True,
 ) -> List[str]:
+    from mlem.core.objects import MlemObject
+
     if isinstance(base_class, type) and issubclass(base_class, MlemABC):
         abs_name = base_class.abs_name
-    if base_class == "meta" and meta_subtype is not None:
-        base_class = meta_subtype.object_type
+
+    if (base_class in ("meta", MlemObject)) and meta_subtype is not None:
+        if isinstance(meta_subtype, str):
+            base_class = meta_subtype
+        else:
+            base_class = meta_subtype.object_type
         abs_name = "meta"
+    resolved_base_class: Optional[Type[MlemABC]] = None
     if isinstance(base_class, str):
         abs_name = base_class
         try:
-            base_class = MlemABC.abs_types[abs_name]
+            resolved_base_class = MlemABC.abs_types[abs_name]
         except KeyError:
-            base_class = load_impl_ext(abs_name, None)
+            try:
+                resolved_base_class = load_impl_ext(abs_name, None)
+            except ValueError:
+                pass
+    else:
+        resolved_base_class = base_class
     eps = {
         e.name
         for e in load_entrypoints().values()
         if e.abs_name == abs_name and e.name is not None
     }
-    eps.update(base_class.non_abstract_subtypes())
-    return list(eps)
+    if resolved_base_class is not None:
+        eps.update(resolved_base_class.non_abstract_subtypes())
+    return sorted(e for e in eps if include_hidden or not e.startswith("_"))
+
+
+def list_abstractions(
+    include_hidden: bool = True,
+) -> List[str]:
+    eps = {e.abs_name for e in load_entrypoints().values()}
+    eps.update(MlemABC.abs_types)
+    return [e for e in eps if include_hidden or not e.startswith("_")]
 
 
 IT = TypeVar("IT")
@@ -123,7 +145,7 @@ def find_abc_implementations(root_module_name: str = MLEM_ENTRY_POINT):
     return {
         MLEM_ENTRY_POINT: [
             f"{obj.abs_name}.{obj.__get_alias__()} = {name}"
-            if not obj.__is_root__
+            if not obj.__is_root__ or hasattr(obj, obj.__type_field__())
             else f"{obj.abs_name} = {name}"
             for obj, name in impls.items()
             if hasattr(obj, "abs_name")

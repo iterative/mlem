@@ -7,7 +7,7 @@ from yaml import safe_dump, safe_load
 from mlem.cli.main import app, mlem_command, mlem_group, option_project
 from mlem.config import CONFIG_FILE_NAME, get_config_cls
 from mlem.constants import MLEM_DIR
-from mlem.core.base import get_recursively, set_recursively, smart_split
+from mlem.core.base import SmartSplitDict, get_recursively, smart_split
 from mlem.core.errors import MlemError
 from mlem.core.meta_io import get_fs, get_uri
 from mlem.ui import EMOJI_OK, echo
@@ -45,8 +45,9 @@ def config_set(
     with fs.open(posixpath.join(project, MLEM_DIR, CONFIG_FILE_NAME)) as f:
         new_conf = safe_load(f) or {}
 
-    new_conf[section] = new_conf.get(section, {})
-    set_recursively(new_conf[section], smart_split(name, "."), value)
+    conf = SmartSplitDict(new_conf.get(section, {}))
+    conf[name] = value
+    new_conf[section] = conf.build()
     if validate:
         config_cls = get_config_cls(section)
         config_cls(**new_conf[section])

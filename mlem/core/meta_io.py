@@ -75,6 +75,23 @@ class Location(BaseModel):
             return posixpath.relpath(self.fullpath, "")
         return self.uri
 
+    @classmethod
+    def resolve(
+        cls,
+        path: str,
+        project: str = None,
+        rev: str = None,
+        fs: AbstractFileSystem = None,
+        find_project: bool = False,
+    ):
+        return UriResolver.resolve(
+            path=path,
+            project=project,
+            rev=rev,
+            fs=fs,
+            find_project=find_project,
+        )
+
 
 class UriResolver(MlemABC):
     """Base class for resolving location. Turns (path, project, rev, fs) tuple
@@ -299,6 +316,7 @@ class CloudGitResolver(UriResolver, ABC):
 class FSSpecResolver(UriResolver):
     """Resolve different fsspec URIs"""
 
+    type: ClassVar = "fsspec"
     low_priority: ClassVar = True
 
     @classmethod
@@ -338,7 +356,7 @@ class FSSpecResolver(UriResolver):
 
 
 def get_fs(uri: str) -> Tuple[AbstractFileSystem, str]:
-    location = UriResolver.resolve(path=uri, project=None, rev=None, fs=None)
+    location = Location.resolve(path=uri, project=None, rev=None, fs=None)
     return location.fs, location.fullpath
 
 
@@ -353,7 +371,7 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
 
 
 def get_uri(fs: AbstractFileSystem, path: str, repr: bool = False):
-    loc = UriResolver.resolve(path, None, None, fs=fs)
+    loc = Location.resolve(path, None, None, fs=fs)
     if repr:
         return loc.uri_repr
     return loc.uri
