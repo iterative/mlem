@@ -1,6 +1,11 @@
 import pytest
 
-from mlem.contrib.kubernetes.context import K8sYamlBuildArgs, K8sYamlGenerator
+from mlem.contrib.kubernetes.context import (
+    ImagePullPolicy,
+    K8sYamlBuildArgs,
+    K8sYamlGenerator,
+    ServiceType,
+)
 from tests.conftest import _cut_empty_lines
 
 
@@ -10,9 +15,9 @@ def k8s_default_manifest():
         """apiVersion: v1
 kind: Namespace
 metadata:
-  name: mlem-ml-app
+  name: mlem
   labels:
-    name: mlem-ml-app
+    name: mlem
 
 ---
 
@@ -20,7 +25,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ml
-  namespace: mlem-ml-app
+  namespace: mlem
 spec:
   selector:
     matchLabels:
@@ -43,7 +48,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ml
-  namespace: mlem-ml-app
+  namespace: mlem
   labels:
     run: ml
 spec:
@@ -64,29 +69,29 @@ def k8s_manifest():
         """apiVersion: v1
 kind: Namespace
 metadata:
-  name: mlem-hello-app
+  name: hello
   labels:
-    name: mlem-hello-app
+    name: hello
 
 ---
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello
-  namespace: mlem-hello-app
+  name: test
+  namespace: hello
 spec:
   selector:
     matchLabels:
-      app: hello
+      app: test
   template:
     metadata:
       labels:
-        app: hello
+        app: test
     spec:
       containers:
-      - name: hello
-        image: hello:latest
+      - name: test
+        image: test:latest
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
@@ -96,17 +101,17 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: hello
-  namespace: mlem-hello-app
+  name: test
+  namespace: hello
   labels:
-    run: hello
+    run: test
 spec:
   ports:
   - port: 8080
     protocol: TCP
     targetPort: 8080
   selector:
-    app: hello
+    app: test
   type: LoadBalancer
 """
     )
@@ -119,19 +124,21 @@ def test_k8s_yaml_build_args_default(k8s_default_manifest):
 
 def test_k8s_yaml_build_args(k8s_manifest):
     build_args = K8sYamlBuildArgs(
-        image_name="hello",
-        image_uri="hello:latest",
-        image_pull_policy="Never",
+        namespace="hello",
+        image_name="test",
+        image_uri="test:latest",
+        image_pull_policy=ImagePullPolicy.never,
         port=8080,
-        service_type="LoadBalancer",
+        service_type=ServiceType.load_balancer,
     )
     assert _generate_k8s_manifest(**build_args.dict()) == k8s_manifest
 
 
 def test_k8s_yaml_generator(k8s_manifest):
     kwargs = {
-        "image_name": "hello",
-        "image_uri": "hello:latest",
+        "namespace": "hello",
+        "image_name": "test",
+        "image_uri": "test:latest",
         "image_pull_policy": "Never",
         "port": 8080,
         "service_type": "LoadBalancer",

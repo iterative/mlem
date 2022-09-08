@@ -79,15 +79,13 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     def _get_client(self, state: K8sDeploymentState) -> Client:
         host, port = None, None
         self.load_kube_config()
-        service = client.CoreV1Api().list_namespaced_service(
-            f"mlem-{state.deployment_name}-app"
-        )
+        service = client.CoreV1Api().list_namespaced_service(self.namespace)
         try:
             if self.service_type == "NodePort":
                 port = service.items[0].spec.ports[0].node_port
                 node_name = (
                     client.CoreV1Api()
-                    .list_namespaced_pod(f"mlem-{state.deployment_name}-app")
+                    .list_namespaced_pod(self.namespace)
                     .items[0]
                     .spec.node_name
                 )
@@ -179,10 +177,10 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                 )
                 create_k8s_resources(generator)
 
-                if pod_is_running(namespace=f"mlem-{meta.image_name}-app"):
+                if pod_is_running(namespace=meta.namespace):
                     deployments_list = (
                         client.AppsV1Api().list_namespaced_deployment(
-                            namespace=f"mlem-{meta.image_name}-app"
+                            namespace=meta.namespace
                         )
                     )
 
@@ -208,15 +206,13 @@ class K8sEnv(MlemEnv[K8sDeployment]):
             if state.deployment_name is not None:
                 client.AppsV1Api().delete_namespaced_deployment(
                     name=state.deployment_name,
-                    namespace=f"mlem-{meta.image_name}-app",
+                    namespace=meta.namespace,
                 )
                 client.CoreV1Api().delete_namespaced_service(
                     name=state.deployment_name,
-                    namespace=f"mlem-{meta.image_name}-app",
+                    namespace=meta.namespace,
                 )
-                client.CoreV1Api().delete_namespace(
-                    name=f"mlem-{meta.image_name}-app"
-                )
+                client.CoreV1Api().delete_namespace(name=meta.namespace)
                 sleep(0.5)
             echo(
                 EMOJI_OK
@@ -234,9 +230,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
         if state.deployment_name is None:
             return DeployStatus.NOT_DEPLOYED
 
-        pods_list = client.CoreV1Api().list_namespaced_pod(
-            f"mlem-{meta.image_name}-app"
-        )
+        pods_list = client.CoreV1Api().list_namespaced_pod(meta.namespace)
 
         return POD_STATE_MAPPING[pods_list.items[0].status.phase]
 

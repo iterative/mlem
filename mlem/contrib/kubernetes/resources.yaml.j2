@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: mlem-{{ image_name }}-app
+  name: {{ namespace }}
   labels:
-    name: mlem-{{ image_name }}-app
+    name: {{ namespace }}
 
 ---
 
@@ -11,7 +11,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ image_name }}
-  namespace: mlem-{{ image_name }}-app
+  namespace: {{ namespace }}
 spec:
   selector:
     matchLabels:
@@ -34,7 +34,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ image_name }}
-  namespace: mlem-{{ image_name }}-app
+  namespace: {{ namespace }}
   labels:
     run: {{ image_name }}
 spec:

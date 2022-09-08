@@ -17,6 +17,7 @@ from mlem.contrib.kubernetes.base import (
     K8sDeploymentState,
     K8sEnv,
 )
+from mlem.contrib.kubernetes.context import ImagePullPolicy, ServiceType
 from mlem.core.objects import DeployStatus
 from tests.contrib.test_kubernetes.conftest import k8s_test
 from tests.contrib.test_kubernetes.utils import Command
@@ -49,8 +50,8 @@ def k8s_deployment(minikube_env_variables, model_meta_saved_single):
     return K8sDeployment(
         name="ml",
         model=model_meta_saved_single.make_link(),
-        image_pull_policy="Never",
-        service_type="LoadBalancer",
+        image_pull_policy=ImagePullPolicy.never,
+        service_type=ServiceType.load_balancer,
         daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
     )
 
@@ -62,8 +63,7 @@ def docker_image(k8s_deployment):
     return build_model_image(
         k8s_deployment.get_model(),
         k8s_deployment.image_name,
-        k8s_deployment.server
-        or project_config(None).server,
+        k8s_deployment.server or project_config(None).server,
         DockerEnv(
             daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default=""))
         ),
