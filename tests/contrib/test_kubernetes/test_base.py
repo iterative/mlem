@@ -19,7 +19,10 @@ from mlem.contrib.kubernetes.base import (
 )
 from mlem.contrib.kubernetes.context import ImagePullPolicy, ServiceType
 from mlem.core.objects import DeployStatus
-from tests.contrib.test_kubernetes.conftest import k8s_test
+from tests.contrib.test_kubernetes.conftest import (
+    is_minikube_running,
+    k8s_test,
+)
 from tests.contrib.test_kubernetes.utils import Command
 
 
@@ -42,7 +45,10 @@ def minikube_env_variables():
 
 @pytest.fixture
 def load_kube_config():
-    config.load_kube_config(os.getenv("KUBECONFIG", default="~/.kube/config"))
+    if is_minikube_running():
+        config.load_kube_config(
+            os.getenv("KUBECONFIG", default="~/.kube/config")
+        )
 
 
 @pytest.fixture

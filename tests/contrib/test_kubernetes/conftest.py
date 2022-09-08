@@ -5,14 +5,21 @@ from kubernetes import client, config
 
 from tests.conftest import long
 
+from .utils import Command
+
 
 def is_minikube_running() -> bool:
     try:
-        config.load_kube_config(
-            config_file=os.getenv("KUBECONFIG", default="~/.kube/config")
-        )
-        client.CoreV1Api().list_namespaced_pod("default")
-        return True
+        cmd = Command("minikube status")
+        returncode = cmd.run(timeout=3, shell=True)
+        if returncode == 0:
+            config.load_kube_config(
+                config_file=os.getenv("KUBECONFIG", default="~/.kube/config")
+            )
+            client.CoreV1Api().list_namespaced_pod("default")
+            return True
+        else:
+            return False
     except (config.config_exception.ConfigException, ConnectionRefusedError):
         return False
 
