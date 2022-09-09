@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from typer import Option, Typer
+from typer import Typer
 
 from mlem.cli.main import (
     app,
@@ -9,6 +9,7 @@ from mlem.cli.main import (
     mlem_group_callback,
     option_file_conf,
     option_load,
+    option_model,
     option_project,
     option_rev,
 )
@@ -17,6 +18,7 @@ from mlem.cli.utils import (
     config_arg,
     for_each_impl,
     lazy_class_docstring,
+    make_not_required,
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
@@ -37,9 +39,7 @@ app.add_typer(serve)
 
 @mlem_group_callback(serve, required=["model", "load"])
 def serve_load(
-    model: str = Option(
-        None, "-m", "--model", help="Path to MLEM model object"
-    ),
+    model: str = make_not_required(option_model),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     load: Optional[str] = option_load("server"),
@@ -71,9 +71,7 @@ def create_serve_command(type_name):
         no_pass_from_parent=["file_conf"],
     )
     def serve_command(
-        model: str = Option(
-            ..., "-m", "--model", help="Model to create service from"
-        ),
+        model: str = option_model,
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         file_conf: List[str] = option_file_conf("server"),

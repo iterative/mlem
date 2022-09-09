@@ -3,6 +3,7 @@ from typing import Optional
 from typer import Argument, Option
 
 from mlem.cli.main import (
+    PATH_METAVAR,
     mlem_command,
     option_external,
     option_rev,
@@ -21,6 +22,7 @@ def link(
         "--source-project",
         "--sp",
         help="Project for source object",
+        metavar=PATH_METAVAR,
     ),
     rev: Optional[str] = option_rev,
     target_project: Optional[str] = option_target_project,

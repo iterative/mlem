@@ -37,6 +37,8 @@ from mlem.core.errors import MlemError
 from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
+PATH_METAVAR = "<path>"
+
 
 class MlemFormatter(HelpFormatter):
     def write_heading(self, heading: str) -> None:
@@ -455,7 +457,12 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
 
 
 option_project = Option(
-    None, "-p", "--project", help="Path to MLEM project", show_default="none"  # type: ignore
+    None,
+    "-p",
+    "--project",
+    help="Path to MLEM project",
+    metavar=PATH_METAVAR,
+    show_default="none",  # type: ignore
 )
 option_method = Option(
     PREDICT_METHOD_NAME,
@@ -481,6 +488,7 @@ option_target_project = Option(
     "--target-project",
     "--tp",
     help="Project to save target to",
+    metavar=PATH_METAVAR,
     show_default="none",  # type: ignore
 )
 option_json = Option(False, "--json", help="Output as json")
@@ -488,12 +496,23 @@ option_data_project = Option(
     None,
     "--data-project",
     "--dr",
+    metavar=PATH_METAVAR,
     help="Project with data",
 )
 option_data_rev = Option(
     None,
     "--data-rev",
     help="Revision of data",
+)
+option_model = Option(
+    ...,
+    "-m",
+    "--model",
+    help="Path to MLEM model object",
+    metavar=PATH_METAVAR,
+)
+option_data = Option(
+    ..., "-d", "--data", help="Path to MLEM data object", metavar=PATH_METAVAR
 )
 
 
@@ -504,6 +523,7 @@ def option_load(type_: str = None):
         "-l",
         f"--{LOAD_PARAM_NAME}",
         help=f"File to load {type_}config from",
+        metavar=PATH_METAVAR,
     )
 
 

@@ -5,10 +5,12 @@ from typer import Argument, Option, Typer
 
 from mlem.api import import_object
 from mlem.cli.main import (
+    PATH_METAVAR,
     app,
     mlem_command,
     mlem_group,
     mlem_group_callback,
+    option_data,
     option_data_project,
     option_data_rev,
     option_external,
@@ -26,6 +28,7 @@ from mlem.cli.utils import (
     config_arg,
     for_each_impl,
     lazy_class_docstring,
+    make_not_required,
 )
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
@@ -187,13 +190,17 @@ def _apply_remote(
 
 
 option_output = Option(
-    None, "-o", "--output", help="Where to save inference results"
+    None,
+    "-o",
+    "--output",
+    help="Where to save inference results",
+    metavar=PATH_METAVAR,
 )
 
 
 @mlem_group_callback(apply_remote, required=["data", "load"])
 def apply_remote_load(
-    data: str = Option(None, "-d", "--data", help="Path to MLEM data object"),
+    data: str = make_not_required(option_data),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     output: Optional[str] = option_output,
@@ -232,7 +239,7 @@ def create_apply_remote(type_name):
         no_pass_from_parent=["file_conf"],
     )
     def apply_remote_func(
-        data: str = Option(..., "-d", "--data", help="Path to data object"),
+        data: str = option_data,
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         output: Optional[str] = option_output,

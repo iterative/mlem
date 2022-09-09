@@ -1,5 +1,6 @@
 import ast
 import contextlib
+import copy
 import inspect
 from dataclasses import dataclass
 from enum import Enum, EnumMeta
@@ -521,6 +522,13 @@ def for_each_impl(mlem_abc: Type[MlemABC]):
         return f
 
     return inner
+
+
+def make_not_required(option: TyperOption):
+    option = copy.deepcopy(option)
+    option.required = False
+    option.default = None
+    return option
 
 
 def _iter_errors(
