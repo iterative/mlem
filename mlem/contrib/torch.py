@@ -35,9 +35,9 @@ class TorchTensorDataType(
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.Tensor,)
     shape: Tuple[Optional[int], ...]
-    """shape of `torch.Tensor` object"""
+    """Shape of `torch.Tensor` object"""
     dtype: str
-    """type name of `torch.Tensor` elements"""
+    """Type name of `torch.Tensor` elements"""
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:

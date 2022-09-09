@@ -58,7 +58,7 @@ class Requirement(MlemABC):
 class PythonRequirement(Requirement, ABC):
     type: ClassVar = "_python"
     module: str
-    """python module name"""
+    """Python module name"""
 
 
 class InstallableRequirement(PythonRequirement):
@@ -69,11 +69,11 @@ class InstallableRequirement(PythonRequirement):
     type: ClassVar[str] = "installable"
 
     module: str
-    """name of python module"""
+    """Name of python module"""
     version: Optional[str] = None
-    """version of python package"""
+    """Version of python package"""
     package_name: Optional[str] = None
-    """pip package name for this module, if it is different from module name"""
+    """Pip package name for this module, if it is different from module name"""
 
     @property
     def package(self):
@@ -141,11 +141,11 @@ class CustomRequirement(PythonRequirement):
 
     type: ClassVar[str] = "custom"
     name: str
-    """filename of this code"""
+    """Filename of this code"""
     source64zip: str
-    """zipped and base64-encoded source"""
+    """Zipped and base64-encoded source"""
     is_package: bool
-    """whether this code should be in %name%/__init__.py"""
+    """Whether this code should be in %name%/__init__.py"""
 
     @staticmethod
     def from_module(mod: ModuleType) -> "CustomRequirement":
@@ -268,9 +268,9 @@ class FileRequirement(CustomRequirement):
 
     type: ClassVar[str] = "file"
     is_package: bool = False
-    """ignored"""
+    """Ignored"""
     module: str = ""
-    """ignored"""
+    """Ignored"""
 
     def to_sources_dict(self):
         """
@@ -293,7 +293,7 @@ class UnixPackageRequirement(Requirement):
 
     type: ClassVar[str] = "unix"
     package_name: str
-    """name of the package"""
+    """Name of the package"""
 
 
 T = TypeVar("T", bound=Requirement)
@@ -305,7 +305,7 @@ class Requirements(BaseModel):
     """
 
     __root__: List[Requirement] = []
-    """list of :class:`Requirement` instances"""
+    """List of :class:`Requirement` instances"""
 
     @property
     def installable(self) -> List[InstallableRequirement]:

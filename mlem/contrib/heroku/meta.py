@@ -32,7 +32,7 @@ class HerokuAppMeta(BaseModel):
     web_url: str
     """App web url"""
     meta_info: dict
-    """additional metadata"""
+    """Additional metadata"""
 
 
 class HerokuState(DeployState):
@@ -40,11 +40,11 @@ class HerokuState(DeployState):
 
     type: ClassVar = "heroku"
     app: Optional[HerokuAppMeta]
-    """created heroku app"""
+    """Created heroku app"""
     image: Optional[DockerImage]
-    """built docker image"""
+    """Built docker image"""
     release_state: Optional[Union[dict, list]]
-    """state of the release"""
+    """State of the release"""
 
     @property
     def ensured_app(self) -> HerokuAppMeta:
@@ -63,15 +63,15 @@ class HerokuDeployment(MlemDeployment):
 
     type: ClassVar = "heroku"
     state: Optional[HerokuState]
-    """state"""
+    """State"""
     app_name: str
     """Heroku application name"""
     region: str = "us"
-    """heroku region"""
+    """Heroku region"""
     stack: str = "container"
-    """stack to use"""
+    """Stack to use"""
     team: Optional[str] = None
-    """heroku team"""
+    """Heroku team"""
 
 
 class HerokuEnv(MlemEnv[HerokuDeployment]):

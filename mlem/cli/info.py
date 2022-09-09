@@ -59,7 +59,7 @@ def ls(
         False, "-i", "--ignore-errors", help="Ignore corrupted objects"
     ),
 ):
-    """List MLEM objects inside a MLEM project (location should be [initialized](/doc/command-reference/init)).
+    """List MLEM objects inside a MLEM project.
 
 
     Examples:

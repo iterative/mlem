@@ -45,9 +45,9 @@ class TFTensorDataType(
     type: ClassVar[str] = "tf_tensor"
     valid_types: ClassVar = (tf.Tensor,)
     shape: Tuple[Optional[int], ...]
-    """shape of `tensorflow.Tensor` objects in data"""
+    """Shape of `tensorflow.Tensor` objects in data"""
     dtype: str
-    """data type of `tensorflow.Tensor` objects in data"""
+    """Data type of `tensorflow.Tensor` objects in data"""
 
     @property
     def tf_type(self):

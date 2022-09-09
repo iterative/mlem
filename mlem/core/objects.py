@@ -355,13 +355,13 @@ class MlemLink(MlemObject):
     location"""
 
     path: str
-    """path to object"""
+    """Path to object"""
     project: Optional[str] = None
-    """project URI"""
+    """Project URI"""
     rev: Optional[str] = None
-    """revision to use"""
+    """Revision to use"""
     link_type: str
-    """type of underlying object"""
+    """Type of underlying object"""
 
     object_type: ClassVar = "link"
 
@@ -594,7 +594,7 @@ class MlemModel(_WithArtifacts):
     object_type: ClassVar = "model"
     model_type_cache: Any
     model_type: ModelType
-    """framework-specific metadata"""
+    """Framework-specific metadata"""
     model_type, model_type_raw, model_type_cache = lazy_field(
         ModelType, "model_type", "model_type_cache"
     )
@@ -808,7 +808,7 @@ class MlemDeployment(MlemObject):
     model: Optional[MlemModel]
     """Model to use"""
     state: Optional[DeployState]
-    """state"""
+    """State"""
 
     def get_env(self):
         if self.env is None:

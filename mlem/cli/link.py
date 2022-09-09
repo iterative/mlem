@@ -13,7 +13,7 @@ from mlem.cli.main import (
 @mlem_command("link", section="object")
 def link(
     source: str = Argument(
-        ..., help="URI of the object you are creating a link to"
+        ..., help="URI of the MLEM object you are creating a link to"
     ),
     target: str = Argument(..., help="Path to save link object"),
     source_project: Optional[str] = Option(

@@ -187,13 +187,13 @@ def _apply_remote(
 
 
 option_output = Option(
-    None, "-o", "--output", help="Where to store the outputs."
+    None, "-o", "--output", help="Where to save inference results"
 )
 
 
 @mlem_group_callback(apply_remote, required=["data", "load"])
 def apply_remote_load(
-    data: str = Option(None, "-d", "--data", help="Path to data object"),
+    data: str = Option(None, "-d", "--data", help="Path to MLEM data object"),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     output: Optional[str] = option_output,

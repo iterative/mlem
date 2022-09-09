@@ -24,8 +24,7 @@ from mlem.runtime.server import Server
 
 serve = Typer(
     name="serve",
-    help="""Deploy the model locally using a server implementation and expose its methods as
-endpoints.
+    help="""Create an API from model methods using a server implementation.
 
     Examples:
         $ mlem serve fastapi https://github.com/iterative/example-mlem/models/logreg
@@ -39,7 +38,7 @@ app.add_typer(serve)
 @mlem_group_callback(serve, required=["model", "load"])
 def serve_load(
     model: str = Option(
-        None, "-m", "--model", help="Model to create service from"
+        None, "-m", "--model", help="Path to MLEM model object"
     ),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,

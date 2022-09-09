@@ -4,8 +4,8 @@ import pytest
 from pydantic import BaseModel
 
 from mlem.cli.types import iterate_type_fields
-from mlem.cli.utils import get_field_help
-from mlem.core.base import MlemABC
+from mlem.cli.utils import get_attribute_docstrings, get_field_help
+from mlem.core.base import MlemABC, load_impl_ext
 from mlem.utils.entrypoints import list_implementations
 from tests.cli.conftest import Runner
 
@@ -38,6 +38,27 @@ def test_types_abs_name_subtype(runner: Runner, abs_name, subtype):
     assert result.exit_code == 0, result.exception
     if not subtype.startswith("tests."):
         assert "docstring missing" not in result.output
+
+
+@pytest.mark.parametrize(
+    "abs_name,subtype",
+    [
+        (abs_name, subtype)
+        for abs_name, root_type in MlemABC.abs_types.items()
+        for subtype in list_implementations(root_type, include_hidden=False)
+    ],
+)
+def test_fields_capitalized(abs_name, subtype):
+    impl = load_impl_ext(abs_name, subtype)
+    ad = get_attribute_docstrings(impl)
+    allowed_lowercase = ["md5"]
+    capitalized = {
+        k: v[0] == v[0].capitalize()
+        if all(not v.startswith(prefix) for prefix in allowed_lowercase)
+        else True
+        for k, v in ad.items()
+    }
+    assert capitalized == {k: True for k in ad}
 
 
 def test_iter_type_fields_subclass():

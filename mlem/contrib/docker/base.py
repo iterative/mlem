@@ -132,7 +132,7 @@ class RemoteRegistry(DockerRegistry):
     type: ClassVar = "remote"
     # TODO: https://github.com/iterative/mlem/issues/38 credentials
     host: Optional[str] = None
-    """address of the registry"""
+    """Address of the registry"""
 
     def login(self, client):
         """
@@ -279,9 +279,9 @@ class DockerContainerState(DeployState):
     type: ClassVar = "docker_container"
 
     image: Optional[DockerImage]
-    """built image"""
+    """Built image"""
     container_id: Optional[str]
-    """started container id"""
+    """Started container id"""
 
     def get_client(self):
         raise NotImplementedError
@@ -289,9 +289,9 @@ class DockerContainerState(DeployState):
 
 class _DockerBuildMixin(BaseModel):
     server: Server
-    """server to use"""
+    """Server to use"""
     args: DockerBuildArgs = DockerBuildArgs()
-    """additional docker arguments"""
+    """Additional docker arguments"""
 
 
 class DockerContainer(MlemDeployment, _DockerBuildMixin):
@@ -310,7 +310,7 @@ class DockerContainer(MlemDeployment, _DockerBuildMixin):
     rm: bool = True
     """Remove container on stop"""
     state: Optional[DockerContainerState] = None
-    """state"""
+    """State"""
 
     @property
     def ensure_image_name(self):
@@ -323,7 +323,7 @@ class DockerEnv(MlemEnv[DockerContainer]):
     type: ClassVar = "docker"
     deploy_type: ClassVar = DockerContainer
     registry: DockerRegistry = DockerRegistry()
-    """default registry to push images to"""
+    """Default registry to push images to"""
     daemon: DockerDaemon = DockerDaemon(host="")
     """Docker daemon parameters"""
 
@@ -454,7 +454,7 @@ class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
 
     type: ClassVar[str] = "docker_dir"
     target: str
-    """path to save result"""
+    """Path to save result"""
 
     def build(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(

@@ -24,8 +24,8 @@ from mlem.core.objects import MlemBuilder, MlemModel
 build = Typer(
     name="build",
     help="""
-        Build models to create re-usable, ship-able entities such as a Docker image or
-Python package.
+        Build models into re-usable assets you can distribute and use in production,
+such as a Docker image or Python package.
 
         Examples:
             Build docker image from model
@@ -43,7 +43,9 @@ app.add_typer(build)
 
 @mlem_group_callback(build, required=["model", "load"])
 def build_load(
-    model: str = Option(None, "-m", "--model", help="Path to model"),
+    model: str = Option(
+        None, "-m", "--model", help="Path to MLEM model object"
+    ),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     load: str = option_load("builder"),

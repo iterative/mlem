@@ -139,7 +139,7 @@ class SimpleInterface(Interface):
 
     type: ClassVar[str] = "simple"
     methods: InterfaceDescriptor = InterfaceDescriptor()
-    """interface version and methods"""
+    """Interface version and methods"""
 
     def __init__(self, **data: Any):
         methods = {}
@@ -178,7 +178,7 @@ class ModelInterface(Interface):
 
     type: ClassVar[str] = "model"
     model_type: ModelType
-    """model metadata"""
+    """Model metadata"""
 
     def load(self, uri: str):
         meta = load_meta(uri)

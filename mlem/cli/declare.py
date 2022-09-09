@@ -53,7 +53,7 @@ def create_declare_mlem_object_subcommand(
 ):
     @mlem_command(
         subtype,
-        section="Mlem Objects",
+        section="MLEM Objects",
         parent=parent,
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(subtype, parent_cls),
@@ -61,7 +61,7 @@ def create_declare_mlem_object_subcommand(
         lazy_help=lazy_class_docstring(type_name, subtype),
     )
     def subtype_command(
-        path: str = Argument(..., help="Where to save object"),
+        path: str = Argument(..., help="Where to save the object"),
         project: str = option_project,
         external: bool = option_external,
         index: bool = option_index,
