@@ -10,13 +10,13 @@ from kubernetes import config
 from sklearn.datasets import load_iris
 
 from mlem.config import project_config
-from mlem.contrib.docker.base import DockerDaemon, DockerEnv
-from mlem.contrib.docker.helpers import build_model_image
+from mlem.contrib.docker.base import DockerDaemon, DockerRegistry
 from mlem.contrib.kubernetes.base import (
     K8sDeployment,
     K8sDeploymentState,
     K8sEnv,
 )
+from mlem.contrib.kubernetes.build import build_k8s_docker
 from mlem.contrib.kubernetes.context import ImagePullPolicy, ServiceTypeEnum
 from mlem.core.objects import DeployStatus
 from tests.contrib.test_kubernetes.conftest import k8s_test
@@ -60,14 +60,13 @@ def k8s_deployment(minikube_env_variables, model_meta_saved_single):
 def docker_image(k8s_deployment):
     tmpdir = tempfile.mkdtemp()
     k8s_deployment.dump(os.path.join(tmpdir, "deploy"))
-    return build_model_image(
+    return build_k8s_docker(
         k8s_deployment.get_model(),
         k8s_deployment.image_name,
+        DockerRegistry(),
+        DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
         k8s_deployment.server or project_config(None).server,
-        DockerEnv(
-            daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default=""))
-        ),
-        force_overwrite=True,
+        platform=None,
     )
 
 

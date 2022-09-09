@@ -1,5 +1,5 @@
 import os
-from typing import ClassVar, Optional, Tuple
+from typing import ClassVar, List, Optional, Tuple
 
 from kubernetes import client, config
 
@@ -119,6 +119,8 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     """docker daemon"""
     kube_config_file_path: Optional[str] = None
     """path for kube config file of the cluster"""
+    templates_dir: List[str] = []
+    """list of dirs where templates reside"""
 
     def load_kube_config(self):
         config.load_kube_config(
@@ -164,15 +166,15 @@ class K8sEnv(MlemEnv[K8sDeployment]):
 
     registry: Optional[DockerRegistry] = None
     """docker registry"""
+    templates_dir: List[str] = []
+    """list of dirs where templates reside"""
 
     def get_registry(self, meta: K8sDeployment):
-        if self.registry is None and meta.registry is None:
+        registry = meta.registry or self.registry
+        if not registry:
             raise MlemError(
                 "registry to be used by Docker is not set or supplied"
             )
-        registry = (
-            meta.registry if meta.registry is not None else self.registry
-        )
         return registry
 
     def get_image_name(self, meta: K8sDeployment):
@@ -205,14 +207,14 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                 redeploy = True
 
             if state.deployment_name is None or redeploy:
-                k8s_yaml_builder = K8sYamlBuilder(
-                    image=state.image,
+                generator = K8sYamlGenerator(
+                    namespace=meta.namespace,
+                    image_name=state.image.name,  # type: ignore
+                    image_uri=state.image.uri,  # type: ignore
                     image_pull_policy=meta.image_pull_policy,
                     port=meta.port,
                     service_type=meta.service_type,
-                )
-                generator = K8sYamlGenerator(
-                    **k8s_yaml_builder.get_resource_args().dict()
+                    templates_dir=meta.templates_dir or self.templates_dir,
                 )
                 create_k8s_resources(generator)
 
@@ -266,30 +268,14 @@ class K8sEnv(MlemEnv[K8sDeployment]):
         return POD_STATE_MAPPING[pods_list.items[0].status.phase]
 
 
-class K8sYamlBuilder(MlemBuilder, K8sYamlBuildArgs):
+class K8sYamlBuilder(MlemBuilder, K8sYamlGenerator):
     """MlemBuilder implementation for building Kubernetes manifests/yamls"""
 
     type: ClassVar = "kubernetes"
 
-    image: DockerImage
-    """docker image"""
-
-    def get_resource_args(self):
-        return K8sYamlBuildArgs(
-            image_name=self.image.name,
-            image_uri=self.image.uri,
-            image_pull_policy=self.image_pull_policy,
-            port=self.port,
-            service_type=self.service_type,
-        )
+    target: str
+    """target path for the manifest/yaml"""
 
     def build(self, obj: MlemModel):
-        resource_args = self.get_resource_args()
-
-        generator = K8sYamlGenerator(**resource_args.dict())
-        resource_yaml = generator.generate()
-
-        generator.write("resources.yaml")
+        self.write(self.target)
         echo(EMOJI_OK + f"resources.yaml generated for {obj.basename}")
-
-        return resource_yaml
