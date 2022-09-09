@@ -1,9 +1,10 @@
 import os
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, Tuple
 
 from kubernetes import client, config
 
 from mlem.config import project_config
+from mlem.core.base import MlemABC
 from mlem.core.errors import DeploymentError, MlemError
 from mlem.core.objects import (
     DeployState,
@@ -24,7 +25,7 @@ from ..docker.base import (
     generate_docker_container_name,
 )
 from .build import build_k8s_docker
-from .context import K8sYamlBuildArgs, K8sYamlGenerator, ServiceType
+from .context import K8sYamlBuildArgs, K8sYamlGenerator, ServiceTypeEnum
 from .utils import create_k8s_resources, namespace_deleted, pod_is_running
 
 POD_STATE_MAPPING = {
@@ -34,6 +35,62 @@ POD_STATE_MAPPING = {
     "Failed": DeployStatus.CRASHED,
     "Unknown": DeployStatus.UNKNOWN,
 }
+
+
+def find_index(nodes_list, node_name):
+    for i, each_node in enumerate(nodes_list):
+        if each_node.metadata.name == node_name:
+            return i
+    return -1
+
+
+class ServiceType(MlemABC):
+
+    abs_name: ClassVar = "k8s_service_type"
+    type: ClassVar = "kubernetes"
+
+    class Config:
+        type_root = True
+
+    def get_host_and_port(
+        self, service, namespace="mlem"  # pylint: disable=unused-argument
+    ) -> Tuple[Optional[str], Optional[int]]:
+        """Returns host and port for the service in Kubernetes"""
+        return None, None
+
+
+class NodePortService(ServiceType):
+
+    type: ClassVar = "k8s_nodeport_service"
+
+    def get_host_and_port(self, service, namespace="mlem"):
+        host, port = None, None
+        port = service.items[0].spec.ports[0].node_port
+        node_name = (
+            client.CoreV1Api()
+            .list_namespaced_pod(namespace)
+            .items[0]
+            .spec.node_name
+        )
+        node_list = client.CoreV1Api().list_node().items
+        node_index = find_index(node_list, node_name)
+        address_dict = node_list[node_index].status.addresses
+        for each_address in address_dict:
+            if each_address.type == "ExternalDNS":
+                host = each_address.address
+        return host, port
+
+
+class LoadBalancerService(ServiceType):
+
+    type: ClassVar = "k8s_loadbalancer_service"
+
+    def get_host_and_port(self, service, namespace="mlem"):
+        host, port = None, None
+        port = service.items[0].spec.ports[0].port
+        ingress = service.items[0].status.load_balancer.ingress[0]
+        host = ingress.hostname or ingress.ip
+        return host, port
 
 
 class K8sDeploymentState(DeployState):
@@ -69,38 +126,20 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
             or os.getenv("KUBECONFIG", default="~/.kube/config")
         )
 
-    def find_index(self, nodes_list, node_name):
-        for i, each_node in enumerate(nodes_list):
-            if each_node.metadata.name == node_name:
-                return i
-        return -1
-
     def _get_client(self, state: K8sDeploymentState) -> Client:
         host, port = None, None
         self.load_kube_config()
         service = client.CoreV1Api().list_namespaced_service(self.namespace)
         try:
-            if self.service_type == ServiceType.node_port:
-                port = service.items[0].spec.ports[0].node_port
-                node_name = (
-                    client.CoreV1Api()
-                    .list_namespaced_pod(self.namespace)
-                    .items[0]
-                    .spec.node_name
+            if self.service_type == ServiceTypeEnum.node_port:
+                host, port = NodePortService().get_host_and_port(
+                    service, self.namespace
                 )
-                node_list = client.CoreV1Api().list_node().items
-                node_index = self.find_index(node_list, node_name)
-                address_dict = node_list[node_index].status.addresses
-                for each_address in address_dict:
-                    if each_address.type == "ExternalDNS":
-                        host = each_address.address
-            elif self.service_type == ServiceType.load_balancer:
-                port = service.items[0].spec.ports[0].port
-                ingress = service.items[0].status.load_balancer.ingress[0]
-                host = ingress.hostname or ingress.ip
+            elif self.service_type == ServiceTypeEnum.load_balancer:
+                host, port = LoadBalancerService().get_host_and_port(service)
             else:
                 raise ValueError(
-                    f"service_type supplied is {self.service_type}, valid values are {[e.value for e in ServiceType]} only"
+                    f"service_type supplied is {self.service_type}, valid values are {[e.value for e in ServiceTypeEnum]} only"
                 )
         except (IndexError, ValueError, TypeError) as e:
             print("Couldn't determine host and port from the service deployed")

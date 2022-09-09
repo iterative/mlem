@@ -17,12 +17,9 @@ from mlem.contrib.kubernetes.base import (
     K8sDeploymentState,
     K8sEnv,
 )
-from mlem.contrib.kubernetes.context import ImagePullPolicy, ServiceType
+from mlem.contrib.kubernetes.context import ImagePullPolicy, ServiceTypeEnum
 from mlem.core.objects import DeployStatus
-from tests.contrib.test_kubernetes.conftest import (
-    is_minikube_running,
-    k8s_test,
-)
+from tests.contrib.test_kubernetes.conftest import k8s_test
 from tests.contrib.test_kubernetes.utils import Command
 
 
@@ -45,10 +42,7 @@ def minikube_env_variables():
 
 @pytest.fixture
 def load_kube_config():
-    if is_minikube_running():
-        config.load_kube_config(
-            os.getenv("KUBECONFIG", default="~/.kube/config")
-        )
+    config.load_kube_config(os.getenv("KUBECONFIG", default="~/.kube/config"))
 
 
 @pytest.fixture
@@ -57,7 +51,7 @@ def k8s_deployment(minikube_env_variables, model_meta_saved_single):
         name="ml",
         model=model_meta_saved_single.make_link(),
         image_pull_policy=ImagePullPolicy.never,
-        service_type=ServiceType.load_balancer,
+        service_type=ServiceTypeEnum.load_balancer,
         daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
     )
 

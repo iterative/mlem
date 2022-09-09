@@ -16,7 +16,7 @@ class ImagePullPolicy(str, Enum):
     if_not_present = "IfNotPresent"
 
 
-class ServiceType(str, Enum):
+class ServiceTypeEnum(str, Enum):
     cluster_ip = "ClusterIP"
     node_port = "NodePort"
     load_balancer = "LoadBalancer"
@@ -33,7 +33,7 @@ class K8sYamlBuildArgs(BaseModel):
     image_uri: str = "ml:latest"
     image_pull_policy: ImagePullPolicy = ImagePullPolicy.always
     port: int = 8080
-    service_type: ServiceType = ServiceType.node_port
+    service_type: ServiceTypeEnum = ServiceTypeEnum.node_port
 
 
 class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):

@@ -4,7 +4,7 @@ from mlem.contrib.kubernetes.context import (
     ImagePullPolicy,
     K8sYamlBuildArgs,
     K8sYamlGenerator,
-    ServiceType,
+    ServiceTypeEnum,
 )
 from tests.conftest import _cut_empty_lines
 
@@ -129,7 +129,7 @@ def test_k8s_yaml_build_args(k8s_manifest):
         image_uri="test:latest",
         image_pull_policy=ImagePullPolicy.never,
         port=8080,
-        service_type=ServiceType.load_balancer,
+        service_type=ServiceTypeEnum.load_balancer,
     )
     assert _generate_k8s_manifest(**build_args.dict()) == k8s_manifest
 

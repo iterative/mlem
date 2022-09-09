@@ -18,8 +18,7 @@ def is_minikube_running() -> bool:
             )
             client.CoreV1Api().list_namespaced_pod("default")
             return True
-        else:
-            return False
+        return False
     except (config.config_exception.ConfigException, ConnectionRefusedError):
         return False
 
