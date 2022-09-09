@@ -137,6 +137,10 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
                 )
             elif self.service_type == ServiceTypeEnum.load_balancer:
                 host, port = LoadBalancerService().get_host_and_port(service)
+            elif self.service_type == ServiceTypeEnum.cluster_ip:
+                raise TypeError(
+                    "Cannot expose service of type ClusterIP outside the Kubernetes Cluster"
+                )
             else:
                 raise ValueError(
                     f"service_type supplied is {self.service_type}, valid values are {[e.value for e in ServiceTypeEnum]} only"
