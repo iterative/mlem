@@ -278,4 +278,4 @@ class K8sYamlBuilder(MlemBuilder, K8sYamlGenerator):
 
     def build(self, obj: MlemModel):
         self.write(self.target)
-        echo(EMOJI_OK + f"resources.yaml generated for {obj.basename}")
+        echo(EMOJI_OK + f"{self.target} generated for {obj.basename}")
