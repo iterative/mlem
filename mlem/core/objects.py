@@ -515,6 +515,7 @@ class MlemLink(MlemObject):
 class TypedLink(MlemLink, ABC):
     """Base class for specific type link classes"""
 
+    __abstract__: ClassVar = True
     object_type: ClassVar = "_typed_link"
     _link_type: ClassVar
 
