@@ -22,27 +22,35 @@ def create_k8s_resources(generator: K8sYamlGenerator):
                     raise e
                 else:
                     if error_info["details"]["kind"] == "deployments":
-                        api_instance = client.AppsV1Api()
-                        body = {
-                            "spec": {
-                                "template": {
-                                    "spec": {
-                                        "containers": [
-                                            {
-                                                "name": generator.image_name,
-                                                "image": generator.image_uri,
-                                            }
-                                        ]
+                        existing_image_uri = (
+                            client.CoreV1Api()
+                            .list_namespaced_pod(generator.namespace)
+                            .items[0]
+                            .spec.containers[0]
+                            .image
+                        )
+                        if existing_image_uri != generator.image_uri:
+                            api_instance = client.AppsV1Api()
+                            body = {
+                                "spec": {
+                                    "template": {
+                                        "spec": {
+                                            "containers": [
+                                                {
+                                                    "name": generator.image_name,
+                                                    "image": generator.image_uri,
+                                                }
+                                            ]
+                                        }
                                     }
                                 }
                             }
-                        }
-                        api_instance.patch_namespaced_deployment(
-                            generator.image_name,
-                            generator.namespace,
-                            body,
-                            pretty=True,
-                        )
+                            api_instance.patch_namespaced_deployment(
+                                generator.image_name,
+                                generator.namespace,
+                                body,
+                                pretty=True,
+                            )
 
 
 def pod_is_running(namespace, timeout=60) -> bool:
