@@ -29,8 +29,8 @@ def create_k8s_resources(generator: K8sYamlGenerator):
                                     "spec": {
                                         "containers": [
                                             {
-                                                "name": f"{generator.image_name}",
-                                                "image": f"{generator.image_uri}",
+                                                "name": generator.image_name,
+                                                "image": generator.image_uri,
                                             }
                                         ]
                                     }
