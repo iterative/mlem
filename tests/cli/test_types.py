@@ -46,6 +46,7 @@ def test_types_abs_name_subtype(runner: Runner, abs_name, subtype):
         (abs_name, subtype)
         for abs_name, root_type in MlemABC.abs_types.items()
         for subtype in list_implementations(root_type, include_hidden=False)
+        if not subtype.startswith("tests.")
     ],
 )
 def test_fields_capitalized(abs_name, subtype):
