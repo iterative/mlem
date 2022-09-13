@@ -285,7 +285,7 @@ class DockerContainerState(DeployState):
     container_name: Optional[str]
     """Name of container"""
     container_id: Optional[str]
-    """started container id"""
+    """Started container id"""
 
 
 class _DockerBuildMixin(BaseModel):
