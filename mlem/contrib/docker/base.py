@@ -292,7 +292,7 @@ class _DockerBuildMixin(BaseModel):
     server: Optional[Server] = None
     """Server to use"""
     args: DockerBuildArgs = DockerBuildArgs()
-    """additional docker arguments"""
+    """Additional docker arguments"""
 
 
 def generate_docker_container_name():
