@@ -43,7 +43,7 @@ option_output = Option(
     None,
     "-o",
     "--output",
-    help="Where to save model outputs.",
+    help="Where to save model outputs",
     metavar=PATH_METAVAR,
 )
 option_import = Option(
@@ -63,7 +63,7 @@ option_batch_size = Option(
     None,
     "-b",
     "--batch_size",
-    help="Batch size for reading data in batches.",
+    help="Batch size for reading data in batches",
 )
 
 
