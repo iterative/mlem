@@ -18,7 +18,8 @@ from mlem.contrib.kubernetes.base import (
     K8sEnv,
 )
 from mlem.contrib.kubernetes.build import build_k8s_docker
-from mlem.contrib.kubernetes.context import ImagePullPolicy, ServiceTypeEnum
+from mlem.contrib.kubernetes.context import ImagePullPolicy
+from mlem.contrib.kubernetes.service import LoadBalancerService
 from mlem.core.objects import DeployStatus
 from tests.contrib.test_kubernetes.conftest import k8s_test
 from tests.contrib.test_kubernetes.utils import Command
@@ -60,7 +61,7 @@ def k8s_deployment(minikube_env_variables, model_meta):
         name="ml",
         model=model_meta.make_link(),
         image_pull_policy=ImagePullPolicy.never,
-        service_type=ServiceTypeEnum.load_balancer,
+        service_type=LoadBalancerService(),
         daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
     )
 

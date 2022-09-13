@@ -5,6 +5,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
+from mlem.contrib.kubernetes.service import NodePortService, ServiceType
 from mlem.utils.templates import TemplateModel
 
 logger = logging.getLogger(__name__)
@@ -14,12 +15,6 @@ class ImagePullPolicy(str, Enum):
     always = "Always"
     never = "Never"
     if_not_present = "IfNotPresent"
-
-
-class ServiceTypeEnum(str, Enum):
-    cluster_ip = "ClusterIP"
-    node_port = "NodePort"
-    load_balancer = "LoadBalancer"
 
 
 class K8sYamlBuildArgs(BaseModel):
@@ -38,7 +33,7 @@ class K8sYamlBuildArgs(BaseModel):
     """Image pull policy for the docker image to be deployed"""
     port: int = 8080
     """Port where the service should be available"""
-    service_type: ServiceTypeEnum = ServiceTypeEnum.node_port
+    service_type: ServiceType = NodePortService()
     """Type of service by which endpoints of the model are exposed"""
 
 
@@ -55,5 +50,6 @@ class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
         logger.debug('Docker image is based on "%s".', self.image_uri)
 
         k8s_yaml_args = self.dict()
+        k8s_yaml_args["service_type"] = self.service_type.get_string()
         k8s_yaml_args.pop("templates_dir")
         return k8s_yaml_args
