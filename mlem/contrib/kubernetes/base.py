@@ -257,7 +257,7 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                         )
                     )
 
-                    if not len(deployments_list.items):
+                    if len(deployments_list.items) == 0:
                         raise DeploymentError(
                             f"Deployment {image_name} couldn't be found in {meta.namespace} namespace"
                         )
