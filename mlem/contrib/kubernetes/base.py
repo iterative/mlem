@@ -26,7 +26,7 @@ from ..docker.base import (
     generate_docker_container_name,
 )
 from .build import build_k8s_docker
-from .context import K8sYamlBuildArgs, K8sYamlGenerator, ServiceTypeEnum
+from .context import K8sYamlBuildArgs, K8sYamlGenerator
 from .utils import create_k8s_resources, namespace_deleted, pod_is_running
 
 POD_STATE_MAPPING = {
