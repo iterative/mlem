@@ -65,7 +65,7 @@ def explain_type(cls: Type[BaseModel]):
 def list_types(
     abc: Optional[str] = Argument(
         None,
-        help="Subtype to list implementations. List subtypes if not provided",
+        help="Subtype to list implementations. List subtypes if not provided.",
     ),
     sub_type: Optional[str] = Argument(None, help="Type of `meta` subtype"),
 ):
