@@ -29,11 +29,17 @@ class K8sYamlBuildArgs(BaseModel):
         use_enum_values = True
 
     namespace: str = "mlem"
+    """namespace to create kubernetes resources such as pods, service in"""
     image_name: str = "ml"
+    """name of the docker image to be deployed"""
     image_uri: str = "ml:latest"
+    """URI of the docker image to be deployed"""
     image_pull_policy: ImagePullPolicy = ImagePullPolicy.always
+    """image pull policy for the docker image to be deployed"""
     port: int = 8080
+    """port where the service should be available"""
     service_type: ServiceTypeEnum = ServiceTypeEnum.node_port
+    """type of service by which endpoints of the model are exposed"""
 
 
 class K8sYamlGenerator(K8sYamlBuildArgs, TemplateModel):
