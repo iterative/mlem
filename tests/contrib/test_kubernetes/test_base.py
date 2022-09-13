@@ -2,13 +2,14 @@ import os
 import re
 import subprocess
 import tempfile
-import time
 
 import numpy as np
 import pytest
 from kubernetes import config
 from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier
 
+from mlem.api import save
 from mlem.config import project_config
 from mlem.contrib.docker.base import DockerDaemon, DockerRegistry
 from mlem.contrib.kubernetes.base import (
@@ -23,7 +24,7 @@ from tests.contrib.test_kubernetes.conftest import k8s_test
 from tests.contrib.test_kubernetes.utils import Command
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def minikube_env_variables():
     old_environ = dict(os.environ)
     output = subprocess.check_output(
@@ -45,18 +46,26 @@ def load_kube_config():
     config.load_kube_config(os.getenv("KUBECONFIG", default="~/.kube/config"))
 
 
-@pytest.fixture
-def k8s_deployment(minikube_env_variables, model_meta_saved_single):
+@pytest.fixture(scope="session")
+def model_meta(tmp_path_factory):
+    path = os.path.join(tmp_path_factory.getbasetemp(), "saved-model-single")
+    train, target = load_iris(return_X_y=True)
+    model = DecisionTreeClassifier().fit(train, target)
+    return save(model, path, sample_data=train)
+
+
+@pytest.fixture(scope="session")
+def k8s_deployment(minikube_env_variables, model_meta):
     return K8sDeployment(
         name="ml",
-        model=model_meta_saved_single.make_link(),
+        model=model_meta.make_link(),
         image_pull_policy=ImagePullPolicy.never,
         service_type=ServiceTypeEnum.load_balancer,
         daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def docker_image(k8s_deployment):
     tmpdir = tempfile.mkdtemp()
     k8s_deployment.dump(os.path.join(tmpdir, "deploy"))
@@ -71,10 +80,10 @@ def docker_image(k8s_deployment):
 
 
 @pytest.fixture
-def k8s_deployment_state(docker_image, model_meta_saved_single):
+def k8s_deployment_state(docker_image, model_meta):
     return K8sDeploymentState(
         image=docker_image,
-        model_hash=model_meta_saved_single.meta_hash(),
+        model_hash=model_meta.meta_hash(),
     )
 
 
@@ -102,9 +111,6 @@ def test_deploy(
     assert k8s_env.get_status(k8s_deployment) == DeployStatus.RUNNING
     k8s_env.remove(k8s_deployment)
     assert k8s_env.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
-    with k8s_deployment.daemon.client() as client:
-        k8s_deployment_state.image.delete(client, force=True)
-    time.sleep(5)
 
 
 @k8s_test

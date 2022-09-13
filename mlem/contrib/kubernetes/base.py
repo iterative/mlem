@@ -65,31 +65,37 @@ class NodePortService(ServiceType):
     type: ClassVar = "nodeport"
 
     def get_host_and_port(self, service, namespace="mlem"):
-        host, port = None, None
-        port = service.items[0].spec.ports[0].node_port
-        node_name = (
-            client.CoreV1Api()
-            .list_namespaced_pod(namespace)
-            .items[0]
-            .spec.node_name
-        )
+        try:
+            port = service.items[0].spec.ports[0].node_port
+        except (IndexError, AttributeError) as e:
+            raise MlemError(
+                "Couldn't determine node port of the deployed service"
+            ) from e
+        try:
+            node_name = (
+                client.CoreV1Api()
+                .list_namespaced_pod(namespace)
+                .items[0]
+                .spec.node_name
+            )
+        except (IndexError, AttributeError) as e:
+            raise MlemError(
+                "Couldn't determine name of the node where the pod is deployed"
+            ) from e
         node_list = client.CoreV1Api().list_node().items
         node_index = find_index(node_list, node_name)
         if node_index == -1:
-            raise DeploymentError(
+            raise MlemError(
                 f"Couldn't find the node where pods in namespace {namespace} exists"
             )
         address_dict = node_list[node_index].status.addresses
-        external_ip_found = False
         for each_address in address_dict:
             if each_address.type == "ExternalIP":
                 host = each_address.address
-                external_ip_found = True
-        if not external_ip_found:
-            raise EndpointNotFound(
-                f"Node {node_name} doesn't have an externally reachable IP address"
-            )
-        return host, port
+                return host, port
+        raise EndpointNotFound(
+            f"Node {node_name} doesn't have an externally reachable IP address"
+        )
 
 
 class LoadBalancerService(ServiceType):
@@ -97,10 +103,19 @@ class LoadBalancerService(ServiceType):
     type: ClassVar = "loadbalancer"
 
     def get_host_and_port(self, service, namespace="mlem"):
-        host, port = None, None
-        port = service.items[0].spec.ports[0].port
-        ingress = service.items[0].status.load_balancer.ingress[0]
-        host = ingress.hostname or ingress.ip
+        try:
+            port = service.items[0].spec.ports[0].port
+        except (IndexError, AttributeError) as e:
+            raise MlemError(
+                "Couldn't determine port of the deployed service"
+            ) from e
+        try:
+            ingress = service.items[0].status.load_balancer.ingress[0]
+            host = ingress.hostname or ingress.ip
+        except (IndexError, AttributeError) as e:
+            raise MlemError(
+                "Couldn't determine IP address of the deployed service"
+            ) from e
         return host, port
 
 
@@ -109,7 +124,7 @@ class ClusterIPService(ServiceType):
     type: ClassVar = "clusterip"
 
     def get_host_and_port(self, service, namespace="mlem"):
-        raise TypeError(
+        raise MlemError(
             "Cannot expose service of type ClusterIP outside the Kubernetes Cluster"
         )
 
@@ -161,13 +176,13 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
             host, port = self.service_type_spec.get_host_and_port(
                 service, self.namespace
             )
-        except (IndexError, ValueError, TypeError, AttributeError) as e:
+        except MlemError as e:
             raise EndpointNotFound(
                 "Couldn't determine host and port from the service deployed"
             ) from e
         if host is not None and port is not None:
             return HTTPClient(host=host, port=port)
-        raise TypeError(
+        raise MlemError(
             f"host and port determined are not valid, received host as {host} and port as {port}"
         )
 
@@ -221,11 +236,13 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                 meta.update_model_hash(state=state)
                 redeploy = True
 
-            if state.deployment_name is None or redeploy:
+            if (
+                state.deployment_name is None or redeploy
+            ) and state.image is not None:
                 generator = K8sYamlGenerator(
                     namespace=meta.namespace,
-                    image_name=state.image.name,  # type: ignore
-                    image_uri=state.image.uri,  # type: ignore
+                    image_name=state.image.name,
+                    image_uri=state.image.uri,
                     image_pull_policy=meta.image_pull_policy,
                     port=meta.port,
                     service_type=meta.service_type,
@@ -240,19 +257,18 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                         )
                     )
 
-                    if len(deployments_list.items):
-                        dpl_name = deployments_list.items[0].metadata.name
-                        state.deployment_name = dpl_name
-                        meta.update_state(state)
-
-                        echo(
-                            EMOJI_OK
-                            + f"Deployment {state.deployment_name} is up in {meta.namespace} namespace"
-                        )
-                    else:
+                    if not len(deployments_list.items):
                         raise DeploymentError(
                             f"Deployment {image_name} couldn't be found in {meta.namespace} namespace"
                         )
+                    dpl_name = deployments_list.items[0].metadata.name
+                    state.deployment_name = dpl_name
+                    meta.update_state(state)
+
+                    echo(
+                        EMOJI_OK
+                        + f"Deployment {state.deployment_name} is up in {meta.namespace} namespace"
+                    )
                 else:
                     raise DeploymentError(
                         f"Deployment {image_name} couldn't be set-up on the Kubernetes cluster"
