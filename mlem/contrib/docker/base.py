@@ -290,7 +290,7 @@ class DockerContainerState(DeployState):
 
 class _DockerBuildMixin(BaseModel):
     server: Optional[Server] = None
-    """server to use"""
+    """Server to use"""
     args: DockerBuildArgs = DockerBuildArgs()
     """additional docker arguments"""
 
