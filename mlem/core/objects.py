@@ -962,7 +962,7 @@ class LocalFileStateManager(StateManager):
 
 
 class FSSpecStateManager(StateManager):
-    """StateMagers that stores state as yaml file in fsspec-supported filesystem"""
+    """StateManager that stores state as yaml file in fsspec-supported filesystem"""
 
     type: ClassVar = "fsspec"
 
