@@ -48,7 +48,10 @@ def ls(
         help="Type of objects to list",
     ),
     project: str = Argument(
-        "", help="Project to list from", show_default="current directory"
+        "",
+        help="Project to list from",
+        show_default="current directory",
+        metavar="project",
     ),
     rev: Optional[str] = option_rev,
     links: bool = Option(

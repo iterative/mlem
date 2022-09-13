@@ -37,7 +37,8 @@ from mlem.core.errors import MlemError
 from mlem.telemetry import telemetry
 from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
 
-PATH_METAVAR = "<path>"
+PATH_METAVAR = "path"
+COMMITISH_METAVAR = "commitish"
 
 
 class MlemFormatter(HelpFormatter):
@@ -470,7 +471,7 @@ option_method = Option(
     "--method",
     help="Which model method is to be applied",
 )
-option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
+option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none", metavar=COMMITISH_METAVAR)  # type: ignore
 option_index = Option(
     None,
     "--index/--no-index",
@@ -500,9 +501,7 @@ option_data_project = Option(
     help="Project with data",
 )
 option_data_rev = Option(
-    None,
-    "--data-rev",
-    help="Revision of data",
+    None, "--data-rev", help="Revision of data", metavar=COMMITISH_METAVAR
 )
 option_model = Option(
     ...,

@@ -47,7 +47,11 @@ def apply(
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     output: Optional[str] = Option(
-        None, "-o", "--output", help="Where to store the outputs."
+        None,
+        "-o",
+        "--output",
+        help="Where to store the outputs.",
+        metavar=PATH_METAVAR,
     ),
     method: str = option_method,
     data_project: Optional[str] = option_data_project,
