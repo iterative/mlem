@@ -66,7 +66,7 @@ class HerokuDeployment(MlemDeployment):
     stack: str = "container"
     """stack to use"""
     team: Optional[str] = None
-    """heroku team"""
+    """Heroku team"""
 
     def _get_client(self, state: HerokuState) -> Client:
         return HTTPClient(
