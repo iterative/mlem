@@ -65,4 +65,4 @@ class SageMakerServer(FastAPIServer):
         return app
 
     def get_env_vars(self) -> Dict[str, str]:
-        return {"SAGAMAKER_METHOD": self.method}
+        return {"SAGEMAKER_METHOD": self.method}
