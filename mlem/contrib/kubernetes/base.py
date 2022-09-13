@@ -46,6 +46,7 @@ def find_index(nodes_list, node_name):
 
 
 class ServiceType(MlemABC):
+    """Service Type for services inside a Kubernetes Cluster"""
 
     abs_name: ClassVar = "k8s_service_type"
     type: ClassVar = "kubernetes"
@@ -61,6 +62,7 @@ class ServiceType(MlemABC):
 
 
 class NodePortService(ServiceType):
+    """NodePort Service implementation for service inside a Kubernetes Cluster"""
 
     type: ClassVar = "nodeport"
 
@@ -99,6 +101,7 @@ class NodePortService(ServiceType):
 
 
 class LoadBalancerService(ServiceType):
+    """LoadBalancer Service implementation for service inside a Kubernetes Cluster"""
 
     type: ClassVar = "loadbalancer"
 
@@ -120,6 +123,7 @@ class LoadBalancerService(ServiceType):
 
 
 class ClusterIPService(ServiceType):
+    """ClusterIP Service implementation for service inside a Kubernetes Cluster"""
 
     type: ClassVar = "clusterip"
 
