@@ -915,7 +915,7 @@ class StateManager(MlemABC):
 
 
 class LocalFileStateManager(StateManager):
-    """StateMagers that stores state as yaml file locally"""
+    """StateManager that stores state as yaml file locally"""
 
     type: ClassVar = "local"
 
