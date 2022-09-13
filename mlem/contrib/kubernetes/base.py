@@ -2,10 +2,11 @@ import os
 from typing import ClassVar, List, Optional, Tuple
 
 from kubernetes import client, config
+from pydantic import parse_obj_as
 
 from mlem.config import project_config
 from mlem.core.base import MlemABC
-from mlem.core.errors import DeploymentError, MlemError
+from mlem.core.errors import DeploymentError, EndpointNotFound, MlemError
 from mlem.core.objects import (
     DeployState,
     DeployStatus,
@@ -61,7 +62,7 @@ class ServiceType(MlemABC):
 
 class NodePortService(ServiceType):
 
-    type: ClassVar = "k8s_nodeport_service"
+    type: ClassVar = "nodeport"
 
     def get_host_and_port(self, service, namespace="mlem"):
         host, port = None, None
@@ -74,16 +75,26 @@ class NodePortService(ServiceType):
         )
         node_list = client.CoreV1Api().list_node().items
         node_index = find_index(node_list, node_name)
+        if node_index == -1:
+            raise DeploymentError(
+                f"Couldn't find the node where pods in namespace {namespace} exists"
+            )
         address_dict = node_list[node_index].status.addresses
+        external_ip_found = False
         for each_address in address_dict:
-            if each_address.type == "ExternalDNS":
+            if each_address.type == "ExternalIP":
                 host = each_address.address
+                external_ip_found = True
+        if not external_ip_found:
+            raise EndpointNotFound(
+                f"Node {node_name} doesn't have an externally reachable IP address"
+            )
         return host, port
 
 
 class LoadBalancerService(ServiceType):
 
-    type: ClassVar = "k8s_loadbalancer_service"
+    type: ClassVar = "loadbalancer"
 
     def get_host_and_port(self, service, namespace="mlem"):
         host, port = None, None
@@ -91,6 +102,16 @@ class LoadBalancerService(ServiceType):
         ingress = service.items[0].status.load_balancer.ingress[0]
         host = ingress.hostname or ingress.ip
         return host, port
+
+
+class ClusterIPService(ServiceType):
+
+    type: ClassVar = "clusterip"
+
+    def get_host_and_port(self, service, namespace="mlem"):
+        raise TypeError(
+            "Cannot expose service of type ClusterIP outside the Kubernetes Cluster"
+        )
 
 
 class K8sDeploymentState(DeployState):
@@ -122,6 +143,10 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
     templates_dir: List[str] = []
     """list of dirs where templates reside"""
 
+    @property
+    def service_type_spec(self) -> ServiceType:
+        return parse_obj_as(ServiceType, {"type": self.service_type.lower()})
+
     def load_kube_config(self):
         config.load_kube_config(
             config_file=self.kube_config_file_path
@@ -133,23 +158,13 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
         self.load_kube_config()
         service = client.CoreV1Api().list_namespaced_service(self.namespace)
         try:
-            if self.service_type == ServiceTypeEnum.node_port:
-                host, port = NodePortService().get_host_and_port(
-                    service, self.namespace
-                )
-            elif self.service_type == ServiceTypeEnum.load_balancer:
-                host, port = LoadBalancerService().get_host_and_port(service)
-            elif self.service_type == ServiceTypeEnum.cluster_ip:
-                raise TypeError(
-                    "Cannot expose service of type ClusterIP outside the Kubernetes Cluster"
-                )
-            else:
-                raise ValueError(
-                    f"service_type supplied is {self.service_type}, valid values are {[e.value for e in ServiceTypeEnum]} only"
-                )
-        except (IndexError, ValueError, TypeError) as e:
-            print("Couldn't determine host and port from the service deployed")
-            raise e
+            host, port = self.service_type_spec.get_host_and_port(
+                service, self.namespace
+            )
+        except (IndexError, ValueError, TypeError, AttributeError) as e:
+            raise EndpointNotFound(
+                "Couldn't determine host and port from the service deployed"
+            ) from e
         if host is not None and port is not None:
             return HTTPClient(host=host, port=port)
         raise TypeError(
@@ -233,6 +248,10 @@ class K8sEnv(MlemEnv[K8sDeployment]):
                         echo(
                             EMOJI_OK
                             + f"Deployment {state.deployment_name} is up in {meta.namespace} namespace"
+                        )
+                    else:
+                        raise DeploymentError(
+                            f"Deployment {image_name} couldn't be found in {meta.namespace} namespace"
                         )
                 else:
                     raise DeploymentError(
