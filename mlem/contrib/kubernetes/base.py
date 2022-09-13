@@ -149,18 +149,18 @@ class K8sDeployment(MlemDeployment, K8sYamlBuildArgs):
 
     type: ClassVar = "kubernetes"
     state_type: ClassVar = K8sDeploymentState
-    """type of state for Kubernetes deployments"""
+    """Type of state for Kubernetes deployments"""
 
     server: Optional[Server] = None
-    """type of Server to use, with options such as FastAPI, RabbitMQ etc."""
+    """Type of Server to use, with options such as FastAPI, RabbitMQ etc."""
     registry: Optional[DockerRegistry] = DockerRegistry()
-    """docker registry"""
+    """Docker registry"""
     daemon: Optional[DockerDaemon] = DockerDaemon(host="")
-    """docker daemon"""
+    """Docker daemon"""
     kube_config_file_path: Optional[str] = None
-    """path for kube config file of the cluster"""
+    """Path for kube config file of the cluster"""
     templates_dir: List[str] = []
-    """list of dirs where templates reside"""
+    """List of dirs where templates reside"""
 
     @property
     def service_type_spec(self) -> ServiceType:
@@ -196,12 +196,12 @@ class K8sEnv(MlemEnv[K8sDeployment]):
 
     type: ClassVar = "kubernetes"
     deploy_type: ClassVar = K8sDeployment
-    """type of deployment being used for the Kubernetes environment"""
+    """Type of deployment being used for the Kubernetes environment"""
 
     registry: Optional[DockerRegistry] = None
-    """docker registry"""
+    """Docker registry"""
     templates_dir: List[str] = []
-    """list of dirs where templates reside"""
+    """List of dirs where templates reside"""
 
     def get_registry(self, meta: K8sDeployment):
         registry = meta.registry or self.registry
@@ -313,7 +313,7 @@ class K8sYamlBuilder(MlemBuilder, K8sYamlGenerator):
     type: ClassVar = "kubernetes"
 
     target: str
-    """target path for the manifest/yaml"""
+    """Target path for the manifest/yaml"""
 
     def build(self, obj: MlemModel):
         self.write(self.target)
