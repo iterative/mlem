@@ -281,7 +281,7 @@ class DockerContainerState(DeployState):
     type: ClassVar = "docker_container"
 
     image: Optional[DockerImage]
-    """built image"""
+    """Built image"""
     container_name: Optional[str]
     """Name of container"""
     container_id: Optional[str]
