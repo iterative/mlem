@@ -89,7 +89,7 @@ class ECRegistry(RemoteRegistry):
         return len(images) > 0
 
     def delete_image(self, client, image: DockerImage, force=False, **kwargs):
-        self.ecr_client.batch_delete_image(
+        return self.ecr_client.batch_delete_image(
             repositoryName=image.name,
             imageIds=[{"imageTag": image.tag}],
         )
