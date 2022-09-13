@@ -39,6 +39,33 @@ from mlem.runtime.client import Client
 from mlem.ui import set_echo
 from mlem.utils.entrypoints import list_implementations
 
+option_output = Option(
+    None,
+    "-o",
+    "--output",
+    help="Where to save model outputs.",
+    metavar=PATH_METAVAR,
+)
+option_import = Option(
+    False,
+    "-i",
+    "--import",
+    help="Try to import data on-the-fly",
+)
+option_import_type = Option(
+    None,
+    "--import-type",
+    "--it",
+    # TODO: change ImportHook to MlemObject to support ext machinery
+    help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
+)
+option_batch_size = Option(
+    None,
+    "-b",
+    "--batch_size",
+    help="Batch size for reading data in batches.",
+)
+
 
 @mlem_command("apply", section="runtime")
 def apply(
@@ -46,35 +73,13 @@ def apply(
     data_path: str = Argument(..., metavar="data", help="Path to data object"),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
-    output: Optional[str] = Option(
-        None,
-        "-o",
-        "--output",
-        help="Where to store the outputs.",
-        metavar=PATH_METAVAR,
-    ),
+    output: Optional[str] = option_output,
     method: str = option_method,
     data_project: Optional[str] = option_data_project,
     data_rev: Optional[str] = option_data_rev,
-    import_: bool = Option(
-        False,
-        "-i",
-        "--import",
-        help="Try to import data on-the-fly",
-    ),
-    import_type: str = Option(
-        None,
-        "--import-type",
-        "--it",
-        # TODO: change ImportHook to MlemObject to support ext machinery
-        help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
-    ),
-    batch_size: Optional[int] = Option(
-        None,
-        "-b",
-        "--batch_size",
-        help="Batch size for reading data in batches.",
-    ),
+    import_: bool = option_import,
+    import_type: str = option_import_type,
+    batch_size: Optional[int] = option_batch_size,
     index: bool = option_index,
     external: bool = option_external,
     json: bool = option_json,
@@ -191,15 +196,6 @@ def _apply_remote(
                 DataAnalyzer.analyze(result).get_serializer().serialize(result)
             )
         )
-
-
-option_output = Option(
-    None,
-    "-o",
-    "--output",
-    help="Where to save inference results",
-    metavar=PATH_METAVAR,
-)
 
 
 @mlem_group_callback(apply_remote, required=["data", "load"])

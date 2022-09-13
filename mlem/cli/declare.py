@@ -61,7 +61,9 @@ def create_declare_mlem_object_subcommand(
         lazy_help=lazy_class_docstring(type_name, subtype),
     )
     def subtype_command(
-        path: str = Argument(..., help="Where to save the object"),
+        path: str = Argument(
+            ..., help="Where to save the object (.mlem file)"
+        ),
         project: str = option_project,
         external: bool = option_external,
         index: bool = option_index,
