@@ -8,10 +8,12 @@ from tests.contrib.test_docker.conftest import docker_test
 
 @docker_test
 def test_image_exists():
-    assert image_exists_at_dockerhub(f"python:{get_python_version()}-slim")
+    assert image_exists_at_dockerhub(
+        f"python:{get_python_version()}-slim", library=True
+    )
     assert image_exists_at_dockerhub("minio/minio:latest")
-    assert image_exists_at_dockerhub("postgres:alpine")
-    assert image_exists_at_dockerhub("registry:latest")
+    assert image_exists_at_dockerhub("postgres:alpine", library=True)
+    assert image_exists_at_dockerhub("registry:latest", library=True)
 
 
 @docker_test
@@ -25,7 +27,7 @@ def test_image_not_exists():
 
 @docker_test
 def test_repository_tags():
-    tags = repository_tags_at_dockerhub("python")
+    tags = repository_tags_at_dockerhub("python", library=True)
     assert f"{get_python_version()}-slim" in tags
     assert get_python_version() in tags
 
