@@ -23,7 +23,15 @@ from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemObject
 from mlem.telemetry import telemetry
-from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
+from mlem.ui import (
+    EMOJI_FAIL,
+    EMOJI_MLEM,
+    bold,
+    cli_echo,
+    color,
+    echo,
+    stderr_echo,
+)
 
 
 class MlemFormatter(HelpFormatter):
@@ -289,7 +297,7 @@ def mlem_command(
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
                     raise
-                with cli_echo():
+                with stderr_echo():
                     echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
                 raise typer.Exit(1)
             except ValidationError as e:
@@ -297,14 +305,14 @@ def mlem_command(
                 if ctx.obj["traceback"]:
                     raise
                 msgs = "\n".join(_format_validation_error(e))
-                with cli_echo():
+                with stderr_echo():
                     echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
                 raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
                     raise
-                with cli_echo():
+                with stderr_echo():
                     echo(
                         EMOJI_FAIL
                         + color(
