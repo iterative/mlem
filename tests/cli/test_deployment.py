@@ -43,9 +43,6 @@ class MlemDeploymentMock(MlemDeployment):
     def _get_client(self, state) -> Client:
         return HTTPClient(host="", port=None)
 
-    def _get_client(self, state) -> Client:
-        return HTTPClient(host="", port=None)
-
 
 class MlemEnvMock(MlemEnv):
     """mock"""
