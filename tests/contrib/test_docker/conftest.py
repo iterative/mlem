@@ -6,6 +6,7 @@ import pytest
 from testcontainers.core.container import DockerContainer as TestContainer
 
 from mlem.contrib.docker.base import DockerDaemon, DockerEnv, RemoteRegistry
+from mlem.contrib.docker.context import use_mlem_source
 from mlem.contrib.docker.utils import is_docker_running
 from tests.conftest import long
 
@@ -95,3 +96,9 @@ def docker_test(f):
         not has_docker(), reason="docker is unavailable or skipped"
     )
     return long(mark(skip(f)))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mlem_source():
+    with use_mlem_source("whl"):
+        yield
