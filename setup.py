@@ -20,7 +20,7 @@ install_requires = [
     "gitpython",
     "python-gitlab",
     "flatdict",
-    "iterative-telemetry==0.0.0",
+    "iterative-telemetry",
 ]
 
 tests = [
