@@ -20,7 +20,7 @@ class TemplateModel(BaseModel):
 
     def generate(self, **additional):
         j2 = Environment(
-            loader=FileSystemLoader([self.TEMPLATE_DIR] + self.templates_dir),
+            loader=FileSystemLoader(self.templates_dir + [self.TEMPLATE_DIR]),
             undefined=StrictUndefined,
         )
         template = j2.get_template(self.TEMPLATE_FILE)

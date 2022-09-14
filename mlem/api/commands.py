@@ -420,9 +420,11 @@ def deploy(
     fs: Optional[AbstractFileSystem] = None,
     external: bool = None,
     index: bool = None,
+    env_kwargs: Dict[str, Any] = None,
     **deploy_kwargs,
 ) -> MlemDeployment:
     deploy_path = None
+    update = False
     if isinstance(deploy_meta_or_path, str):
         deploy_path = deploy_meta_or_path
         try:
@@ -432,13 +434,13 @@ def deploy(
                 fs=fs,
                 force_type=MlemDeployment,
             )
+            update = True
         except MlemObjectNotFound:
             deploy_meta = None
 
     else:
         deploy_meta = deploy_meta_or_path
-        if model is not None:
-            deploy_meta.replace_model(get_model_meta(model))
+        update = True
 
     if deploy_meta is None:
         if model is None or env is None:
@@ -448,15 +450,24 @@ def deploy(
         if not deploy_path:
             raise MlemError("deploy_path cannot be empty")
         model_meta = get_model_meta(model)
-        env_meta = ensure_meta(MlemEnv, env)
-        deploy_meta = env_meta.deploy_type(
-            model=model_meta,
-            env=env_meta,
-            env_link=env_meta.make_link(),
-            model_link=model_meta.make_link(),
+        env_meta = ensure_meta(MlemEnv, env, allow_typename=True)
+        if isinstance(env_meta, type):
+            env = None
+            if env_kwargs:
+                env = env_meta(**env_kwargs)
+        deploy_type = env_meta.deploy_type
+        deploy_meta = deploy_type(
+            model_cache=model_meta,
+            model=model_meta.make_link(),
+            env=env,
             **deploy_kwargs,
         )
         deploy_meta.dump(deploy_path, fs, project, index, external)
+    else:
+        if model is not None:
+            deploy_meta.replace_model(get_model_meta(model, load_value=False))
+    if update:
+        pass  # todo update from deploy_args and env_args
     # ensuring links are working
     deploy_meta.get_env()
     deploy_meta.get_model()

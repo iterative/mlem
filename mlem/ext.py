@@ -108,6 +108,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.github", [], True),
         Extension("mlem.contrib.gitlabfs", [], True),
         Extension("mlem.contrib.bitbucketfs", [], True),
+        Extension("mlem.contrib.sagemaker", ["sagemaker", "boto3"], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}

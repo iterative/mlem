@@ -12,7 +12,11 @@ from mlem.ui import EMOJI_BASE, bold, color, echo
 from mlem.utils.entrypoints import list_abstractions, list_implementations
 
 
-def _add_examples(generator: Iterator[CliTypeField], parent_help=None):
+def _add_examples(
+    generator: Iterator[CliTypeField],
+    root_cls: Type[BaseModel],
+    parent_help=None,
+):
     for field in generator:
         field.help = parent_help or field.help
         yield field
@@ -28,13 +32,15 @@ def _add_examples(generator: Iterator[CliTypeField], parent_help=None):
                     required=False,
                     allow_none=False,
                     default=None,
+                    root_cls=root_cls,
                 ),
+                root_cls=root_cls,
                 parent_help=f"Element of {field.path}",
             )
 
 
 def type_fields_with_collection_examples(cls):
-    yield from _add_examples(iterate_type_fields(cls))
+    yield from _add_examples(iterate_type_fields(cls), root_cls=cls)
 
 
 def explain_type(cls: Type[BaseModel]):

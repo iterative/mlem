@@ -119,6 +119,21 @@ class WrongMetaType(TypeError, MlemError):
         )
 
 
+class WrongMetaSubType(TypeError, MlemError):
+    def __init__(self, meta, force_type):
+        loc = f"from {meta.loc.uri} " if meta.is_saved else ""
+        super().__init__(
+            f"Wrong type of meta loaded, got {meta.object_type} {meta.type} {loc}instead of {force_type.object_type} {force_type.type}"
+        )
+
+
+class WrongABCType(TypeError, MlemError):
+    def __init__(self, instance, expected_abc_type):
+        super().__init__(
+            f"Wrong implementation type, got {instance.type} instead of {expected_abc_type.type}"
+        )
+
+
 class DeploymentError(MlemError):
     """Thrown if something goes wrong during deployment process"""
 

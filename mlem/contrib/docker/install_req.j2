@@ -1,0 +1,4 @@
+{% if packages %}RUN {{ package_install_cmd }} {{ packages|join(" ")  }} {{ package_clean_cmd }}{% endif %}
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+{{ mlem_install }}
