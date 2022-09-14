@@ -114,47 +114,6 @@ jobs:
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
-  test-kubernetes:
-    name: K8s Test ${{ matrix.os }} with py${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.7", "3.8", "3.9"]
-        exclude:
-        # no HDF5 support installed for tables
-        - os: windows-latest
-          python: "3.9"
-      fail-fast: true
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-        ref: ${{ github.event.pull_request.head.sha || github.ref }}
-    - uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python }}
-    - name: Install
-      run: |
-        pip install --upgrade pip setuptools wheel
-        pip install pre-commit .[tests]
-    - name: Start minikube
-      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
-      uses: medyagh/setup-minikube@master
-    - name: Run K8s tests
-      timeout-minutes: 40
-      run: pytest tests/contrib/test_kubernetes/test_base.py
-      env:
-        GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        HEROKU_TEAM: iterative-sandbox
-        GITHUB_MATRIX_OS: ${{ matrix.os }}
-        GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
-        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
-        BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
   deploy:
     name: PyPI Deploy
     needs: [check, test]
