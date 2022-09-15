@@ -90,8 +90,6 @@ class MlemCommand(
     ):
         self.dynamic_metavar = dynamic_metavar
         self.dynamic_options_generator = dynamic_options_generator
-        if help is not None and "Documentation" not in help:
-            help = f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{name}>"
         self._help = help
         self.lazy_help = lazy_help
         self.pass_from_parent = pass_from_parent
@@ -165,9 +163,11 @@ class MlemCommand(
 
     @property
     def help(self):
-        if self.lazy_help:
-            return self.lazy_help()
-        return self._help
+        ctx = click.get_current_context()
+        cmd_name = get_cmd_name(ctx).replace(" ", "/")
+        docs_link = f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
+        _help = self.lazy_help() if self.lazy_help else self._help
+        return _help if "Documentation" in _help else _help + docs_link
 
     @help.setter
     def help(self, value):
