@@ -39,6 +39,10 @@ class LocationNotFound(MlemError):
     """Thrown if MLEM could not resolve location"""
 
 
+class EndpointNotFound(MlemError):
+    """Thrown if MLEM could not resolve endpoint"""
+
+
 class RevisionNotFound(LocationNotFound):
     _message = "Revision '{rev}' wasn't found in path={path}, fs={fs}"
 

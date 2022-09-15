@@ -80,6 +80,7 @@ extras = {
     "rmq": ["pika"],
     "docker": ["docker"],
     "heroku": ["docker", "fastapi", "uvicorn"],
+    "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
 }
 
@@ -163,6 +164,13 @@ setup_args = dict(  # noqa: C408
             "env.heroku = mlem.contrib.heroku.meta:HerokuEnv",
             "deploy_state.heroku = mlem.contrib.heroku.meta:HerokuState",
             "server._heroku = mlem.contrib.heroku.server:HerokuServer",
+            "deployment.kubernetes = mlem.contrib.kubernetes.base:K8sDeployment",
+            "deploy_state.kubernetes = mlem.contrib.kubernetes.base:K8sDeploymentState",
+            "env.kubernetes = mlem.contrib.kubernetes.base:K8sEnv",
+            "builder.kubernetes = mlem.contrib.kubernetes.base:K8sYamlBuilder",
+            "k8s_service_type.clusterip = mlem.contrib.kubernetes.service:ClusterIPService",
+            "k8s_service_type.loadbalancer = mlem.contrib.kubernetes.service:LoadBalancerService",
+            "k8s_service_type.nodeport = mlem.contrib.kubernetes.service:NodePortService",
             "data_reader.lightgbm = mlem.contrib.lightgbm:LightGBMDataReader",
             "data_type.lightgbm = mlem.contrib.lightgbm:LightGBMDataType",
             "data_writer.lightgbm = mlem.contrib.lightgbm:LightGBMDataWriter",
