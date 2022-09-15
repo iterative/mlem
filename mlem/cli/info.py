@@ -59,13 +59,7 @@ def ls(
         False, "-i", "--ignore-errors", help="Ignore corrupted objects"
     ),
 ):
-    """List MLEM objects inside a MLEM project (location should be [initialized](/doc/command-reference/init)).
-
-
-    Examples:
-        $ mlem list https://github.com/iterative/example-mlem
-        $ mlem list -t models
-    """
+    """List MLEM objects inside a MLEM project (location should be [initialized](/doc/command-reference/init))."""
     from mlem.api.commands import ls
 
     if type_filter == "all":
@@ -112,13 +106,6 @@ def pretty_print(
 ):
     """Display all details about a specific MLEM Object from an existing MLEM
     project.
-
-        Examples:
-            Print local object
-            $ mlem pprint mymodel
-
-            Print remote object
-            $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
     """
     with set_echo(None if json else ...):
         meta = load_meta(

@@ -14,15 +14,7 @@ def checkenv(
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
 ):
-    """Check that current environment satisfies object requrements
-
-    Examples:
-        Check local object
-        $ mlem checkenv mymodel
-
-        Check remote object
-        $ mlem checkenv https://github.com/iterative/example-mlem/models/logreg
-    """
+    """Check that current environment satisfies object requrements"""
     meta = load_meta(path, project, rev, follow_links=True, load_value=False)
     if isinstance(meta, (MlemModel, MlemData)):
         meta.checkenv()

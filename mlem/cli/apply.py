@@ -74,18 +74,6 @@ def apply(
 ):
     """Apply a model to data. The result will be saved as a MLEM object to `output` if
     provided. Otherwise, it will be printed to `stdout`.
-
-    Examples:
-        Apply local mlem model to local mlem data
-        $ mlem apply mymodel mydata --method predict --output myprediction
-
-        Apply local mlem model to local data file
-        $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
-
-        Apply a version of remote model to a version of remote data
-        $ mlem apply models/logreg --project https://github.com/iterative/example-mlem --rev main
-                     data/test_x --data-project https://github.com/iterative/example-mlem --data-rev main
-                     --method predict --output myprediction
     """
     from mlem.api import apply
 
@@ -133,10 +121,6 @@ apply_remote = Typer(
     help="""Apply a deployed-model (possibly remotely) to data. The results will be saved as
 a MLEM object to `output` if provided. Otherwise, it will be printed to
 `stdout`.
-
-    Examples:
-        Apply hosted mlem model to local mlem data
-        $ mlem apply-remote http mydata -c host="0.0.0.0" -c port=8080 --output myprediction
     """,
     cls=mlem_group("runtime"),
     subcommand_metavar="client",

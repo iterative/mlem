@@ -31,11 +31,7 @@ def config_set(
         True, help="Whether to validate config schema after"
     ),
 ):
-    """Set configuration value
-
-    Examples:
-        $ mlem config set pandas.default_format csv
-    """
+    """Set configuration value"""
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
     try:
@@ -68,12 +64,7 @@ def config_get(
     name: str = Argument(..., help="Dotted name of option"),
     project: Optional[str] = option_project,
 ):
-    """Get configuration value
-
-    Examples:
-        $ mlem config get pandas.default_format
-        $ mlem config get pandas.default_format --project https://github.com/iterative/example-mlem/
-    """
+    """Get configuration value"""
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
     with fs.open(posixpath.join(project, MLEM_DIR, CONFIG_FILE_NAME)) as f:

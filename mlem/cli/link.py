@@ -40,13 +40,6 @@ def link(
 ):
     """Create a link (read alias) for an existing MLEM Object, including from
     remote MLEM projects.
-
-        Examples:
-            Add alias to local object
-            $ mlem link my_model latest
-
-            Add remote object to your project without copy
-            $ mlem link models/logreg --source-project https://github.com/iteartive/example-mlem remote_model
     """
     from mlem.api.commands import link
 

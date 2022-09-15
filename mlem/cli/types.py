@@ -77,13 +77,6 @@ def list_types(
 ):
     """List different implementations available for a particular MLEM type. If a
     subtype is not provided, list all available MLEM types.
-
-        Examples:
-            List ABCs
-            $ mlem types
-
-            List available server implementations
-            $ mlem types server
     """
     if abc is None:
         for at in MlemABC.abs_types.values():

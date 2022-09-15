@@ -26,9 +26,6 @@ serve = Typer(
     name="serve",
     help="""Deploy the model locally using a server implementation and expose its methods as
 endpoints.
-
-    Examples:
-        $ mlem serve fastapi https://github.com/iterative/example-mlem/models/logreg
     """,
     cls=mlem_group("runtime"),
     subcommand_metavar="server",

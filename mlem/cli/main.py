@@ -28,7 +28,6 @@ from mlem.cli.utils import (
     LOAD_PARAM_NAME,
     NOT_SET,
     CallContext,
-    _extract_examples,
     _format_validation_error,
     get_extra_keys,
 )
@@ -47,13 +46,11 @@ class MlemMixin(Command):
     def __init__(
         self,
         *args,
-        examples: Optional[str],
         section: str = "other",
         aliases: List[str] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.examples = examples
         self.section = section
         self.aliases = aliases
         self.rich_help_panel = section.capitalize()
@@ -71,12 +68,6 @@ class MlemMixin(Command):
         )
         self.format_help(ctx, formatter)
         return formatter.getvalue().rstrip("\n")
-
-    def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None:
-        super().format_epilog(ctx, formatter)
-        if self.examples:
-            with formatter.section("Examples"):
-                formatter.write(self.examples)
 
 
 class MlemCommand(
@@ -99,7 +90,8 @@ class MlemCommand(
     ):
         self.dynamic_metavar = dynamic_metavar
         self.dynamic_options_generator = dynamic_options_generator
-        examples, help = _extract_examples(help)
+        if help is not None and "Documentation" not in help:
+            help = f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{name}>"
         self._help = help
         self.lazy_help = lazy_help
         self.pass_from_parent = pass_from_parent
@@ -107,7 +99,6 @@ class MlemCommand(
             name=name,
             section=section,
             aliases=aliases,
-            examples=examples,
             help=help,
             **kwargs,
         )
@@ -197,11 +188,11 @@ class MlemGroup(MlemMixin, TyperGroup):
         help: str = None,
         **attrs: Any,
     ) -> None:
-        examples, help = _extract_examples(help)
+        if help is not None and "Documentation" not in help:
+            help = f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{name}>"
         super().__init__(
             name=name,
             help=help,
-            examples=examples,
             aliases=aliases,
             section=section,
             commands=commands,
@@ -318,15 +309,8 @@ def mlem_callback(
     * Serialize any model trained in Python into ready-to-deploy format
     * Model lifecycle management using Git and GitOps principles
     * Provider-agnostic deployment
-
-    Examples:
-        $ mlem init
-        $ mlem list https://github.com/iterative/example-mlem
-        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main logreg
-        $ mlem link logreg latest
-        $ mlem apply latest https://github.com/iterative/example-mlem/data/test_x -o pred
-        $ mlem serve latest fastapi -c port=8001
-        $ mlem build latest docker_dir -c target=build/ -c server.type=fastapi
+    \b
+    Documentation: <https://mlem.ai/doc>
     """
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():

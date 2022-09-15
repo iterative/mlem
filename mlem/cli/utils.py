@@ -616,15 +616,3 @@ def config_arg(
         )
     with wrap_build_error(subtype, model):
         return build_mlem_object(model, subtype, conf, file_conf, kwargs)
-
-
-def _extract_examples(
-    help_str: Optional[str],
-) -> Tuple[Optional[str], Optional[str]]:
-    if help_str is None:
-        return None, None
-    try:
-        examples = help_str.index("Examples:")
-    except ValueError:
-        return None, help_str
-    return help_str[examples + len("Examples:") + 1 :], help_str[:examples]

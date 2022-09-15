@@ -7,13 +7,7 @@ from mlem.cli.main import mlem_command
 def init(
     path: str = Argument(".", help="Where to init project", show_default=False)
 ):
-    """Initialize a MLEM project.
-
-    Examples:
-        $ mlem init
-        $ mlem init some/local/path
-        $ mlem init s3://bucket/path/in/cloud
-    """
+    """Initialize a MLEM project."""
     from mlem.api.commands import init
 
     init(path)

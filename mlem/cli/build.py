@@ -26,14 +26,6 @@ build = Typer(
     help="""
         Build models to create re-usable, ship-able entities such as a Docker image or
 Python package.
-
-        Examples:
-            Build docker image from model
-            $ mlem build mymodel docker -c server.type=fastapi -c image.name=myimage
-
-            Create build docker_dir declaration and build it
-            $ mlem declare builder docker_dir -c server=fastapi -c target=build build_dock
-            $ mlem build mymodel --load build_dock
         """,
     cls=mlem_group("runtime", aliases=["export"]),
     subcommand_metavar="builder",
