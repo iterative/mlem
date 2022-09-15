@@ -16,5 +16,9 @@ class MockServer(Server):
 
 def test_serve(runner: Runner, model_single_path):
     result = runner.invoke(f"serve {model_single_path} mock -c param=aaa")
-    assert result.exit_code == 0, result.exception
-    assert result.output.splitlines()[-1] == "aaa"
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert result.stdout.splitlines()[-1] == "aaa"
