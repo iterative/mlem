@@ -1,3 +1,10 @@
+"""Torch models support
+Extension type: model
+
+ModelType and ModelIO implementations for `torch.nn.Module`
+ImportHook for importing files saved with `torch.save`
+DataType, Reader and Writer implementations for `torch.Tensor`
+"""
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import torch

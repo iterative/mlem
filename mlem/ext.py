@@ -4,6 +4,7 @@ as well with the custom ones
 """
 import importlib
 import logging
+import re
 import sys
 from types import ModuleType
 from typing import Callable, Dict, List, Optional, Union
@@ -109,6 +110,12 @@ class ExtensionLoader:
         Extension("mlem.contrib.gitlabfs", [], True),
         Extension("mlem.contrib.bitbucketfs", [], True),
         Extension("mlem.contrib.sagemaker", ["sagemaker", "boto3"], False),
+        Extension("mlem.contrib.dvc", ["dvc"], False),
+        Extension(
+            "mlem.contrib.heroku", ["fastapi", "uvicorn", "docker"], False
+        ),
+        Extension("mlem.contrib.pip", [], False),
+        Extension("mlem.contrib.kubernetes", ["kubernetes", "docker"], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
@@ -256,6 +263,19 @@ def load_extensions(*exts: str):
     """
     for ext in exts:
         ExtensionLoader.load(ext)
+
+
+def get_ext_type(ext: Union[str, Extension]):
+    if isinstance(ext, Extension):
+        ext_module = ext.module
+    else:
+        ext_module = ext
+
+    doc = import_module(ext_module).__doc__ or ""
+    search = re.search(r"Extension type: (\w*)", doc)
+    if search is None:
+        raise ValueError(f"{ext_module} extension doesnt define it's type")
+    return search.group(1)
 
 
 # Copyright 2019 Zyfra

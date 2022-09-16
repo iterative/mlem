@@ -1,3 +1,8 @@
+"""Gitlab URI support
+Extension type: uri
+
+Implementation of `GitlabFileSystem` and `GitlabResolver`
+"""
 import posixpath
 from typing import ClassVar, Optional
 from urllib.parse import quote_plus, urlparse, urlsplit

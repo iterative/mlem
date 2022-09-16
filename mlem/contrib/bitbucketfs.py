@@ -1,3 +1,8 @@
+"""BitBucket URI support
+Extension type: uri
+
+Implementation of `BitbucketFileSystem` and `BitbucketResolver`
+"""
 import posixpath
 from typing import ClassVar, List, Optional
 from urllib.parse import quote_plus, urljoin, urlparse, urlsplit

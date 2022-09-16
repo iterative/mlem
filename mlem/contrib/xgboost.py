@@ -1,3 +1,9 @@
+"""XGBoost models support
+Extension type: model
+
+ModelType and ModelIO implementations for `xgboost.Booster` as well as
+DataType, Reader and Writer implementations for `xgboost.DMatrix`
+"""
 import os
 import posixpath
 import tempfile

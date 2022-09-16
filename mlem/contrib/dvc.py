@@ -1,3 +1,8 @@
+"""DVC Support
+Extension type: storage
+
+Support for storing artifacts with DVC
+"""
 import contextlib
 import os.path
 import posixpath

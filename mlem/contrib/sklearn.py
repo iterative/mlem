@@ -1,3 +1,8 @@
+"""Scikit-Learn models support
+Extension type: model
+
+ModelType implementations for any sklearn-compatible classes as well as `Pipeline`
+"""
 from typing import Any, ClassVar, List, Optional, Union
 
 import sklearn

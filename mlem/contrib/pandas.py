@@ -1,3 +1,9 @@
+"""Pandas data types support
+Extension type: data
+
+DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
+ImportHook implementation for files saved with pandas
+"""
 import os.path
 import posixpath
 import re

@@ -1,3 +1,8 @@
+"""RabbitMQ serving
+Extension type: serving
+
+RabbitMQServer implementation
+"""
 import json
 from time import time
 from typing import Callable, ClassVar, Optional

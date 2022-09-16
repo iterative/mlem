@@ -1,3 +1,9 @@
+"""Tensorflow models support
+Extension type: model
+
+ModelType and ModelIO implementations for `tf.keras.Model`
+DataType, Reader and Writer implementations for `tf.Tensor`
+"""
 import posixpath
 import tempfile
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
