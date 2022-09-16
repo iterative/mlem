@@ -26,7 +26,7 @@ MLEM_ERROR_MESSAGE = "Test Mlem Error Message"
 
 
 def test_stderr_mlem_error(runner):
-    # patch the ls command and ensure it thrown a mlem error.
+    # patch the ls command and ensure it throws a mlem error.
     with mock.patch(
         "mlem.api.commands.ls", side_effect=MlemError(MLEM_ERROR_MESSAGE)
     ):
