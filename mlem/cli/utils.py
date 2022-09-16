@@ -208,6 +208,7 @@ def parse_type_field(
     required: bool,
     allow_none: bool,
     default: Any,
+    root_cls: Type[BaseModel],
 ) -> Iterator[CliTypeField]:
     """Recursively creates CliTypeFields from field description"""
     if is_list or is_mapping:
@@ -247,7 +248,7 @@ def parse_type_field(
         return
     if isinstance(type_, type) and issubclass(type_, BaseModel):
         # BaseModel (including MlemABC non-root classes): reqursively get nested
-        yield from iterate_type_fields(type_, path, not required)
+        yield from iterate_type_fields(type_, path, not required, root_cls)
         return
     # probably primitive field
     yield CliTypeField(
@@ -264,9 +265,16 @@ def parse_type_field(
 
 
 def iterate_type_fields(
-    cls: Type[BaseModel], path: str = "", force_not_req: bool = False
+    cls: Type[BaseModel],
+    path: str = "",
+    force_not_req: bool = False,
+    root_cls: Type[BaseModel] = None,
 ) -> Iterator[CliTypeField]:
     """Recursively get CliTypeFields from BaseModel"""
+    if cls is root_cls:
+        # avoid infinite recursion
+        return
+    root_cls = root_cls or cls
     field: ModelField
     for name, field in sorted(
         cls.__fields__.items(), key=lambda x: not x[1].required
@@ -318,6 +326,7 @@ def iterate_type_fields(
             required=not force_not_req and bool(field.required),
             allow_none=field.allow_none,
             default=field.default,
+            root_cls=root_cls,
         )
 
 

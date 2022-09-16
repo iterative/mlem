@@ -11,6 +11,7 @@ from mlem.contrib.docker.context import (
     use_mlem_source,
 )
 from mlem.core.requirements import UnixPackageRequirement
+from tests.conftest import _cut_empty_lines
 from tests.contrib.test_docker.conftest import docker_test
 
 REGISTRY_PORT = 5000
@@ -110,10 +111,6 @@ def test_use_wheel_installation(tmpdir):
         os.environ["MLEM_DOCKER_WHEEL_PATH"] = str(os.path.basename(distr))
         dockerfile = DockerfileGenerator().generate(env={}, packages=[])
         assert f"RUN pip install {MLEM_LOCAL_WHL}" in dockerfile
-
-
-def _cut_empty_lines(string):
-    return "\n".join(line for line in string.splitlines() if line)
 
 
 def _generate_dockerfile(unix_packages=None, **kwargs):

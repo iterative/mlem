@@ -20,6 +20,7 @@ from mlem.core.objects import (
     MlemLink,
     MlemModel,
     MlemObject,
+    ModelLink,
 )
 from mlem.core.requirements import InstallableRequirement, Requirements
 from tests.conftest import (
@@ -43,16 +44,17 @@ class MyDeployState(DeployState):
     def destroy(self):
         pass
 
-    def get_client(self):
+
+class MyMlemDeployment(MlemDeployment):
+    def _get_client(self, state):
         pass
 
 
 @pytest.fixture()
 def meta():
-    return MlemDeployment(
-        env_link=MlemLink(path="", link_type="env"),
-        model_link=MlemLink(path="", link_type="model"),
-        state=MyDeployState(),
+    return MyMlemDeployment(
+        env="",
+        model=MlemLink(path="", link_type="model"),
     )
 
 
@@ -335,6 +337,13 @@ def test_double_link_load(filled_mlem_project):
         "external", project=filled_mlem_project, follow_links=True
     )
     assert isinstance(model, MlemModel)
+
+
+def test_typed_link():
+    link = ModelLink(path="aaa")
+    assert link.dict() == {"path": "aaa"}
+
+    assert parse_obj_as(ModelLink, {"path": "aaa"}) == link
 
 
 @long

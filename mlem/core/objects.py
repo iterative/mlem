@@ -1,7 +1,9 @@
 """
 Base classes for meta objects in MLEM
 """
+import contextlib
 import hashlib
+import itertools
 import os
 import posixpath
 import time
@@ -9,8 +11,10 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
+    ContextManager,
     Dict,
     Generic,
     Iterable,
@@ -23,13 +27,15 @@ from typing import (
     overload,
 )
 
+import fsspec
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import ValidationError, parse_obj_as, validator
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 from yaml import safe_dump, safe_load
 
 from mlem.config import project_config
+from mlem.constants import MLEM_STATE_DIR, MLEM_STATE_EXT
 from mlem.core.artifacts import (
     Artifacts,
     FSSpecStorage,
@@ -40,9 +46,12 @@ from mlem.core.base import MlemABC
 from mlem.core.data_type import DataReader, DataType
 from mlem.core.errors import (
     DeploymentError,
+    MlemError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
     MlemProjectNotFound,
+    WrongABCType,
+    WrongMetaSubType,
     WrongMetaType,
 )
 from mlem.core.meta_io import MLEM_DIR, MLEM_EXT, Location, get_path_by_fs_path
@@ -50,8 +59,18 @@ from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import Requirements
 from mlem.polydantic.lazy import lazy_field
 from mlem.ui import EMOJI_LINK, EMOJI_LOAD, EMOJI_SAVE, echo, no_echo
+from mlem.utils.fslock import FSLock
 from mlem.utils.path import make_posix
 from mlem.utils.root import find_project_root
+
+if TYPE_CHECKING:
+    from pydantic.typing import (
+        AbstractSetIntStr,
+        MappingIntStrAny,
+        TupleGenerator,
+    )
+
+    from mlem.runtime.client import Client
 
 T = TypeVar("T", bound="MlemObject")
 
@@ -350,9 +369,15 @@ class MlemObject(MlemABC):
         return hashlib.md5(safe_dump(self.dict()).encode("utf8")).hexdigest()
 
 
+TL = TypeVar("TL", bound="MlemLink")
+
+
 class MlemLink(MlemObject):
     """Link is a special MlemObject that represents a MlemObject in a different
     location"""
+
+    object_type: ClassVar = "link"
+    __link_type_map__: ClassVar[Dict[str, Type["TypedLink"]]] = {}
 
     path: str
     """Path to object"""
@@ -362,8 +387,6 @@ class MlemLink(MlemObject):
     """Revision to use"""
     link_type: str
     """Type of underlying object"""
-
-    object_type: ClassVar = "link"
 
     @property
     def link_cls(self) -> Type[MlemObject]:
@@ -441,6 +464,64 @@ class MlemLink(MlemObject):
             if not isinstance(link_type, str)
             else link_type,
         )
+
+    @classmethod
+    def typed_link(
+        cls: Type["MlemLink"], type_: Union[str, Type[MlemObject]]
+    ) -> Type["MlemLink"]:
+        type_name = type_ if isinstance(type_, str) else type_.object_type
+
+        class TypedMlemLink(TypedLink):
+            object_type: ClassVar = f"link_{type_name}"
+            _link_type: ClassVar = type_name
+            link_type = type_name
+
+            def _iter(
+                self,
+                to_dict: bool = False,
+                by_alias: bool = False,
+                include: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+                exclude: Union["AbstractSetIntStr", "MappingIntStrAny"] = None,
+                exclude_unset: bool = False,
+                exclude_defaults: bool = False,
+                exclude_none: bool = False,
+            ) -> "TupleGenerator":
+                exclude = exclude or set()
+                if isinstance(exclude, set):
+                    exclude.update(("type", "object_type", "link_type"))
+                elif isinstance(exclude, dict):
+                    exclude.update(
+                        {"type": True, "object_type": True, "link_type": True}
+                    )
+                return super()._iter(
+                    to_dict,
+                    by_alias,
+                    include,
+                    exclude,
+                    exclude_unset,
+                    exclude_defaults,
+                    exclude_none,
+                )
+
+        TypedMlemLink.__doc__ = f"""Link to {type_name} MLEM object"""
+        return TypedMlemLink
+
+    @property
+    def typed(self) -> "TypedLink":
+        type_ = MlemLink.__link_type_map__[self.link_type]
+        return type_(**self.dict())
+
+
+class TypedLink(MlemLink, ABC):
+    """Base class for specific type link classes"""
+
+    __abstract__: ClassVar = True
+    object_type: ClassVar = "_typed_link"
+    _link_type: ClassVar
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        MlemLink.__link_type_map__[cls._link_type] = cls
 
 
 class _WithArtifacts(ABC, MlemObject):
@@ -731,13 +812,11 @@ class DeployState(MlemABC):
         type_root = True
 
     abs_name: ClassVar[str] = "deploy_state"
+    type: ClassVar[str]
+    allow_default: ClassVar[bool] = False
 
     model_hash: Optional[str] = None
     """hash of deployed model meta"""
-
-    @abstractmethod
-    def get_client(self):
-        raise NotImplementedError
 
 
 DT = TypeVar("DT", bound="MlemDeployment")
@@ -773,6 +852,11 @@ class MlemEnv(MlemObject, Generic[DT]):
                 f"Meta of the {self.type} deployment should be {self.deploy_type}, not {deploy.__class__}"
             )
 
+    def __init_subclass__(cls):
+        if hasattr(cls, "deploy_type"):
+            cls.deploy_type.env_type = cls
+        super().__init_subclass__()
+
 
 class DeployStatus(str, Enum):
     """Enum with deployment statuses"""
@@ -785,7 +869,174 @@ class DeployStatus(str, Enum):
     RUNNING = "running"
 
 
-class MlemDeployment(MlemObject):
+ST = TypeVar("ST", bound=DeployState)
+
+
+@contextlib.contextmanager
+def _no_lock():
+    yield
+
+
+class StateManager(MlemABC):
+    abs_name: ClassVar = "state"
+    type: ClassVar[str]
+
+    class Config:
+        type_root = True
+        default_type = "fsspec"
+
+    @abstractmethod
+    def _get_state(
+        self, deployment: "MlemDeployment"
+    ) -> Optional[DeployState]:
+        pass
+
+    def get_state(
+        self, deployment: "MlemDeployment", state_type: Type[ST]
+    ) -> Optional[ST]:
+        state = self._get_state(deployment)
+        if state is not None and not isinstance(state, state_type):
+            raise DeploymentError(
+                f"State for {deployment.name} is {state.type}, but should be {state_type.type}"
+            )
+        return state
+
+    @abstractmethod
+    def update_state(self, deployment: "MlemDeployment", state: DeployState):
+        pass
+
+    @abstractmethod
+    def purge_state(self, deployment: "MlemDeployment"):
+        pass
+
+    @abstractmethod
+    def lock(self, deployment: "MlemDeployment") -> ContextManager:
+        return _no_lock()
+
+
+class LocalFileStateManager(StateManager):
+    """StateManager that stores state as yaml file locally"""
+
+    type: ClassVar = "local"
+
+    locking: bool = True
+    """Enable state locking"""
+    lock_timeout: float = 10 * 60
+    """Lock timeout"""
+
+    @staticmethod
+    def location(deployment: "MlemDeployment") -> Location:
+        loc = deployment.loc.copy()
+        loc.update_path(loc.path + MLEM_STATE_EXT)
+        return loc
+
+    def _get_state(
+        self, deployment: "MlemDeployment"
+    ) -> Optional[DeployState]:
+        try:
+            with self.location(deployment).open("r") as f:
+                return parse_obj_as(DeployState, safe_load(f))
+        except FileNotFoundError:
+            return None
+
+    def update_state(self, deployment: "MlemDeployment", state: DeployState):
+        with self.location(deployment).open("w", make_dir=True) as f:
+            safe_dump(state.dict(), f)
+
+    def purge_state(self, deployment: "MlemDeployment"):
+        loc = self.location(deployment)
+        if loc.exists():
+            loc.delete()
+
+    def lock(self, deployment: "MlemDeployment"):
+        if self.locking:
+            loc = self.location(deployment)
+            dirname, filename = posixpath.split(loc.fullpath)
+            return FSLock(
+                loc.fs,
+                dirname,
+                filename,
+                timeout=self.lock_timeout,
+            )
+        return super().lock(deployment)
+
+
+class FSSpecStateManager(StateManager):
+    """StateManager that stores state as yaml file in fsspec-supported filesystem"""
+
+    type: ClassVar = "fsspec"
+
+    class Config:
+        exclude = {"fs", "path"}
+        arbitrary_types_allowed = True
+
+    uri: str
+    """URI of directory to store state files"""
+    storage_options: Dict = {}
+    """Additional options"""
+    locking: bool = True
+    """Enable state locking"""
+    lock_timeout: float = 10 * 60
+    """Lock timeout"""
+
+    fs: Optional[AbstractFileSystem] = None
+    """Filesystem cache"""
+    path: str = ""
+    """Path inside filesystem cache"""
+
+    def get_fs(self) -> AbstractFileSystem:
+        if self.fs is None:
+            self.fs, _, (self.path,) = fsspec.get_fs_token_paths(
+                self.uri, storage_options=self.storage_options
+            )
+        return self.fs
+
+    def _get_path(self, deployment: "MlemDeployment"):
+        self.get_fs()
+        return posixpath.join(self.path, MLEM_STATE_DIR, deployment.name)
+
+    def _get_state(
+        self, deployment: "MlemDeployment"
+    ) -> Optional[DeployState]:
+        try:
+            with self.get_fs().open(self._get_path(deployment)) as f:
+                return parse_obj_as(DeployState, safe_load(f))
+        except FileNotFoundError:
+            return None
+
+    def update_state(self, deployment: "MlemDeployment", state: DeployState):
+        path = self._get_path(deployment)
+        fs = self.get_fs()
+        fs.makedirs(posixpath.dirname(path), exist_ok=True)
+        with fs.open(path, "w") as f:
+            safe_dump(state.dict(), f)
+
+    def purge_state(self, deployment: "MlemDeployment"):
+        path = self._get_path(deployment)
+        fs = self.get_fs()
+        if fs.exists(path):
+            fs.delete(path)
+
+    def lock(self, deployment: "MlemDeployment"):
+        if self.locking:
+            fullpath = self._get_path(deployment)
+            dirname, filename = posixpath.split(fullpath)
+            return FSLock(
+                self.get_fs(),
+                dirname,
+                filename,
+                timeout=self.lock_timeout,
+            )
+        return super().lock(deployment)
+
+
+EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)
+ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)
+
+ET = TypeVar("ET", bound=MlemEnv)
+
+
+class MlemDeployment(MlemObject, Generic[ST, ET]):
     """Base class for deployment metadata"""
 
     object_type: ClassVar = "deployment"
@@ -793,36 +1044,139 @@ class MlemDeployment(MlemObject):
     class Config:
         type_root = True
         type_field = "type"
-        exclude = {"model", "env"}
+        exclude = {"model_cache", "env_cache"}
         use_enum_values = True
 
     abs_name: ClassVar = "deployment"
     type: ClassVar[str]
+    state_type: ClassVar[Type[ST]]
+    env_type: ClassVar[Type[ET]]
 
-    env_link: MlemLink
+    env: Union[str, MlemEnv, EnvLink, None] = None
     """Enironment to use"""
-    env: Optional[MlemEnv]
-    """Enironment to use"""
-    model_link: MlemLink
+    env_cache: Optional[MlemEnv] = None
+    model: Union[ModelLink, str]
     """Model to use"""
-    model: Optional[MlemModel]
-    """Model to use"""
-    state: Optional[DeployState]
-    """State"""
+    model_cache: Optional[MlemModel] = None
+    state_manager: Optional[StateManager]
+    """State manager used"""
 
-    def get_env(self):
-        if self.env is None:
-            self.env = self.env_link.bind(self.loc).load_link(
-                force_type=MlemEnv
-            )
-        return self.env
+    @validator("state_manager", always=True)
+    def default_state_manager(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        if value is None:
+            value = project_config("").state
+        return value
 
-    def get_model(self):
-        if self.model is None:
-            self.model = self.model_link.bind(self.loc).load_link(
-                force_type=MlemModel
-            )
-        return self.model
+    @property
+    def _state_manager(self) -> StateManager:
+        if self.state_manager is None:
+            return LocalFileStateManager()
+        return self.state_manager
+
+    def get_state(self) -> ST:
+        return (
+            self._state_manager.get_state(self, self.state_type)
+            or self.state_type()
+        )
+
+    def lock_state(self):
+        return self._state_manager.lock(self)
+
+    def update_state(self, state: ST):
+        self._state_manager.update_state(self, state)
+
+    def purge_state(self):
+        self._state_manager.purge_state(self)
+
+    def get_client(self, state: DeployState = None) -> "Client":
+        if state is not None and not isinstance(state, self.state_type):
+            raise WrongABCType(state, self.state_type)
+        return self._get_client(state or self.get_state())
+
+    @abstractmethod
+    def _get_client(self, state: ST) -> "Client":
+        raise NotImplementedError
+
+    @validator("env")
+    def validate_env(cls, value):  # pylint: disable=no-self-argument
+        if isinstance(value, MlemLink):
+            if value.project is None:
+                return value.path
+            if not isinstance(value, EnvLink):
+                return EnvLink(**value.dict())
+        if isinstance(value, str):
+            return make_posix(value)
+        return value
+
+    def get_env(self) -> ET:
+        if self.env_cache is None:
+            if isinstance(self.env, str):
+                link = MlemLink(
+                    path=self.env,
+                    project=self.loc.project
+                    if not os.path.isabs(self.env)
+                    else None,
+                    rev=self.loc.rev if not os.path.isabs(self.env) else None,
+                    link_type=MlemEnv.object_type,
+                )
+                self.env_cache = link.load_link(force_type=MlemEnv)
+            elif isinstance(self.env, MlemEnv):
+                self.env_cache = self.env
+            elif isinstance(self.env, MlemLink):
+                self.env_cache = self.env.load_link(force_type=MlemEnv)
+            elif self.env is None:
+                try:
+                    self.env_cache = self.env_type()
+                except ValidationError as e:
+                    raise MlemError(
+                        f"{self.env_type} env does not have default value, please set `env` field"
+                    ) from e
+            else:
+                raise ValueError(
+                    "env should be one of [str, MlemLink, MlemEnv]"
+                )
+        if not isinstance(self.env_cache, self.env_type):
+            raise WrongMetaSubType(self.env_cache, self.env_type)
+        return self.env_cache
+
+    @validator("model")
+    def validate_model(cls, value):  # pylint: disable=no-self-argument
+        if isinstance(value, MlemLink):
+            if value.project is None:
+                return value.path
+            if not isinstance(value, ModelLink):
+                return ModelLink(**value.dict())
+        if isinstance(value, str):
+            return make_posix(value)
+        return value
+
+    def get_model(self) -> MlemModel:
+        if self.model_cache is None:
+            if isinstance(self.model, str):
+                link = MlemLink(
+                    path=self.model,
+                    project=self.loc.project
+                    if not os.path.isabs(self.model)
+                    else None,
+                    rev=self.loc.rev
+                    if not os.path.isabs(self.model)
+                    else None,
+                    link_type=MlemModel.object_type,
+                )
+                if self.is_saved:
+                    link.bind(self.loc)
+                self.model_cache = link.load_link(force_type=MlemModel)
+            elif isinstance(self.model, MlemLink):
+                if self.is_saved:
+                    self.model.bind(self.loc)
+                self.model_cache = self.model.load_link(force_type=MlemModel)
+            else:
+                raise ValueError(
+                    f"model field should be either str or MlemLink instance, got {self.model.__class__}"
+                )
+        return self.model_cache
 
     def run(self):
         return self.get_env().deploy(self)
@@ -842,7 +1196,7 @@ class MlemDeployment(MlemObject):
             DeployStatus, Iterable[DeployStatus]
         ] = None,
         raise_on_timeout: bool = True,
-    ):
+    ) -> object:
         if isinstance(status, DeployStatus):
             statuses = {status}
         else:
@@ -854,7 +1208,12 @@ class MlemDeployment(MlemObject):
             allowed = set(allowed_intermediate)
 
         current = DeployStatus.UNKNOWN
-        for _ in range(times):
+        iterator: Iterable
+        if times == 0:
+            iterator = itertools.count()
+        else:
+            iterator = range(times)
+        for _ in iterator:
             current = self.get_status(raise_on_error=False)
             if current in statuses:
                 return True
@@ -866,25 +1225,33 @@ class MlemDeployment(MlemObject):
                 return False
             time.sleep(timeout)
         if raise_on_timeout:
+            # TODO: count actual time passed
             raise DeploymentError(
                 f"Deployment status is still {current} after {times * timeout} seconds"
             )
         return False
 
-    def model_changed(self):
-        if self.state is None or self.state.model_hash is None:
+    def model_changed(self, state: Optional[ST] = None):
+        state = state or self.get_state()
+        if state.model_hash is None:
             return True
-        return self.get_model().meta_hash() != self.state.model_hash
+        return self.get_model().meta_hash() != state.model_hash
 
-    def update_model_hash(self, model: Optional[MlemModel] = None):
+    def update_model_hash(
+        self,
+        model: Optional[MlemModel] = None,
+        state: Optional[ST] = None,
+        update_state: bool = True,
+    ):
         model = model or self.get_model()
-        if self.state is None:
-            return
-        self.state.model_hash = model.meta_hash()
+        state = state or self.get_state()
+        state.model_hash = model.meta_hash()
+        if update_state:
+            self.update_state(state)
 
     def replace_model(self, model: MlemModel):
-        self.model = model
-        self.model_link = self.model.make_link()
+        self.model = model.make_link().typed
+        self.model_cache = model
 
 
 def find_object(
