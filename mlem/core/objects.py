@@ -380,13 +380,13 @@ class MlemLink(MlemObject):
     __link_type_map__: ClassVar[Dict[str, Type["TypedLink"]]] = {}
 
     path: str
-    """path to object"""
+    """Path to object"""
     project: Optional[str] = None
-    """project URI"""
+    """Project URI"""
     rev: Optional[str] = None
-    """revision to use"""
+    """Revision to use"""
     link_type: str
-    """type of underlying object"""
+    """Type of underlying object"""
 
     @property
     def link_cls(self) -> Type[MlemObject]:
@@ -675,7 +675,7 @@ class MlemModel(_WithArtifacts):
     object_type: ClassVar = "model"
     model_type_cache: Any
     model_type: ModelType
-    """framework-specific metadata"""
+    """Framework-specific metadata"""
     model_type, model_type_raw, model_type_cache = lazy_field(
         ModelType, "model_type", "model_type_cache"
     )
@@ -816,7 +816,7 @@ class DeployState(MlemABC):
     allow_default: ClassVar[bool] = False
 
     model_hash: Optional[str] = None
-    """hash of deployed model meta"""
+    """Hash of deployed model meta"""
 
 
 DT = TypeVar("DT", bound="MlemDeployment")

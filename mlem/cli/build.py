@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from typer import Option, Typer
+from typer import Typer
 
 from mlem.cli.main import (
     app,
@@ -9,6 +9,7 @@ from mlem.cli.main import (
     mlem_group_callback,
     option_file_conf,
     option_load,
+    option_model,
     option_project,
     option_rev,
 )
@@ -17,6 +18,7 @@ from mlem.cli.utils import (
     config_arg,
     for_each_impl,
     lazy_class_docstring,
+    make_not_required,
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemBuilder, MlemModel
@@ -24,8 +26,8 @@ from mlem.core.objects import MlemBuilder, MlemModel
 build = Typer(
     name="build",
     help="""
-        Build models to create re-usable, ship-able entities such as a Docker image or
-Python package.
+        Build models into re-usable assets you can distribute and use in production,
+such as a Docker image or Python package.
 
         Examples:
             Build docker image from model
@@ -43,7 +45,7 @@ app.add_typer(build)
 
 @mlem_group_callback(build, required=["model", "load"])
 def build_load(
-    model: str = Option(None, "-m", "--model", help="Path to model"),
+    model: str = make_not_required(option_model),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     load: str = option_load("builder"),
@@ -77,7 +79,7 @@ def create_build_command(type_name):
         no_pass_from_parent=["file_conf"],
     )
     def build_type(
-        model: str = Option(..., "-m", "--model", help="Path to model"),
+        model: str = option_model,
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         file_conf: List[str] = option_file_conf("builder"),

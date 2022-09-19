@@ -134,7 +134,7 @@ class RemoteRegistry(DockerRegistry):
     type: ClassVar = "remote"
     # TODO: https://github.com/iterative/mlem/issues/38 credentials
     host: Optional[str] = None
-    """address of the registry"""
+    """Address of the registry"""
 
     def login(self, client):
         """
@@ -330,7 +330,7 @@ class DockerEnv(MlemEnv[DockerContainer]):
     type: ClassVar = "docker"
     deploy_type: ClassVar = DockerContainer
     registry: DockerRegistry = DockerRegistry()
-    """default registry to push images to"""
+    """Default registry to push images to"""
     daemon: DockerDaemon = DockerDaemon(host="")
     """Docker daemon parameters"""
 
@@ -474,7 +474,7 @@ class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
 
     type: ClassVar[str] = "docker_dir"
     target: str
-    """path to save result"""
+    """Path to save result"""
 
     def build(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(

@@ -83,4 +83,5 @@ def test_all_ext_has_pip_extra():
 
     for name, reqs in exts_reqs.items():
         assert name in extras
-        assert set(reqs) == set(extras[name])
+        ext_extras = extras[name]
+        assert set(reqs) == {re.split("[~=]", r)[0] for r in ext_extras}

@@ -111,9 +111,9 @@ class LightGBMDataReader(DataReader):
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
-    """inner reader"""
+    """Inner reader"""
     label: List
-    """list of labels"""
+    """List of labels"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         inner_data_type = self.inner.read(artifacts)
@@ -136,7 +136,7 @@ class LightGBMModelIO(ModelIO):
 
     type: ClassVar[str] = "lightgbm_io"
     model_file_name: str = "model.lgb"
-    """filename to use"""
+    """Filename to use"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory(prefix="mlem_lightgbm_dump") as f:

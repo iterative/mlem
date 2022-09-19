@@ -133,7 +133,7 @@ class DataReader(MlemABC, ABC):
         type_root = True
 
     data_type: DataType
-    """resulting data type"""
+    """Resulting data type"""
     abs_name: ClassVar[str] = "data_reader"
 
     @abstractmethod
@@ -255,7 +255,7 @@ class ArrayType(DataType, DataSerializer):
     dtype: DataType
     """DataType of elements"""
     size: Optional[int]
-    """size of the list"""
+    """Size of the list"""
 
     def get_requirements(self) -> Requirements:
         return self.dtype.get_requirements()
@@ -313,7 +313,7 @@ class ArrayReader(DataReader):
     type: ClassVar[str] = "array"
     data_type: ArrayType
     readers: List[DataReader]
-    """inner readers"""
+    """Inner readers"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
@@ -427,7 +427,7 @@ class _TupleLikeReader(DataReader):
     type: ClassVar[str] = "tuple_like"
     data_type: _TupleLikeType
     readers: List[DataReader]
-    """inner readers"""
+    """Inner readers"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
@@ -626,7 +626,7 @@ class DictReader(DataReader):
     type: ClassVar[str] = "dict"
     data_type: DictType
     item_readers: Dict[Union[StrictStr, StrictInt], DataReader]
-    """nested readers"""
+    """Nested readers"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
@@ -790,32 +790,3 @@ class DynamicDictReader(DataReader):
         self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DataType]:
         raise NotImplementedError
-
-
-#
-#
-# class BytesDataType(DataType):
-#     """
-#     DataType for bytes objects
-#     """
-#     type = 'bytes'
-#     real_type = None
-#
-#     def __init__(self):
-#         pass
-#
-#     def get_spec(self) -> ArgList:
-#         return [Field('file', bytes, False)]
-#
-#     def deserialize(self, obj) -> object:
-#         return obj
-#
-#     def serialize(self, instance: object) -> dict:
-#         return instance
-#
-#     @property
-#     def requirements(self) -> Requirements:
-#         return Requirements()
-#
-#     def get_writer(self):
-#         return PickleWriter()

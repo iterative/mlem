@@ -28,7 +28,7 @@ from mlem.ui import echo, no_echo, set_echo
 
 deployment = Typer(
     name="deployment",
-    help="A set of commands to set up and manage deployments.",
+    help="A set of commands to set up and manage deployments",
     cls=mlem_group("runtime", aliases=["deploy"]),
 )
 app.add_typer(deployment)

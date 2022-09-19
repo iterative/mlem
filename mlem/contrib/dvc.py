@@ -41,7 +41,7 @@ class DVCStorage(LocalStorage):
 
     type: ClassVar = "dvc"
     uri: str = ""
-    """base storage path"""
+    """Base storage path"""
 
     def upload(self, local_path: str, target_path: str) -> "DVCArtifact":
         return DVCArtifact(
@@ -69,7 +69,7 @@ class DVCArtifact(LocalArtifact):
 
     type: ClassVar = "dvc"
     uri: str
-    """local path to file"""
+    """Local path to file"""
 
     def _download(self, target_path: str) -> LocalArtifact:
         if os.path.isdir(target_path):
