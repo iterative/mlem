@@ -16,7 +16,7 @@ class Runner:
         if raise_on_error and result.exit_code != 0:
             if result.exit_code == 1:
                 raise result.exception
-            raise RuntimeError(result.output)
+            raise RuntimeError(result.stderr)
         return result
 
 

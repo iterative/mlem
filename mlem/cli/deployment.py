@@ -40,7 +40,7 @@ def deploy_run(
         ...,
         help="Path to deployment meta (will be created if it does not exist)",
     ),
-    model: Optional[str] = Option(None, "-m", "--model", help="Path to model"),
+    model: str = Option(..., "-m", "--model", help="Path to model"),
     env: Optional[str] = Option(
         None, "-t", "--env", help="Path to target environment"
     ),

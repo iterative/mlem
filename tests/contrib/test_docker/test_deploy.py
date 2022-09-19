@@ -128,7 +128,6 @@ def _check_runner(img, env: DockerEnv, model):
             container_name=CONTAINER_NAME,
             port_mapping={80: 8008},
             server=FastAPIServer(),
-            model=model.make_link(),
             env=env,
             rm=False,
         )
@@ -138,18 +137,18 @@ def _check_runner(img, env: DockerEnv, model):
                 image=DockerImage(name=img), model_hash=model.meta_hash()
             )
         )
-        assert env.get_status(instance) == DeployStatus.NOT_DEPLOYED
+        assert instance.get_status() == DeployStatus.NOT_DEPLOYED
 
-        env.deploy(instance)
+        instance.deploy(model)
 
         instance.wait_for_status(
             DeployStatus.RUNNING, allowed_intermediate=[DeployStatus.STARTING]
         )
         time.sleep(0.1)
 
-        assert env.get_status(instance) == DeployStatus.RUNNING
+        assert instance.get_status() == DeployStatus.RUNNING
 
-        env.remove(instance)
+        instance.remove()
         time.sleep(0.1)
 
-        assert env.get_status(instance) == DeployStatus.NOT_DEPLOYED
+        assert instance.get_status() == DeployStatus.NOT_DEPLOYED

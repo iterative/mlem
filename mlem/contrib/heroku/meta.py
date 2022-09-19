@@ -8,6 +8,7 @@ from mlem.core.objects import (
     DeployStatus,
     MlemDeployment,
     MlemEnv,
+    MlemModel,
 )
 from mlem.runtime.client import Client, HTTPClient
 
@@ -35,6 +36,14 @@ class HerokuAppMeta(BaseModel):
     """Additional metadata"""
 
 
+class HerokuEnv(MlemEnv):
+    """Heroku Account"""
+
+    type: ClassVar = "heroku"
+    api_key: Optional[str] = None
+    """HEROKU_API_KEY - advised to set via env variable or `heroku login`"""
+
+
 class HerokuState(DeployState):
     """State of heroku deployment"""
 
@@ -53,11 +62,12 @@ class HerokuState(DeployState):
         return self.app
 
 
-class HerokuDeployment(MlemDeployment):
+class HerokuDeployment(MlemDeployment[HerokuState, HerokuEnv]):
     """Heroku App"""
 
     type: ClassVar = "heroku"
     state_type: ClassVar = HerokuState
+    env_type: ClassVar = HerokuEnv
 
     app_name: str
     """Heroku application name"""
@@ -73,66 +83,55 @@ class HerokuDeployment(MlemDeployment):
             host=urlparse(state.ensured_app.web_url).netloc, port=80
         )
 
-
-class HerokuEnv(MlemEnv[HerokuDeployment]):
-    """Heroku Account"""
-
-    type: ClassVar = "heroku"
-    deploy_type: ClassVar = HerokuDeployment
-    api_key: Optional[str] = None
-    """HEROKU_API_KEY - advised to set via env variable or `heroku login`"""
-
-    def deploy(self, meta: HerokuDeployment):
+    def deploy(self, model: MlemModel):
         from .utils import create_app, release_docker_app
 
-        self.check_type(meta)
-        with meta.lock_state():
-            state: HerokuState = meta.get_state()
+        with self.lock_state():
+            state: HerokuState = self.get_state()
             if state.app is None:
-                state.app = create_app(meta, api_key=self.api_key)
-                meta.update_state(state)
+                state.app = create_app(self, api_key=self.get_env().api_key)
+                self.update_state(state)
 
             redeploy = False
-            if state.image is None or meta.model_changed():
+            if state.image is None or self.model_changed(model):
                 state.image = build_heroku_docker(
-                    meta.get_model(), state.app.name, api_key=self.api_key
+                    model, state.app.name, api_key=self.get_env().api_key
                 )
-                meta.update_model_hash(state=state)
+                state.update_model_hash(model)
+                self.update_state(state)
                 redeploy = True
             if state.release_state is None or redeploy:
                 state.release_state = release_docker_app(
                     state.app.name,
                     state.image.image_id,
-                    api_key=self.api_key,
+                    api_key=self.get_env().api_key,
                 )
-                meta.update_state(state)
+                self.update_state(state)
 
             echo(
                 EMOJI_OK
-                + f"Service {meta.app_name} is up. You can check it out at {state.app.web_url}"
+                + f"Service {self.app_name} is up. You can check it out at {state.app.web_url}"
             )
 
-    def remove(self, meta: HerokuDeployment):
+    def remove(self):
         from .utils import delete_app
 
-        self.check_type(meta)
-        with meta.lock_state():
-            state: HerokuState = meta.get_state()
+        with self.lock_state():
+            state: HerokuState = self.get_state()
 
             if state.app is not None:
-                delete_app(state.ensured_app.name, self.api_key)
-            meta.purge_state()
+                delete_app(state.ensured_app.name, self.get_env().api_key)
+            self.purge_state()
 
-    def get_status(
-        self, meta: "HerokuDeployment", raise_on_error=True
-    ) -> DeployStatus:
+    def get_status(self, raise_on_error=True) -> DeployStatus:
         from .utils import list_dynos
 
-        self.check_type(meta)
-        state: HerokuState = meta.get_state()
+        state: HerokuState = self.get_state()
         if state.app is None:
             return DeployStatus.NOT_DEPLOYED
-        dynos = list_dynos(state.ensured_app.name, "web", self.api_key)
+        dynos = list_dynos(
+            state.ensured_app.name, "web", self.get_env().api_key
+        )
         if not dynos:
             if raise_on_error:
                 raise DeploymentError(
