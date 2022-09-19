@@ -7,7 +7,7 @@ from typer import Argument, Option
 from mlem.cli.main import mlem_command, option_json, option_project, option_rev
 from mlem.cli.utils import Choices
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
+from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject, TypedLink
 from mlem.ui import echo, set_echo
 
 OBJECT_TYPE_NAMES = {"data": "Data"}
@@ -39,9 +39,17 @@ TYPE_ALIASES = {
 }
 
 
+def _list_types():
+    return [
+        k
+        for k, v in MlemObject.non_abstract_subtypes().items()
+        if not issubclass(v, TypedLink)
+    ]
+
+
 @mlem_command("list", aliases=["ls"], section="common")
 def ls(
-    type_filter: Choices("all", *MlemObject.non_abstract_subtypes().keys()) = Option(  # type: ignore[valid-type]
+    type_filter: Choices("all", *_list_types()) = Option(  # type: ignore[valid-type]
         "all",
         "-t",
         "--type",
