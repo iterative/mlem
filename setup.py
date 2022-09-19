@@ -94,7 +94,6 @@ for e in [
     "s3",
     "ssh",
     "ssh_gssapi",
-    "testing",
     "webdav",
     "webhdfs",
     "webhdfs_kerberos",
