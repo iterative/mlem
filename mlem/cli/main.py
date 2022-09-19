@@ -507,11 +507,11 @@ option_model = Option(
     ...,
     "-m",
     "--model",
-    help="Path to MLEM model object",
+    help="Path to MLEM model",
     metavar=PATH_METAVAR,
 )
 option_data = Option(
-    ..., "-d", "--data", help="Path to MLEM data object", metavar=PATH_METAVAR
+    ..., "-d", "--data", help="Path to MLEM dataset", metavar=PATH_METAVAR
 )
 
 
