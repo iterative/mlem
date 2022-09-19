@@ -31,7 +31,10 @@ def config_set(
         True, help="Whether to validate config schema after"
     ),
 ):
-    """Set configuration value"""
+    """Set configuration value
+    \n\n
+    Documentation: <https://mlem.ai/doc/command-reference/config>
+    """
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
     try:
@@ -64,7 +67,10 @@ def config_get(
     name: str = Argument(..., help="Dotted name of option"),
     project: Optional[str] = option_project,
 ):
-    """Get configuration value"""
+    """Get configuration value
+    \n\n
+    Documentation: <https://mlem.ai/doc/command-reference/config>
+    """
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
     with fs.open(posixpath.join(project, MLEM_DIR, CONFIG_FILE_NAME)) as f:
