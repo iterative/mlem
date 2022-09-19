@@ -1,4 +1,5 @@
 import pytest
+import requests
 from click import Group
 from typer.main import get_command_from_info, get_group_from_info
 
@@ -52,18 +53,27 @@ def test_commands_args_help(app_cli_cmd):
                 continue
             if arg.help is None:
                 no_help.append(f"{name}:{arg.name}")
-    assert len(no_help) == 0, f"{no_help} cli commnad args do not have help!"
+    assert len(no_help) == 0, f"{no_help} cli commands args do not have help!"
 
 
-@pytest.mark.xfail  # TODO do we need examples for everything?
-def test_commands_examples(app_cli_cmd):
-    no_examples = []
-    for name, cmd in app_cli_cmd:
-        if cmd.examples is None and not isinstance(cmd, Group):
-            no_examples.append(name)
+def test_commands_docs_links(app_cli_cmd):
+    no_link = []
+    link_broken = []
+    for name, _cmd in app_cli_cmd:
+        result = Runner().invoke(name.split() + ["--help"])
+        if result.output is None or "Documentation: <" not in result.output:
+            no_link.append(name)
+        else:
+            link = result.output.split("Documentation: <")[1].split(">")[0]
+            response = requests.get(link, timeout=5)
+            if response.status_code != 200:
+                link_broken.append(name)
     assert (
-        len(no_examples) == 0
-    ), f"{no_examples} cli commnads do not have examples!"
+        len(no_link) == 0
+    ), f"{no_link} cli commands do not have documentation link!"
+    assert (
+        len(link_broken) == 0
+    ), f"{link_broken} cli commands have broken documentation links!"
 
 
 @pytest.mark.parametrize("cmd", ["--help", "-h"])

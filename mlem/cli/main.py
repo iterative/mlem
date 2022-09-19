@@ -70,6 +70,10 @@ class MlemMixin(Command):
         return formatter.getvalue().rstrip("\n")
 
 
+def docs_link(cmd_name):
+    return f"\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
+
+
 class MlemCommand(
     MlemMixin,
     TyperCommand,
@@ -164,10 +168,15 @@ class MlemCommand(
     @property
     def help(self):
         ctx = click.get_current_context()
-        cmd_name = get_cmd_name(ctx).replace(" ", "/")
-        docs_link = f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
-        _help = self.lazy_help() if self.lazy_help else self._help
-        return _help if "Documentation" in _help else _help + docs_link
+        cmd_name = get_cmd_name(ctx, no_aliases=True, sep="/")
+        if self.lazy_help:
+            cmd_name = cmd_name[: cmd_name.index("/")]
+            return self.lazy_help() + docs_link(cmd_name)
+        return (
+            self._help
+            if "Documentation" in self._help
+            else self._help + docs_link(cmd_name)
+        )
 
     @help.setter
     def help(self, value):
@@ -188,8 +197,6 @@ class MlemGroup(MlemMixin, TyperGroup):
         help: str = None,
         **attrs: Any,
     ) -> None:
-        if help is not None and "Documentation" not in help:
-            help = f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{name}>"
         super().__init__(
             name=name,
             help=help,
@@ -249,6 +256,22 @@ class MlemGroup(MlemMixin, TyperGroup):
             ):
                 return cmd
         return None
+
+    @property
+    def help(self):
+        ctx = click.get_current_context()
+        cmd_name = get_cmd_name(ctx, no_aliases=True, sep="/")
+        if "/" in cmd_name:
+            cmd_name = cmd_name[: cmd_name.index("/")]
+        return (
+            self._help
+            if "Documentation" in self._help
+            else self._help + docs_link(cmd_name)
+        )
+
+    @help.setter
+    def help(self, value):
+        self._help = value
 
 
 def mlem_group(section, aliases: Optional[List[str]] = None):
@@ -322,12 +345,11 @@ def mlem_callback(
     ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
 
 
-def get_cmd_name(ctx: Context):
+def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
     pieces = []
     while ctx.parent is not None:
-        pieces.append(ctx.info_name)
-        ctx = ctx.parent
-    return " ".join(reversed(pieces))
+        pieces.append(ctx.command.name if no_aliases else ctx.info_name)
+    return sep.join(reversed(pieces))
 
 
 def mlem_command(
