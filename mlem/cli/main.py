@@ -349,6 +349,7 @@ def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
     pieces = []
     while ctx.parent is not None:
         pieces.append(ctx.command.name if no_aliases else ctx.info_name)
+        ctx = ctx.parent
     return sep.join(reversed(pieces))
 
 
