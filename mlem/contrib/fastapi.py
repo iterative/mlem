@@ -40,9 +40,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
     type: ClassVar[str] = "fastapi"
 
     host: str = "0.0.0.0"
-    """net interface to use"""
+    """Network interface to use"""
     port: int = 8080
-    """port to use"""
+    """Port to use"""
 
     @classmethod
     def _create_handler(

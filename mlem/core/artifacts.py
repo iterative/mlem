@@ -141,7 +141,7 @@ class PlaceholderArtifact(Artifact):
 
     type: ClassVar = "_placeholder"
     location: Location
-    """location of artifact"""
+    """Location of artifact"""
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
         raise NotImplementedError

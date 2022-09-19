@@ -3,6 +3,7 @@ from typing import Optional
 from typer import Argument, Option
 
 from mlem.cli.main import (
+    PATH_METAVAR,
     mlem_command,
     option_external,
     option_rev,
@@ -13,7 +14,7 @@ from mlem.cli.main import (
 @mlem_command("link", section="object")
 def link(
     source: str = Argument(
-        ..., help="URI of the object you are creating a link to"
+        ..., help="URI of the MLEM object you are creating a link to"
     ),
     target: str = Argument(..., help="Path to save link object"),
     source_project: Optional[str] = Option(
@@ -21,6 +22,7 @@ def link(
         "--source-project",
         "--sp",
         help="Project for source object",
+        metavar=PATH_METAVAR,
     ),
     rev: Optional[str] = option_rev,
     target_project: Optional[str] = option_target_project,

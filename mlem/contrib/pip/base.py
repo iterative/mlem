@@ -99,7 +99,7 @@ class PipBuilder(MlemBuilder, PipMixin):
 
     type: ClassVar = "pip"
     target: str
-    """path to save result"""
+    """Path to save result"""
 
     def build(self, obj: MlemModel):
         fs, root = get_fs(self.target)
@@ -111,7 +111,7 @@ class WhlBuilder(MlemBuilder, PipMixin):
 
     type: ClassVar = "whl"
     target: str
-    """path to save result"""
+    """Path to save result"""
 
     def build_whl(self, path, target, target_fs):
         target_fs.makedirs(target, exist_ok=True)

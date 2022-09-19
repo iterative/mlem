@@ -15,7 +15,7 @@ def test_dvc_extras():
             for e in importlib_metadata.metadata("dvc").get_all(
                 "Provides-Extra"
             )
-            if e not in {"all", "dev", "terraform", "testing", "tests"}
+            if e not in {"all", "dev", "terraform", "tests", "testing"}
         }
         specified_extras = {
             e: l for e, l in extras.items() if e[: len("dvc-")] == "dvc-"
