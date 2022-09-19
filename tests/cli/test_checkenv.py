@@ -7,7 +7,11 @@ def test_checkenv(runner, model_path_mlem_project):
     result = runner.invoke(
         ["checkenv", model_path],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
 
     meta = load_meta(model_path, load_value=False, force_type=MlemModel)
     meta.requirements.__root__[0].version = "asdad"
@@ -16,4 +20,8 @@ def test_checkenv(runner, model_path_mlem_project):
     result = runner.invoke(
         ["checkenv", model_path],
     )
-    assert result.exit_code == 1, (result.output, result.exception)
+    assert result.exit_code == 1, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )

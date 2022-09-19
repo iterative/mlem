@@ -50,6 +50,7 @@ tests = [
     "pyarrow",
     "skl2onnx",
     "dvc[s3]",
+    "importlib_metadata",
 ]
 
 extras = {

@@ -50,7 +50,7 @@ def test_set_get_validation(runner: Runner, mlem_project):
     assert result.exit_code == 1
     assert (
         isinstance(result.exception, ValidationError)
-        or "extra fields not permitted" in result.output
+        or "extra fields not permitted" in result.stderr
     ), traceback.format_exception(
         type(result.exception),
         result.exception,
@@ -64,7 +64,7 @@ def test_set_get_validation(runner: Runner, mlem_project):
     assert result.exit_code == 1
     assert (
         isinstance(result.exception, MlemError)
-        or "[name] should contain at least one dot" in result.output
+        or "[name] should contain at least one dot" in result.stderr
     ), traceback.format_exception(
         type(result.exception),
         result.exception,
