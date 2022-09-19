@@ -5,6 +5,7 @@ from typer.main import get_command_from_info, get_group_from_info
 
 from mlem.cli import app
 from tests.cli.conftest import Runner
+from tests.conftest import long
 
 
 def iter_group(group: Group, prefix=()):
@@ -56,6 +57,7 @@ def test_commands_args_help(app_cli_cmd):
     assert len(no_help) == 0, f"{no_help} cli commands args do not have help!"
 
 
+@long
 def test_commands_docs_links(app_cli_cmd):
     no_link = []
     link_broken = []
