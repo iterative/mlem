@@ -137,25 +137,8 @@ def create_declare_mlem_abc_subcommand(
             safe_dump(obj.dict(), f)
 
 
-_internal = {
-    "artifact",
-    "data_reader",
-    "data_type",
-    "data_writer",
-    "deploy_state",
-    "import",
-    "interface",
-    "meta",
-    "model_io",
-    "model_type",
-    "requirement",
-    "resolver",
-    "storage",
-    "state",
-}
+_exposed = {"server", "client", "docker_registry"}
 for abs_name in list_abstractions(include_hidden=False):
-    if abs_name in {"builder", "env", "deployment"}:
-        continue
-    if abs_name in _internal:
+    if abs_name not in _exposed:
         continue
     create_declare_mlem_abc(abs_name)
