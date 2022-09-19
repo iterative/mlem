@@ -50,6 +50,7 @@ tests = [
     "pyarrow",
     "skl2onnx",
     "dvc[s3]",
+    "importlib_metadata",
 ]
 
 extras = {
@@ -93,6 +94,7 @@ for e in [
     "s3",
     "ssh",
     "ssh_gssapi",
+    "testing",
     "webdav",
     "webhdfs",
     "webhdfs_kerberos",
