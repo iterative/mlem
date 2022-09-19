@@ -816,7 +816,7 @@ class DeployState(MlemABC):
     allow_default: ClassVar[bool] = False
 
     model_hash: Optional[str] = None
-    """hash of deployed model meta"""
+    """Hash of deployed model meta"""
 
 
 DT = TypeVar("DT", bound="MlemDeployment")
