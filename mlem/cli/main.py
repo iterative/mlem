@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import traceback
 import typing as t
 from collections import defaultdict
 from enum import Enum, EnumMeta
@@ -31,6 +32,10 @@ from mlem.ui import (
     color,
     echo,
     stderr_echo,
+)
+
+TRACEBACK_SUGGESTION_MESSAGE = (
+    "Use the --tb or --traceback option to include the traceback in the output"
 )
 
 
@@ -246,7 +251,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
+    ctx.obj = {"traceback": traceback or verbose or LOCAL_CONFIG.DEBUG}
 
 
 def _extract_examples(
@@ -296,22 +301,24 @@ def mlem_command(
             except MlemError as e:
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
-                    raise
+                    handle_traceback()
                 with stderr_echo():
                     echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
+                    echo(TRACEBACK_SUGGESTION_MESSAGE)
                 raise typer.Exit(1)
             except ValidationError as e:
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
-                    raise
+                    handle_traceback()
                 msgs = "\n".join(_format_validation_error(e))
                 with stderr_echo():
                     echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
+                    echo(TRACEBACK_SUGGESTION_MESSAGE)
                 raise typer.Exit(1)
             except Exception as e:  # pylint: disable=broad-except
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"
                 if ctx.obj["traceback"]:
-                    raise
+                    handle_traceback()
                 with stderr_echo():
                     echo(
                         EMOJI_FAIL
@@ -319,6 +326,7 @@ def mlem_command(
                             "Unexpected error: " + str(e), col=typer.colors.RED
                         )
                     )
+                    echo(TRACEBACK_SUGGESTION_MESSAGE)
                     echo(
                         "Please report it here: <https://github.com/iterative/mlem/issues>"
                     )
@@ -484,3 +492,10 @@ def config_arg(
             obj = build_mlem_object(model, subtype, conf, file_conf)
 
     return obj
+
+
+def handle_traceback():
+    with stderr_echo():
+        traceback_output = traceback.format_exc()
+        echo(traceback_output)
+    raise typer.Exit(1)
