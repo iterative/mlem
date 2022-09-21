@@ -70,8 +70,7 @@ def ls(
         False, "-i", "--ignore-errors", help="Ignore corrupted objects"
     ),
 ):
-    """List MLEM objects inside a MLEM project.
-    """
+    """List MLEM objects inside a MLEM project."""
     from mlem.api.commands import ls
 
     if type_filter == "all":
