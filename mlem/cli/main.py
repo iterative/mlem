@@ -69,9 +69,17 @@ class MlemMixin(Command):
         self.format_help(ctx, formatter)
         return formatter.getvalue().rstrip("\n")
 
+    def _get_cmd_name_for_docs_link(self):
+        ctx = click.get_current_context()
+        return get_cmd_name(ctx, no_aliases=True, sep="/")
 
-def docs_link(cmd_name):
-    return f"\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
+    @staticmethod
+    def _add_docs_link(help, cmd_name):
+        return (
+            help
+            if "Documentation" in help
+            else f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
+        )
 
 
 class MlemCommand(
@@ -167,16 +175,12 @@ class MlemCommand(
 
     @property
     def help(self):
-        ctx = click.get_current_context()
-        cmd_name = get_cmd_name(ctx, no_aliases=True, sep="/")
+        cmd_name = self._get_cmd_name_for_docs_link()
         if self.lazy_help:
-            cmd_name = cmd_name[: cmd_name.index("/")]
-            return self.lazy_help() + docs_link(cmd_name)
-        return (
-            self._help
-            if "Documentation" in self._help
-            else self._help + docs_link(cmd_name)
-        )
+            return self._add_docs_link(
+                self.lazy_help(), cmd_name[: cmd_name.index("/")]
+            )
+        return self._add_docs_link(self._help, cmd_name)
 
     @help.setter
     def help(self, value):
@@ -259,15 +263,10 @@ class MlemGroup(MlemMixin, TyperGroup):
 
     @property
     def help(self):
-        ctx = click.get_current_context()
-        cmd_name = get_cmd_name(ctx, no_aliases=True, sep="/")
+        cmd_name = self._get_cmd_name_for_docs_link()
         if "/" in cmd_name:
             cmd_name = cmd_name[: cmd_name.index("/")]
-        return (
-            self._help
-            if "Documentation" in self._help
-            else self._help + docs_link(cmd_name)
-        )
+        return self._add_docs_link(self._help, cmd_name)
 
     @help.setter
     def help(self, value):

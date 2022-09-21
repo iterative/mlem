@@ -32,7 +32,7 @@ def config_set(
     ),
 ):
     """Set configuration value
-    \n\n
+
     Documentation: <https://mlem.ai/doc/command-reference/config>
     """
     fs, path = get_fs(project or "")
@@ -68,7 +68,7 @@ def config_get(
     project: Optional[str] = option_project,
 ):
     """Get configuration value
-    \n\n
+
     Documentation: <https://mlem.ai/doc/command-reference/config>
     """
     fs, path = get_fs(project or "")
