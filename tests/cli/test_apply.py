@@ -10,7 +10,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
 from mlem.core.data_type import ArrayType
-from mlem.core.errors import MlemProjectNotFound
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData
 from mlem.runtime.client import HTTPClient
@@ -196,12 +195,13 @@ def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
                 "--index",
             ],
         )
+        print(result.stderr)
         assert result.exit_code == 1, (
             result.stdout,
             result.stderr,
             result.exception,
         )
-        assert isinstance(result.exception, MlemProjectNotFound)
+        assert "MlemProjectNotFound" in result.stderr
 
 
 @long
