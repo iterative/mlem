@@ -81,18 +81,30 @@ def test_commands_docs_links(app_cli_cmd):
 @pytest.mark.parametrize("cmd", ["--help", "-h"])
 def test_help(runner: Runner, cmd):
     result = runner.invoke(cmd)
-    assert result.exit_code == 0, (result.exception, result.output)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
 
 
 def test_cli_commands_help(runner: Runner, app_cli_cmd):
     for name, _ in app_cli_cmd:
         result = runner.invoke(name + " --help")
-        assert result.exit_code == 0, (name, result.exception, result.output)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
 
 
 def test_version(runner: Runner):
     from mlem import __version__
 
     result = runner.invoke("--version")
-    assert result.exit_code == 0, (result.exception, result.output)
-    assert __version__ in result.output
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert __version__ in result.stdout

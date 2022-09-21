@@ -82,9 +82,9 @@ class NumpyNdarrayType(
     libraries: ClassVar[List[ModuleType]] = [np]
 
     shape: Optional[Tuple[Optional[int], ...]]
-    """shape of `numpy.ndarray`"""
+    """Shape of `numpy.ndarray`"""
     dtype: str
-    """data type of elements"""
+    """Data type of elements"""
 
     @staticmethod
     def _abstract_shape(shape):
@@ -185,7 +185,7 @@ class NumpyNumberReader(DataReader):
 
     type: ClassVar[str] = "numpy_number"
     data_type: NumpyNumberType
-    """resulting data type"""
+    """Resulting data type"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         if DataWriter.art_name not in artifacts:

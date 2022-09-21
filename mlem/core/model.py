@@ -251,9 +251,9 @@ class ModelType(ABC, MlemABC, WithRequirements):
     model: Any = None
 
     io: ModelIO
-    """model IO"""
+    """Model IO"""
     methods: Dict[str, Signature]
-    """model method signatures"""
+    """Model method signatures"""
 
     def load(self, artifacts: Artifacts):
         self.model = self.io.load(artifacts)

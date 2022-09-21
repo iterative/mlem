@@ -26,7 +26,11 @@ def test_import_model_pickle_copy(
     result = runner.invoke(
         ["import", path, out_path, "--type", type_, "--copy"],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
 
     loaded = load(out_path)
     loaded.predict(train)

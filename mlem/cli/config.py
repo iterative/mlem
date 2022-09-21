@@ -19,7 +19,7 @@ app.add_typer(config)
 
 @config.callback()
 def config_callback():
-    """Manipulate MLEM configuration"""
+    """Manipulate MLEM configuration."""
 
 
 @mlem_command("set", parent=config)

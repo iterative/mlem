@@ -34,7 +34,18 @@ from mlem.cli.utils import (
 from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
 from mlem.telemetry import telemetry
-from mlem.ui import EMOJI_FAIL, EMOJI_MLEM, bold, cli_echo, color, echo
+from mlem.ui import (
+    EMOJI_FAIL,
+    EMOJI_MLEM,
+    bold,
+    cli_echo,
+    color,
+    echo,
+    stderr_echo,
+)
+
+PATH_METAVAR = "path"
+COMMITISH_METAVAR = "commitish"
 
 
 class MlemFormatter(HelpFormatter):
@@ -427,7 +438,7 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
             error = f"{e.__class__.__module__}.{e.__class__.__name__}"
             if ctx.obj["traceback"]:
                 raise
-            with cli_echo():
+            with stderr_echo():
                 echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
             raise typer.Exit(1)
         except ValidationError as e:
@@ -435,14 +446,14 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
             if ctx.obj["traceback"]:
                 raise
             msgs = "\n".join(_format_validation_error(e))
-            with cli_echo():
+            with stderr_echo():
                 echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
             raise typer.Exit(1)
         except Exception as e:  # pylint: disable=broad-except
             error = f"{e.__class__.__module__}.{e.__class__.__name__}"
             if ctx.obj["traceback"]:
                 raise
-            with cli_echo():
+            with stderr_echo():
                 echo(
                     EMOJI_FAIL
                     + color(
@@ -461,7 +472,12 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
 
 
 option_project = Option(
-    None, "-p", "--project", help="Path to MLEM project", show_default="none"  # type: ignore
+    None,
+    "-p",
+    "--project",
+    help="Path to MLEM project",
+    metavar=PATH_METAVAR,
+    show_default="none",  # type: ignore
 )
 option_method = Option(
     PREDICT_METHOD_NAME,
@@ -469,7 +485,7 @@ option_method = Option(
     "--method",
     help="Which model method is to be applied",
 )
-option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none")  # type: ignore
+option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none", metavar=COMMITISH_METAVAR)  # type: ignore
 option_index = Option(
     None,
     "--index/--no-index",
@@ -487,6 +503,7 @@ option_target_project = Option(
     "--target-project",
     "--tp",
     help="Project to save target to",
+    metavar=PATH_METAVAR,
     show_default="none",  # type: ignore
 )
 option_json = Option(False, "--json", help="Output as json")
@@ -494,12 +511,21 @@ option_data_project = Option(
     None,
     "--data-project",
     "--dr",
+    metavar=PATH_METAVAR,
     help="Project with data",
 )
 option_data_rev = Option(
-    None,
-    "--data-rev",
-    help="Revision of data",
+    None, "--data-rev", help="Revision of data", metavar=COMMITISH_METAVAR
+)
+option_model = Option(
+    ...,
+    "-m",
+    "--model",
+    help="Path to MLEM model",
+    metavar=PATH_METAVAR,
+)
+option_data = Option(
+    ..., "-d", "--data", help="Path to MLEM dataset", metavar=PATH_METAVAR
 )
 
 
@@ -510,6 +536,7 @@ def option_load(type_: str = None):
         "-l",
         f"--{LOAD_PARAM_NAME}",
         help=f"File to load {type_}config from",
+        metavar=PATH_METAVAR,
     )
 
 

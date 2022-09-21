@@ -5,10 +5,12 @@ from typer import Argument, Option, Typer
 
 from mlem.api import import_object
 from mlem.cli.main import (
+    PATH_METAVAR,
     app,
     mlem_command,
     mlem_group,
     mlem_group_callback,
+    option_data,
     option_data_project,
     option_data_rev,
     option_external,
@@ -26,6 +28,7 @@ from mlem.cli.utils import (
     config_arg,
     for_each_impl,
     lazy_class_docstring,
+    make_not_required,
 )
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
@@ -36,6 +39,33 @@ from mlem.runtime.client import Client
 from mlem.ui import set_echo
 from mlem.utils.entrypoints import list_implementations
 
+option_output = Option(
+    None,
+    "-o",
+    "--output",
+    help="Where to save model outputs",
+    metavar=PATH_METAVAR,
+)
+option_import = Option(
+    False,
+    "-i",
+    "--import",
+    help="Try to import data on-the-fly",
+)
+option_import_type = Option(
+    None,
+    "--import-type",
+    "--it",
+    # TODO: change ImportHook to MlemObject to support ext machinery
+    help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
+)
+option_batch_size = Option(
+    None,
+    "-b",
+    "--batch_size",
+    help="Batch size for reading data in batches",
+)
+
 
 @mlem_command("apply", section="runtime")
 def apply(
@@ -43,31 +73,13 @@ def apply(
     data_path: str = Argument(..., metavar="data", help="Path to data object"),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
-    output: Optional[str] = Option(
-        None, "-o", "--output", help="Where to store the outputs."
-    ),
+    output: Optional[str] = option_output,
     method: str = option_method,
     data_project: Optional[str] = option_data_project,
     data_rev: Optional[str] = option_data_rev,
-    import_: bool = Option(
-        False,
-        "-i",
-        "--import",
-        help="Try to import data on-the-fly",
-    ),
-    import_type: str = Option(
-        None,
-        "--import-type",
-        "--it",
-        # TODO: change ImportHook to MlemObject to support ext machinery
-        help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
-    ),
-    batch_size: Optional[int] = Option(
-        None,
-        "-b",
-        "--batch_size",
-        help="Batch size for reading data in batches.",
-    ),
+    import_: bool = option_import,
+    import_type: str = option_import_type,
+    batch_size: Optional[int] = option_batch_size,
     index: bool = option_index,
     external: bool = option_external,
     json: bool = option_json,
@@ -170,14 +182,9 @@ def _apply_remote(
         )
 
 
-option_output = Option(
-    None, "-o", "--output", help="Where to store the outputs."
-)
-
-
 @mlem_group_callback(apply_remote, required=["data", "load"])
 def apply_remote_load(
-    data: str = Option(None, "-d", "--data", help="Path to data object"),
+    data: str = make_not_required(option_data),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     output: Optional[str] = option_output,
@@ -216,7 +223,7 @@ def create_apply_remote(type_name):
         no_pass_from_parent=["file_conf"],
     )
     def apply_remote_func(
-        data: str = Option(..., "-d", "--data", help="Path to data object"),
+        data: str = option_data,
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         output: Optional[str] = option_output,

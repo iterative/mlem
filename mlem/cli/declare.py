@@ -49,7 +49,7 @@ def create_declare_mlem_object_subcommand(
 ):
     @mlem_command(
         subtype,
-        section="Mlem Objects",
+        section="MLEM Objects",
         parent=parent,
         dynamic_metavar="__kwargs__",
         dynamic_options_generator=abc_fields_parameters(subtype, parent_cls),
@@ -57,7 +57,9 @@ def create_declare_mlem_object_subcommand(
         lazy_help=lazy_class_docstring(type_name, subtype),
     )
     def subtype_command(
-        path: str = Argument(..., help="Where to save object"),
+        path: str = Argument(
+            ..., help="Where to save the object (.mlem file)"
+        ),
         project: str = option_project,
         external: bool = option_external,
         index: bool = option_index,
@@ -131,25 +133,8 @@ def create_declare_mlem_abc_subcommand(
             safe_dump(obj.dict(), f)
 
 
-_internal = {
-    "artifact",
-    "data_reader",
-    "data_type",
-    "data_writer",
-    "deploy_state",
-    "import",
-    "interface",
-    "meta",
-    "model_io",
-    "model_type",
-    "requirement",
-    "resolver",
-    "storage",
-    "state",
-}
+_exposed = {"server", "client", "docker_registry"}
 for abs_name in list_abstractions(include_hidden=False):
-    if abs_name in {"builder", "env", "deployment"}:
-        continue
-    if abs_name in _internal:
+    if abs_name not in _exposed:
         continue
     create_declare_mlem_abc(abs_name)

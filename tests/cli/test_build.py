@@ -37,7 +37,11 @@ def test_build(runner: Runner, model_meta_saved_single, tmp_path):
         f"build mock -m {make_posix(model_meta_saved_single.loc.uri)} --target {make_posix(path)} --server fastapi --server.port 1000"
     )
 
-    assert result.exit_code == 0, (result.exception, result.output)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
 
     with open(path, encoding="utf8") as f:
         lines = f.read().splitlines()
