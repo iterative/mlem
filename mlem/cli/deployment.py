@@ -4,26 +4,43 @@ from typing import List, Optional
 from typer import Argument, Option, Typer
 
 from mlem.cli.apply import run_apply_remote
+from mlem.cli.declare import add_env_params_deployment
 from mlem.cli.main import (
     app,
     mlem_command,
     mlem_group,
-    option_conf,
+    mlem_group_callback,
     option_data_project,
     option_data_rev,
     option_external,
+    option_file_conf,
     option_index,
     option_json,
+    option_load,
     option_method,
+    option_model,
+    option_model_project,
+    option_model_rev,
     option_project,
     option_rev,
     option_target_project,
 )
-from mlem.core.base import parse_string_conf
+from mlem.cli.utils import (
+    for_each_impl,
+    lazy_class_docstring,
+    make_not_required,
+    wrap_build_error,
+)
+from mlem.core.base import build_mlem_object
 from mlem.core.data_type import DataAnalyzer
-from mlem.core.errors import DeploymentError
+from mlem.core.errors import DeploymentError, MlemObjectNotFound
 from mlem.core.metadata import load_meta
-from mlem.core.objects import DeployState, DeployStatus, MlemDeployment
+from mlem.core.objects import (
+    DeployState,
+    DeployStatus,
+    MlemDeployment,
+    MlemModel,
+)
 from mlem.ui import echo, no_echo, set_echo
 
 deployment = Typer(
@@ -33,21 +50,27 @@ deployment = Typer(
 )
 app.add_typer(deployment)
 
+deploy_run = Typer(
+    name="run",
+    help="""Deploy a model to a target environment. Can use an existing deployment
+    declaration or create a new one on-the-fly.
+    """,
+    cls=mlem_group("other"),
+    subcommand_metavar="deployment",
+)
+deployment.add_typer(deploy_run)
 
-@mlem_command("run", parent=deployment)
-def deploy_run(
-    path: str = Argument(
-        ...,
-        help="Path to deployment meta (will be created if it does not exist)",
-    ),
-    model: str = Option(..., "-m", "--model", help="Path to model"),
-    env: Optional[str] = Option(
-        None, "-t", "--env", help="Path to target environment"
-    ),
+
+@mlem_group_callback(deploy_run, required=["model", "load"])
+def deploy_run_callback(
+    load: str = option_load("deployment"),
+    model: str = make_not_required(option_model),
+    model_project: Optional[str] = option_model_project,
+    model_rev: Optional[str] = option_model_rev,
     project: Optional[str] = option_project,
+    rev: Optional[str] = option_rev,
     external: bool = option_external,
     index: bool = option_index,
-    conf: Optional[List[str]] = option_conf(),
 ):
     """Deploy a model to a target environment. Can use an existing deployment
     declaration or create a new one on-the-fly.
@@ -64,19 +87,73 @@ def deploy_run(
     """
     from mlem.api.commands import deploy
 
-    conf = conf or []
-    env_conf = [c[len("env.") :] for c in conf if c.startswith("env.")]
-    conf = [c for c in conf if not c.startswith("env.")]
     deploy(
-        path,
-        model,
-        env,
-        project,
+        load,
+        load_meta(
+            model, project=model_project, rev=model_rev, force_type=MlemModel
+        ),
+        project=project,
+        rev=rev,
         external=external,
         index=index,
-        env_kwargs=parse_string_conf(env_conf),
-        **parse_string_conf(conf or []),
     )
+
+
+@for_each_impl(MlemDeployment)
+def create_deploy_run_command(type_name):
+    @mlem_command(
+        type_name,
+        section="deployments",
+        parent=deploy_run,
+        dynamic_metavar="__kwargs__",
+        dynamic_options_generator=add_env_params_deployment(
+            type_name, MlemDeployment
+        ),
+        hidden=type_name.startswith("_"),
+        lazy_help=lazy_class_docstring(MlemDeployment.object_type, type_name),
+        no_pass_from_parent=["file_conf"],
+    )
+    def deploy_run_command(
+        path: str = Argument(
+            ..., help="Where to save the object (.mlem file)"
+        ),
+        model: str = make_not_required(option_model),
+        model_project: Optional[str] = option_model_project,
+        model_rev: Optional[str] = option_model_rev,
+        project: Optional[str] = option_project,
+        external: bool = option_external,
+        index: bool = option_index,
+        file_conf: List[str] = option_file_conf("deployment"),
+        **__kwargs__,
+    ):
+        from mlem.api.commands import deploy
+
+        try:
+            meta = load_meta(path, project=project, force_type=MlemDeployment)
+            raise DeploymentError(
+                f"Deployment meta already exists at {meta.loc}. Please use mlem deployment run --load <path> ..."
+            )
+        except MlemObjectNotFound:
+            with wrap_build_error(type_name, MlemDeployment):
+                meta = build_mlem_object(
+                    MlemDeployment,
+                    type_name,
+                    str_conf=None,
+                    file_conf=file_conf,
+                    **__kwargs__,
+                ).dump(path, project=project)
+        deploy(
+            meta,
+            load_meta(
+                model,
+                project=model_project,
+                rev=model_rev,
+                force_type=MlemModel,
+            ),
+            project=project,
+            external=external,
+            index=index,
+        )
 
 
 @mlem_command("remove", parent=deployment)

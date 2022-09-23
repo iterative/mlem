@@ -170,14 +170,17 @@ def smart_split(value: str, char: str, maxsplit: int = None):
     return res[:maxsplit] + [char.join(res[maxsplit:])]
 
 
+TMO = TypeVar("TMO", bound=MlemABC)
+
+
 def build_mlem_object(
-    model: Type[MlemABC],
+    model: Type[TMO],
     subtype: str,
     str_conf: List[str] = None,
     file_conf: List[str] = None,
     conf: Dict[str, Any] = None,
     **kwargs,
-):
+) -> TMO:
     not_links, links = parse_links(model, str_conf or [])
     if model.__is_root__:
         kwargs[model.__config__.type_field] = subtype
@@ -335,13 +338,16 @@ def parse_string_conf(conf: List[str]) -> Dict[str, Any]:
     return res.build()
 
 
+TBM = TypeVar("TBM", bound=BaseModel)
+
+
 def build_model(
-    model: Type[BaseModel],
+    model: Type[TBM],
     str_conf: List[str] = None,
     file_conf: List[str] = None,
     conf: Dict[str, Any] = None,
     **kwargs,
-):
+) -> TBM:
     model_dict = SmartSplitDict()
     model_dict.update(kwargs)
     model_dict.update(conf or {})

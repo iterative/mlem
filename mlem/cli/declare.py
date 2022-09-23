@@ -1,3 +1,4 @@
+import itertools
 from typing import Type
 
 from typer import Argument, Typer
@@ -5,7 +6,7 @@ from yaml import safe_dump
 
 from ..core.base import MlemABC, build_mlem_object, load_impl_ext
 from ..core.meta_io import Location
-from ..core.objects import MlemObject
+from ..core.objects import MlemDeployment, MlemObject
 from ..utils.entrypoints import list_abstractions, list_implementations
 from .main import (
     app,
@@ -16,6 +17,9 @@ from .main import (
     option_project,
 )
 from .utils import (
+    CliTypeField,
+    _option_from_field,
+    _options_from_model,
     abc_fields_parameters,
     lazy_class_docstring,
     wrap_build_error,
@@ -48,6 +52,34 @@ def create_declare_mlem_object(type_name, cls: Type[MlemObject]):
             )
 
 
+def add_env_params_deployment(subtype, parent_cls: Type[MlemDeployment]):
+    impl = load_impl_ext(parent_cls.object_type, subtype)
+    assert issubclass(impl, MlemDeployment)  # just to help mypy
+    env_impl = impl.env_type
+    return lambda ctx: itertools.chain(
+        abc_fields_parameters(subtype, parent_cls)(ctx),
+        _options_from_model(env_impl, ctx, path="env", force_not_set=True),
+        (
+            _option_from_field(
+                CliTypeField(
+                    path="env",
+                    required=False,
+                    allow_none=False,
+                    type_=str,
+                    help="",
+                    default=env_impl.type,
+                    is_list=False,
+                    is_mapping=False,
+                ),
+                "env",
+            ),
+        ),
+    )
+
+
+_add_fields = {"deployment": add_env_params_deployment}
+
+
 def create_declare_mlem_object_subcommand(
     parent: Typer, subtype: str, type_name: str, parent_cls
 ):
@@ -56,7 +88,9 @@ def create_declare_mlem_object_subcommand(
         section="MLEM Objects",
         parent=parent,
         dynamic_metavar="__kwargs__",
-        dynamic_options_generator=abc_fields_parameters(subtype, parent_cls),
+        dynamic_options_generator=_add_fields.get(
+            parent_cls.object_type, abc_fields_parameters
+        )(subtype, parent_cls),
         hidden=subtype.startswith("_"),
         lazy_help=lazy_class_docstring(type_name, subtype),
     )

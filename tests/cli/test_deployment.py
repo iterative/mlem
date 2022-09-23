@@ -1,11 +1,15 @@
 import os
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, Type
 
 import pytest
 from numpy import ndarray
 from yaml import safe_load
 
 from mlem.api import load
+from mlem.cli.declare import create_declare_mlem_object_subcommand, declare
+from mlem.cli.deployment import create_deploy_run_command
+from mlem.contrib.heroku.meta import HerokuEnv
+from mlem.core.errors import WrongMetaSubType
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
@@ -15,6 +19,7 @@ from mlem.core.objects import (
     MlemEnv,
     MlemLink,
     MlemModel,
+    MlemObject,
 )
 from mlem.runtime.client import Client, HTTPClient
 from mlem.utils.path import make_posix
@@ -24,19 +29,31 @@ from tests.cli.conftest import Runner
 class DeployStateMock(DeployState):
     """mock"""
 
-    allow_default: ClassVar = True
-
-
-class MlemDeploymentMock(MlemDeployment):
-    """mock"""
-
     class Config:
         use_enum_values = True
 
+    allow_default: ClassVar = True
+
+    deployment: Optional[MlemDeployment] = None
+    env: Optional[MlemEnv] = None
+    status: DeployStatus = DeployStatus.NOT_DEPLOYED
+
+
+class MlemEnvMock(MlemEnv):
+    """mock"""
+
+    type: ClassVar = "mock"
+
+    env_param: Optional[str] = None
+
+
+class MlemDeploymentMock(MlemDeployment[DeployStateMock, MlemEnvMock]):
+    """mock"""
+
     type: ClassVar = "mock"
     state_type: ClassVar = DeployStateMock
+    env_type: ClassVar = MlemEnvMock
 
-    status: DeployStatus = DeployStatus.NOT_DEPLOYED
     """status"""
     param: str = ""
     """param"""
@@ -45,22 +62,26 @@ class MlemDeploymentMock(MlemDeployment):
         return HTTPClient(host="", port=None)
 
     def deploy(self, model: MlemModel):
-        self.status = DeployStatus.RUNNING
-        self.update()
+        with self.lock_state():
+            state = self.get_state()
+            state.status = DeployStatus.RUNNING
+            state.deployment = self
+            state.env = self.get_env()
+            state.update_model_hash(model)
+            self.update_state(state)
 
     def remove(self):
-        self.status = DeployStatus.STOPPED
-        self.update()
+        with self.lock_state():
+            state = self.get_state()
+            state.status = DeployStatus.STOPPED
+            state.deployment = None
+            state.env = None
+            state.model_hash = None
+            self.update_state(state)
 
     def get_status(self, raise_on_error=True) -> "DeployStatus":
-        return self.status
-
-
-class MlemEnvMock(MlemEnv):
-    """mock"""
-
-    type: ClassVar = "mock"
-    deploy_type: ClassVar = MlemDeploymentMock
+        with self.lock_state():
+            return self.get_state().status
 
 
 @pytest.fixture
@@ -169,7 +190,7 @@ def test_deploy_create_new(
 ):
     path = os.path.join(tmp_path, "deployname")
     result = runner.invoke(
-        f"deploy run {path} -m {model_meta_saved_single.loc.uri} -t {mock_env_path} -c param=aaa".split()
+        f"deploy run {MlemDeploymentMock.type} {path} -m {model_meta_saved_single.loc.uri} --env {mock_env_path} --param aaa".split()
     )
     assert result.exit_code == 0, (
         result.stdout,
@@ -180,14 +201,14 @@ def test_deploy_create_new(
     meta = load_meta(path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.param == "aaa"
-    assert meta.status == DeployStatus.RUNNING
+    assert meta.get_status() == DeployStatus.RUNNING
 
 
 def test_deploy_create_existing(
     runner: Runner, mock_deploy_path, model_meta_saved_single
 ):
     result = runner.invoke(
-        f"deploy run {mock_deploy_path} -m {model_meta_saved_single.loc.fullpath}".split(),
+        f"deploy run --load {mock_deploy_path} -m {model_meta_saved_single.loc.fullpath}".split(),
         raise_on_error=True,
     )
     assert result.exit_code == 0, (
@@ -198,7 +219,7 @@ def test_deploy_create_existing(
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.param == "bbb"
-    assert meta.status == DeployStatus.RUNNING
+    assert meta.get_status() == DeployStatus.RUNNING
 
 
 def test_deploy_status(runner: Runner, mock_deploy_path):
@@ -220,7 +241,7 @@ def test_deploy_remove(runner: Runner, mock_deploy_path):
     )
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
-    assert meta.status == DeployStatus.STOPPED
+    assert meta.get_status() == DeployStatus.STOPPED
 
 
 def test_deploy_apply(
@@ -242,6 +263,204 @@ def test_deploy_apply(
     )
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
-    assert meta.status == DeployStatus.NOT_DEPLOYED
+    assert meta.get_status() == DeployStatus.NOT_DEPLOYED
     predictions = load(path)
     assert isinstance(predictions, ndarray)
+
+
+def add_mock_declare(type_: Type[MlemObject]):
+
+    typer = [
+        g.typer_instance
+        for g in declare.registered_groups
+        if g.typer_instance.info.name == type_.object_type
+    ][0]
+
+    create_declare_mlem_object_subcommand(
+        typer,
+        type_.__get_alias__(),
+        type_.object_type,
+        type_,
+    )
+
+
+add_mock_declare(MlemDeploymentMock)
+add_mock_declare(MlemEnvMock)
+
+create_deploy_run_command(MlemDeploymentMock.type)
+
+
+def _deploy_and_check(
+    runner: Runner,
+    deploy_path: str,
+    model_single_path: str,
+    load_deploy=True,
+    add_args="",
+):
+
+    if load_deploy:
+        status_res = runner.invoke(
+            f"deploy status {deploy_path}", raise_on_error=True
+        )
+        assert status_res.exit_code == 0, (
+            status_res.output,
+            status_res.exception,
+            status_res.stderr,
+        )
+        assert status_res.output.strip() == DeployStatus.NOT_DEPLOYED.value
+
+        deploy_res = runner.invoke(
+            f"deploy run --load {deploy_path} --model {model_single_path}",
+            raise_on_error=True,
+        )
+    else:
+        deploy_res = runner.invoke(
+            f"deploy run {MlemDeploymentMock.type} {deploy_path} --model {model_single_path} --param val {add_args}",
+            raise_on_error=True,
+        )
+
+    assert deploy_res.exit_code == 0, (
+        deploy_res.output,
+        deploy_res.exception,
+        deploy_res.stderr,
+    )
+
+    status_res = runner.invoke(
+        f"deploy status {deploy_path}", raise_on_error=True
+    )
+    assert status_res.exit_code == 0, (
+        status_res.output,
+        status_res.exception,
+        status_res.stderr,
+    )
+    assert status_res.output.strip() == DeployStatus.RUNNING.value
+
+    deploy_meta = load_meta(deploy_path, force_type=MlemDeploymentMock)
+    state = deploy_meta.get_state()
+    assert isinstance(state.deployment, MlemDeploymentMock)
+    assert state.deployment.param == "val"
+    assert isinstance(state.env, MlemEnvMock)
+    assert state.env.env_param == "env_val"
+
+    remove_res = runner.invoke(
+        f"deploy remove {deploy_path}", raise_on_error=True
+    )
+    assert remove_res.exit_code == 0, (
+        remove_res.output,
+        remove_res.exception,
+        remove_res.stderr,
+    )
+
+    status_res = runner.invoke(
+        f"deploy status {deploy_path}", raise_on_error=True
+    )
+    assert status_res.exit_code == 0, (
+        status_res.output,
+        status_res.exception,
+        status_res.stderr,
+    )
+    assert status_res.output.strip() == DeployStatus.STOPPED.value
+
+
+def test_all_declared(runner: Runner, tmp_path, model_single_path):
+    """
+    mlem declare env heroku --api_key lol prod.mlem
+    mlem declare deployment heroku --env prod.mlem --app_name myapp service.mlem
+    # error on depl/env type mismatch  TODO
+    mlem deployment run --load service.mlem --model mdoel
+    """
+    env_path = str(tmp_path / "env")
+    runner.invoke(
+        f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
+        raise_on_error=True,
+    )
+    deploy_path = str(tmp_path / "deploy")
+    runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} --param val --env {env_path} {deploy_path}",
+        raise_on_error=True,
+    )
+
+    _deploy_and_check(runner, deploy_path, model_single_path)
+
+
+def test_declare_type_mismatch(runner: Runner, tmp_path, model_single_path):
+    """
+    mlem declare env heroku --api_key lol prod.mlem
+    mlem declare deployment sagemaker --env prod.mlem --app_name myapp service.mlem
+    # error on depl/env type mismatch  TODO
+    mlem deployment run --load service.mlem --model mdoel
+    """
+    env_path = str(tmp_path / "env")
+    runner.invoke(
+        f"declare env {HerokuEnv.type} {env_path}", raise_on_error=True
+    )
+    deploy_path = str(tmp_path / "deploy")
+    runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} --param a --env {env_path} {deploy_path}",
+        raise_on_error=True,
+    )
+    with pytest.raises(WrongMetaSubType):
+        runner.invoke(
+            f"deploy run --load {deploy_path} --model {model_single_path}",
+            raise_on_error=True,
+        )
+
+
+def test_deploy_declared(runner: Runner, tmp_path, model_single_path):
+    """
+    mlem declare deployment heroku --env.api_key prod.mlem --app_name myapp service.mlem
+    mlem deployment run --load service.mlem --model mdoel
+    """
+    deploy_path = str(tmp_path / "deploy")
+    declare_res = runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} {deploy_path} --param val --env.env_param env_val ",
+        raise_on_error=True,
+    )
+    assert declare_res.exit_code == 0, (
+        declare_res.output,
+        declare_res.exception,
+        declare_res.stderr,
+    )
+
+    _deploy_and_check(runner, deploy_path, model_single_path)
+
+
+def test_env_declared(runner: Runner, tmp_path, model_single_path):
+    """
+    mlem declare env heroku --api_key lol prod.mlem
+    mlem deployment run heroku service.mlem --model model --app_name myapp --env prod.mlem
+    # error on type mismatch
+    """
+    env_path = str(tmp_path / "env")
+    declare_res = runner.invoke(
+        f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
+        raise_on_error=True,
+    )
+    assert declare_res.exit_code == 0, (
+        declare_res.output,
+        declare_res.exception,
+        declare_res.stderr,
+    )
+    deploy_path = str(tmp_path / "deploy")
+    _deploy_and_check(
+        runner,
+        deploy_path,
+        model_single_path,
+        load_deploy=False,
+        add_args=f"--env {env_path}",
+    )
+
+
+def test_none_declared(runner: Runner, tmp_path, model_single_path):
+    """
+    mlem deployment run heroku service.mlem --model model --app_name myapp --env.api_key lol
+    # error on args mismatch
+    """
+    deploy_path = str(tmp_path / "deploy")
+    _deploy_and_check(
+        runner,
+        deploy_path,
+        model_single_path,
+        load_deploy=False,
+        add_args="--env.env_param env_val",
+    )
