@@ -417,6 +417,7 @@ def deploy(
     model: Union[MlemModel, str],
     env: Union[MlemEnv, str] = None,
     project: Optional[str] = None,
+    rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
     external: bool = None,
     index: bool = None,
@@ -430,6 +431,7 @@ def deploy(
             deploy_meta = load_meta(
                 path=deploy_meta_or_path,
                 project=project,
+                rev=rev,
                 fs=fs,
                 force_type=MlemDeployment,
             )
