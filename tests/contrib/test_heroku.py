@@ -187,7 +187,7 @@ def test_env_deploy_full(
     if CLEAR_APPS:
         meta.remove()
 
-        assert meta.get_state() == HerokuState()
+        assert meta.get_state() == HerokuState(declaration=meta)
         meta.wait_for_status(
             DeployStatus.NOT_DEPLOYED,
             allowed_intermediate=DeployStatus.RUNNING,
