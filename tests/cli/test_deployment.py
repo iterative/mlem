@@ -401,11 +401,11 @@ def test_declare_type_mismatch(runner: Runner, tmp_path, model_single_path):
         raise_on_error=True,
     )
 
-    res = runner.invoke(
-        f"deploy run --load {deploy_path} --model {model_single_path}",
-    )
-    assert res.exit_code != 0
-    assert isinstance(res.exception, WrongMetaSubType)
+    with pytest.raises(WrongMetaSubType):
+        runner.invoke(
+            f"deploy run --load {deploy_path} --model {model_single_path}",
+            raise_on_error=True,
+        )
 
 
 def test_deploy_declared(runner: Runner, tmp_path, model_single_path):
@@ -489,13 +489,11 @@ def test_redeploy_changed(runner: Runner, tmp_path, model_single_path):
         f"declare deployment {MlemDeploymentMock.type} --param val1 --env {env_path} {deploy_path}",
         raise_on_error=True,
     )
-
-    res = runner.invoke(
-        f"deploy run --load {deploy_path} --model {model_single_path}"
-    )
-
-    assert res.exit_code != 0
-    assert isinstance(res.exception, DeploymentError)
+    with pytest.raises(DeploymentError):
+        runner.invoke(
+            f"deploy run --load {deploy_path} --model {model_single_path}",
+            raise_on_error=True,
+        )
 
 
 def test_redeploy_env_changed(runner: Runner, tmp_path, model_single_path):
@@ -520,9 +518,8 @@ def test_redeploy_env_changed(runner: Runner, tmp_path, model_single_path):
         raise_on_error=True,
     )
 
-    res = runner.invoke(
-        f"deploy run --load {deploy_path} --model {model_single_path}"
-    )
-
-    assert res.exit_code != 0
-    assert isinstance(res.exception, DeploymentError)
+    with pytest.raises(DeploymentError):
+        runner.invoke(
+            f"deploy run --load {deploy_path} --model {model_single_path}",
+            raise_on_error=True,
+        )
