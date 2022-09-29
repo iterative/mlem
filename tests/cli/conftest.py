@@ -2,6 +2,7 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
+from mlem import LOCAL_CONFIG
 from mlem.cli import app
 
 app.pretty_exceptions_short = False
@@ -23,3 +24,13 @@ class Runner:
 @pytest.fixture
 def runner() -> Runner:
     return Runner()
+
+
+@pytest.fixture
+def no_debug():
+    tmp = LOCAL_CONFIG.DEBUG
+    try:
+        LOCAL_CONFIG.DEBUG = False
+        yield
+    finally:
+        LOCAL_CONFIG.DEBUG = tmp
