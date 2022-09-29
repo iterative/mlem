@@ -135,7 +135,7 @@ class K8sDeployment(
                     daemon=self.daemon,
                     server=self.get_server(),
                 )
-                state.update_model_hash(model)
+                state.update_model(model)
                 redeploy = True
 
             if (

@@ -9,7 +9,7 @@ from mlem.api import load
 from mlem.cli.declare import create_declare_mlem_object_subcommand, declare
 from mlem.cli.deployment import create_deploy_run_command
 from mlem.contrib.heroku.meta import HerokuEnv
-from mlem.core.errors import WrongMetaSubType
+from mlem.core.errors import DeploymentError, WrongMetaSubType
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load_meta
 from mlem.core.objects import (
@@ -67,7 +67,7 @@ class MlemDeploymentMock(MlemDeployment[DeployStateMock, MlemEnvMock]):
             state.status = DeployStatus.RUNNING
             state.deployment = self
             state.env = self.get_env()
-            state.update_model_hash(model)
+            state.update_model(model)
             self.update_state(state)
 
     def remove(self):
@@ -254,7 +254,8 @@ def test_deploy_apply(
 ):
     path = os.path.join(tmp_path, "output")
     result = runner.invoke(
-        f"deploy apply {mock_deploy_path} {data_path} -o {path}".split()
+        f"deploy apply {mock_deploy_path} {data_path} -o {path}".split(),
+        raise_on_error=True,
     )
     assert result.exit_code == 0, (
         result.stdout,
@@ -465,3 +466,63 @@ def test_none_declared(runner: Runner, tmp_path, model_single_path):
         load_deploy=False,
         add_args="--env.env_param env_val",
     )
+
+
+def test_redeploy_changed(runner: Runner, tmp_path, model_single_path):
+    env_path = str(tmp_path / "env")
+    runner.invoke(
+        f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
+        raise_on_error=True,
+    )
+    deploy_path = str(tmp_path / "deploy")
+    runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} --param val --env {env_path} {deploy_path}",
+        raise_on_error=True,
+    )
+
+    runner.invoke(
+        f"deploy run --load {deploy_path} --model {model_single_path}",
+        raise_on_error=True,
+    )
+
+    runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} --param val1 --env {env_path} {deploy_path}",
+        raise_on_error=True,
+    )
+
+    res = runner.invoke(
+        f"deploy run --load {deploy_path} --model {model_single_path}"
+    )
+
+    assert res.exit_code != 0
+    assert isinstance(res.exception, DeploymentError)
+
+
+def test_redeploy_env_changed(runner: Runner, tmp_path, model_single_path):
+    env_path = str(tmp_path / "env")
+    runner.invoke(
+        f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
+        raise_on_error=True,
+    )
+    deploy_path = str(tmp_path / "deploy")
+    runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} --param val --env {env_path} {deploy_path}",
+        raise_on_error=True,
+    )
+
+    runner.invoke(
+        f"deploy run --load {deploy_path} --model {model_single_path}",
+        raise_on_error=True,
+    )
+
+    runner.invoke(
+        f"declare env {MlemEnvMock.type} --env_param env_val1 {env_path}",
+        raise_on_error=True,
+    )
+
+    res = runner.invoke(
+        f"deploy run --load {deploy_path} --model {model_single_path}"
+    )
+
+    assert res.exit_code != 0
+    assert isinstance(res.exception, DeploymentError)

@@ -465,5 +465,6 @@ def deploy(
     deploy_meta.get_env()
     model_meta = get_model_meta(model)
 
+    deploy_meta.check_unchanged()
     deploy_meta.deploy(model_meta)
     return deploy_meta

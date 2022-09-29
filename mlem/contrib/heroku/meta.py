@@ -97,7 +97,7 @@ class HerokuDeployment(MlemDeployment[HerokuState, HerokuEnv]):
                 state.image = build_heroku_docker(
                     model, state.app.name, api_key=self.get_env().api_key
                 )
-                state.update_model_hash(model)
+                state.update_model(model)
                 self.update_state(state)
                 redeploy = True
             if state.release_state is None or redeploy:

@@ -211,7 +211,7 @@ class SagemakerDeployment(MlemDeployment[SagemakerDeployState, SagemakerEnv]):
             self.model_arch_location
             or generate_model_file_name(model.meta_hash()),
         )
-        state.update_model_hash(model)
+        state.update_model(model)
 
     @updates_state
     def _update_model(

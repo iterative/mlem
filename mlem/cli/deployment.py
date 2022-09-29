@@ -250,7 +250,7 @@ def deploy_apply(
         )
         state: DeployState = deploy_meta.get_state()
         if (
-            state == deploy_meta.state_type()
+            state == deploy_meta.state_type(declaration=deploy_meta)
             and not deploy_meta.state_type.allow_default
         ):
             raise DeploymentError(

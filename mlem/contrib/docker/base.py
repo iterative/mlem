@@ -374,7 +374,7 @@ class DockerContainer(
                         force_overwrite=True,
                         **self.args.dict(),
                     )
-                state.update_model_hash(model)
+                state.update_model(model)
                 self.update_state(state)
                 redeploy = True
             if state.container_id is None or redeploy:

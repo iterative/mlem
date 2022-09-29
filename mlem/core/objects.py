@@ -817,12 +817,28 @@ class DeployState(MlemABC):
 
     model_hash: Optional[str] = None
     """Hash of deployed model meta"""
+    model_link: Optional["ModelLink"]
+    """Link to deployed model"""
+    declaration: "MlemDeployment"
+    """Deployment declaration used"""
 
-    def update_model_hash(
+    def update_model(
         self,
         model: MlemModel,
     ):
         self.model_hash = model.meta_hash()
+        if model.is_saved:
+            self.model_link = model.make_link().typed
+        else:
+            self.model_link = None
+
+    @validator("declaration")
+    def validate_declaration(  # pylint: disable=no-self-argument
+        cls, value: "MlemDeployment"
+    ):
+        copy = value.copy()
+        copy.env = value.get_env()
+        return copy
 
 
 DT = TypeVar("DT", bound="MlemDeployment")
@@ -1067,10 +1083,9 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
         return self.state_manager
 
     def get_state(self) -> ST:
-        return (
-            self._state_manager.get_state(self, self.state_type)
-            or self.state_type()
-        )
+        return self._state_manager.get_state(
+            self, self.state_type
+        ) or self.state_type(declaration=self)
 
     def lock_state(self):
         return self._state_manager.lock_state(self)
@@ -1143,6 +1158,17 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
     @abstractmethod
     def get_status(self, raise_on_error=True) -> "DeployStatus":
         raise NotImplementedError
+
+    def check_unchanged(self):
+        declaration = self.get_state().declaration
+        copy = declaration.copy()
+        copy.env = None
+        self_copy = self.copy()
+        self_copy.env = None
+        if copy != self_copy or declaration.env != self.get_env():
+            raise DeploymentError(
+                "Deployment parameters changed, this is not supported yet. Please re-create deployment with new parameters"
+            )
 
     def wait_for_status(
         self,
@@ -1225,3 +1251,6 @@ def find_object(
         raise ValueError(f"Ambiguous object {path}: {source_paths}")
     type_, source_path = source_paths[0]
     return type_, source_path
+
+
+DeployState.update_forward_refs()

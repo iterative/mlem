@@ -109,7 +109,7 @@ def test_build_heroku_docker(model: MlemModel, uses_docker_build):
 
 
 def test_state_ensured_app():
-    state = HerokuState()
+    state = HerokuState(declaration=HerokuDeployment(app_name=""))
     with pytest.raises(ValueError):
         assert state.ensured_app is not None
 
