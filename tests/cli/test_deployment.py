@@ -399,11 +399,12 @@ def test_declare_type_mismatch(runner: Runner, tmp_path, model_single_path):
         f"declare deployment {MlemDeploymentMock.type} --param a --env {env_path} {deploy_path}",
         raise_on_error=True,
     )
-    with pytest.raises(WrongMetaSubType):
-        runner.invoke(
-            f"deploy run --load {deploy_path} --model {model_single_path}",
-            raise_on_error=True,
-        )
+
+    res = runner.invoke(
+        f"deploy run --load {deploy_path} --model {model_single_path}",
+    )
+    assert res.exit_code != 0
+    assert isinstance(res.exception, WrongMetaSubType)
 
 
 def test_deploy_declared(runner: Runner, tmp_path, model_single_path):
