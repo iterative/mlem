@@ -100,6 +100,12 @@ def add_test_env():
     LOCAL_CONFIG.TESTS = True
 
 
+@pytest.fixture(scope="session", autouse=True)
+def add_debug_env():
+    os.environ["MLEM_DEBUG"] = "true"
+    LOCAL_CONFIG.DEBUG = True
+
+
 def resource_path(test_file, *paths):
     resources_dir = os.path.join(os.path.dirname(test_file), RESOURCES)
     return os.path.join(resources_dir, *paths)
