@@ -152,10 +152,9 @@ class TorchModelIO(ModelIO):
         if len(artifacts) != 1:
             raise ValueError("Invalid artifacts: should have only one file")
 
+        load = torch.jit.load if self.is_jit else torch.load
         with artifacts[self.art_name].open() as f:
-            if self.is_jit:
-                return torch.jit.load(f)
-            return torch.load(f, pickle_module=cloudpickle)
+            return load(f)
 
 
 class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
