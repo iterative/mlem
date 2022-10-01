@@ -1,5 +1,6 @@
 import os
 import subprocess
+from tempfile import mkdtemp
 
 import pytest
 import torch
@@ -176,8 +177,6 @@ def test_torch_import(tmp_path, net, torchsave):
 
 
 def test_torch_import_in_separate_shell():
-    from tempfile import mkdtemp
-
     tmp_path = mkdtemp()
     path = tmp_path + "/model"
     m = torch.nn.Linear(5, 1)
