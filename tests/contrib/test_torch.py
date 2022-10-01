@@ -191,6 +191,8 @@ def test_torch_import_in_separate_shell():
         check=True,
     )
     assert x.returncode == 0
+    os.remove(path)
+    os.rmdir(tmp_path)
 
 
 # Copyright 2019 Zyfra
