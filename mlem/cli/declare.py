@@ -53,7 +53,11 @@ def create_declare_mlem_object(type_name, cls: Type[MlemObject]):
 
 
 def add_env_params_deployment(subtype, parent_cls: Type[MlemDeployment]):
-    impl = load_impl_ext(parent_cls.object_type, subtype)
+    try:
+        impl = load_impl_ext(parent_cls.object_type, subtype)
+    except ImportError:
+        return lambda ctx: []
+
     assert issubclass(impl, MlemDeployment)  # just to help mypy
     env_impl = impl.env_type
     return lambda ctx: itertools.chain(
