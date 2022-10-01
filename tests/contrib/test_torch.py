@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import pytest
 import torch
@@ -172,6 +173,25 @@ def test_torch_import(tmp_path, net, torchsave):
     meta = import_object(str(path), type_=TorchModelImport.type)
     assert isinstance(meta, MlemModel)
     assert isinstance(meta.model_type, TorchModel)
+
+
+def test_torch_import_in_separate_shell():
+    from tempfile import mkdtemp
+
+    tmp_path = mkdtemp()
+    path = tmp_path + "/model"
+    m = torch.nn.Linear(5, 1)
+    torch.save(m, path)
+    x = subprocess.run(
+        [
+            "python",
+            "-c",
+            f"from mlem.api import import_object; from mlem.contrib.torch import TorchModelImport; import_object('{str(path)}', type_=TorchModelImport.type)",
+        ],
+        shell=True,
+        check=True,
+    )
+    assert x.returncode == 0
 
 
 # Copyright 2019 Zyfra
