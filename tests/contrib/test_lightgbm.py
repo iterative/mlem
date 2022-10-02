@@ -4,6 +4,8 @@ import pandas as pd
 import pytest
 
 from mlem.contrib.lightgbm import (
+    LIGHTGBM_DATA,
+    LIGHTGBM_LABEL,
     LightGBMDataReader,
     LightGBMDataType,
     LightGBMDataWriter,
@@ -145,40 +147,86 @@ def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
         assert all(x.data == y.data)
         assert all(x.label == y.label)
 
-    data_write_read_check(
+    artifacts = data_write_read_check(
         lgb_dtype,
         writer=LightGBMDataWriter(),
         reader_type=LightGBMDataReader,
         custom_assert=custom_assert,
     )
 
+    if isinstance(lgb_dtype.inner, NumpyNdarrayType):
+        assert list(artifacts.keys()) == [
+            f"{LIGHTGBM_DATA}/data",
+            f"{LIGHTGBM_LABEL}/0/data",
+            f"{LIGHTGBM_LABEL}/1/data",
+            f"{LIGHTGBM_LABEL}/2/data",
+            f"{LIGHTGBM_LABEL}/3/data",
+            f"{LIGHTGBM_LABEL}/4/data",
+        ]
+    else:
+        assert list(artifacts.keys()) == [
+            f"{LIGHTGBM_DATA}/data",
+            f"{LIGHTGBM_LABEL}/0/data",
+            f"{LIGHTGBM_LABEL}/1/data",
+        ]
+
 
 def test_serialize__np(dtype_np, np_payload):
-    ds = lgb.Dataset(np_payload)
+    ds = lgb.Dataset(np_payload, label=np_payload.reshape((-1,)).tolist())
     payload = dtype_np.serialize(ds)
-    assert payload == np_payload.tolist()
+    assert payload[LIGHTGBM_DATA] == np_payload.tolist()
+    assert payload[LIGHTGBM_LABEL] == np_payload.reshape((-1,)).tolist()
 
     with pytest.raises(SerializationError):
         dtype_np.serialize({"abc": 123})  # wrong type
 
 
 def test_deserialize__np(dtype_np, np_payload):
-    ds = dtype_np.deserialize(np_payload)
+    ds = dtype_np.deserialize(
+        {
+            LIGHTGBM_DATA: np_payload,
+            LIGHTGBM_LABEL: np_payload.reshape((-1,)).tolist(),
+        }
+    )
     assert isinstance(ds, lgb.Dataset)
     assert np.all(ds.data == np_payload)
+    assert np.all(ds.label == np_payload.reshape((-1,)).tolist())
 
     with pytest.raises(DeserializationError):
-        dtype_np.deserialize([[1], ["abc"]])  # illegal matrix
+        dtype_np.deserialize({LIGHTGBM_DATA: [[1], ["abc"]]})  # illegal matrix
 
 
-def test_serialize__df(dtype_df, df_payload):
-    ds = lgb.Dataset(df_payload)
-    payload = dtype_df.serialize(ds)
-    assert payload["values"] == df_payload.to_dict("records")
+def test_serialize__df(df_payload):
+    ds = lgb.Dataset(df_payload, label=None)
+    payload = DataType.create(obj=ds).serialize(ds)
+    assert payload[LIGHTGBM_DATA]["values"] == df_payload.to_dict("records")
+    assert payload[LIGHTGBM_LABEL] is None
+
+    def custom_assert(x, y):
+        assert hasattr(x, "data")
+        assert hasattr(y, "data")
+        assert all(x.data == y.data)
+        assert all(x.label == y.label)
+
+    artifacts = data_write_read_check(
+        DataType.create(obj=ds),
+        writer=LightGBMDataWriter(),
+        reader_type=LightGBMDataReader,
+        custom_assert=custom_assert,
+    )
+
+    assert list(artifacts.keys()) == [
+        f"{LIGHTGBM_DATA}/data",
+    ]
 
 
 def test_deserialize__df(dtype_df, df_payload):
-    ds = dtype_df.deserialize({"values": df_payload})
+    ds = dtype_df.deserialize(
+        {
+            LIGHTGBM_DATA: {"values": df_payload},
+            LIGHTGBM_LABEL: np.array([0, 1]).tolist(),
+        }
+    )
     assert isinstance(ds, lgb.Dataset)
     assert ds.data.equals(df_payload)
 
