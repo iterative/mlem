@@ -4,6 +4,7 @@ import tempfile
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type
 
 import lightgbm as lgb
+import flatdict
 from pydantic import BaseModel
 
 from mlem.constants import PREDICT_METHOD_NAME
@@ -42,15 +43,20 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
+    labels: DataType
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
-        return self.inner.get_serializer().serialize(instance.data)
+        return {
+            "inner": self.inner.get_serializer().serialize(instance.data),
+            "labels": self.labels.get_serializer().serialize(instance.label)
+        }
 
     def deserialize(self, obj: dict) -> Any:
-        v = self.inner.get_serializer().deserialize(obj)
+        v = self.inner.get_serializer().deserialize(obj["inner"])
+        l = self.labels.get_serializer().deserialize(obj["labels"])
         try:
-            return lgb.Dataset(v, free_raw_data=False)
+            return lgb.Dataset(v, label=l, free_raw_data=False)
         except ValueError as e:
             raise DeserializationError(
                 f"object: {obj} could not be converted to lightgbm dataset"
@@ -70,7 +76,7 @@ class LightGBMDataType(
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DataType:
-        return LightGBMDataType(inner=DataAnalyzer.analyze(obj.data))
+        return LightGBMDataType(inner=DataAnalyzer.analyze(obj.data), labels=DataAnalyzer.analyze(obj.label))
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.inner.get_serializer().get_model(prefix)
@@ -86,19 +92,27 @@ class LightGBMDataWriter(DataWriter):
             raise ValueError(
                 f"expected data to be of LightGBMDataType, got {type(data)} instead"
             )
+        res = {}
         lightgbm_construct = data.data.construct()
         raw_data = lightgbm_construct.get_data()
-        underlying_labels = lightgbm_construct.get_label().tolist()
-        inner_reader, art = data.inner.get_writer().write(
+        raw_label = lightgbm_construct.get_label().tolist()
+
+        inner_reader, inner_art = data.inner.get_writer().write(
             data.inner.copy().bind(raw_data), storage, path
         )
+        labels_reader, labels_art = data.labels.get_writer().write(
+            data.labels.copy().bind(raw_label), storage, path
+        )
+
+        res["inner"] = inner_art
+        res["labels"] = labels_art
         return (
             LightGBMDataReader(
                 data_type=data,
                 inner=inner_reader,
-                label=underlying_labels,
+                labels=labels_reader,
             ),
-            art,
+            dict(flatdict.FlatterDict(res, delimiter="/")),
         )
 
 
@@ -106,13 +120,15 @@ class LightGBMDataReader(DataReader):
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
-    label: List
+    labels: DataReader
 
     def read(self, artifacts: Artifacts) -> DataType:
-        inner_data_type = self.inner.read(artifacts)
-        return LightGBMDataType(inner=inner_data_type).bind(
+        artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
+        inner_data_type = self.inner.read(artifacts["inner"])  # type: ignore[arg-type]
+        labels_data_type = self.labels.read(artifacts["labels"])  # type: ignore[arg-type]
+        return LightGBMDataType(inner=inner_data_type, labels=labels_data_type).bind(
             lgb.Dataset(
-                inner_data_type.data, label=self.label, free_raw_data=False
+                inner_data_type.data, label=labels_data_type.data, free_raw_data=False
             )
         )
 

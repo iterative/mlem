@@ -12,7 +12,12 @@ from mlem.contrib.lightgbm import (
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.data_type import DataAnalyzer, DataType
+from mlem.core.data_type import (
+    ArrayType,
+    DataAnalyzer,
+    DataType,
+    PrimitiveType,
+)
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
@@ -75,6 +80,9 @@ def test_hook_np(dtype_np: DataType):
     assert set(dtype_np.get_requirements().modules) == {"lightgbm", "numpy"}
     assert isinstance(dtype_np, LightGBMDataType)
     assert isinstance(dtype_np.inner, NumpyNdarrayType)
+    assert isinstance(dtype_np.labels, ArrayType)
+    assert isinstance(dtype_np.labels.dtype, PrimitiveType)
+    assert dtype_np.labels.dtype.ptype == "float"
     assert dtype_np.get_model().__name__ == dtype_np.inner.get_model().__name__
     assert dtype_np.get_model().schema() == {
         "title": "NumpyNdarray",
@@ -92,6 +100,9 @@ def test_hook_df(dtype_df: DataType):
     assert set(dtype_df.get_requirements().modules) == {"lightgbm", "pandas"}
     assert isinstance(dtype_df, LightGBMDataType)
     assert isinstance(dtype_df.inner, DataFrameType)
+    assert isinstance(dtype_df.labels, ArrayType)
+    assert isinstance(dtype_df.labels.dtype, PrimitiveType)
+    assert dtype_df.labels.dtype.ptype == "int"
     assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
     assert dtype_df.get_model().schema() == {
         "title": "DataFrame",
@@ -116,13 +127,17 @@ def test_hook_df(dtype_df: DataType):
 
 
 @pytest.mark.parametrize(
-    "lgb_dtype, data_type",
-    [("dtype_np", NumpyNdarrayType), ("dtype_df", DataFrameType)],
+    "lgb_dtype, data_type, label_type",
+    [
+        ("dtype_np", NumpyNdarrayType, ArrayType),
+        ("dtype_df", DataFrameType, ArrayType),
+    ],
 )
-def test_lightgbm_source(lgb_dtype, data_type, request):
+def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
     lgb_dtype = request.getfixturevalue(lgb_dtype)
     assert isinstance(lgb_dtype, LightGBMDataType)
     assert isinstance(lgb_dtype.inner, data_type)
+    assert isinstance(lgb_dtype.labels, label_type)
 
     def custom_assert(x, y):
         assert hasattr(x, "data")
