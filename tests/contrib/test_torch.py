@@ -18,6 +18,7 @@ from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
 from mlem.core.objects import MlemModel
+from mlem.utils.path import make_posix
 from tests.conftest import data_write_read_check
 
 
@@ -178,14 +179,14 @@ def test_torch_import(tmp_path, net, torchsave):
 
 def test_torch_import_in_separate_shell():
     tmp_path = mkdtemp()
-    path = os.path.join(tmp_path, "model")
+    path = make_posix(os.path.join(tmp_path, "model"))
     m = torch.nn.Linear(5, 1)
     torch.save(m, path)
     x = subprocess.run(
         [
             "python",
             "-c",
-            f"from mlem.api import import_object; from mlem.contrib.torch import TorchModelImport; import_object('{str(path)}', type_=TorchModelImport.type)",
+            f"from mlem.api import import_object; from mlem.contrib.torch import TorchModelImport; import_object('{path}', type_=TorchModelImport.type)",
         ],
         shell=True,
         check=True,
