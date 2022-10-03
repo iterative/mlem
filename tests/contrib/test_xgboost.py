@@ -132,7 +132,6 @@ def test_model__predict_not_dmatrix(model):
 
 @long
 def test_model__dump_load(tmpdir, model, dmatrix_np, local_fs):
-    # pandas is not required, but it is conditionally imported by some Booster methods
     expected_requirements = {"xgboost", "numpy"}
     assert set(model.get_requirements().modules) == expected_requirements
 
