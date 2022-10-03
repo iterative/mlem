@@ -56,10 +56,9 @@ def model_meta(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def k8s_deployment(minikube_env_variables, model_meta):
+def k8s_deployment(minikube_env_variables):
     return K8sDeployment(
-        name="ml",
-        model=model_meta.make_link(),
+        namespace="ml",
         image_pull_policy=ImagePullPolicy.never,
         service_type=LoadBalancerService(),
         daemon=DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
@@ -67,11 +66,11 @@ def k8s_deployment(minikube_env_variables, model_meta):
 
 
 @pytest.fixture(scope="session")
-def docker_image(k8s_deployment):
+def docker_image(k8s_deployment, model_meta):
     tmpdir = tempfile.mkdtemp()
     k8s_deployment.dump(os.path.join(tmpdir, "deploy"))
     return build_k8s_docker(
-        k8s_deployment.get_model(),
+        model_meta,
         k8s_deployment.image_name,
         DockerRegistry(),
         DockerDaemon(host=os.getenv("DOCKER_HOST", default="")),
@@ -81,10 +80,11 @@ def docker_image(k8s_deployment):
 
 
 @pytest.fixture
-def k8s_deployment_state(docker_image, model_meta):
+def k8s_deployment_state(docker_image, model_meta, k8s_deployment):
     return K8sDeploymentState(
         image=docker_image,
         model_hash=model_meta.meta_hash(),
+        declaration=k8s_deployment,
     )
 
 
