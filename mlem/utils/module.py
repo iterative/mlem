@@ -411,7 +411,10 @@ def add_closure_inspection(f):
                 else:
                     pickler.save(o)
 
-        if is_from_installable_module(obj):
+        if (
+            is_from_installable_module(obj)
+            or get_object_base_module(obj) is mlem
+        ):
             return f(pickler, obj)
 
         # to add from local imports inside user (non PIP package) code
@@ -514,6 +517,7 @@ class RequirementAnalyzer(dill.Pickler):
             or is_private_module(mod)
             or is_pseudo_module(mod)
             or is_builtin_module(mod)
+            or mod in self._modules
         )
 
     def add_requirement(self, obj_or_module):
@@ -533,6 +537,11 @@ class RequirementAnalyzer(dill.Pickler):
             module = obj_or_module
 
         if module is not None and not self._should_ignore(module):
+            base_module = get_base_module(module)
+            if is_installable_module(base_module):
+                if base_module in self._modules:
+                    return
+                module = base_module
             self._modules.add(module)
             if is_local_module(module):
                 # add imports of this module
@@ -553,6 +562,8 @@ class RequirementAnalyzer(dill.Pickler):
         if id(obj) in self.seen or isinstance(obj, IGNORE_TYPES_REQ):
             return None
         self.seen.add(id(obj))
+        if get_object_base_module(obj) in self._modules:
+            return None
         self.add_requirement(obj)
         try:
             return super().save(obj, save_persistent_id)
