@@ -134,7 +134,9 @@ def _check_runner(img, env: DockerEnv, model):
         instance.dump(os.path.join(tmpdir, "deploy"))
         instance.update_state(
             DockerContainerState(
-                image=DockerImage(name=img), model_hash=model.meta_hash()
+                image=DockerImage(name=img),
+                model_hash=model.meta_hash(),
+                declaration=instance,
             )
         )
         assert instance.get_status() == DeployStatus.NOT_DEPLOYED
