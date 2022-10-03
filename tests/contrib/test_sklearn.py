@@ -164,11 +164,16 @@ def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     ]
 
 
-def test_pipeline_requirements(lgbm_model):
+def test_pipeline_requirements(lgbm_model, inp_data):
     model = Pipeline(steps=[("model", lgbm_model)])
     meta = MlemModel.from_obj(model)
 
-    expected_requirements = {"sklearn", "lightgbm", "pandas", "numpy", "scipy"}
+    expected_requirements = {"sklearn", "lightgbm"}
+    assert set(meta.requirements.modules) == expected_requirements
+
+    meta = MlemModel.from_obj(model, sample_data=np.array(inp_data))
+
+    expected_requirements = {"sklearn", "lightgbm", "numpy"}
     assert set(meta.requirements.modules) == expected_requirements
 
 
