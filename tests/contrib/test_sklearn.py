@@ -140,7 +140,7 @@ def test_model_type__dump_load(tmpdir, model, inp_data, request):
 def test_model_type_lgb__dump_load(tmpdir, lgbm_model, inp_data):
     model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
 
-    expected_requirements = {"sklearn", "lightgbm", "pandas", "numpy", "scipy"}
+    expected_requirements = {"sklearn", "lightgbm", "numpy"}
     reqs = model_type.get_requirements().expanded
     assert set(reqs.modules) == expected_requirements
     assert reqs.of_type(UnixPackageRequirement) == [
