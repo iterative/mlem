@@ -12,15 +12,11 @@ from sklearn.tree import DecisionTreeClassifier
 from mlem.api import save
 from mlem.config import project_config
 from mlem.contrib.docker.base import DockerDaemon, DockerRegistry
-from mlem.contrib.kubernetes.base import (
-    K8sDeployment,
-    K8sDeploymentState,
-    K8sEnv,
-)
+from mlem.contrib.kubernetes.base import K8sDeployment, K8sDeploymentState
 from mlem.contrib.kubernetes.build import build_k8s_docker
 from mlem.contrib.kubernetes.context import ImagePullPolicy
 from mlem.contrib.kubernetes.service import LoadBalancerService
-from mlem.core.objects import DeployStatus
+from mlem.core.objects import DeployStatus, MlemModel
 from tests.contrib.test_kubernetes.conftest import k8s_test
 from tests.contrib.test_kubernetes.utils import Command
 
@@ -88,41 +84,40 @@ def k8s_deployment_state(docker_image, model_meta, k8s_deployment):
     )
 
 
-@pytest.fixture
-def k8s_env():
-    return K8sEnv()
-
-
 @k8s_test
 @pytest.mark.usefixtures("load_kube_config")
 def test_deploy(
-    k8s_deployment,
-    k8s_deployment_state,
-    k8s_env,
+    k8s_deployment: K8sDeployment,
+    k8s_deployment_state: K8sDeploymentState,
+    model_meta: MlemModel,
 ):
     k8s_deployment.update_state(k8s_deployment_state)
-    assert k8s_env.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
-    k8s_env.deploy(k8s_deployment)
+    assert (
+        k8s_deployment.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
+    )
+    k8s_deployment.deploy(model_meta)
     k8s_deployment.wait_for_status(
         DeployStatus.RUNNING,
         allowed_intermediate=[DeployStatus.STARTING],
         timeout=10,
         times=5,
     )
-    assert k8s_env.get_status(k8s_deployment) == DeployStatus.RUNNING
-    k8s_env.remove(k8s_deployment)
-    assert k8s_env.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
+    assert k8s_deployment.get_status(k8s_deployment) == DeployStatus.RUNNING
+    k8s_deployment.remove()
+    assert (
+        k8s_deployment.get_status(k8s_deployment) == DeployStatus.NOT_DEPLOYED
+    )
 
 
 @k8s_test
 @pytest.mark.usefixtures("load_kube_config")
 def test_deployed_service(
-    k8s_deployment,
-    k8s_deployment_state,
-    k8s_env,
+    k8s_deployment: K8sDeployment,
+    k8s_deployment_state: K8sDeploymentState,
+    model_meta: MlemModel,
 ):
     k8s_deployment.update_state(k8s_deployment_state)
-    k8s_env.deploy(k8s_deployment)
+    k8s_deployment.deploy(model_meta)
     cmd = Command("minikube tunnel")
     cmd.run(timeout=20, shell=True)
     client = k8s_deployment.get_client()
