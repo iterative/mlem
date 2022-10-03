@@ -178,7 +178,7 @@ def test_torch_import(tmp_path, net, torchsave):
 
 def test_torch_import_in_separate_shell():
     tmp_path = mkdtemp()
-    path = tmp_path + "/model"
+    path = os.path.join(tmp_path, "model")
     m = torch.nn.Linear(5, 1)
     torch.save(m, path)
     x = subprocess.run(
