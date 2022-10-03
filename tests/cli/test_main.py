@@ -1,7 +1,7 @@
 import pytest
 import requests
-from click import Group
-from typer.main import get_command_from_info, get_group_from_info
+from click import Context, Group
+from typer.main import get_command_from_info, get_group, get_group_from_info
 
 from mlem.cli import app
 from tests.cli.conftest import Runner
@@ -39,9 +39,13 @@ def app_cli_cmd():
 
 def test_commands_help(app_cli_cmd):
     no_help = []
-    for name, cli_cmd in app_cli_cmd:
-        if cli_cmd.help is None:
-            no_help.append(name)
+    group = get_group(app)
+    ctx = Context(group, info_name="mlem", help_option_names=["-h", "--help"])
+
+    with ctx:
+        for name, cli_cmd in app_cli_cmd:
+            if cli_cmd.help is None:
+                no_help.append(name)
     assert len(no_help) == 0, f"{no_help} cli commands do not have help!"
 
 
@@ -90,12 +94,7 @@ def test_help(runner: Runner, cmd):
 
 def test_cli_commands_help(runner: Runner, app_cli_cmd):
     for name, _ in app_cli_cmd:
-        result = runner.invoke(name + " --help")
-        assert result.exit_code == 0, (
-            result.stdout,
-            result.stderr,
-            result.exception,
-        )
+        runner.invoke(name + " --help", raise_on_error=True)
 
 
 def test_version(runner: Runner):

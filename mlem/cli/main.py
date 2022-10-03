@@ -188,9 +188,9 @@ class MlemCommand(
     def help(self):
         cmd_name = self._get_cmd_name_for_docs_link()
         if self.lazy_help:
-            return self._add_docs_link(
-                self.lazy_help(), cmd_name[: cmd_name.index("/")]
-            )
+            if "/" in cmd_name:
+                cmd_name = cmd_name[: cmd_name.index("/")]
+            return self._add_docs_link(self.lazy_help(), cmd_name)
         return self._add_docs_link(self._help, cmd_name)
 
     @help.setter
