@@ -484,7 +484,7 @@ class _WithArtifacts(ABC, MlemObject):
     def dump(
         self,
         path: str,
-        fs: Union[str, AbstractFileSystem, None] = None,
+        fs: Optional[AbstractFileSystem] = None,
         project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
