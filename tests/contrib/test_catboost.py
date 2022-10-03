@@ -48,7 +48,7 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
         ),
     )
 
-    expected_requirements = {"catboost", "pandas", "numpy", "scipy"}
+    expected_requirements = {"catboost", "pandas"}
     reqs = set(cbmw.get_requirements().modules)
     assert all(r in reqs for r in expected_requirements)
     assert cbmw.model is catboost_model
