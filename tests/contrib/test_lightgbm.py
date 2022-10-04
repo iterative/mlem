@@ -14,12 +14,7 @@ from mlem.contrib.lightgbm import (
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.pandas import DataFrameType
 from mlem.core.artifacts import LOCAL_STORAGE
-from mlem.core.data_type import (
-    ArrayType,
-    DataAnalyzer,
-    DataType,
-    PrimitiveType,
-)
+from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
@@ -82,9 +77,8 @@ def test_hook_np(dtype_np: DataType):
     assert set(dtype_np.get_requirements().modules) == {"lightgbm", "numpy"}
     assert isinstance(dtype_np, LightGBMDataType)
     assert isinstance(dtype_np.inner, NumpyNdarrayType)
-    assert isinstance(dtype_np.labels, ArrayType)
-    assert isinstance(dtype_np.labels.dtype, PrimitiveType)
-    assert dtype_np.labels.dtype.ptype == "float"
+    assert isinstance(dtype_np.labels, NumpyNdarrayType)
+    assert dtype_np.labels.dtype == "float32"
     assert dtype_np.get_model().__name__ == dtype_np.inner.get_model().__name__
     assert dtype_np.get_model().schema() == {
         "title": "NumpyNdarray",
@@ -102,9 +96,8 @@ def test_hook_df(dtype_df: DataType):
     assert set(dtype_df.get_requirements().modules) == {"lightgbm", "pandas"}
     assert isinstance(dtype_df, LightGBMDataType)
     assert isinstance(dtype_df.inner, DataFrameType)
-    assert isinstance(dtype_df.labels, ArrayType)
-    assert isinstance(dtype_df.labels.dtype, PrimitiveType)
-    assert dtype_df.labels.dtype.ptype == "int"
+    assert isinstance(dtype_df.labels, NumpyNdarrayType)
+    assert dtype_df.labels.dtype == "float32"
     assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
     assert dtype_df.get_model().schema() == {
         "title": "DataFrame",
@@ -131,8 +124,8 @@ def test_hook_df(dtype_df: DataType):
 @pytest.mark.parametrize(
     "lgb_dtype, data_type, label_type",
     [
-        ("dtype_np", NumpyNdarrayType, ArrayType),
-        ("dtype_df", DataFrameType, ArrayType),
+        ("dtype_np", NumpyNdarrayType, NumpyNdarrayType),
+        ("dtype_df", DataFrameType, NumpyNdarrayType),
     ],
 )
 def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
@@ -154,28 +147,21 @@ def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
         custom_assert=custom_assert,
     )
 
-    if isinstance(lgb_dtype.inner, NumpyNdarrayType):
-        assert list(artifacts.keys()) == [
-            f"{LIGHTGBM_DATA}/data",
-            f"{LIGHTGBM_LABEL}/0/data",
-            f"{LIGHTGBM_LABEL}/1/data",
-            f"{LIGHTGBM_LABEL}/2/data",
-            f"{LIGHTGBM_LABEL}/3/data",
-            f"{LIGHTGBM_LABEL}/4/data",
-        ]
-    else:
-        assert list(artifacts.keys()) == [
-            f"{LIGHTGBM_DATA}/data",
-            f"{LIGHTGBM_LABEL}/0/data",
-            f"{LIGHTGBM_LABEL}/1/data",
-        ]
+    assert list(artifacts.keys()) == [
+        f"{LIGHTGBM_DATA}/data",
+        f"{LIGHTGBM_LABEL}/data",
+    ]
 
 
 def test_serialize__np(dtype_np, np_payload):
-    ds = lgb.Dataset(np_payload, label=np_payload.reshape((-1,)).tolist())
+    ds = lgb.Dataset(
+        np_payload, label=np_payload.reshape((-1,)).astype("float32")
+    )
     payload = dtype_np.serialize(ds)
     assert payload[LIGHTGBM_DATA] == np_payload.tolist()
-    assert payload[LIGHTGBM_LABEL] == np_payload.reshape((-1,)).tolist()
+    assert (
+        payload[LIGHTGBM_LABEL] == np_payload.reshape((-1,)).astype("float32")
+    ).all()
 
     with pytest.raises(SerializationError):
         dtype_np.serialize({"abc": 123})  # wrong type
@@ -200,24 +186,7 @@ def test_serialize__df(df_payload):
     ds = lgb.Dataset(df_payload, label=None, free_raw_data=False)
     payload = DataType.create(obj=ds).serialize(ds)
     assert payload[LIGHTGBM_DATA]["values"] == df_payload.to_dict("records")
-    assert payload[LIGHTGBM_LABEL] is None
-
-    def custom_assert(x, y):
-        assert hasattr(x, "data")
-        assert hasattr(y, "data")
-        assert all(x.data == y.data)
-        assert all(x.label == y.label)
-
-    artifacts = data_write_read_check(
-        DataType.create(obj=ds),
-        writer=LightGBMDataWriter(),
-        reader_type=LightGBMDataReader,
-        custom_assert=custom_assert,
-    )
-
-    assert list(artifacts.keys()) == [
-        f"{LIGHTGBM_DATA}/data",
-    ]
+    assert payload[LIGHTGBM_LABEL] == [0.0, 0.0]
 
 
 def test_deserialize__df(dtype_df, df_payload):

@@ -45,27 +45,23 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
-    labels: Optional[DataType]
+    labels: DataType
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
         res = {
-            LIGHTGBM_DATA: self.inner.get_serializer().serialize(instance.data)
-        }
-        if self.labels is not None:
-            res[LIGHTGBM_LABEL] = self.labels.get_serializer().serialize(
+            LIGHTGBM_DATA: self.inner.get_serializer().serialize(
+                instance.data
+            ),
+            LIGHTGBM_LABEL: self.labels.get_serializer().serialize(
                 instance.label
-            )
+            ),
+        }
         return res
 
     def deserialize(self, obj: dict) -> Any:
         data = self.inner.get_serializer().deserialize(obj[LIGHTGBM_DATA])
-        if self.labels is not None:
-            label = self.labels.get_serializer().deserialize(
-                obj[LIGHTGBM_LABEL]
-            )
-        else:
-            label = None
+        label = self.labels.get_serializer().deserialize(obj[LIGHTGBM_LABEL])
         try:
             return lgb.Dataset(data, label=label, free_raw_data=False)
         except ValueError as e:
@@ -87,6 +83,7 @@ class LightGBMDataType(
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DataType:
+        obj = obj.construct()
         return LightGBMDataType(
             inner=DataAnalyzer.analyze(obj.data),
             labels=DataAnalyzer.analyze(obj.label),
@@ -107,26 +104,21 @@ class LightGBMDataWriter(DataWriter):
                 f"expected data to be of LightGBMDataType, got {type(data)} instead"
             )
 
-        res = {}
-        lightgbm_construct = data.data.construct()
-        raw_data = lightgbm_construct.get_data()
-        raw_label = lightgbm_construct.get_label().tolist()
+        lightgbm_raw = data.data
 
         inner_reader, inner_art = data.inner.get_writer().write(
-            data.inner.copy().bind(raw_data),
+            data.inner.copy().bind(lightgbm_raw.data),
             storage,
             posixpath.join(path, LIGHTGBM_DATA),
         )
-        res[LIGHTGBM_DATA] = inner_art
 
-        labels_reader = None
-        if data.labels is not None:
-            labels_reader, labels_art = data.labels.get_writer().write(
-                data.labels.copy().bind(raw_label),
-                storage,
-                posixpath.join(path, LIGHTGBM_LABEL),
-            )
-            res[LIGHTGBM_LABEL] = labels_art
+        labels_reader, labels_art = data.labels.get_writer().write(
+            data.labels.copy().bind(lightgbm_raw.label),
+            storage,
+            posixpath.join(path, LIGHTGBM_LABEL),
+        )
+
+        res = {LIGHTGBM_DATA: inner_art, LIGHTGBM_LABEL: labels_art}
 
         return (
             LightGBMDataReader(
@@ -142,24 +134,20 @@ class LightGBMDataReader(DataReader):
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
-    labels: Optional[DataReader]
+    labels: DataReader
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         inner_data_type = self.inner.read(artifacts[LIGHTGBM_DATA])  # type: ignore[arg-type]
-        labels_data_type = None
-        if self.labels is not None:
-            labels_data_type = self.labels.read(artifacts[LIGHTGBM_LABEL])  # type: ignore[arg-type]
+        labels_data_type = self.labels.read(artifacts[LIGHTGBM_LABEL])  # type: ignore[arg-type]
         return LightGBMDataType(
             inner=inner_data_type, labels=labels_data_type
         ).bind(
             lgb.Dataset(
                 inner_data_type.data,
-                label=labels_data_type.data
-                if labels_data_type is not None
-                else None,
+                label=labels_data_type.data,
                 free_raw_data=False,
-            )
+            ).construct()
         )
 
     def read_batch(

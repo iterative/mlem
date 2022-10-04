@@ -230,9 +230,6 @@ class PrimitiveReader(DataReader):
                 data = None
             elif res == "False":
                 data = False
-            elif self.data_type.ptype == "int":
-                # this handles cases such as int('0.0')
-                data = self.data_type.to_type(float(res))
             else:
                 data = self.data_type.to_type(res)
             return self.data_type.copy().bind(data)
