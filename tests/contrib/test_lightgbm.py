@@ -197,7 +197,7 @@ def test_deserialize__np(dtype_np, np_payload):
 
 
 def test_serialize__df(df_payload):
-    ds = lgb.Dataset(df_payload, label=None)
+    ds = lgb.Dataset(df_payload, label=None, free_raw_data=False)
     payload = DataType.create(obj=ds).serialize(ds)
     assert payload[LIGHTGBM_DATA]["values"] == df_payload.to_dict("records")
     assert payload[LIGHTGBM_LABEL] is None
