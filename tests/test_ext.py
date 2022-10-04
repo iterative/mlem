@@ -45,7 +45,7 @@ def test_all_impls_in_entrypoints():
     # reinstall your dev copy of mlem to re-populate them
     exts = load_entrypoints()
     exts = {e.entry for e in exts.values()}
-    impls = find_abc_implementations()[MLEM_ENTRY_POINT]
+    impls = find_abc_implementations(raise_on_error=True)[MLEM_ENTRY_POINT]
     impls_sorted = sorted(
         impls, key=lambda x: tuple(x.split(" = ")[1].split(":"))
     )
