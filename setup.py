@@ -225,6 +225,7 @@ setup_args = dict(  # noqa: C408
             "heroku = mlem.contrib.heroku.config:HerokuConfig",
             "pandas = mlem.contrib.pandas:PandasConfig",
             "aws = mlem.contrib.sagemaker.config:AWSConfig",
+            "sagemaker = mlem.contrib.sagemaker.runtime:SageMakerServerConfig",
         ],
     },
     zip_safe=False,
