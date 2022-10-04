@@ -370,12 +370,12 @@ def test_all_declared(runner: Runner, tmp_path, model_single_path):
     # error on depl/env type mismatch  TODO
     mlem deployment run --load service.mlem --model mdoel
     """
-    env_path = str(tmp_path / "env")
+    env_path = make_posix(str(tmp_path / "env"))
     runner.invoke(
         f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
         raise_on_error=True,
     )
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     runner.invoke(
         f"declare deployment {MlemDeploymentMock.type} --param val --env {env_path} {deploy_path}",
         raise_on_error=True,
@@ -391,11 +391,11 @@ def test_declare_type_mismatch(runner: Runner, tmp_path, model_single_path):
     # error on depl/env type mismatch  TODO
     mlem deployment run --load service.mlem --model mdoel
     """
-    env_path = str(tmp_path / "env")
+    env_path = make_posix(str(tmp_path / "env"))
     runner.invoke(
         f"declare env {HerokuEnv.type} {env_path}", raise_on_error=True
     )
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     runner.invoke(
         f"declare deployment {MlemDeploymentMock.type} --param a --env {env_path} {deploy_path}",
         raise_on_error=True,
@@ -413,7 +413,7 @@ def test_deploy_declared(runner: Runner, tmp_path, model_single_path):
     mlem declare deployment heroku --env.api_key prod.mlem --app_name myapp service.mlem
     mlem deployment run --load service.mlem --model mdoel
     """
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     declare_res = runner.invoke(
         f"declare deployment {MlemDeploymentMock.type} {deploy_path} --param val --env.env_param env_val ",
         raise_on_error=True,
@@ -433,7 +433,7 @@ def test_env_declared(runner: Runner, tmp_path, model_single_path):
     mlem deployment run heroku service.mlem --model model --app_name myapp --env prod.mlem
     # error on type mismatch
     """
-    env_path = str(tmp_path / "env")
+    env_path = make_posix(str(tmp_path / "env"))
     declare_res = runner.invoke(
         f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
         raise_on_error=True,
@@ -443,7 +443,7 @@ def test_env_declared(runner: Runner, tmp_path, model_single_path):
         declare_res.exception,
         declare_res.stderr,
     )
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     _deploy_and_check(
         runner,
         deploy_path,
@@ -458,7 +458,7 @@ def test_none_declared(runner: Runner, tmp_path, model_single_path):
     mlem deployment run heroku service.mlem --model model --app_name myapp --env.api_key lol
     # error on args mismatch
     """
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     _deploy_and_check(
         runner,
         deploy_path,
@@ -469,12 +469,12 @@ def test_none_declared(runner: Runner, tmp_path, model_single_path):
 
 
 def test_redeploy_changed(runner: Runner, tmp_path, model_single_path):
-    env_path = str(tmp_path / "env")
+    env_path = make_posix(str(tmp_path / "env"))
     runner.invoke(
         f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
         raise_on_error=True,
     )
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     runner.invoke(
         f"declare deployment {MlemDeploymentMock.type} --param val --env {env_path} {deploy_path}",
         raise_on_error=True,
@@ -497,12 +497,12 @@ def test_redeploy_changed(runner: Runner, tmp_path, model_single_path):
 
 
 def test_redeploy_env_changed(runner: Runner, tmp_path, model_single_path):
-    env_path = str(tmp_path / "env")
+    env_path = make_posix(str(tmp_path / "env"))
     runner.invoke(
         f"declare env {MlemEnvMock.type} --env_param env_val {env_path}",
         raise_on_error=True,
     )
-    deploy_path = str(tmp_path / "deploy")
+    deploy_path = make_posix(str(tmp_path / "deploy"))
     runner.invoke(
         f"declare deployment {MlemDeploymentMock.type} --param val --env {env_path} {deploy_path}",
         raise_on_error=True,
