@@ -416,63 +416,57 @@ def import_object(
 
 def deploy(
     deploy_meta_or_path: Union[MlemDeployment, str],
-    model: Union[MlemModel, str] = None,
+    model: Union[MlemModel, str],
     env: Union[MlemEnv, str] = None,
     project: Optional[str] = None,
+    rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
     external: bool = None,
     index: bool = None,
     env_kwargs: Dict[str, Any] = None,
     **deploy_kwargs,
 ) -> MlemDeployment:
-    deploy_path = None
+    deploy_meta: MlemDeployment
     update = False
     if isinstance(deploy_meta_or_path, str):
-        deploy_path = deploy_meta_or_path
         try:
             deploy_meta = load_meta(
-                path=deploy_path,
+                path=deploy_meta_or_path,
                 project=project,
+                rev=rev,
                 fs=fs,
                 force_type=MlemDeployment,
             )
             update = True
-        except MlemObjectNotFound:
-            deploy_meta = None
+        except MlemObjectNotFound as e:
+            if env is None:
+                raise MlemError(
+                    "Please provide model and env args for new deployment"
+                ) from e
+            if not deploy_meta_or_path:
+                raise MlemError("deploy_path cannot be empty") from e
 
+            env_meta = ensure_meta(MlemEnv, env, allow_typename=True)
+            if isinstance(env_meta, type):
+                env = None
+                if env_kwargs:
+                    env = env_meta(**env_kwargs)
+            deploy_type = env_meta.deploy_type
+            deploy_meta = deploy_type(
+                env=env,
+                **deploy_kwargs,
+            )
+            deploy_meta.dump(deploy_meta_or_path, fs, project, index, external)
     else:
         deploy_meta = deploy_meta_or_path
         update = True
 
-    if deploy_meta is None:
-        if model is None or env is None:
-            raise MlemError(
-                "Please provide model and env args for new deployment"
-            )
-        if not deploy_path:
-            raise MlemError("deploy_path cannot be empty")
-        model_meta = get_model_meta(model)
-        env_meta = ensure_meta(MlemEnv, env, allow_typename=True)
-        if isinstance(env_meta, type):
-            env = None
-            if env_kwargs:
-                env = env_meta(**env_kwargs)
-        deploy_type = env_meta.deploy_type
-        deploy_meta = deploy_type(
-            model_cache=model_meta,
-            model=model_meta.make_link(),
-            env=env,
-            **deploy_kwargs,
-        )
-        deploy_meta.dump(deploy_path, fs, project, index, external)
-    else:
-        if model is not None:
-            deploy_meta.replace_model(get_model_meta(model, load_value=False))
     if update:
         pass  # todo update from deploy_args and env_args
     # ensuring links are working
     deploy_meta.get_env()
-    deploy_meta.get_model()
+    model_meta = get_model_meta(model)
 
-    deploy_meta.run()
+    deploy_meta.check_unchanged()
+    deploy_meta.deploy(model_meta)
     return deploy_meta

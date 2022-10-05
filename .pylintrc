@@ -170,7 +170,8 @@ disable=print-statement,
         redefined-builtin, # TODO: https://github.com/iterative/mlem/issues/60
         no-self-use, # TODO: https://github.com/iterative/mlem/issues/60 maybe leave it
         import-outside-toplevel,
-        wrong-import-order # handeled by isort
+        wrong-import-order, # handeled by isort
+        cannot-enumerate-pytest-fixtures # TODO: https://github.com/iterative/mlem/issues/60
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

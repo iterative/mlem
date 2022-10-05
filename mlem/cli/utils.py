@@ -375,7 +375,11 @@ def _options_from_mlem_abc(
     """Generate str option for mlem abc type.
     If param is already set, also generate respective implementation fields"""
     assert issubclass(field.type_, MlemABC) and field.type_.__is_root__
-    if path in ctx.params and ctx.params[path] != NOT_SET:
+    if (
+        path in ctx.params
+        and ctx.params[path] != NOT_SET
+        and ctx.params[path] is not None
+    ):
         yield from _options_from_model(
             load_impl_ext(field.type_.abs_name, ctx.params[path]),
             ctx,

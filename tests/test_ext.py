@@ -45,7 +45,7 @@ def test_all_impls_in_entrypoints():
     # reinstall your dev copy of mlem to re-populate them
     exts = load_entrypoints()
     exts = {e.entry for e in exts.values()}
-    impls = find_abc_implementations()[MLEM_ENTRY_POINT]
+    impls = find_abc_implementations(raise_on_error=True)[MLEM_ENTRY_POINT]
     impls_sorted = sorted(
         impls, key=lambda x: tuple(x.split(" = ")[1].split(":"))
     )
@@ -58,7 +58,7 @@ def test_all_impls_in_entrypoints():
 
 
 def test_all_configs_in_entrypoints():
-    impls = find_implementations(MlemConfigBase)
+    impls = find_implementations(MlemConfigBase, raise_on_error=True)
     impls[MlemConfig] = f"{MlemConfig.__module__}:{MlemConfig.__name__}"
     impls_sorted = sorted(
         {f"{i.__config__.section} = {k}" for i, k in impls.items()},

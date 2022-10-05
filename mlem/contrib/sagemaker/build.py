@@ -10,7 +10,6 @@ from ...core.objects import MlemModel
 from ...ui import EMOJI_BUILD, EMOJI_KEY, echo, set_offset
 from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
 from ..docker.helpers import build_model_image
-from .runtime import SageMakerServer
 
 IMAGE_NAME = "mlem-sagemaker-runner"
 
@@ -116,6 +115,8 @@ def build_sagemaker_docker(
     repository: str,
     aws_vars: AWSVars,
 ):
+    from .runtime import SageMakerServer  # circular import
+
     docker_env = DockerEnv(
         registry=ECRegistry(account=account, region=region).with_aws_vars(
             aws_vars
