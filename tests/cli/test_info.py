@@ -20,16 +20,24 @@ def test_ls(runner, filled_mlem_project, obj_type):
     result = runner.invoke(
         ["list", "-t", obj_type] if obj_type else ["list"],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
-    assert len(result.output) > 0, "Output is empty, but should not be"
-    assert result.output == LOCAL_LS_EXPECTED_RESULT
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert len(result.stdout) > 0, "Output is empty, but should not be"
+    assert result.stdout == LOCAL_LS_EXPECTED_RESULT
 
     result = runner.invoke(
         (["list", "-t", obj_type] if obj_type else ["list"]) + ["--json"],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
-    assert len(result.output) > 0, "Output is empty, but should not be"
-    data = json.loads(result.output)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert len(result.stdout) > 0, "Output is empty, but should not be"
+    data = json.loads(result.stdout)
     assert "model" in data
     models = data["model"]
     assert len(models) == 2
@@ -59,9 +67,13 @@ def test_ls_remote(runner, current_test_branch):
             f"{MLEM_TEST_REPO}/tree/{current_test_branch}/simple",
         ],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
-    assert len(result.output) > 0, "Output is empty, but should not be"
-    assert result.output == REMOTE_LS_EXPECTED_RESULT
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert len(result.stdout) > 0, "Output is empty, but should not be"
+    assert result.stdout == REMOTE_LS_EXPECTED_RESULT
 
 
 def test_pretty_print(runner, model_path_mlem_project):
@@ -69,13 +81,21 @@ def test_pretty_print(runner, model_path_mlem_project):
     result = runner.invoke(
         ["pprint", model_path + MLEM_EXT],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
 
     result = runner.invoke(
         ["pprint", model_path + MLEM_EXT, "--json"],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
-    meta = parse_obj_as(MlemObject, json.loads(result.output))
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    meta = parse_obj_as(MlemObject, json.loads(result.stdout))
     assert isinstance(meta, MlemModel)
 
 
@@ -87,4 +107,8 @@ def test_pretty_print_remote(runner, current_test_branch):
     result = runner.invoke(
         ["pprint", model_path + MLEM_EXT],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )

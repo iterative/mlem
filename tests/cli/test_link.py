@@ -12,7 +12,11 @@ def test_link(runner, model_path):
         result = runner.invoke(
             ["link", model_path, link_path, "-e", "--abs"],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         assert os.path.exists(link_path)
         model = load_meta(link_path)
         assert isinstance(model, MlemModel)
@@ -24,7 +28,11 @@ def test_link_mlem_project(runner, model_path_mlem_project):
     result = runner.invoke(
         ["link", model_path, link_name, "--target-project", project],
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     link_path = os.path.join(
         project, MLEM_DIR, MlemLink.object_type, link_name
     )

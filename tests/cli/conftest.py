@@ -9,7 +9,7 @@ app.pretty_exceptions_short = False
 
 class Runner:
     def __init__(self):
-        self._runner = CliRunner()
+        self._runner = CliRunner(mix_stderr=False)
 
     def invoke(self, *args, raise_on_error: bool = False, **kwargs) -> Result:
         result = self._runner.invoke(app, *args, **kwargs)

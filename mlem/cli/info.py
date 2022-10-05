@@ -7,7 +7,7 @@ from typer import Argument, Option
 from mlem.cli.main import mlem_command, option_json, option_project, option_rev
 from mlem.cli.utils import Choices
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
+from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject, TypedLink
 from mlem.ui import echo, set_echo
 
 OBJECT_TYPE_NAMES = {"data": "Data"}
@@ -39,9 +39,17 @@ TYPE_ALIASES = {
 }
 
 
+def _list_types():
+    return [
+        k
+        for k, v in MlemObject.non_abstract_subtypes().items()
+        if not issubclass(v, TypedLink)
+    ]
+
+
 @mlem_command("list", aliases=["ls"], section="common")
 def ls(
-    type_filter: Choices("all", *MlemObject.non_abstract_subtypes().keys()) = Option(  # type: ignore[valid-type]
+    type_filter: Choices("all", *_list_types()) = Option(  # type: ignore[valid-type]
         "all",
         "-t",
         "--type",
@@ -62,13 +70,7 @@ def ls(
         False, "-i", "--ignore-errors", help="Ignore corrupted objects"
     ),
 ):
-    """List MLEM objects inside a MLEM project.
-
-
-    Examples:
-        $ mlem list https://github.com/iterative/example-mlem
-        $ mlem list -t models
-    """
+    """List MLEM objects inside a MLEM project."""
     from mlem.api.commands import ls
 
     if type_filter == "all":
@@ -115,13 +117,6 @@ def pretty_print(
 ):
     """Display all details about a specific MLEM Object from an existing MLEM
     project.
-
-        Examples:
-            Print local object
-            $ mlem pprint mymodel
-
-            Print remote object
-            $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
     """
     with set_echo(None if json else ...):
         meta = load_meta(

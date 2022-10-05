@@ -464,7 +464,9 @@ def read_pickle_with_unnamed(*args, **kwargs):
 
 
 def read_json_reset_index(*args, **kwargs):
-    return pd.read_json(*args, **kwargs).reset_index(drop=True)
+    return pd.read_json(  # pylint: disable=no-member
+        *args, **kwargs
+    ).reset_index(drop=True)
 
 
 def read_html(*args, **kwargs):

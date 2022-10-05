@@ -214,7 +214,11 @@ def test_deploy_create_new(
     result = runner.invoke(
         f"deploy run {path} -m {model_meta_saved_single.loc.uri} -t {mock_env_path} -c param=aaa".split()
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     assert os.path.isfile(path + MLEM_EXT)
     meta = load_meta(path)
     assert isinstance(meta, MlemDeploymentMock)
@@ -226,7 +230,11 @@ def test_deploy_create_existing(runner: Runner, mock_deploy_path):
     result = runner.invoke(
         f"deploy run {mock_deploy_path}".split(), raise_on_error=True
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.param == "bbb"
@@ -235,13 +243,21 @@ def test_deploy_create_existing(runner: Runner, mock_deploy_path):
 
 def test_deploy_status(runner: Runner, mock_deploy_path):
     result = runner.invoke(f"deploy status {mock_deploy_path}".split())
-    assert result.exit_code == 0, result.output
-    assert result.output.strip() == DeployStatus.NOT_DEPLOYED.value
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert result.stdout.strip() == DeployStatus.NOT_DEPLOYED.value
 
 
 def test_deploy_remove(runner: Runner, mock_deploy_path):
     result = runner.invoke(f"deploy remove {mock_deploy_path}".split())
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.status == DeployStatus.STOPPED
@@ -259,7 +275,11 @@ def test_deploy_apply(
     result = runner.invoke(
         f"deploy apply {mock_deploy_path} {data_path} -o {path}".split()
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     meta = load_meta(mock_deploy_path)
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.status == DeployStatus.NOT_DEPLOYED

@@ -217,7 +217,7 @@ class MlemObject(MlemABC):
     def dump(
         self,
         path: str,
-        fs: Union[str, AbstractFileSystem] = None,
+        fs: Optional[AbstractFileSystem] = None,
         project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
@@ -332,7 +332,7 @@ class MlemObject(MlemABC):
     def clone(
         self,
         path: str,
-        fs: Union[str, AbstractFileSystem, None] = None,
+        fs: Optional[AbstractFileSystem] = None,
         project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
@@ -567,7 +567,7 @@ class _WithArtifacts(ABC, MlemObject):
     def dump(
         self,
         path: str,
-        fs: Union[str, AbstractFileSystem, None] = None,
+        fs: Optional[AbstractFileSystem] = None,
         project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
@@ -599,7 +599,7 @@ class _WithArtifacts(ABC, MlemObject):
     def clone(
         self,
         path: str,
-        fs: Union[str, AbstractFileSystem, None] = None,
+        fs: Optional[AbstractFileSystem] = None,
         project: Optional[str] = None,
         index: Optional[bool] = None,
         external: Optional[bool] = None,
@@ -816,7 +816,7 @@ class DeployState(MlemABC):
     allow_default: ClassVar[bool] = False
 
     model_hash: Optional[str] = None
-    """hash of deployed model meta"""
+    """Hash of deployed model meta"""
 
 
 DT = TypeVar("DT", bound="MlemDeployment")

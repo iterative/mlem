@@ -38,7 +38,11 @@ def test_apply(runner, model_path, data_path):
                 "--no-index",
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions = load(path)
         assert isinstance(predictions, ndarray)
 
@@ -85,7 +89,11 @@ def test_apply_batch(runner, model_path_batch, data_path_batch):
                 "5",
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions_meta = load_meta(
             path, load_value=True, force_type=MlemData
         )
@@ -116,7 +124,11 @@ def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):
                 "pandas[csv]",
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions = load(path)
         assert isinstance(predictions, ndarray)
 
@@ -146,10 +158,14 @@ def test_apply_batch_with_import(
                 "2",
             ],
         )
-        assert result.exit_code == 1, (result.output, result.exception)
+        assert result.exit_code == 1, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         assert (
             "Batch data loading is currently not supported for loading data on-the-fly"
-            in result.output
+            in result.stderr
         )
 
 
@@ -157,8 +173,12 @@ def test_apply_no_output(runner, model_path, data_path):
     result = runner.invoke(
         ["apply", model_path, data_path, "-m", "predict", "--no-index"],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
-    assert len(result.output) > 0
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert len(result.stdout) > 0
 
 
 def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
@@ -176,7 +196,11 @@ def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
                 "--index",
             ],
         )
-        assert result.exit_code == 1, (result.output, result.exception)
+        assert result.exit_code == 1, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         assert isinstance(result.exception, MlemProjectNotFound)
 
 
@@ -206,7 +230,11 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
             "--no-index",
         ],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     predictions = load(out)
     assert isinstance(predictions, ndarray)
 
@@ -229,6 +257,10 @@ def test_apply_remote(mlem_client, runner, data_path):
             ],
             raise_on_error=True,
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions = load(path)
         assert isinstance(predictions, ndarray)
