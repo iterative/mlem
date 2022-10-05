@@ -31,6 +31,7 @@ def test_types_abs_name(runner: Runner, abs_name):
         (abs_name, subtype)
         for abs_name, root_type in MlemABC.abs_types.items()
         for subtype in list_implementations(root_type, include_hidden=False)
+        if not subtype.startswith("tests.") and "mock" not in subtype
     ],
 )
 def test_types_abs_name_subtype(runner: Runner, abs_name, subtype):

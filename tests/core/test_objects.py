@@ -16,6 +16,7 @@ from mlem.core.metadata import load, load_meta
 from mlem.core.model import ModelIO, ModelType
 from mlem.core.objects import (
     DeployState,
+    DeployStatus,
     MlemDeployment,
     MlemLink,
     MlemModel,
@@ -46,16 +47,22 @@ class MyDeployState(DeployState):
 
 
 class MyMlemDeployment(MlemDeployment):
+    def deploy(self, model: MlemModel):
+        pass
+
+    def remove(self):
+        pass
+
+    def get_status(self, raise_on_error=True) -> DeployStatus:
+        pass
+
     def _get_client(self, state):
         pass
 
 
 @pytest.fixture()
 def meta():
-    return MyMlemDeployment(
-        env="",
-        model=MlemLink(path="", link_type="model"),
-    )
+    return MyMlemDeployment(env="")
 
 
 @pytest.fixture(params=["fullpath", "with_root"])

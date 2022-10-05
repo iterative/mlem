@@ -109,7 +109,7 @@ def test_build_heroku_docker(model: MlemModel, uses_docker_build):
 
 
 def test_state_ensured_app():
-    state = HerokuState()
+    state = HerokuState(declaration=HerokuDeployment(app_name=""))
     with pytest.raises(ValueError):
         assert state.ensured_app is not None
 
@@ -187,7 +187,7 @@ def test_env_deploy_full(
     if CLEAR_APPS:
         meta.remove()
 
-        assert meta.get_state() == HerokuState()
+        assert meta.get_state() == HerokuState(declaration=meta)
         meta.wait_for_status(
             DeployStatus.NOT_DEPLOYED,
             allowed_intermediate=DeployStatus.RUNNING,

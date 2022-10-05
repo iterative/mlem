@@ -100,7 +100,9 @@ IT = TypeVar("IT")
 
 
 def find_implementations(
-    base: Type[IT], root_module_name: str = MLEM_ENTRY_POINT
+    base: Type[IT],
+    root_module_name: str = MLEM_ENTRY_POINT,
+    raise_on_error: bool = False,
 ) -> Dict[Type[IT], str]:
     """Generates dict with MLEM entrypoints which should appear in setup.py.
     Can be used by plugin developers to check if they populated all existing
@@ -125,6 +127,8 @@ def find_implementations(
             print(
                 f"Cannot import module {module_name}: {e.__class__} {e.args}"
             )
+            if raise_on_error:
+                raise
             continue
 
         for obj in module.__dict__.values():
@@ -140,8 +144,12 @@ def find_implementations(
     return impls
 
 
-def find_abc_implementations(root_module_name: str = MLEM_ENTRY_POINT):
-    impls = find_implementations(MlemABC, root_module_name)
+def find_abc_implementations(
+    root_module_name: str = MLEM_ENTRY_POINT, raise_on_error: bool = False
+):
+    impls = find_implementations(
+        MlemABC, root_module_name, raise_on_error=raise_on_error
+    )
     return {
         MLEM_ENTRY_POINT: [
             f"{obj.abs_name}.{obj.__get_alias__()} = {name}"

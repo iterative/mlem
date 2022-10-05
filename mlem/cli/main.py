@@ -513,12 +513,30 @@ option_json = Option(False, "--json", help="Output as json")
 option_data_project = Option(
     None,
     "--data-project",
-    "--dr",
+    "--dp",
     metavar=PATH_METAVAR,
     help="Project with data",
 )
 option_data_rev = Option(
-    None, "--data-rev", help="Revision of data", metavar=COMMITISH_METAVAR
+    None,
+    "--data-rev",
+    "--dr",
+    help="Revision of data",
+    metavar=COMMITISH_METAVAR,
+)
+option_model_project = Option(
+    None,
+    "--model-project",
+    "--mp",
+    metavar=PATH_METAVAR,
+    help="Project with model",
+)
+option_model_rev = Option(
+    None,
+    "--model-rev",
+    "--mr",
+    help="Revision of model",
+    metavar=COMMITISH_METAVAR,
 )
 option_model = Option(
     ...,
@@ -540,16 +558,6 @@ def option_load(type_: str = None):
         f"--{LOAD_PARAM_NAME}",
         help=f"File to load {type_}config from",
         metavar=PATH_METAVAR,
-    )
-
-
-def option_conf(type_: str = None):
-    type_ = f"for {type_} " if type_ is not None else ""
-    return Option(
-        None,
-        "-c",
-        "--conf",
-        help=f"Options {type_}in format `field.name=value`",
     )
 
 
