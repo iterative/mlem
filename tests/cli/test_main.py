@@ -61,6 +61,7 @@ def test_commands_args_help(app_cli_cmd):
     assert len(no_help) == 0, f"{no_help} cli commands args do not have help!"
 
 
+@pytest.mark.xfail
 @long
 def test_commands_docs_links(app_cli_cmd):
     no_link = []
