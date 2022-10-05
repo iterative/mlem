@@ -100,6 +100,9 @@ class TorchTensorDataType(
             dtype=str(obj.dtype)[len("torch") + 1 :],
         )
 
+    def combine(self, batched_data: List[torch.Tensor]) -> torch.Tensor:
+        raise NotImplementedError
+
 
 class TorchTensorWriter(DataWriter):
     type: ClassVar[str] = "torch"

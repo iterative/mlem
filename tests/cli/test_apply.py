@@ -9,7 +9,7 @@ from sklearn.datasets import load_iris
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
-from mlem.core.data_type import ArrayType
+from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.errors import MlemProjectNotFound
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData
@@ -97,9 +97,9 @@ def test_apply_batch(runner, model_path_batch, data_path_batch):
         predictions_meta = load_meta(
             path, load_value=True, force_type=MlemData
         )
-        assert isinstance(predictions_meta.data_type, ArrayType)
+        assert isinstance(predictions_meta.dataset, NumpyNdarrayType)
         predictions = predictions_meta.get_value()
-        assert isinstance(predictions, list)
+        assert isinstance(predictions, ndarray)
 
 
 def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):

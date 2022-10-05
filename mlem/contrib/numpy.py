@@ -12,7 +12,11 @@ from mlem.core.data_type import (
     DataType,
     DataWriter,
 )
-from mlem.core.errors import DeserializationError, SerializationError
+from mlem.core.errors import (
+    DeserializationError,
+    InvalidDatatypeForBatchLoading,
+    SerializationError,
+)
 from mlem.core.requirements import LibRequirementsMixin
 
 
@@ -79,6 +83,9 @@ class NumpyNumberType(
     def get_model(self, prefix: str = "") -> Type:
         return python_type_from_np_string_repr(self.dtype)
 
+    def combine(self, batched_data: List[np.number]) -> np.number:
+        raise NotImplementedError
+
 
 class NumpyNdarrayType(
     LibRequirementsMixin, DataType, DataHook, DataSerializer
@@ -100,6 +107,17 @@ class NumpyNdarrayType(
     @staticmethod
     def _abstract_shape(shape):
         return (None,) + shape[1:]
+
+    def combine(self, batched_data: List[np.ndarray]) -> np.ndarray:
+        is_valid_type = all(
+            self.is_object_valid(elem) for elem in batched_data
+        )
+        if not is_valid_type:
+            raise InvalidDatatypeForBatchLoading(
+                f"Expected all values to be {self.type} for batch-loading."
+            )
+
+        return np.concatenate(batched_data, axis=0)
 
     @classmethod
     def process(cls, obj, **kwargs) -> DataType:

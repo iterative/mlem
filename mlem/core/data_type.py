@@ -15,6 +15,7 @@ from typing import (
     Sized,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
@@ -28,6 +29,8 @@ from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
+
+T = TypeVar("T")
 
 
 class DataType(ABC, MlemABC, WithRequirements):
@@ -52,6 +55,10 @@ class DataType(ABC, MlemABC, WithRequirements):
     @abstractmethod
     def get_requirements(self) -> Requirements:
         return get_object_requirements(self)
+
+    @abstractmethod
+    def combine(self, batched_data: List[T]) -> T:
+        raise NotImplementedError
 
     @abstractmethod
     def get_writer(
@@ -115,9 +122,15 @@ class UnspecifiedDataType(DataType, DataSerializer):
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
+    def combine(self, batched_data: List[T]) -> T:
+        raise NotImplementedError
+
 
 class DataHook(Hook[DataType], ABC):
     """Base class for hooks to analyze data objects"""
+
+    def combine(self, batched_data: List[T]) -> T:
+        raise NotImplementedError
 
 
 class DataAnalyzer(Analyzer):
@@ -203,6 +216,9 @@ class PrimitiveType(DataType, DataHook, DataSerializer):
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         return self.to_type
 
+    def combine(self, batched_data: List[Any]) -> Any:
+        raise NotImplementedError
+
 
 class PrimitiveWriter(DataWriter):
     type: ClassVar[str] = "primitive"
@@ -269,6 +285,9 @@ class ArrayType(DataType, DataSerializer):
             prefix + "Array",
             __root__=(List[self.dtype.get_serializer().get_model(subname)], ...),  # type: ignore
         )
+
+    def combine(self, batched_data: List[T]) -> T:
+        raise NotImplementedError
 
 
 class ArrayWriter(DataWriter):
@@ -366,6 +385,9 @@ class _TupleLikeType(DataType, DataSerializer):
                 ...,
             ),
         )
+
+    def combine(self, batched_data: List[Any]) -> Any:
+        raise NotImplementedError
 
 
 def _check_type_and_size(obj, dtype, size, exc_type):
@@ -567,6 +589,9 @@ class DictType(DataType, DataSerializer):
             for k, v in self.item_types.items()
         }
         return create_model(prefix + "DictType", **kwargs)  # type: ignore
+
+    def combine(self, batched_data: List[T]) -> T:
+        raise NotImplementedError
 
 
 class DictWriter(DataWriter):

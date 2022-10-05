@@ -25,7 +25,7 @@ class InterfaceDescriptor(BaseModel):
 
 class Interface(ABC, MlemABC):
     """Base class for runtime interfaces.
-    Describes a set of methods togerher with their signatures (arguments
+    Describes a set of methods together with their signatures (arguments
     and return type) and executors - actual python callables to be run
     when the method is invoked. Used to setup `Server`"""
 

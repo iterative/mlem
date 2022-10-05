@@ -211,6 +211,9 @@ class _PandasDataType(
 
         return {"values": (instance.to_dict("records"))}
 
+    def combine(self, batched_data: List[pd.DataFrame]) -> pd.DataFrame:
+        raise NotImplementedError
+
 
 class SeriesType(_PandasDataType):
     """
