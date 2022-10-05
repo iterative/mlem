@@ -46,7 +46,7 @@ def save(
     path: str,
     project: Optional[str] = None,
     sample_data=None,
-    fs: Union[str, AbstractFileSystem] = None,
+    fs: Optional[AbstractFileSystem] = None,
     index: bool = None,
     external: Optional[bool] = None,
     params: Dict[str, str] = None,

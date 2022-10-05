@@ -331,16 +331,18 @@ def build(
     )
 
 
-def serve(model: MlemModel, server: Union[Server, str], **server_kwargs):
+def serve(
+    model: Union[str, MlemModel], server: Union[Server, str], **server_kwargs
+):
     """Serve model via HTTP/HTTPS.
 
     Args:
-        model (MlemModel): The model to serve.
+        model (Union[str, MlemModel]): The model to serve.
         server (Union[Server, str]): Out-of-the-box supported one is "fastapi".
     """
     from mlem.runtime.interface import ModelInterface
 
-    model.load_value()
+    model = get_model_meta(model, load_value=True)
     interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
