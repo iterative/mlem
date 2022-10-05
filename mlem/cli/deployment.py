@@ -131,7 +131,7 @@ def create_deploy_run_command(type_name):
         try:
             meta = load_meta(path, project=project, force_type=MlemDeployment)
             raise DeploymentError(
-                f"Deployment meta already exists at {meta.loc}. Please use mlem deployment run --load <path> ..."
+                f"Deployment meta already exists at {meta.loc}. Please use `mlem deployment run --load <path> ...`"
             )
         except MlemObjectNotFound:
             with wrap_build_error(type_name, MlemDeployment):
