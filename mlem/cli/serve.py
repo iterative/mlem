@@ -27,9 +27,6 @@ from mlem.runtime.server import Server
 serve = Typer(
     name="serve",
     help="""Create an API from model methods using a server implementation.
-
-    Examples:
-        $ mlem serve fastapi https://github.com/iterative/example-mlem/models/logreg
     """,
     cls=mlem_group("runtime"),
     subcommand_metavar="server",

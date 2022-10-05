@@ -29,18 +29,7 @@ def import_object(
     index: bool = option_index,
     external: bool = option_external,
 ):
-    """Create a `.mlem` metafile for a model or data in any file or directory.
-
-    Examples:
-        Create MLEM data from local csv
-        $ mlem import data/data.csv data/imported_data --type pandas[csv]
-
-        Create MLEM model from local pickle file
-        $ mlem import data/model.pkl data/imported_model
-
-        Create MLEM model from remote pickle file
-        $ mlem import models/logreg --project https://github.com/iterative/example-mlem --rev no-dvc data/imported_model --type pickle
-    """
+    """Create a `.mlem` metafile for a model or data in any file or directory."""
     from mlem.api.commands import import_object
 
     import_object(

@@ -51,16 +51,6 @@ def deploy_run(
 ):
     """Deploy a model to a target environment. Can use an existing deployment
     declaration or create a new one on-the-fly.
-
-        Examples:
-            Create new deployment
-            $ mlem declare env heroku staging -c api_key=...
-            $ mlem deploy run service_name -m model -t staging -c name=my_service
-
-            Deploy existing meta
-            $ mlem declare env heroku staging -c api_key=...
-            $ mlem declare deployment heroku service_name -c app_name=my_service -c model=model -c env=staging
-            $ mlem deploy run service_name
     """
     from mlem.api.commands import deploy
 
@@ -84,11 +74,7 @@ def deploy_remove(
     path: str = Argument(..., help="Path to deployment meta"),
     project: Optional[str] = option_project,
 ):
-    """Stop and destroy deployed instance.
-
-    Examples:
-        $ mlem deployment remove service_name
-    """
+    """Stop and destroy deployed instance."""
     deploy_meta = load_meta(path, project=project, force_type=MlemDeployment)
     deploy_meta.remove()
 
@@ -98,11 +84,7 @@ def deploy_status(
     path: str = Argument(..., help="Path to deployment meta"),
     project: Optional[str] = option_project,
 ):
-    """Print status of deployed service.
-
-    Examples:
-        $ mlem deployment status service_name
-    """
+    """Print status of deployed service."""
     with no_echo():
         deploy_meta = load_meta(
             path, project=project, force_type=MlemDeployment
@@ -131,11 +113,7 @@ def deploy_wait(
         0, "-t", "--times", help="Number of attempts. 0 -> indefinite"
     ),
 ):
-    """Wait for status of deployed service
-
-    Examples:
-        $ mlem deployment status service_name
-    """
+    """Wait for status of deployed service"""
     with no_echo():
         deploy_meta = load_meta(
             path, project=project, force_type=MlemDeployment
@@ -161,12 +139,7 @@ def deploy_apply(
     index: bool = option_index,
     json: bool = option_json,
 ):
-    """Apply a deployed model to data.
-
-    Examples:
-        $ mlem deployment apply service_name
-    """
-
+    """Apply a deployed model to data."""
     with set_echo(None if json else ...):
         deploy_meta = load_meta(
             path, project=project, rev=rev, force_type=MlemDeployment

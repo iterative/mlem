@@ -12,13 +12,7 @@ def init(
         metavar=PATH_METAVAR,
     )
 ):
-    """Initialize a MLEM project.
-
-    Examples:
-        $ mlem init
-        $ mlem init some/local/path
-        $ mlem init s3://bucket/path/in/cloud
-    """
+    """Initialize a MLEM project."""
     from mlem.api.commands import init
 
     init(path)

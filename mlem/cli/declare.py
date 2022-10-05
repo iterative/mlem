@@ -24,10 +24,6 @@ from .utils import (
 declare = Typer(
     name="declare",
     help="""Declares a new MLEM Object metafile from config args and config files.
-
-    Examples:
-        Create heroku deployment
-        $ mlem declare env heroku production --api_key <...>
     """,
     cls=mlem_group("object"),
     subcommand_metavar="subtype",

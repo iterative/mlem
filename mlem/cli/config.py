@@ -33,8 +33,7 @@ def config_set(
 ):
     """Set configuration value
 
-    Examples:
-        $ mlem config set pandas.default_format csv
+    Documentation: <https://mlem.ai/doc/command-reference/config>
     """
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
@@ -70,9 +69,7 @@ def config_get(
 ):
     """Get configuration value
 
-    Examples:
-        $ mlem config get pandas.default_format
-        $ mlem config get pandas.default_format --project https://github.com/iterative/example-mlem/
+    Documentation: <https://mlem.ai/doc/command-reference/config>
     """
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
