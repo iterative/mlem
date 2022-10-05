@@ -383,7 +383,6 @@ class DockerContainer(
             echo(EMOJI_OK + f"Container {state.container_name} is up")
 
     def remove(self):
-        # self.check_type(meta)
         with self.lock_state():
             state = self.get_state()
             if state.container_id is None:
@@ -402,7 +401,6 @@ class DockerContainer(
             self.update_state(state)
 
     def get_status(self, raise_on_error=True) -> DeployStatus:
-        # self.check_type(meta)
         state = self.get_state()
         if state.container_id is None:
             return DeployStatus.NOT_DEPLOYED
