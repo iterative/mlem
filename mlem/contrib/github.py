@@ -1,3 +1,8 @@
+"""Github URI support
+Extension type: uri
+
+Implementation of `GithubResolver`
+"""
 import pathlib
 import posixpath
 import re

@@ -1,3 +1,8 @@
+"""FastAPI serving
+Extension type: serving
+
+FastAPIServer implementation
+"""
 import logging
 from collections.abc import Callable
 from types import ModuleType

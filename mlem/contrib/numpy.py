@@ -1,3 +1,8 @@
+"""Numpy data types support
+Extension type: data
+
+DataType, Reader and Writer implementations for `np.ndarray` and `np.number` primitives
+"""
 from types import ModuleType
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type, Union
 

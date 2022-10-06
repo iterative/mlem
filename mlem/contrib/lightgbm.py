@@ -1,3 +1,9 @@
+"""LightGBM models support
+Extension type: model
+
+ModelType and ModelIO implementations for `lightgbm.Booster` as well as
+LightGBMDataType with Reader and Writer for `lightgbm.Dataset`
+"""
 import os
 import posixpath
 import tempfile

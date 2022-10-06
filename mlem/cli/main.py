@@ -47,6 +47,9 @@ from mlem.ui import (
 PATH_METAVAR = "path"
 COMMITISH_METAVAR = "commitish"
 
+PATH_METAVAR = "path"
+COMMITISH_METAVAR = "commitish"
+
 
 class MlemFormatter(HelpFormatter):
     def write_heading(self, heading: str) -> None:

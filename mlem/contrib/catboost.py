@@ -1,3 +1,8 @@
+"""Catboost Models Support
+Extension type: model
+
+Implementations of ModelType and ModelIO for `CatBoostClassifier` and `CatBoostRegressor`
+"""
 import os
 import posixpath
 import tempfile

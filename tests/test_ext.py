@@ -1,8 +1,12 @@
+import os
 import re
+from importlib import import_module
 from pathlib import Path
 
-from mlem import ExtensionLoader
+import pytest
+
 from mlem.config import MlemConfig, MlemConfigBase
+from mlem.ext import ExtensionLoader, get_ext_type
 from mlem.utils.entrypoints import (
     MLEM_CONFIG_ENTRY_POINT,
     MLEM_ENTRY_POINT,
@@ -85,3 +89,32 @@ def test_all_ext_has_pip_extra():
         assert name in extras
         ext_extras = extras[name]
         assert set(reqs) == {re.split("[~=]", r)[0] for r in ext_extras}
+
+
+def test_all_ext_registered():
+    from mlem import contrib
+
+    files = os.listdir(os.path.dirname(contrib.__file__))
+    ext_sources = {
+        name[: -len(".py")] if name.endswith(".py") else name
+        for name in files
+        if not name.startswith("__")
+    }
+    assert set(ExtensionLoader.builtin_extensions) == {
+        f"mlem.contrib.{name}" for name in ext_sources
+    }
+
+
+@pytest.mark.parametrize("mod", ExtensionLoader.builtin_extensions.keys())
+def test_all_ext_docstring(mod):
+    module = import_module(mod)
+    assert module.__doc__ is not None
+    assert get_ext_type(mod) in {
+        "model",
+        "deployment",
+        "data",
+        "serving",
+        "build",
+        "uri",
+        "storage",
+    }

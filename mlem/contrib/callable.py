@@ -1,3 +1,8 @@
+"""MLEM Models from arbitraty callables
+Extension type: model
+
+ModelType implementation to turn any python callable into MLEM Model
+"""
 import posixpath
 from collections import defaultdict
 from importlib import import_module
