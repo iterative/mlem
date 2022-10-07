@@ -10,7 +10,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
 from mlem.core.data_type import ArrayType
-from mlem.core.errors import MlemProjectNotFound, UnsupportedDataBatchLoading
+from mlem.core.errors import UnsupportedDataBatchLoading
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData
 from mlem.runtime.client import HTTPClient
@@ -172,28 +172,6 @@ def test_apply_no_output(runner, model_path, data_path):
         result.exception,
     )
     assert len(result.stdout) > 0
-
-
-def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
-    with tempfile.TemporaryDirectory() as dir:
-        result = runner.invoke(
-            [
-                "--tb",
-                "apply",
-                model_path,
-                data_path,
-                "-m",
-                "predict",
-                "-o",
-                dir,
-            ],
-        )
-        assert result.exit_code == 1, (
-            result.stdout,
-            result.stderr,
-            result.exception,
-        )
-        assert isinstance(result.exception, MlemProjectNotFound)
 
 
 @long

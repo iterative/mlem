@@ -281,13 +281,13 @@ class MaskedField(_MockBuilder):
     """mock"""
 
     field: ListValue
-    index: str
+    project: str
 
 
 all_test_params.append(
     pytest.param(
-        MaskedField(index="a", field=ListValue(f=["a"])),
-        "--.index a --field.f.0 a",
+        MaskedField(project="a", field=ListValue(f=["a"])),
+        "--.project a --field.f.0 a",
         id="masked",
     )
 )
