@@ -28,7 +28,7 @@ class VenvBuilder(MlemBuilder):
         env_spec.create_configuration(context)
         env_spec.setup_python(context)
         if env_spec.with_pip:
-            env_spec._setup_pip(context)
+            env_spec._setup_pip(context)  # pylint: disable=protected-access
         if not env_spec.upgrade:
             env_spec.setup_scripts(context)
             env_spec.post_setup(context)
@@ -55,7 +55,7 @@ class VenvBuilder(MlemBuilder):
         if self.no_cache:
             install_cmd.append("--no-cache-dir")
         install_cmd.extend(obj.requirements.to_pip())
-        subprocess.run(install_cmd)
+        subprocess.run(install_cmd, check=True)
         echo(
             EMOJI_OK
             + f"virtual environment `{self.target}` is ready, activate with `source {self.target}/bin/activate`"
