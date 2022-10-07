@@ -10,7 +10,7 @@ from mlem.ui import EMOJI_OK, EMOJI_PACK, echo
 class VenvBuilder(MlemBuilder):
     """MlemBuilder implementation for building virtual environments"""
 
-    type: ClassVar = "requirements"
+    type: ClassVar = "venv"
 
     target: Optional[str] = "venv"
     """Name of the virtual environment"""
