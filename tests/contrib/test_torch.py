@@ -17,6 +17,7 @@ from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
 from mlem.core.objects import MlemModel
+from mlem.utils.path import make_posix
 from tests.conftest import data_write_read_check
 
 
@@ -176,7 +177,7 @@ def test_torch_import(tmp_path, net, torchsave):
 
 
 def test_torch_import_in_separate_shell(tmp_path):
-    path = str(tmp_path / "model")
+    path = make_posix(str(tmp_path / "model"))
     m = MyNet()
     save(m, path)
     x = subprocess.run(
