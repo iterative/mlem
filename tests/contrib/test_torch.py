@@ -177,7 +177,7 @@ def test_torch_import(tmp_path, net, torchsave):
 
 
 def test_torch_import_in_separate_shell(tmp_path):
-    path = make_posix(str(tmp_path / "model"))
+    path = make_posix(os.path.join(str(tmp_path), "model"))
     m = MyNet()
     save(m, path)
     x = subprocess.run(
