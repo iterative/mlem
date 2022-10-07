@@ -92,8 +92,7 @@ def test_meta_loading(model_path):
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model.mlem",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/latest.mlem",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
@@ -111,8 +110,7 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     [
         "data/model",
         "data/model.mlem",
-        ".mlem/link/data/model.mlem",
-        ".mlem/link/latest.mlem",
+        "latest.mlem",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
