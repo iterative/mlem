@@ -183,7 +183,7 @@ def test_torch_import_in_separate_shell(tmp_path):
         [
             "python",
             "-c",
-            f"from mlem.api import load; loaded = load('{path}')",
+            f""""from mlem.api import load; loaded = load('{path}')" """,
         ],
         check=True,
     )
