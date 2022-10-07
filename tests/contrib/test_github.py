@@ -5,6 +5,7 @@ import pytest
 from mlem.contrib.github import (
     GithubResolver,
     github_check_rev,
+    is_long_sha,
     ls_branches,
     ls_github_branches,
 )
@@ -91,3 +92,10 @@ def test_github_check_rev():
     assert github_check_rev(
         MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME, "first_rev_link"
     )  # tag
+
+
+def test_is_long_sha():
+    assert is_long_sha("cd7c2a08911b697c3f80c73d0394fb105d3044d5")
+    assert not is_long_sha("cd7c2a08911b697c3f80c73d0394fb105d3044d51")
+    assert not is_long_sha("cd7c2a08911b697c3f80c73d0394fb105d3044dA")
+    assert not is_long_sha("cd7c2a08911b697c3f80c73d0394fb105d3044d")

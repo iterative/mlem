@@ -2,6 +2,7 @@
 Base classes to work with requirements which come with ML models and data
 """
 import base64
+import collections
 import contextlib
 import glob
 import itertools
@@ -56,23 +57,24 @@ class Requirement(MlemABC):
 
 
 class PythonRequirement(Requirement, ABC):
+    type: ClassVar = "_python"
     module: str
+    """Python module name"""
 
 
 class InstallableRequirement(PythonRequirement):
     """
-    This class represents pip-installable python library
-
-    :param module: name of python module
-    :param version: version of python package
-    :param package_name: Optional. pip package name for this module, if it is different from module name
+    pip-installable python library
     """
 
     type: ClassVar[str] = "installable"
 
     module: str
+    """Name of python module"""
     version: Optional[str] = None
+    """Version of python package"""
     package_name: Optional[str] = None
+    """Pip package name for this module, if it is different from module name"""
 
     @property
     def package(self):
@@ -135,17 +137,16 @@ class InstallableRequirement(PythonRequirement):
 
 class CustomRequirement(PythonRequirement):
     """
-    This class represents local python code that you need as a requirement for your code
-
-    :param name: filename of this code
-    :param source64zip: zipped and base64-encoded source
-    :param is_package: whether this code should be in %name%/__init__.py
+    local python code that you need as a requirement for your code
     """
 
     type: ClassVar[str] = "custom"
     name: str
+    """Filename of this code"""
     source64zip: str
+    """Zipped and base64-encoded source"""
     is_package: bool
+    """Whether this code should be in %name%/__init__.py"""
 
     @staticmethod
     def from_module(mod: ModuleType) -> "CustomRequirement":
@@ -264,11 +265,13 @@ class CustomRequirement(PythonRequirement):
 
 
 class FileRequirement(CustomRequirement):
-    """Represents an additional file"""
+    """Additional file"""
 
     type: ClassVar[str] = "file"
     is_package: bool = False
+    """Ignored"""
     module: str = ""
+    """Ignored"""
 
     def to_sources_dict(self):
         """
@@ -287,10 +290,11 @@ class FileRequirement(CustomRequirement):
 
 
 class UnixPackageRequirement(Requirement):
-    """Represents a unix package that needs to be installed"""
+    """Unix package that needs to be installed"""
 
     type: ClassVar[str] = "unix"
     package_name: str
+    """Name of the package"""
 
 
 T = TypeVar("T", bound=Requirement)
@@ -299,11 +303,10 @@ T = TypeVar("T", bound=Requirement)
 class Requirements(BaseModel):
     """
     A collection of requirements
-
-    :param requirements: list of :class:`Requirement` instances
     """
 
     __root__: List[Requirement] = []
+    """List of :class:`Requirement` instances"""
 
     @property
     def installable(self) -> List[InstallableRequirement]:
@@ -490,7 +493,8 @@ def resolve_requirements(other: "AnyRequirements") -> Requirements:
         if isinstance(other[0], str):
             return Requirements(
                 __root__=[
-                    InstallableRequirement.from_str(r) for r in set(other)
+                    InstallableRequirement.from_str(r)
+                    for r in collections.OrderedDict.fromkeys(other)
                 ]
             )
 
@@ -522,7 +526,7 @@ AnyRequirements = Union[
 
 
 class WithRequirements:
-    """A mixing for objects that should provide their requirements"""
+    """A mixin for objects that should provide their requirements"""
 
     def get_requirements(self) -> Requirements:
         from mlem.utils.module import get_object_requirements

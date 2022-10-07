@@ -616,12 +616,7 @@ def test_signature_req(data):
 
     sig = Signature.from_method(f, auto_infer=True, x=data)
 
-    actual, expected = get_object_requirements(sig).modules, [
-        "pandas",
-        "numpy",
-    ]
-    assert len(actual) == len(expected)
-    assert all(a == b for (a, b) in zip(actual, expected))
+    assert set(get_object_requirements(sig).modules) == {"pandas"}
 
 
 # Copyright 2019 Zyfra

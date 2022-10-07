@@ -13,13 +13,14 @@ class TemplateModel(BaseModel):
     TEMPLATE_DIR: ClassVar[str]
 
     templates_dir: List[str] = []
+    """list of directories to look for jinja templates"""
 
     def prepare_dict(self):
         return self.dict()
 
     def generate(self, **additional):
         j2 = Environment(
-            loader=FileSystemLoader([self.TEMPLATE_DIR] + self.templates_dir),
+            loader=FileSystemLoader(self.templates_dir + [self.TEMPLATE_DIR]),
             undefined=StrictUndefined,
         )
         template = j2.get_template(self.TEMPLATE_FILE)

@@ -115,6 +115,8 @@ class MlemConfig(MlemConfigBase):
     TESTS: bool = False
     STORAGE: Dict = {}
     EMOJIS: bool = True
+    STATE: Dict = {}
+    SERVER: Dict = {}
 
     @property
     def storage(self):
@@ -132,6 +134,22 @@ class MlemConfig(MlemConfigBase):
         return self.ADDITIONAL_EXTENSIONS.split(  # pylint: disable=no-member
             ","
         )
+
+    @property
+    def state(self):
+        if not self.STATE:
+            return None
+        from mlem.core.objects import StateManager
+
+        return parse_obj_as(StateManager, self.STATE)
+
+    @property
+    def server(self):
+        from mlem.runtime.server import Server
+
+        if not self.SERVER:
+            return parse_obj_as(Server, {"type": "fastapi"})
+        return parse_obj_as(Server, self.SERVER)
 
 
 LOCAL_CONFIG = MlemConfig()

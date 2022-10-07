@@ -1,3 +1,9 @@
+"""Pandas data types support
+Extension type: data
+
+DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
+ImportHook implementation for files saved with pandas
+"""
 import os.path
 import posixpath
 import re
@@ -31,13 +37,7 @@ from pydantic import BaseModel, create_model, validator
 
 from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
-from mlem.core.artifacts import (
-    Artifact,
-    Artifacts,
-    PlaceholderArtifact,
-    Storage,
-    get_file_info,
-)
+from mlem.core.artifacts import Artifact, Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
     DataReader,
@@ -50,9 +50,9 @@ from mlem.core.errors import (
     SerializationError,
     UnsupportedDataBatchLoadingType,
 )
-from mlem.core.import_objects import ExtImportHook
+from mlem.core.import_objects import ExtImportHook, LoadAndAnalyzeImportHook
 from mlem.core.meta_io import Location
-from mlem.core.objects import MlemData, MlemObject
+from mlem.core.objects import MlemData
 from mlem.core.requirements import LibRequirementsMixin
 
 _PD_EXT_TYPES = {
@@ -120,16 +120,15 @@ class PandasConfig(MlemConfigBase):
 class _PandasDataType(
     LibRequirementsMixin, DataType, DataHook, DataSerializer, ABC
 ):
-    """Intermidiate class for pandas DataType implementations
-
-    :param columns: list of column names (including index)
-    :param dtypes: list of string representations of pandas dtypes of columns
-    :param index_cols: list of column names that are used as index"""
+    """Intermidiate class for pandas DataType implementations"""
 
     libraries: ClassVar = [pd]
     columns: List[str]
+    """Column names"""
     dtypes: List[str]
+    """Column types"""
     index_cols: List[str]
+    """Column names that should be in index"""
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> "_PandasDataType":
@@ -465,7 +464,9 @@ def read_pickle_with_unnamed(*args, **kwargs):
 
 
 def read_json_reset_index(*args, **kwargs):
-    return pd.read_json(*args, **kwargs).reset_index(drop=True)
+    return pd.read_json(  # pylint: disable=no-member
+        *args, **kwargs
+    ).reset_index(drop=True)
 
 
 def read_html(*args, **kwargs):
@@ -566,6 +567,7 @@ def get_pandas_batch_formats(batch_size: int):
 
 class _PandasIO(BaseModel):
     format: str
+    """name of pandas-supported format"""
 
     @validator("format")
     def is_valid_format(  # pylint: disable=no-self-argument
@@ -674,35 +676,22 @@ class PandasWriter(DataWriter, _PandasIO):
         }
 
 
-class PandasImport(ExtImportHook):
+class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):
+    """Import files as pd.DataFrame"""
+
     EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
     type: ClassVar = "pandas"
+    force_type: ClassVar = MlemData
 
     @classmethod
     def is_object_valid(cls, obj: Location) -> bool:
         return super().is_object_valid(obj) and obj.fs.isfile(obj.fullpath)
 
     @classmethod
-    def process(
-        cls,
-        obj: Location,
-        copy_data: bool = True,
-        modifier: Optional[str] = None,
-        **kwargs,
-    ) -> MlemObject:
-        ext = modifier or posixpath.splitext(obj.path)[1][1:]
+    def load_obj(cls, location: Location, modifier: Optional[str], **kwargs):
+        ext = modifier or posixpath.splitext(location.path)[1][1:]
         fmt = PANDAS_FORMATS[ext]
         read_args = fmt.read_args or {}
         read_args.update(kwargs)
-        with obj.open("rb") as f:
-            data = fmt.read_func(f, **read_args)
-        meta = MlemData.from_data(data)
-        if not copy_data:
-            meta.artifacts = {
-                DataWriter.art_name: PlaceholderArtifact(
-                    location=obj,
-                    uri=obj.uri,
-                    **get_file_info(obj.fullpath, obj.fs),
-                )
-            }
-        return meta
+        with location.open("rb") as f:
+            return fmt.read_func(f, **read_args)

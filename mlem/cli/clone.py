@@ -18,14 +18,8 @@ def clone(
     rev: Optional[str] = option_rev,
     target_project: Optional[str] = option_target_project,
 ):
-    """Download MLEM object from `uri` and save it to `target`
-
-    Examples:
-        Copy remote model to local directory
-        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main mymodel
-
-        Copy remote model to remote MLEM project
-        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main mymodel --tp s3://mybucket/mymodel
+    """Copy a MLEM Object from `uri` and
+    saves a copy of it to `target` path.
     """
     from mlem.api.commands import clone
 

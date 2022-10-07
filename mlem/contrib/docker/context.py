@@ -5,86 +5,226 @@ import posixpath
 import shutil
 import subprocess
 import tempfile
+from abc import abstractmethod
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
+from yaml import safe_dump
 
 import mlem
+from mlem.config import MlemConfigBase, project_config
 from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements, UnixPackageRequirement
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, EMOJI_PACK, echo, no_echo
+from mlem.utils.importing import import_from_path
 from mlem.utils.module import get_python_version
 from mlem.utils.templates import TemplateModel
 
 REQUIREMENTS = "requirements.txt"
+MLEM_REQUIREMENTS = "mlem_requirements.txt"
+SERVER = "server.yaml"
 TEMPLATE_FILE = "dockerfile.j2"
+MLEM_LOCAL_WHL = f"mlem-{mlem.__version__}-py3-none-any.whl"
 
 logger = logging.getLogger(__name__)
 
-_MLEM_SOURCE = os.environ.get(
-    "MLEM_SOURCE", "local" if "dev" in mlem.__version__ else "pip"
-)
-MLEM_INSTALL_COMMAND = "pip install mlem=={version}"
+
+class DockerConfig(MlemConfigBase):
+    source: Optional[str] = None
+    whl_path: Optional[str] = None
+    pip_version: str = mlem.__version__
+    git_rev: Optional[str] = None
+
+    class Config:
+        env_prefix = "mlem_docker"
+        section = "docker"
 
 
-def mlem_from_pip():
-    """
-    :return boolen flag if mlem inside image must be installed from pip (or copied local dist instread)"""
-    return _MLEM_SOURCE == "pip"
+LOCAL_DOCKER_CONFIG = project_config(None, section=DockerConfig)
 
 
-def mlem_from_local():
-    return _MLEM_SOURCE == "local"
+class MlemSource:
+    type: str
+    override = None
+
+    @abstractmethod
+    def build(self, path: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_install_command(self, args: "DockerBuildArgs") -> str:
+        raise NotImplementedError
+
+    def __init_subclass__(cls):
+        mlem_sources[cls.type] = cls()
+        return super().__init_subclass__()
 
 
-def mlem_from_whl():
-    return not mlem_from_pip() and not mlem_from_local()
+mlem_sources: Dict[str, MlemSource] = {}
+
+
+class WhlSource(MlemSource):
+    type = "whl"
+
+    def build(self, path: str):
+        with open(
+            os.path.join(path, MLEM_REQUIREMENTS), "w", encoding="utf8"
+        ) as f:
+            try:
+                f.write("\n".join(get_mlem_requirements().to_pip()))
+            except FileNotFoundError:
+                pass
+
+        config_whl_path = LOCAL_DOCKER_CONFIG.whl_path
+        if config_whl_path is not None:
+            self._existing_whl(config_whl_path, path)
+            return
+
+        self._new_whl(path)
+
+    @staticmethod
+    def _new_whl(path):
+        mlem_src_path = os.path.dirname(os.path.dirname(mlem.__file__))
+        echo(EMOJI_BUILD + "Building MLEM wheel file...")
+        logger.debug("Building mlem whl from %s...", mlem_src_path)
+        with tempfile.TemporaryDirectory() as whl_dir:
+            subprocess.check_output(
+                f"pip wheel . --no-deps -w {whl_dir}",
+                shell=True,
+                cwd=mlem_src_path,
+            )
+            whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
+            shutil.copy(whl_path, os.path.join(path, MLEM_LOCAL_WHL))
+        logger.debug("Built mlem whl %s", whl_path)
+
+    @staticmethod
+    def _existing_whl(config_whl_path, path):
+        if not os.path.isfile(config_whl_path):
+            raise ValueError("'whl_path' should be a path to whl file")
+        echo(EMOJI_PACK + f"Adding MLEM wheel file from {config_whl_path}")
+        shutil.copy(
+            config_whl_path,
+            os.path.join(path, WhlSource._whl_name()),
+        )
+
+    @staticmethod
+    def _whl_name():
+        if LOCAL_DOCKER_CONFIG.whl_path is not None:
+            return os.path.basename(LOCAL_DOCKER_CONFIG.whl_path)
+        return MLEM_LOCAL_WHL
+
+    def get_install_command(self, args: "DockerBuildArgs"):
+        name = WhlSource._whl_name()
+        return (
+            f"COPY {MLEM_REQUIREMENTS} .\n"
+            f"RUN pip install -r {MLEM_REQUIREMENTS}\n"
+            f"COPY {name} .\n"
+            f"RUN pip install {name}\n"
+        )
+
+
+class PipSource(MlemSource):
+    type = "pip"
+
+    def build(self, path):
+        pass
+
+    def get_install_command(self, args: "DockerBuildArgs"):
+        return f"RUN pip install mlem=={LOCAL_DOCKER_CONFIG.pip_version}"
+
+
+class GitSource(MlemSource):
+    type = "git"
+
+    def build(self, path):
+        pass
+
+    def get_install_command(self, args: "DockerBuildArgs"):
+        rev = ""
+        if LOCAL_DOCKER_CONFIG.git_rev is not None:
+            rev = f"@{LOCAL_DOCKER_CONFIG.git_rev}"
+        return (
+            f"RUN {args.package_install_cmd} git {args.package_clean_cmd}\n"
+            f"RUN pip install git+https://github.com/iterative/mlem{rev}#egg=mlem"
+        )
 
 
 @contextmanager
-def use_mlem_source(source="local"):
+def use_mlem_source(source="whl"):
     """Context manager that changes docker builder behaviour to copy
     this installation of mlem instead of installing it from pip.
     This is needed for testing and examples"""
-    global _MLEM_SOURCE  # pylint: disable=global-statement  # TODO is there a better way?
-    tmp = _MLEM_SOURCE
-    _MLEM_SOURCE = source
+    tmp = MlemSource.override
+    MlemSource.override = source
     try:
         yield
     finally:
-        _MLEM_SOURCE = tmp
+        MlemSource.override = tmp
+
+
+def get_mlem_source() -> MlemSource:
+    source = MlemSource.override or LOCAL_DOCKER_CONFIG.source
+    if source in mlem_sources:
+        return mlem_sources[source]
+    if source is not None:
+        raise ValueError(f"unknown mlem source '{source}'")
+    # if source is not specified
+    if "dev" in mlem.__version__:
+        return WhlSource()
+    return PipSource()
+
+
+def get_mlem_requirements():
+    requirements = Requirements.new()
+    cwd = os.getcwd()
+    try:
+        setup_mod = import_from_path(
+            "setup",
+            str(Path(mlem.__file__).parent.parent / "setup.py"),
+        )
+        setup_args = setup_mod.setup_args
+
+        requirements += list(setup_args["install_requires"])
+        logger.debug("Adding MLEM requirements %s", requirements.to_pip())
+    finally:
+        os.chdir(cwd)
+    return requirements
 
 
 class DockerBuildArgs(BaseModel):
-    """
-    Container for DockerBuild arguments
+    """Container for DockerBuild arguments"""
 
-    :param base_image:  base image for the built image in form of a string or function from python version,
-      default: python:{python_version}
-    :param python_version: Python version to use, default: version of running interpreter
-    :param templates_dir: directory or list of directories for Dockerfile templates, default: ./docker_templates
-       - `pre_install.j2` - Dockerfile commands to run before pip
-       - `post_install.j2` - Dockerfile commands to run after pip
-       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy
-    :param run_cmd: command to run in container, default: sh run.sh
-    :param package_install_cmd: command to install packages. Default is apt-get, change it for other package manager
-    :param prebuild_hook: callable to call before build, accepts python version. Used for pre-building server images
-    :param mlem_whl: a path to mlem .whl file. If it is empty, mlem will be installed from pip TODO
-    :param platform: platform to build docker for, see https://docs.docker.com/desktop/multi-arch/
-    """
+    class Config:
+        fields = {"prebuild_hook": {"exclude": True}}
 
     base_image: Optional[Union[str, Callable[[str], str]]] = None
+    """base image for the built image in form of a string or function from python version,
+    default: python:{python_version}"""
     python_version: str = get_python_version()
+    """Python version to use
+    default: version of running interpreter"""
     templates_dir: List[str] = []
-    run_cmd: Union[bool, str] = "sh run.sh"
-    package_install_cmd: str = "apt-get install -y"
+    """directory or list of directories for Dockerfile templates
+       - `pre_install.j2` - Dockerfile commands to run before pip
+       - `post_install.j2` - Dockerfile commands to run after pip
+       - `post_copy.j2` - Dockerfile commands to run after pip and MLEM distribution copy"""
+    run_cmd: Optional[str] = "sh run.sh"
+    """command to run in container"""
+    package_install_cmd: str = "apt-get update && apt-get -y upgrade && apt-get install --no-install-recommends -y"
+    """command to install packages. Default is apt-get, change it for other package manager"""
+    package_clean_cmd: str = "&& apt-get clean && rm -rf /var/lib/apt/lists/*"
+    """command to clean after package installation"""
     prebuild_hook: Optional[Callable[[str], Any]] = None
+    """callable to call before build, accepts python version. Used for pre-building server images"""
     mlem_whl: Optional[str] = None
+    """a path to mlem .whl file. If it is empty, mlem will be installed from pip"""
     platform: Optional[str] = None
+    """platform to build docker for, see docs.docker.com/desktop/multi-arch/"""
 
     def get_base_image(self):
         if self.base_image is None:
@@ -132,11 +272,7 @@ class DockerModelDirectory(BaseModel):
 
     def get_env_vars(self) -> Dict[str, str]:
         """Get env variables for image"""
-        envs = {
-            # LOADER_ENV: self.loader.classpath,
-            # SERVER_ENV: self.server.classpath,
-            # 'MLEM_RUNTIME': 'true'
-        }
+        envs = {}
         if self.debug:
             envs["MLEM_DEBUG"] = "true"
 
@@ -161,7 +297,7 @@ class DockerModelDirectory(BaseModel):
     def write_distribution(self):
         logger.debug('Writing model distribution to "%s"...', self.path)
         os.makedirs(self.path, exist_ok=True)
-        self.write_mlem_whl()
+        self.write_mlem_source()
         self.write_configs()
         self.write_model()
         reqs = self.get_requirements()
@@ -179,23 +315,6 @@ class DockerModelDirectory(BaseModel):
                 "Auto-determined requirements for model: %s.",
                 requirements.to_pip(),
             )
-            if (
-                mlem_from_pip() is False
-            ):  # TODO: https://github.com/iterative/mlem/issues/39
-                cwd = os.getcwd()
-                try:
-                    from setup import setup_args  # only for development
-
-                    requirements += list(setup_args["install_requires"])
-                    logger.debug(
-                        "Adding MLEM requirements as local installation is employed..."
-                    )
-                    logger.debug(
-                        "Overall requirements for model: %s.",
-                        requirements.to_pip(),
-                    )
-                finally:
-                    os.chdir(cwd)
             req.write("\n".join(requirements.to_pip()))
 
     def write_model(self):
@@ -224,7 +343,10 @@ class DockerModelDirectory(BaseModel):
             df.write(dockerfile)
 
     def write_configs(self):
-        pass
+        with self.fs.open(
+            posixpath.join(self.path, SERVER), "w", encoding="utf8"
+        ) as f:
+            safe_dump(self.server.dict(), f)
 
     def write_local_sources(self, requirements: Requirements):
         echo(EMOJI_PACK + "Adding sources...")
@@ -232,7 +354,7 @@ class DockerModelDirectory(BaseModel):
         for cr in requirements.custom:
             sources.update(cr.to_sources_dict())
 
-        # add __init__.py for all dirs that doesnt have it already
+        # add __init__.py for all dirs that doesn't have it already
         packages = {
             os.path.join(os.path.dirname(p), "__init__.py")
             for p in sources
@@ -249,43 +371,11 @@ class DockerModelDirectory(BaseModel):
 
     def write_run_file(self):
         with self.fs.open(posixpath.join(self.path, "run.sh"), "w") as sh:
-            sh.write(f"mlem serve {self.model_name} {self.server.type}")
+            sh.write(f"mlem serve -l {SERVER} -m {self.model_name}")
 
-    def _build_local_mlem_wheel(self):
-        mlem_src_path = os.path.dirname(os.path.dirname(mlem.__file__))
-        echo(EMOJI_BUILD + "Building MLEM wheel file...")
-        logger.debug("Building mlem whl from %s...", mlem_src_path)
-        with tempfile.TemporaryDirectory() as whl_dir:
-            subprocess.check_output(
-                f"pip wheel . --no-deps -w {whl_dir}",
-                shell=True,
-                cwd=mlem_src_path,
-            )
-            whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
-            whl_name = os.path.basename(whl_path)
-            shutil.copy(whl_path, os.path.join(self.path, whl_name))
-        logger.debug("Built mlem whl %s", whl_path)
-        return whl_name
-
-    def write_mlem_whl(self):
-        if mlem_from_pip():
-            # nothing to do
-            return
-        if mlem_from_local():
-            # build whl and set option
-            self.docker_args.mlem_whl = self._build_local_mlem_wheel()
-            return
-        # set whl option
-        echo(EMOJI_PACK + f"Adding MLEM wheel file from {_MLEM_SOURCE}")
-        logger.debug(
-            "Putting MLEM wheel to distribution as wheel installation is employed..."
-        )
-        shutil.copy(
-            _MLEM_SOURCE,
-            os.path.join(self.path, os.path.basename(_MLEM_SOURCE)),
-        )
-        self.docker_args.mlem_whl = _MLEM_SOURCE
-        return
+    def write_mlem_source(self):
+        source = get_mlem_source()
+        source.build(self.path)
 
 
 class DockerfileGenerator(DockerBuildArgs, TemplateModel):
@@ -304,17 +394,15 @@ class DockerfileGenerator(DockerBuildArgs, TemplateModel):
 
         logger.debug('Docker image is based on "%s".', self.base_image)
 
-        is_whl = self.mlem_whl is not None
+        mlem_install = get_mlem_source().get_install_command(self)
 
         docker_args = {
             "python_version": self.python_version,
             "base_image": self.get_base_image(),
             "run_cmd": self.run_cmd,
-            "mlem_install": f"COPY {self.mlem_whl} .\nRUN pip install {self.mlem_whl}"
-            if is_whl
-            else "RUN "
-            + MLEM_INSTALL_COMMAND.format(version=mlem.__version__),
+            "mlem_install": mlem_install,
             "package_install_cmd": self.package_install_cmd,
+            "package_clean_cmd": self.package_clean_cmd,
         }
         return docker_args
 

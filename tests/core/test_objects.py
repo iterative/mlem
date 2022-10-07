@@ -6,20 +6,22 @@ from pathlib import Path
 
 import pytest
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import ValidationError, parse_obj_as
+from pydantic import parse_obj_as
 from sklearn.datasets import load_iris
 
 from mlem.core.artifacts import Artifacts, LocalArtifact, Storage
 from mlem.core.errors import MlemProjectNotFound, WrongRequirementsError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta
-from mlem.core.model import ModelIO
+from mlem.core.model import ModelIO, ModelType
 from mlem.core.objects import (
     DeployState,
+    DeployStatus,
     MlemDeployment,
     MlemLink,
     MlemModel,
     MlemObject,
+    ModelLink,
 )
 from mlem.core.requirements import InstallableRequirement, Requirements
 from tests.conftest import (
@@ -43,17 +45,24 @@ class MyDeployState(DeployState):
     def destroy(self):
         pass
 
-    def get_client(self):
+
+class MyMlemDeployment(MlemDeployment):
+    def deploy(self, model: MlemModel):
+        pass
+
+    def remove(self):
+        pass
+
+    def get_status(self, raise_on_error=True) -> DeployStatus:
+        pass
+
+    def _get_client(self, state):
         pass
 
 
 @pytest.fixture()
 def meta():
-    return MlemDeployment(
-        env_link=MlemLink(path="", link_type="env"),
-        model_link=MlemLink(path="", link_type="model"),
-        state=MyDeployState(),
-    )
+    return MyMlemDeployment(env="")
 
 
 @pytest.fixture(params=["fullpath", "with_root"])
@@ -266,6 +275,13 @@ def test_double_link_load(filled_mlem_project):
     assert isinstance(model, MlemModel)
 
 
+def test_typed_link():
+    link = ModelLink(path="aaa")
+    assert link.dict() == {"path": "aaa"}
+
+    assert parse_obj_as(ModelLink, {"path": "aaa"}) == link
+
+
 @long
 @need_test_repo_auth
 def test_load_link_from_rev():
@@ -299,14 +315,15 @@ def test_link_dump_in_mlem(model_path_mlem_project):
 
 def test_model_model_type_laziness():
     payload = {
-        "model_type": {"type": "doesnotexist"},
+        "model_type": {"type": "sklearn", "methods": {}},
         "object_type": "model",
         "requirements": [],
     }
     model = parse_obj_as(MlemModel, payload)
-    assert model.model_type_raw == {"type": "doesnotexist"}
-    with pytest.raises(ValidationError):
-        print(model.model_type)
+    assert model.model_type_cache == {"type": "sklearn", "methods": {}}
+    assert isinstance(model.model_type_cache, dict)
+    assert isinstance(model.model_type, ModelType)
+    assert isinstance(model.model_type_cache, ModelType)
 
 
 def test_mlem_project_root(filled_mlem_project):
@@ -351,11 +368,16 @@ def test_remove_old_artifacts(model, tmpdir, train):
     load(path).predict(train)
 
 
+class MockModelType(ModelType):
+    io: ModelIO = MockModelIO(filename="")
+
+
 def test_checkenv():
     model = MlemModel(
         requirements=Requirements.new(
             InstallableRequirement(module="pytest", version=pytest.__version__)
-        )
+        ),
+        model_type=MockModelType(methods={}),
     )
 
     model.checkenv()

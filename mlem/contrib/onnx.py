@@ -1,3 +1,8 @@
+"""ONNX models support
+Extension type: model
+
+ModelType and ModelIO implementations for `onnx.ModelProto`
+"""
 from typing import Any, ClassVar, List, Optional, Union
 
 import numpy as np

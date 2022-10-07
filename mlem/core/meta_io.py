@@ -2,6 +2,7 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import contextlib
+import os
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
@@ -43,8 +44,18 @@ class Location(BaseModel):
     def path_in_project(self):
         return posixpath.relpath(self.fullpath, self.project)
 
+    @property
+    def dirname(self):
+        return posixpath.dirname(self.fullpath)
+
+    @property
+    def basename(self):
+        return posixpath.basename(self.path)
+
     @contextlib.contextmanager
-    def open(self, mode="r", **kwargs):
+    def open(self, mode="r", make_dir: bool = False, **kwargs):
+        if make_dir:
+            self.fs.makedirs(posixpath.dirname(self.fullpath), exist_ok=True)
         with self.fs.open(self.fullpath, mode, **kwargs) as f:
             yield f
 
@@ -57,11 +68,16 @@ class Location(BaseModel):
     def update_path(self, path):
         if not self.uri.endswith(self.path):
             raise ValueError("cannot automatically update uri")
+        if os.path.isabs(self.path) and not os.path.isabs(path):
+            path = posixpath.join(posixpath.dirname(self.path), path)
         self.uri = self.uri[: -len(self.path)] + path
         self.path = path
 
     def exists(self):
         return self.fs.exists(self.fullpath)
+
+    def delete(self):
+        self.fs.delete(self.fullpath)
 
     def is_same_project(self, other: "Location"):
         return other.fs == self.fs and other.project == self.project
@@ -74,6 +90,23 @@ class Location(BaseModel):
         ):
             return posixpath.relpath(self.fullpath, "")
         return self.uri
+
+    @classmethod
+    def resolve(
+        cls,
+        path: str,
+        project: str = None,
+        rev: str = None,
+        fs: AbstractFileSystem = None,
+        find_project: bool = False,
+    ):
+        return UriResolver.resolve(
+            path=path,
+            project=project,
+            rev=rev,
+            fs=fs,
+            find_project=find_project,
+        )
 
 
 class UriResolver(MlemABC):
@@ -299,6 +332,7 @@ class CloudGitResolver(UriResolver, ABC):
 class FSSpecResolver(UriResolver):
     """Resolve different fsspec URIs"""
 
+    type: ClassVar = "fsspec"
     low_priority: ClassVar = True
 
     @classmethod
@@ -338,7 +372,7 @@ class FSSpecResolver(UriResolver):
 
 
 def get_fs(uri: str) -> Tuple[AbstractFileSystem, str]:
-    location = UriResolver.resolve(path=uri, project=None, rev=None, fs=None)
+    location = Location.resolve(path=uri, project=None, rev=None, fs=None)
     return location.fs, location.fullpath
 
 
@@ -353,7 +387,7 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
 
 
 def get_uri(fs: AbstractFileSystem, path: str, repr: bool = False):
-    loc = UriResolver.resolve(path, None, None, fs=fs)
+    loc = Location.resolve(path, None, None, fs=fs)
     if repr:
         return loc.uri_repr
     return loc.uri

@@ -1,3 +1,8 @@
+"""Gitlab URI support
+Extension type: uri
+
+Implementation of `GitlabFileSystem` and `GitlabResolver`
+"""
 import posixpath
 from typing import ClassVar, Optional
 from urllib.parse import quote_plus, urlparse, urlsplit
@@ -157,14 +162,16 @@ known_implementations["gitlab"] = {
 
 
 class GitlabResolver(CloudGitResolver):
-    type: ClassVar = "gitlab"
-    FS = GitlabFileSystem
-    PROTOCOL = "gitlab"
-    GITLAB_COM = "https://gitlab.com"
+    """Resolve https://gitlab.com URIs"""
 
-    # TODO: support on-prem gitlab (other hosts)
-    PREFIXES = [GITLAB_COM, PROTOCOL + "://"]
-    versioning_support = True
+    type: ClassVar = "gitlab"
+    FS: ClassVar = GitlabFileSystem
+    PROTOCOL: ClassVar = "gitlab"
+    GITLAB_COM: ClassVar = "https://gitlab.com"
+
+    # TODO: https://github.com//issues/388
+    PREFIXES: ClassVar = [GITLAB_COM, PROTOCOL + "://"]
+    versioning_support: ClassVar = True
 
     @classmethod
     def get_kwargs(cls, uri):

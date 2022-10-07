@@ -15,7 +15,7 @@ from mlem.core.errors import (
     MlemProjectNotFound,
     WrongMetaType,
 )
-from mlem.core.meta_io import Location, UriResolver, get_meta_path
+from mlem.core.meta_io import Location, get_meta_path
 from mlem.core.objects import MlemData, MlemModel, MlemObject, find_object
 from mlem.utils.path import make_posix
 
@@ -46,7 +46,7 @@ def save(
     path: str,
     project: Optional[str] = None,
     sample_data=None,
-    fs: Union[str, AbstractFileSystem] = None,
+    fs: Optional[AbstractFileSystem] = None,
     params: Dict[str, str] = None,
 ) -> MlemObject:
     """Saves given object to a given path
@@ -160,7 +160,7 @@ def load_meta(
     Returns:
         MlemObject: Saved MlemObject
     """
-    location = UriResolver.resolve(
+    location = Location.resolve(
         path=make_posix(path),
         project=make_posix(project),
         rev=rev,

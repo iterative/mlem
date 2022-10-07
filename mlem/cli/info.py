@@ -46,14 +46,8 @@ def pretty_print(
     ),
     json: bool = option_json,
 ):
-    """Print specified MLEM object
-
-    Examples:
-        Print local object
-        $ mlem pprint mymodel
-
-        Print remote object
-        $ mlem pprint https://github.com/iterative/example-mlem/models/logreg
+    """Display all details about a specific MLEM Object from an existing MLEM
+    project.
     """
     with set_echo(None if json else ...):
         meta = load_meta(

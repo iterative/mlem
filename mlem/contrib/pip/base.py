@@ -4,7 +4,7 @@ import os.path
 import posixpath
 import subprocess
 import tempfile
-from typing import ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
@@ -26,19 +26,27 @@ class SetupTemplate(TemplateModel):
     TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
     package_name: str
+    """Name of python package"""
     python_version: Optional[str] = None
+    """Required python version"""
     short_description: str = ""
+    """short_description"""
     url: str = ""
+    """url"""
     email: str = ""
+    """author's email"""
     author: str = ""
+    """author's name"""
     version: str = "0.0.0"
-    additional_setup_kwargs: Dict = {}
+    """package version"""
+    additional_setup_kwargs: Dict[str, Any] = {}
+    """additional parameters for setup()"""
 
     @validator("python_version")
     def validate_python_version(  # pylint: disable=no-self-argument
         cls, value  # noqa: B902
     ):
-        return f"=={value}" if value[0] in "0123456789" else value
+        return f"=={value}" if value and value[0] in "0123456789" else value
 
 
 class SourceTemplate(TemplateModel):
@@ -46,6 +54,7 @@ class SourceTemplate(TemplateModel):
     TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
     methods: List[str]
+    """list of methods"""
 
 
 class PipMixin(SetupTemplate):
@@ -84,8 +93,11 @@ class PipMixin(SetupTemplate):
 
 
 class PipBuilder(MlemBuilder, PipMixin):
+    """Create a directory python package"""
+
     type: ClassVar = "pip"
     target: str
+    """Path to save result"""
 
     def build(self, obj: MlemModel):
         fs, root = get_fs(self.target)
@@ -93,8 +105,11 @@ class PipBuilder(MlemBuilder, PipMixin):
 
 
 class WhlBuilder(MlemBuilder, PipMixin):
+    """Create a wheel with python package"""
+
     type: ClassVar = "whl"
     target: str
+    """Path to save result"""
 
     def build_whl(self, path, target, target_fs):
         target_fs.makedirs(target, exist_ok=True)

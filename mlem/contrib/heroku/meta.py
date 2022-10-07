@@ -8,6 +8,7 @@ from mlem.core.objects import (
     DeployStatus,
     MlemDeployment,
     MlemEnv,
+    MlemModel,
 )
 from mlem.runtime.client import Client, HTTPClient
 
@@ -28,15 +29,31 @@ HEROKU_STATE_MAPPING = {
 
 class HerokuAppMeta(BaseModel):
     name: str
+    """App name"""
     web_url: str
+    """App web url"""
     meta_info: dict
+    """Additional metadata"""
+
+
+class HerokuEnv(MlemEnv):
+    """Heroku Account"""
+
+    type: ClassVar = "heroku"
+    api_key: Optional[str] = None
+    """HEROKU_API_KEY - advised to set via env variable or `heroku login`"""
 
 
 class HerokuState(DeployState):
+    """State of heroku deployment"""
+
     type: ClassVar = "heroku"
     app: Optional[HerokuAppMeta]
+    """Created heroku app"""
     image: Optional[DockerImage]
+    """Built docker image"""
     release_state: Optional[Union[dict, list]]
+    """State of the release"""
 
     @property
     def ensured_app(self) -> HerokuAppMeta:
@@ -44,85 +61,82 @@ class HerokuState(DeployState):
             raise ValueError("App is not created yet")
         return self.app
 
-    def get_client(self) -> Client:
+
+class HerokuDeployment(MlemDeployment[HerokuState, HerokuEnv]):
+    """Heroku App"""
+
+    type: ClassVar = "heroku"
+    state_type: ClassVar = HerokuState
+    env_type: ClassVar = HerokuEnv
+
+    app_name: str
+    """Heroku application name"""
+    region: str = "us"
+    """Heroku region"""
+    stack: str = "container"
+    """Stack to use"""
+    team: Optional[str] = None
+    """Heroku team"""
+
+    def _get_client(self, state: HerokuState) -> Client:
         return HTTPClient(
-            host=urlparse(self.ensured_app.web_url).netloc, port=80
+            host=urlparse(state.ensured_app.web_url).netloc, port=80
         )
 
-
-class HerokuDeployment(MlemDeployment):
-    type: ClassVar = "heroku"
-    state: Optional[HerokuState]
-    app_name: str
-    region: str = "us"
-    stack: str = "container"
-    team: Optional[str] = None
-
-
-class HerokuEnv(MlemEnv[HerokuDeployment]):
-    type: ClassVar = "heroku"
-    deploy_type: ClassVar = HerokuDeployment
-    api_key: Optional[str] = None
-
-    def deploy(self, meta: HerokuDeployment):
+    def deploy(self, model: MlemModel):
         from .utils import create_app, release_docker_app
 
-        if meta.state is None:
-            meta.state = HerokuState()
+        with self.lock_state():
+            state: HerokuState = self.get_state()
+            if state.app is None:
+                state.app = create_app(self, api_key=self.get_env().api_key)
+                self.update_state(state)
 
-        meta.update()
-        self.check_type(meta)
+            redeploy = False
+            if state.image is None or self.model_changed(model):
+                state.image = build_heroku_docker(
+                    model, state.app.name, api_key=self.get_env().api_key
+                )
+                state.update_model(model)
+                self.update_state(state)
+                redeploy = True
+            if state.release_state is None or redeploy:
+                state.release_state = release_docker_app(
+                    state.app.name,
+                    state.image.image_id,
+                    api_key=self.get_env().api_key,
+                )
+                self.update_state(state)
 
-        if meta.state.app is None:
-            meta.state.app = create_app(meta, api_key=self.api_key)
-            meta.update()
-
-        redeploy = False
-        if meta.state.image is None or meta.model_changed():
-            meta.state.image = build_heroku_docker(
-                meta.get_model(), meta.state.app.name, api_key=self.api_key
+            echo(
+                EMOJI_OK
+                + f"Service {self.app_name} is up. You can check it out at {state.app.web_url}"
             )
-            meta.update_model_hash()
-            meta.update()
-            redeploy = True
-        if meta.state.release_state is None or redeploy:
-            meta.state.release_state = release_docker_app(
-                meta.state.app.name,
-                meta.state.image.image_id,
-                api_key=self.api_key,
-            )
-            meta.update()
 
-        echo(
-            EMOJI_OK
-            + f"Service {meta.app_name} is up. You can check it out at {meta.state.app.web_url}"
-        )
-
-    def remove(self, meta: HerokuDeployment):
+    def remove(self):
         from .utils import delete_app
 
-        self.check_type(meta)
-        if meta.state is None:
-            return
+        with self.lock_state():
+            state: HerokuState = self.get_state()
 
-        delete_app(meta.state.ensured_app.name, self.api_key)
-        meta.state = None
-        meta.update()
+            if state.app is not None:
+                delete_app(state.ensured_app.name, self.get_env().api_key)
+            self.purge_state()
 
-    def get_status(
-        self, meta: "HerokuDeployment", raise_on_error=True
-    ) -> DeployStatus:
+    def get_status(self, raise_on_error=True) -> DeployStatus:
         from .utils import list_dynos
 
-        self.check_type(meta)
-        if meta.state is None or meta.state.app is None:
+        state: HerokuState = self.get_state()
+        if state.app is None:
             return DeployStatus.NOT_DEPLOYED
-        dynos = list_dynos(meta.state.ensured_app.name, "web", self.api_key)
+        dynos = list_dynos(
+            state.ensured_app.name, "web", self.get_env().api_key
+        )
         if not dynos:
             if raise_on_error:
                 raise DeploymentError(
                     f"No heroku web dynos found, check your dashboard "
-                    f"at https://dashboard.heroku.com/apps/{meta.state.ensured_app.name}"
+                    f"at https://dashboard.heroku.com/apps/{state.ensured_app.name}"
                 )
             return DeployStatus.NOT_DEPLOYED
         return HEROKU_STATE_MAPPING[dynos[0]["state"]]

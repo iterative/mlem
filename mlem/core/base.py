@@ -1,6 +1,18 @@
 import shlex
+from collections import defaultdict
 from inspect import isabstract
-from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, overload
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Literal
@@ -41,6 +53,11 @@ def load_impl_ext(
     from mlem.utils.entrypoints import (  # circular dependencies
         load_entrypoints,
     )
+
+    if abs_name in MlemABC.abs_types:
+        abs_class = MlemABC.abs_types[abs_name]
+        if type_name in abs_class.__type_map__:
+            return abs_class.__type_map__[type_name]
 
     if type_name is not None and "." in type_name:
         try:
@@ -130,30 +147,7 @@ class MlemABC(PolyModel):
             raise UnknownImplementation(type_name, cls.abs_name) from e
 
 
-def set_or_replace(obj: dict, key: str, value: Any, subkey: str = "type"):
-    if key in obj:
-        old_value = obj[key]
-        if (
-            isinstance(old_value, str)
-            and isinstance(value, dict)
-            and subkey not in value
-        ):
-            value[subkey] = old_value
-            obj[key] = value
-            return
-        if isinstance(old_value, dict) and isinstance(value, str):
-            old_value[subkey] = value
-            return
-    obj[key] = value
-
-
-def set_recursively(obj: dict, keys: List[str], value: Any):
-    if len(keys) == 1:
-        set_or_replace(obj, keys[0], value)
-        return
-    key, keys = keys[0], keys[1:]
-    set_or_replace(obj, key, {})
-    set_recursively(obj[key], keys, value)
+_not_set = object()
 
 
 def get_recursively(obj: dict, keys: List[str]):
@@ -163,27 +157,30 @@ def get_recursively(obj: dict, keys: List[str]):
     return get_recursively(obj[key], keys)
 
 
-def smart_split(string: str, char: str, maxsplit: int = None):
+def smart_split(value: str, char: str, maxsplit: int = None):
     SPECIAL = "\0"
     if char != " ":
-        string = string.replace(" ", SPECIAL).replace(char, " ")
+        value = value.replace(" ", SPECIAL).replace(char, " ")
     res = [
         s.replace(" ", char).replace(SPECIAL, " ")
-        for s in shlex.split(string, posix=True)
+        for s in shlex.split(value, posix=True)
     ]
     if maxsplit is None:
         return res
     return res[:maxsplit] + [char.join(res[maxsplit:])]
 
 
+TMO = TypeVar("TMO", bound=MlemABC)
+
+
 def build_mlem_object(
-    model: Type[MlemABC],
+    model: Type[TMO],
     subtype: str,
     str_conf: List[str] = None,
     file_conf: List[str] = None,
     conf: Dict[str, Any] = None,
     **kwargs,
-):
+) -> TMO:
     not_links, links = parse_links(model, str_conf or [])
     if model.__is_root__:
         kwargs[model.__config__.type_field] = subtype
@@ -227,36 +224,143 @@ def parse_links(model: Type["BaseModel"], str_conf: List[str]):
     return not_links, links
 
 
+IntStr = Union[int, str]
+Keys = Tuple[IntStr, ...]
+KeyValue = Tuple[IntStr, Any]
+Aggregates = Dict[Keys, List[KeyValue]]
+
+
+class SmartSplitDict(dict):
+    def __init__(self, value=None, sep=".", type_field="type"):
+        self.type_field = type_field
+        self.sep = sep
+        super().__init__(value or ())
+
+    def update(self, __m: Dict[Any, Any], **kwargs) -> None:  # type: ignore[override]
+        for k, v in __m.items():
+            self[k] = v
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            key = tuple(smart_split(key, self.sep))
+
+        for keys, val in self._disassemble(value, key):
+            super().__setitem__(keys, val)
+
+    def _disassemble(self, value: Any, key_prefix):
+        if isinstance(value, list):
+            for i, v in enumerate(value):
+                yield from self._disassemble(v, key_prefix + (i,))
+            return
+        if isinstance(value, dict):
+            for k, v in value.items():
+                yield from self._disassemble(v, key_prefix + (k,))
+            return
+        yield key_prefix, value
+
+    def build(self) -> Dict[str, Any]:
+        prefix_values: Aggregates = self._aggregate_by_prefix()
+        while prefix_values:
+            if len(prefix_values) == 1 and () in prefix_values:
+                return self._merge_aggregates(prefix_values[()])
+            max_len = max(len(k) for k in prefix_values)
+            to_aggregate: Dict[Keys, Any] = {}
+            postponed: Aggregates = defaultdict(list)
+            for prefix, values in prefix_values.items():
+                if len(prefix) == max_len:
+                    to_aggregate[prefix] = self._merge_aggregates(values)
+                    continue
+                postponed[prefix] = values
+            aggregated: Aggregates = self._aggregate_by_prefix(to_aggregate)
+            for prefix in set(postponed).union(aggregated):
+                postponed[prefix].extend(aggregated.get(prefix, []))
+            if postponed == prefix_values:
+                raise RuntimeError("infinite loop on smartdict builing")
+            prefix_values = postponed
+        # this can only be reached if loop was not entered
+        return {}
+
+    def _merge_aggregates(self, values: List[KeyValue]) -> Any:
+        if all(isinstance(k, int) for k, _ in values):
+            return self._merge_as_list(values)
+        return self._merge_as_dict(values)
+
+    def _merge_as_list(self, values: List[KeyValue]):
+        assert all(isinstance(k, int) for k, _ in values)
+        index_values = defaultdict(list)
+        for index, value in values:
+            index_values[index].append(value)
+        res = [_not_set] * (int(max(k for k, _ in values)) + 1)
+        for i, v in index_values.items():
+            res[i] = self._merge_values(v)  # type: ignore[index]
+        return res
+
+    def _merge_as_dict(self, values: List[KeyValue]) -> Dict[Any, Any]:
+        key_values = defaultdict(list)
+        for key, value in values:
+            key_values[key].append(value)
+        return {k: self._merge_values(v) for k, v in key_values.items()}
+
+    def _merge_values(self, values: List[Any]) -> Any:
+        if len(values) == 1:
+            return values[0]
+        merged = {}
+        for value in values:
+            if isinstance(value, dict):
+                merged.update(value)
+            elif isinstance(value, str):
+                merged[self.type_field] = value
+            else:
+                raise ValueError(f"Cannot merge {value.__class__} into dict")
+        return merged
+
+    def _aggregate_by_prefix(
+        self, values: Dict[Keys, Any] = None
+    ) -> Aggregates:
+        values = values if values is not None else self
+        prefix_values: Aggregates = defaultdict(list)
+
+        for keys, value in values.items():
+            prefix, key = keys[:-1], keys[-1]
+            if isinstance(key, str) and key.isnumeric():
+                key = int(key)
+            prefix_values[prefix].append((key, value))
+        return prefix_values
+
+
 def parse_string_conf(conf: List[str]) -> Dict[str, Any]:
-    res: Dict[str, Any] = {}
+    res = SmartSplitDict()
     for c in conf:
         keys, value = smart_split(c, "=")
-        set_recursively(res, smart_split(keys, "."), value)
-    return res
+        res[keys] = value
+    return res.build()
+
+
+TBM = TypeVar("TBM", bound=BaseModel)
 
 
 def build_model(
-    model: Type[BaseModel],
+    model: Type[TBM],
     str_conf: List[str] = None,
     file_conf: List[str] = None,
     conf: Dict[str, Any] = None,
     **kwargs,
-):
-    model_dict: Dict[str, Any] = {}
-    kwargs.update(conf or {})
-    model_dict.update()
-    for key, c in kwargs.items():
-        set_recursively(model_dict, smart_split(key, "."), c)
+) -> TBM:
+    model_dict = SmartSplitDict()
+    model_dict.update(kwargs)
+    model_dict.update(conf or {})
 
     for file in file_conf or []:
         keys, path = smart_split(make_posix(file), "=")
         with open(path, "r", encoding="utf8") as f:
             value = safe_load(f)
-        set_recursively(model_dict, smart_split(keys, "."), value)
+        model_dict[keys] = value
 
     for c in str_conf or []:
         keys, value = smart_split(c, "=", 1)
         if value == "None":
             value = None
-        set_recursively(model_dict, smart_split(keys, "."), value)
-    return parse_obj_as(model, model_dict)
+        model_dict[keys] = value
+    return parse_obj_as(model, model_dict.build())

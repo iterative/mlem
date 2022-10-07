@@ -1,3 +1,10 @@
+"""Torch models support
+Extension type: model
+
+ModelType and ModelIO implementations for `torch.nn.Module`
+ImportHook for importing files saved with `torch.save`
+DataType, Reader and Writer implementations for `torch.Tensor`
+"""
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import torch
@@ -5,7 +12,7 @@ from pydantic import conlist, create_model
 
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
-from mlem.core.artifacts import Artifacts, Storage
+from mlem.core.artifacts import Artifacts, FSSpecArtifact, Storage
 from mlem.core.data_type import (
     DataHook,
     DataReader,
@@ -15,7 +22,10 @@ from mlem.core.data_type import (
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
+from mlem.core.import_objects import LoadAndAnalyzeImportHook
+from mlem.core.meta_io import Location
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
+from mlem.core.objects import MlemModel
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
@@ -27,18 +37,14 @@ def python_type_from_torch_string_repr(dtype: str):
 class TorchTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
-    """
-    :class:`.DataType` implementation for `torch.Tensor` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `torch.Tensor` objects in data
-    :param dtype: data type of `torch.Tensor` objects in data
-    """
+    """DataType implementation for `torch.Tensor`"""
 
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.Tensor,)
     shape: Tuple[Optional[int], ...]
+    """Shape of `torch.Tensor` object"""
     dtype: str
+    """Type name of `torch.Tensor` elements"""
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
@@ -99,6 +105,8 @@ class TorchTensorDataType(
 
 
 class TorchTensorWriter(DataWriter):
+    """Write torch tensors"""
+
     type: ClassVar[str] = "torch"
 
     def write(
@@ -110,6 +118,8 @@ class TorchTensorWriter(DataWriter):
 
 
 class TorchTensorReader(DataReader):
+    """Read torch tensors"""
+
     type: ClassVar[str] = "torch"
 
     def read(self, artifacts: Artifacts) -> DataType:
@@ -128,12 +138,11 @@ class TorchTensorReader(DataReader):
 
 
 class TorchModelIO(ModelIO):
-    """
-    :class:`.ModelIO` implementation for PyTorch models
-    """
+    """IO for PyTorch models"""
 
     type: ClassVar[str] = "torch_io"
     is_jit: bool = False
+    """Is model jit compiled"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         self.is_jit = isinstance(model, torch.jit.ScriptModule)
@@ -159,6 +168,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.nn.Module,)
     io: ModelIO = TorchModelIO()
+    """TorchModelIO"""
 
     @classmethod
     def process(
@@ -187,6 +197,28 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     def get_requirements(self) -> Requirements:
         return super().get_requirements() + InstallableRequirement.from_module(
             mod=torch
+        )
+
+
+class TorchModelImport(LoadAndAnalyzeImportHook):
+    """Import torch models saved with `torch.save`"""
+
+    type: ClassVar = "torch"
+    force_type: ClassVar = MlemModel
+
+    @classmethod
+    def is_object_valid(cls, obj: Location) -> bool:
+        # TODO only manual import type specification for now
+        return False
+
+    @classmethod
+    def load_obj(cls, location: Location, modifier: Optional[str], **kwargs):
+        return TorchModelIO().load(
+            {
+                TorchModelIO.art_name: FSSpecArtifact(
+                    uri=location.uri, size=0, hash=""
+                )
+            }
         )
 
 

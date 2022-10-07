@@ -10,9 +10,11 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import load, save
 from mlem.core.data_type import ArrayType
+from mlem.core.errors import MlemProjectNotFound, UnsupportedDataBatchLoading
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData
 from mlem.runtime.client import HTTPClient
+from tests.cli.conftest import Runner
 from tests.conftest import MLEM_TEST_REPO, long, need_test_repo_auth
 
 
@@ -36,7 +38,11 @@ def test_apply(runner, model_path, data_path):
                 path,
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions = load(path)
         assert isinstance(predictions, ndarray)
 
@@ -82,7 +88,11 @@ def test_apply_batch(runner, model_path_batch, data_path_batch):
                 "5",
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions_meta = load_meta(
             path, load_value=True, force_type=MlemData
         )
@@ -112,48 +122,78 @@ def test_apply_with_import(runner, model_meta_saved_single, tmp_path_factory):
                 "pandas[csv]",
             ],
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions = load(path)
         assert isinstance(predictions, ndarray)
 
 
 def test_apply_batch_with_import(
-    runner, model_meta_saved_single, tmp_path_factory
+    runner: Runner, model_meta_saved_single, tmp_path_factory
 ):
     data_path = os.path.join(tmp_path_factory.getbasetemp(), "import_data")
     load_iris(return_X_y=True, as_frame=True)[0].to_csv(data_path, index=False)
 
     with tempfile.TemporaryDirectory() as dir:
         path = posixpath.join(dir, "data")
-        result = runner.invoke(
-            [
-                "apply",
-                model_meta_saved_single.loc.uri,
-                data_path,
-                "-m",
-                "predict",
-                "-o",
-                path,
-                "--import",
-                "--it",
-                "pandas[csv]",
-                "-b",
-                "2",
-            ],
-        )
-        assert result.exit_code == 1, (result.output, result.exception)
-        assert (
-            "Batch data loading is currently not supported for loading data on-the-fly"
-            in result.output
-        )
+        with pytest.raises(
+            UnsupportedDataBatchLoading,
+            match="Batch data loading is currently not supported for loading data on-the-fly",
+        ):
+            runner.invoke(
+                [
+                    "apply",
+                    model_meta_saved_single.loc.uri,
+                    data_path,
+                    "-m",
+                    "predict",
+                    "-o",
+                    path,
+                    "--import",
+                    "--it",
+                    "pandas[csv]",
+                    "-b",
+                    "2",
+                ],
+                raise_on_error=True,
+            )
 
 
 def test_apply_no_output(runner, model_path, data_path):
     result = runner.invoke(
         ["apply", model_path, data_path, "-m", "predict"],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
-    assert len(result.output) > 0
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    assert len(result.stdout) > 0
+
+
+def test_apply_fails_without_mlem_dir(runner, model_path, data_path):
+    with tempfile.TemporaryDirectory() as dir:
+        result = runner.invoke(
+            [
+                "--tb",
+                "apply",
+                model_path,
+                data_path,
+                "-m",
+                "predict",
+                "-o",
+                dir,
+            ],
+        )
+        assert result.exit_code == 1, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
+        assert isinstance(result.exception, MlemProjectNotFound)
 
 
 @long
@@ -181,7 +221,11 @@ def test_apply_from_remote(runner, current_test_branch, s3_tmp_path):
             out,
         ],
     )
-    assert result.exit_code == 0, (result.output, result.exception)
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
     predictions = load(out)
     assert isinstance(predictions, ndarray)
 
@@ -193,15 +237,21 @@ def test_apply_remote(mlem_client, runner, data_path):
             [
                 "apply-remote",
                 "http",
+                "-d",
                 data_path,
-                "-c",
-                "host=''",
-                "-c",
-                "port=None",
+                "--host",
+                "",
+                "--port",
+                "None",
                 "-o",
                 path,
             ],
+            raise_on_error=True,
         )
-        assert result.exit_code == 0, (result.output, result.exception)
+        assert result.exit_code == 0, (
+            result.stdout,
+            result.stderr,
+            result.exception,
+        )
         predictions = load(path)
         assert isinstance(predictions, ndarray)

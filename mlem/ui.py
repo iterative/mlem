@@ -10,6 +10,7 @@ from rich.text import Text
 from mlem.config import LOCAL_CONFIG
 
 console = Console()
+error_console = Console(stderr=True)
 
 _echo_func: Optional[Callable] = None
 _offset: int = 0
@@ -43,6 +44,12 @@ def set_offset(offset=0):
 @contextlib.contextmanager
 def cli_echo():
     with set_echo(console.print):
+        yield
+
+
+@contextlib.contextmanager
+def stderr_echo():
+    with set_echo(error_console.print):
         yield
 
 
@@ -100,3 +107,4 @@ EMOJI_PACK = emoji("💼")
 EMOJI_BUILD = emoji("🛠")
 EMOJI_UPLOAD = emoji("🔼")
 EMOJI_STOP = emoji("🔻")
+EMOJI_KEY = emoji("🗝")

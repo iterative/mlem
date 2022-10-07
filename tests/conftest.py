@@ -43,6 +43,10 @@ MLEM_TEST_REPO = (
 MLEM_S3_TEST_BUCKET = "mlem-tests"
 
 
+def _cut_empty_lines(string):
+    return "\n".join(line for line in string.splitlines() if line)
+
+
 def _check_github_test_repo_ssh_auth():
     try:
         git.cmd.Git().ls_remote(MLEM_TEST_REPO)
@@ -94,6 +98,12 @@ def current_test_branch():
 def add_test_env():
     os.environ["MLEM_TESTS"] = "true"
     LOCAL_CONFIG.TESTS = True
+
+
+@pytest.fixture(scope="session", autouse=True)
+def add_debug_env():
+    os.environ["MLEM_DEBUG"] = "true"
+    LOCAL_CONFIG.DEBUG = True
 
 
 def resource_path(test_file, *paths):

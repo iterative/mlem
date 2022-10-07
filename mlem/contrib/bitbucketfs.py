@@ -1,3 +1,8 @@
+"""BitBucket URI support
+Extension type: uri
+
+Implementation of `BitbucketFileSystem` and `BitbucketResolver`
+"""
 import posixpath
 from typing import ClassVar, List, Optional
 from urllib.parse import quote_plus, urljoin, urlparse, urlsplit
@@ -222,11 +227,13 @@ def _mathch_path_with_ref(repo, path):
 
 
 class BitBucketResolver(CloudGitResolver):
+    """Resolve bitbucket URIs"""
+
     type: ClassVar = "bitbucket"
     FS = BitBucketFileSystem
     PROTOCOL = "bitbucket"
 
-    # TODO: support on-prem gitlab (other hosts)
+    # TODO: https://github.com/iterative/mlem/issues/388
     PREFIXES = [BITBUCKET_ORG, PROTOCOL + "://"]
     versioning_support = True
 

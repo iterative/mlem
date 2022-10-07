@@ -1,4 +1,9 @@
-from typing import Any, ClassVar, Optional
+"""Scikit-Learn models support
+Extension type: model
+
+ModelType implementations for any sklearn-compatible classes as well as `Pipeline`
+"""
+from typing import Any, ClassVar, List, Optional, Union
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
@@ -22,13 +27,13 @@ from mlem.utils.module import get_object_base_module, get_object_requirements
 
 
 class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
-    """
-    :class:`mlem.core.model.ModelType implementation for `scikit-learn` models
-    """
+    """ModelType implementation for `scikit-learn` models"""
 
     type: ClassVar[str] = "sklearn"
-    io: ModelIO = SimplePickleIO()
     valid_types: ClassVar = (RegressorMixin, ClassifierMixin)
+
+    io: ModelIO = SimplePickleIO()
+    """IO"""
 
     @classmethod
     def process(
@@ -59,22 +64,34 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
         return SklearnModel(io=SimplePickleIO(), methods=methods).bind(obj)
 
     def get_requirements(self) -> Requirements:
+        if not isinstance(self.io, SimplePickleIO):
+            io_reqs: Union[Requirements, List] = get_object_requirements(
+                self.io
+            )
+        else:
+            io_reqs = []
         if get_object_base_module(self.model) is sklearn and not isinstance(
             self.model, Pipeline
         ):
-            return Requirements.resolve(
-                InstallableRequirement.from_module(sklearn)
-            ) + get_object_requirements(
-                self.methods
+            return (
+                Requirements.resolve(
+                    InstallableRequirement.from_module(sklearn)
+                )
+                + get_object_requirements(self.methods)
+                + io_reqs
             )  # FIXME: https://github.com/iterative/mlem/issues/34 # optimize methods reqs
 
         # some sklearn compatible model (either from library or user code) - fallback
-        return super().get_requirements() + InstallableRequirement.from_module(
-            sklearn
+        return (
+            super().get_requirements()
+            + InstallableRequirement.from_module(sklearn)
+            + io_reqs
         )
 
 
 class SklearnPipelineType(SklearnModel):
+    """ModelType implementation for `scikit-learn` pipelines"""
+
     valid_types: ClassVar = (Pipeline,)
     type: ClassVar = "sklearn_pipeline"
 

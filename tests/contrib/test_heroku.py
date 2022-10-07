@@ -90,8 +90,8 @@ def test_create_app(heroku_app_name, heroku_env, model):
     name = heroku_app_name("create-app")
     heroku_deploy = HerokuDeployment(
         app_name=name,
-        env_link=heroku_env.make_link(),
-        model_link=model.make_link(),
+        env=heroku_env,
+        model=model.make_link(),
         team=HEROKU_TEAM,
     )
     create_app(heroku_deploy)
@@ -109,7 +109,7 @@ def test_build_heroku_docker(model: MlemModel, uses_docker_build):
 
 
 def test_state_ensured_app():
-    state = HerokuState()
+    state = HerokuState(declaration=HerokuDeployment(app_name=""))
     with pytest.raises(ValueError):
         assert state.ensured_app is not None
 
@@ -120,7 +120,8 @@ def test_state_ensured_app():
 
 def _check_heroku_deployment(meta):
     assert isinstance(meta, HerokuDeployment)
-    assert heroku_api_request("GET", f"/apps/{meta.state.ensured_app.name}")
+    state = meta.get_state()
+    assert heroku_api_request("GET", f"/apps/{state.ensured_app.name}")
     meta.wait_for_status(
         DeployStatus.RUNNING,
         allowed_intermediate=[
@@ -132,7 +133,7 @@ def _check_heroku_deployment(meta):
     assert meta.get_status() == DeployStatus.RUNNING
     time.sleep(10)
     docs_page = requests.post(
-        meta.state.ensured_app.web_url + "predict",
+        state.ensured_app.web_url + "predict",
         json={
             "data": {
                 "values": [
@@ -159,7 +160,7 @@ def is_not_crash(err, *args):  # pylint: disable=unused-argument
     return not needs_another_try
 
 
-@flaky(rerun_filter=is_not_crash, max_runs=2)
+@flaky(rerun_filter=is_not_crash, max_runs=1)
 @heroku
 @long
 @heroku_matrix
@@ -186,7 +187,7 @@ def test_env_deploy_full(
     if CLEAR_APPS:
         meta.remove()
 
-        assert meta.state is None
+        assert meta.get_state() == HerokuState(declaration=meta)
         meta.wait_for_status(
             DeployStatus.NOT_DEPLOYED,
             allowed_intermediate=DeployStatus.RUNNING,

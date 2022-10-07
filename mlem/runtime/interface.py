@@ -20,7 +20,9 @@ class ExecutionError(MlemError):
 
 class InterfaceDescriptor(BaseModel):
     version: str = mlem.version.__version__
+    """mlem version"""
     methods: Dict[str, Signature] = {}
+    """interface methods"""
 
 
 class Interface(ABC, MlemABC):
@@ -137,6 +139,7 @@ class SimpleInterface(Interface):
 
     type: ClassVar[str] = "simple"
     methods: InterfaceDescriptor = InterfaceDescriptor()
+    """Interface version and methods"""
 
     def __init__(self, **data: Any):
         methods = {}
@@ -175,6 +178,7 @@ class ModelInterface(Interface):
 
     type: ClassVar[str] = "model"
     model_type: ModelType
+    """Model metadata"""
 
     def load(self, uri: str):
         meta = load_meta(uri)
