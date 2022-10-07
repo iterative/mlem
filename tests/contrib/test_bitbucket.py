@@ -1,8 +1,6 @@
 import os
-from pathlib import Path
 
 import pytest
-from git import Repo
 from pytest_lazyfixture import lazy_fixture
 
 from mlem.contrib.bitbucketfs import BitBucketFileSystem, ls_bb_refs
@@ -10,7 +8,7 @@ from mlem.core.errors import RevisionNotFound
 from mlem.core.meta_io import Location, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
-from tests.conftest import long
+from tests.conftest import get_current_test_branch, long
 
 MLEM_TEST_REPO_PROJECT = "iterative-ai/mlem-test"
 
@@ -35,20 +33,7 @@ def fs_auth():
 
 @pytest.fixture()
 def current_test_branch_bb():
-    try:
-        branch = Repo(
-            str(Path(__file__).parent.parent.parent)
-        ).active_branch.name
-    except TypeError:
-        # github actions/checkout leaves repo in detached head state
-        # but it has env with branch name
-        branch = os.environ.get("GITHUB_HEAD_REF", os.environ["GITHUB_REF"])
-        if branch.startswith("refs/heads/"):
-            branch = branch[len("refs/heads/") :]
-    remote_refs = set(ls_bb_refs(MLEM_TEST_REPO_PROJECT))
-    if branch in remote_refs:
-        return branch
-    return "main"
+    return get_current_test_branch(set(ls_bb_refs(MLEM_TEST_REPO_PROJECT)))
 
 
 @long

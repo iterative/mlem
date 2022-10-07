@@ -2,7 +2,7 @@ import os
 import posixpath
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Type
+from typing import Any, Callable, Set, Type
 
 import git
 import numpy as np
@@ -76,8 +76,7 @@ need_test_repo_ssh_auth = pytest.mark.skipif(
 )
 
 
-@pytest.fixture()
-def current_test_branch():
+def get_current_test_branch(branch_list: Set[str]):
     try:
         branch = Repo(str(Path(__file__).parent.parent)).active_branch.name
     except TypeError:
@@ -86,12 +85,16 @@ def current_test_branch():
         branch = os.environ.get("GITHUB_HEAD_REF", os.environ["GITHUB_REF"])
         if branch.startswith("refs/heads/"):
             branch = branch[len("refs/heads/") :]
-    remote_refs = set(
-        ls_github_branches(MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME).keys()
-    )
-    if branch in remote_refs:
+    if branch in branch_list:
         return branch
     return "main"
+
+
+@pytest.fixture()
+def current_test_branch():
+    return get_current_test_branch(
+        set(ls_github_branches(MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME).keys())
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
