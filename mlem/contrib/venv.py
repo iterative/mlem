@@ -52,9 +52,8 @@ class VenvBuilder(MlemBuilder):
                 or sys.prefix == sys.base_prefix
             ):
                 raise MlemError("No virtual environment detected.")
-            else:
-                echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
-                env_exe = os.path.join(sys.prefix, "bin", "python")
+            echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
+            env_exe = os.path.join(sys.prefix, "bin", "python")
         else:
             echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
             context = self.create_virtual_env()
