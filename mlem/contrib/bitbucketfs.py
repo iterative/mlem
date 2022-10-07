@@ -93,7 +93,7 @@ class BitbucketWrapper:
     def get_rev_sha(self, repo: str, rev: str):
         if is_long_sha(rev):
             return rev
-        return self.get_refs(repo).get(rev)
+        return self.get_refs(repo).get(rev, rev)
 
     def check_rev(self, repo: str, rev: str) -> bool:
         r = requests.head(

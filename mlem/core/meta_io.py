@@ -293,9 +293,7 @@ class CloudGitResolver(UriResolver, ABC):
         except FileNotFoundError as e:  # TODO catch HTTPError for wrong orgrepo
             if options["sha"] is not None and not cls.check_rev(options):
                 raise RevisionNotFound(options["sha"], uri) from e
-            raise LocationNotFound(
-                f"Could not resolve github location {uri}"
-            ) from e
+            raise LocationNotFound(f"Could not resolve location {uri}") from e
         return fs, path
 
     @classmethod
