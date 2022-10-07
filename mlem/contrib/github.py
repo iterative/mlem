@@ -5,7 +5,6 @@ Implementation of `GithubResolver`
 """
 import pathlib
 import posixpath
-import re
 from typing import ClassVar, Dict, Optional
 from urllib.parse import quote_plus, urlparse
 
@@ -14,6 +13,7 @@ from fsspec.implementations.github import GithubFileSystem
 
 from mlem.config import LOCAL_CONFIG
 from mlem.core.meta_io import CloudGitResolver
+from mlem.utils.git import is_long_sha
 
 
 def ls_branches(repo_url: str) -> Dict[str, str]:
@@ -57,10 +57,6 @@ def _ls_github_refs(org: str, repo: str, endpoint: str):
         return {b["name"]: b["commit"]["sha"] for b in result.json()}
     result.raise_for_status()
     return None
-
-
-def is_long_sha(sha: str):
-    return re.match(r"^[a-f\d]{40}$", sha)
 
 
 class GithubResolver(CloudGitResolver):

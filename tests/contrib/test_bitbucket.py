@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 
 import pytest
+from git import Repo
 from pytest_lazyfixture import lazy_fixture
 
-from mlem.contrib.bitbucketfs import BitBucketFileSystem
+from mlem.contrib.bitbucketfs import BitBucketFileSystem, ls_bb_refs
 from mlem.core.errors import RevisionNotFound
 from mlem.core.meta_io import Location, get_fs
 from mlem.core.metadata import load_meta
@@ -29,6 +31,24 @@ def fs_no_auth():
 @pytest.fixture()
 def fs_auth():
     return BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
+
+
+@pytest.fixture()
+def current_test_branch_bb():
+    try:
+        branch = Repo(
+            str(Path(__file__).parent.parent.parent)
+        ).active_branch.name
+    except TypeError:
+        # github actions/checkout leaves repo in detached head state
+        # but it has env with branch name
+        branch = os.environ.get("GITHUB_HEAD_REF", os.environ["GITHUB_REF"])
+        if branch.startswith("refs/heads/"):
+            branch = branch[len("refs/heads/") :]
+    remote_refs = set(ls_bb_refs(MLEM_TEST_REPO_PROJECT))
+    if branch in remote_refs:
+        return branch
+    return "main"
 
 
 @long
@@ -86,6 +106,10 @@ def test_uri_resolver_wrong_rev():
 
 
 @long
-def test_loading_object():
-    meta = load_meta("latest", project=MLEM_TEST_REPO_URI + "/src/main/simple")
+def test_loading_object(current_test_branch_bb):
+    meta = load_meta(
+        "latest",
+        project=MLEM_TEST_REPO_URI + "/src/main/simple",
+        rev=current_test_branch_bb,
+    )
     assert isinstance(meta, MlemModel)
