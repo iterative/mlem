@@ -193,6 +193,7 @@ setup_args = dict(  # noqa: C408
             "data_type.series = mlem.contrib.pandas:SeriesType",
             "builder.pip = mlem.contrib.pip.base:PipBuilder",
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
+            "builder.requirements = mlem.contrib.requirements:RequirementsBuilder",
             "client.rmq = mlem.contrib.rabbitmq:RabbitMQClient",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "docker_registry.ecr = mlem.contrib.sagemaker.build:ECRegistry",
