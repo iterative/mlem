@@ -102,7 +102,7 @@ jobs:
       uses: medyagh/setup-minikube@master
     - name: Run tests
       timeout-minutes: 40
-      run: pytest
+      run: pytest -k 'not heroku'
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
