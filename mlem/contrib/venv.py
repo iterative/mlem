@@ -35,8 +35,8 @@ class VenvBuilder(MlemBuilder):
         if true_system_site_packages:
             env_spec.system_site_packages = True
             env_spec.create_configuration(context)
-        if env_spec.upgrade_deps:
-            env_spec.upgrade_dependencies(context)
+        if env_spec.upgrade_deps:  # pylint: disable=no-member
+            env_spec.upgrade_dependencies(context)  # pylint: disable=no-member
 
         return context
 
