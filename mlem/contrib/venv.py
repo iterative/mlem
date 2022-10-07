@@ -1,8 +1,10 @@
 import os
 import subprocess
+import sys
 import venv
 from typing import ClassVar, Optional
 
+from mlem.core.errors import MlemError
 from mlem.core.objects import MlemBuilder, MlemModel
 from mlem.ui import EMOJI_OK, EMOJI_PACK, echo
 
@@ -16,6 +18,8 @@ class VenvBuilder(MlemBuilder):
     """Name of the virtual environment"""
     no_cache: Optional[bool] = False
     """Disable cache"""
+    current_env: Optional[bool] = False
+    """Whether to install in the current virtual env, must be active"""
 
     def create_virtual_env(self):
         env_spec = venv.EnvBuilder(with_pip=True)
@@ -38,18 +42,27 @@ class VenvBuilder(MlemBuilder):
 
         return context
 
-    def get_installed_packages(self, context):
-        return subprocess.check_output(
-            [context.env_exe, "-m", "pip", "freeze"]
-        )
+    def get_installed_packages(self, env_exe):
+        return subprocess.check_output([env_exe, "-m", "pip", "freeze"])
 
     def build(self, obj: MlemModel):
-        echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
-        context = self.create_virtual_env()
-        os.environ["VIRTUAL_ENV"] = context.env_dir
+        if self.current_env:
+            if (
+                os.getenv("VIRTUAL_ENV") is None
+                or sys.prefix == sys.base_prefix
+            ):
+                raise MlemError("No virtual environment detected.")
+            else:
+                echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
+                env_exe = os.path.join(sys.prefix, "bin", "python")
+        else:
+            echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
+            context = self.create_virtual_env()
+            os.environ["VIRTUAL_ENV"] = context.env_dir
+            env_exe = context.env_exe
         echo(EMOJI_PACK + "Installing the required packages...")
         # Based on recommendation given in https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
-        install_cmd = [context.env_exe, "-m", "pip", "install"]
+        install_cmd = [env_exe, "-m", "pip", "install"]
         if self.no_cache:
             install_cmd.append("--no-cache-dir")
         install_cmd.extend(obj.requirements.to_pip())
@@ -58,4 +71,4 @@ class VenvBuilder(MlemBuilder):
             EMOJI_OK
             + f"virtual environment `{self.target}` is ready, activate with `source {self.target}/bin/activate`"
         )
-        return context
+        return env_exe
