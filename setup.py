@@ -195,6 +195,7 @@ setup_args = dict(  # noqa: C408
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
             "builder.requirements = mlem.contrib.requirements:RequirementsBuilder",
             "builder.venv = mlem.contrib.venv:VenvBuilder",
+            "builder.conda = mlem.contrib.venv:CondaBuilder",
             "client.rmq = mlem.contrib.rabbitmq:RabbitMQClient",
             "server.rmq = mlem.contrib.rabbitmq:RabbitMQServer",
             "docker_registry.ecr = mlem.contrib.sagemaker.build:ECRegistry",
