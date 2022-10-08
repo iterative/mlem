@@ -13,7 +13,11 @@ def uses_docker_build():
 
 
 def has_conda():
-    assert subprocess.run(["conda"], check=True).returncode == 0
+    try:
+        ret = subprocess.run(["conda"], check=True)
+        return ret.returncode == 0
+    except FileNotFoundError:
+        return False
 
 
 def conda_test(f):
