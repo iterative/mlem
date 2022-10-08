@@ -1,7 +1,6 @@
 import re
 
 import pytest
-from conftest import conda_test
 
 from mlem.contrib.venv import CondaBuilder, VenvBuilder
 from mlem.core.errors import MlemError
@@ -9,6 +8,7 @@ from mlem.core.requirements import (
     CondaPackageRequirement,
     InstallableRequirement,
 )
+from tests.contrib.conftest import conda_test
 
 
 def process_conda_list_output(installed_pkgs):
