@@ -1,4 +1,5 @@
 import os
+import platform
 import subprocess
 import sys
 import venv
@@ -62,7 +63,11 @@ class VenvBuilder(EnvBuilder):
         return context
 
     def get_installed_packages(self, env_dir):
-        env_exe = os.path.join(env_dir, "bin", "python")
+        if platform.system() == "Windows":
+            env_exe = os.path.join(env_dir, "Scripts", "python.exe")
+        else:
+            env_exe = os.path.join(env_dir, "bin", "python")
+
         return subprocess.check_output([env_exe, "-m", "pip", "freeze"])
 
     def build(self, obj: MlemModel):
