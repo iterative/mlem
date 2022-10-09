@@ -21,6 +21,6 @@ def has_conda():
 
 
 def conda_test(f):
-    mark = pytest.mark.kubernetes
+    mark = pytest.mark.conda
     skip = pytest.mark.skipif(not has_conda(), reason="conda is unavailable")
     return long(mark(skip(f)))
