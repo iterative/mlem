@@ -8,7 +8,7 @@ from typing import ClassVar, Optional
 
 from mlem.core.errors import MlemError
 from mlem.core.objects import MlemBuilder, MlemModel
-from mlem.ui import EMOJI_FAIL, EMOJI_OK, EMOJI_PACK, echo
+from mlem.ui import EMOJI_OK, EMOJI_PACK, echo
 
 
 class EnvBuilder(MlemBuilder):
@@ -68,7 +68,18 @@ class VenvBuilder(EnvBuilder):
         else:
             env_exe = os.path.join(env_dir, "bin", "python")
 
-        return subprocess.check_output([env_exe, "-m", "pip", "freeze"])
+        try:
+            return subprocess.check_output([env_exe, "-m", "pip", "freeze"])
+        except FileNotFoundError as e:
+            raise MlemError(f"Executable for pip not found.\n{e}") from e
+        except subprocess.CalledProcessError as e:
+            raise MlemError(
+                f"Couldn't get the list of packages from pip.\n{e}"
+            ) from e
+        except subprocess.TimeoutExpired as e:
+            raise MlemError(
+                f"Determining list of pip packages timed out.\n{e}"
+            ) from e
 
     def build(self, obj: MlemModel):
         if self.current_env:
@@ -79,7 +90,10 @@ class VenvBuilder(EnvBuilder):
                 raise MlemError("No virtual environment detected.")
             echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
             env_dir = sys.prefix
-            env_exe = os.path.join(env_dir, "bin", "python")
+            if platform.system() == "Windows":
+                env_exe = os.path.join(env_dir, "Scripts", "python.exe")
+            else:
+                env_exe = os.path.join(env_dir, "bin", "python")
         else:
             echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
             context = self.create_virtual_env()
@@ -92,7 +106,14 @@ class VenvBuilder(EnvBuilder):
         if self.no_cache:
             install_cmd.append("--no-cache-dir")
         install_cmd.extend(obj.requirements.to_pip())
-        subprocess.run(install_cmd, check=True)
+        try:
+            subprocess.run(install_cmd, check=True)
+        except FileNotFoundError as e:
+            raise MlemError(f"Executable for pip not found.\n{e}") from e
+        except subprocess.CalledProcessError as e:
+            raise MlemError(f"Couldn't install packages from pip.\n{e}") from e
+        except subprocess.TimeoutExpired as e:
+            raise MlemError(f"Installing pip packages timed out.\n{e}") from e
         echo(
             EMOJI_OK
             + f"virtual environment `{self.target}` is ready, activate with `source {self.target}/bin/activate`"
@@ -104,7 +125,7 @@ class CondaBuilder(EnvBuilder):
 
     type: ClassVar = "conda"
 
-    python_version: str = "3"
+    python_version: str = platform.python_version()
     """The python version to use"""
     current_env: Optional[bool] = False
     """Whether to install in the current conda env"""
@@ -116,17 +137,31 @@ class CondaBuilder(EnvBuilder):
             ret = subprocess.run(
                 ["conda", "create", "-y", *create_cmd], check=True
             )
-        except FileNotFoundError:
-            echo(
-                EMOJI_FAIL
-                + f"Couldn't create the conda environment `{self.target}`"
-            )
+        except FileNotFoundError as e:
+            raise MlemError(f"Executable for conda not found.\n{e}") from e
+        except subprocess.CalledProcessError as e:
+            raise MlemError(
+                f"Couldn't create the conda environment.\n{e}"
+            ) from e
+        except subprocess.TimeoutExpired as e:
+            raise MlemError(
+                f"Creating conda environment timed out.\n{e}"
+            ) from e
         return ret.returncode
 
     def get_installed_packages(self, env_dir):
-        return subprocess.check_output(["conda", "list", "--prefix", env_dir])
+        try:
+            return subprocess.check_output(
+                ["conda", "list", "--prefix", env_dir]
+            )
+        except FileNotFoundError as e:
+            raise MlemError(f"Executable for conda not found.\n{e}") from e
+        except subprocess.CalledProcessError as e:
+            raise MlemError(f"Couldn't list packages from conda.\n{e}") from e
+        except subprocess.TimeoutExpired as e:
+            raise MlemError(f"Listing conda packages timed out.\n{e}") from e
 
-    def build(self, obj: MlemModel):
+    def build(self, obj: MlemModel):  # pylint: disable=too-many-branches
         pip_based_packages = obj.requirements.to_pip()
         conda_based_packages = obj.requirements.to_conda()
 
@@ -142,7 +177,10 @@ class CondaBuilder(EnvBuilder):
             ret = self.create_virtual_env()
             assert ret == 0
             env_dir = self.target
-            env_exe = os.path.join(env_dir, "bin", "python")
+            if platform.system() == "Windows":
+                env_exe = os.path.join(env_dir, "python.exe")
+            else:
+                env_exe = os.path.join(env_dir, "bin", "python")
         try:
             if conda_based_packages:
                 ret = subprocess.run(
@@ -157,17 +195,33 @@ class CondaBuilder(EnvBuilder):
                     check=True,
                 )
                 assert ret.returncode == 0
-        except FileNotFoundError:
-            echo(
-                EMOJI_FAIL
-                + f"Couldn't install packages in conda environment `{self.target}`"
-            )
+        except FileNotFoundError as e:
+            raise MlemError(f"Executable for conda not found.\n{e}") from e
+        except subprocess.CalledProcessError as e:
+            raise MlemError(
+                f"Couldn't install packages in conda environment: {self.target}.\n{e}"
+            ) from e
+        except subprocess.TimeoutExpired as e:
+            raise MlemError(
+                f"Installing conda packages timed out.\n{e}"
+            ) from e
 
         # install pip packages in conda env
         if pip_based_packages:
-            subprocess.run(
-                [env_exe, "-m", "pip", "install", *pip_based_packages],
-                check=True,
-            )
+            try:
+                subprocess.run(
+                    [env_exe, "-m", "pip", "install", *pip_based_packages],
+                    check=True,
+                )
+            except FileNotFoundError as e:
+                raise MlemError(f"Executable for pip not found.\n{e}") from e
+            except subprocess.CalledProcessError as e:
+                raise MlemError(
+                    f"Couldn't install packages in conda environment using pip: {self.target}.\n{e}"
+                ) from e
+            except subprocess.TimeoutExpired as e:
+                raise MlemError(
+                    f"Installing pip based packages in conda environment timed out.\n{e}"
+                ) from e
 
         return env_dir
