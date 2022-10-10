@@ -125,7 +125,7 @@ class CondaBuilder(EnvBuilder):
 
     type: ClassVar = "conda"
 
-    python_version: str = platform.python_version()
+    python_version: str = f"{sys.version_info.major}.{sys.version_info.minor}"
     """The python version to use"""
     current_env: Optional[bool] = False
     """Whether to install in the current conda env"""
