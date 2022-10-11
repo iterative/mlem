@@ -1,12 +1,11 @@
-import itertools
-from typing import Type
+from typing import Any, Dict, Type
 
 from typer import Argument, Typer
 from yaml import safe_dump
 
 from ..core.base import MlemABC, build_mlem_object, load_impl_ext
 from ..core.meta_io import Location
-from ..core.objects import MlemDeployment, MlemObject
+from ..core.objects import EnvLink, MlemDeployment, MlemObject
 from ..utils.entrypoints import list_abstractions, list_implementations
 from .main import (
     app,
@@ -17,6 +16,8 @@ from .main import (
     option_project,
 )
 from .utils import (
+    NOT_SET,
+    CallContext,
     CliTypeField,
     _option_from_field,
     _options_from_model,
@@ -56,28 +57,55 @@ def add_env_params_deployment(subtype, parent_cls: Type[MlemDeployment]):
 
     assert issubclass(impl, MlemDeployment)  # just to help mypy
     env_impl = impl.env_type
-    return lambda ctx: itertools.chain(
-        abc_fields_parameters(subtype, parent_cls)(ctx),
-        _options_from_model(env_impl, ctx, path="env", force_not_set=True),
-        (
-            _option_from_field(
-                CliTypeField(
-                    path="env",
-                    required=False,
-                    allow_none=False,
-                    type_=str,
-                    help="",
-                    default=env_impl.type,
-                    is_list=False,
-                    is_mapping=False,
-                ),
-                "env",
+
+    def add_env(ctx: CallContext):
+        yield from abc_fields_parameters(subtype, parent_cls)(ctx)
+        yield from (
+            _options_from_model(env_impl, ctx, path="env", force_not_set=True)
+        )
+        yield from (
+            _options_from_model(EnvLink, ctx, path="env", force_not_set=True)
+        )
+        yield _option_from_field(
+            CliTypeField(
+                path="env",
+                required=False,
+                allow_none=False,
+                type_=str,
+                help="",
+                default=NOT_SET,
+                is_list=False,
+                is_mapping=False,
             ),
-        ),
-    )
+            "env",
+        )
+
+    return add_env
+
+
+def process_env_params_deployments(
+    subtype, kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
+    env_params = {p[len("env.") :] for p in kwargs if p.startswith("env.")}
+    if not env_params.issubset({"project", "path", "rev"}):
+        kwargs["env"] = subtype
+    return kwargs
 
 
 _add_fields = {"deployment": add_env_params_deployment}
+_process_fields = {"deployment": process_env_params_deployments}
+
+
+def add_fields(subtype: str, parent_cls):
+    return _add_fields.get(parent_cls.object_type, abc_fields_parameters)(
+        subtype, parent_cls
+    )
+
+
+def process_fields(subtype: str, parent_cls, kwargs):
+    if parent_cls.object_type in _process_fields:
+        kwargs = _process_fields[parent_cls.object_type](subtype, kwargs)
+    return kwargs
 
 
 def create_declare_mlem_object_subcommand(
@@ -88,9 +116,7 @@ def create_declare_mlem_object_subcommand(
         section="MLEM Objects",
         parent=parent,
         dynamic_metavar="__kwargs__",
-        dynamic_options_generator=_add_fields.get(
-            parent_cls.object_type, abc_fields_parameters
-        )(subtype, parent_cls),
+        dynamic_options_generator=add_fields(subtype, parent_cls),
         hidden=subtype.startswith("_"),
         lazy_help=lazy_class_docstring(type_name, subtype),
     )
@@ -103,6 +129,7 @@ def create_declare_mlem_object_subcommand(
         index: bool = option_index,
         **__kwargs__,
     ):
+        __kwargs__ = process_fields(subtype, parent_cls, __kwargs__)
         subtype_cls = load_impl_ext(type_name, subtype)
         cls = subtype_cls.__type_map__[subtype]
         with wrap_build_error(subtype, cls):
