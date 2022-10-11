@@ -41,8 +41,15 @@ def test_saving_with_project(model, tmpdir):
 
 
 def test_saving_with_pathlib(model, tmpdir):
-    # by default, tmpdir is of type: `py._path.local.LocalPath`
+    # by default, tmpdir is of type: `py._path.local.LocalPath`,
+    # see the test below
     path = Path(tmpdir) / "obj"
+    save(model, path)
+    load_meta(path)
+
+
+def test_saving_with_localpath(model, tmpdir):
+    path = tmpdir / "obj"
     save(model, path)
     load_meta(path)
 
