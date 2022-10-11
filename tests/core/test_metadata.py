@@ -1,6 +1,7 @@
 import os
 import posixpath
 import tempfile
+from pathlib import Path
 from urllib.parse import quote_plus
 
 import pytest
@@ -35,6 +36,13 @@ def test_save_with_meta_fields(obj, tmpdir):
 
 def test_saving_with_project(model, tmpdir):
     path = str(tmpdir / "obj")
+    save(model, path)
+    load_meta(path)
+
+
+def test_saving_with_pathlib(model, tmpdir):
+    # by default, tmpdir is of type: `py._path.local.LocalPath`
+    path = Path(tmpdir) / "obj"
     save(model, path)
     load_meta(path)
 
