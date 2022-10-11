@@ -4,6 +4,7 @@ import subprocess
 import sys
 import venv
 from abc import abstractmethod
+from types import SimpleNamespace
 from typing import ClassVar, Optional
 
 from mlem.core.errors import MlemError
@@ -28,11 +29,13 @@ class EnvBuilder(MlemBuilder):
         raise NotImplementedError
 
     @abstractmethod
-    def build(self, obj: MlemModel):
+    def build(self, obj: MlemModel) -> str:
         raise NotImplementedError
 
 
 class VenvBuilder(EnvBuilder):
+    class Config:
+        arbitrary_types_allowed = True
 
     type: ClassVar = "venv"
 
@@ -40,27 +43,29 @@ class VenvBuilder(EnvBuilder):
     """Disable cache"""
     current_env: Optional[bool] = False
     """Whether to install in the current virtual env, must be active"""
+    context: Optional[SimpleNamespace] = None
+    """context for the virtual env"""
 
     def create_virtual_env(self):
         env_spec = venv.EnvBuilder(with_pip=True)
         env_dir = os.path.abspath(self.target)
 
-        context = env_spec.ensure_directories(env_dir)
+        self.context = env_spec.ensure_directories(env_dir)
 
         true_system_site_packages = env_spec.system_site_packages
         env_spec.system_site_packages = False
-        env_spec.create_configuration(context)
-        env_spec.setup_python(context)
+        env_spec.create_configuration(self.context)
+        env_spec.setup_python(self.context)
         if env_spec.with_pip:
-            env_spec._setup_pip(context)  # pylint: disable=protected-access
+            env_spec._setup_pip(  # pylint: disable=protected-access
+                self.context
+            )
         if not env_spec.upgrade:
-            env_spec.setup_scripts(context)
-            env_spec.post_setup(context)
+            env_spec.setup_scripts(self.context)
+            env_spec.post_setup(self.context)
         if true_system_site_packages:
             env_spec.system_site_packages = True
-            env_spec.create_configuration(context)
-
-        return context
+            env_spec.create_configuration(self.context)
 
     def get_installed_packages(self, env_dir):
         if platform.system() == "Windows":
@@ -96,10 +101,11 @@ class VenvBuilder(EnvBuilder):
                 env_exe = os.path.join(env_dir, "bin", "python")
         else:
             echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
-            context = self.create_virtual_env()
-            env_dir = context.env_dir
-            os.environ["VIRTUAL_ENV"] = context.env_dir
-            env_exe = context.env_exe
+            self.create_virtual_env()
+            assert self.context is not None
+            env_dir = self.context.env_dir
+            os.environ["VIRTUAL_ENV"] = self.context.env_dir
+            env_exe = self.context.env_exe
         echo(EMOJI_PACK + "Installing the required packages...")
         # Based on recommendation given in https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
         install_cmd = [env_exe, "-m", "pip", "install"]
@@ -131,12 +137,9 @@ class CondaBuilder(EnvBuilder):
     """Whether to install in the current conda env"""
 
     def create_virtual_env(self):
-        ret = None
         create_cmd = ["--prefix", self.target, f"python={self.python_version}"]
         try:
-            ret = subprocess.run(
-                ["conda", "create", "-y", *create_cmd], check=True
-            )
+            subprocess.run(["conda", "create", "-y", *create_cmd], check=True)
         except FileNotFoundError as e:
             raise MlemError(f"Executable for conda not found.\n{e}") from e
         except subprocess.CalledProcessError as e:
@@ -147,7 +150,6 @@ class CondaBuilder(EnvBuilder):
             raise MlemError(
                 f"Creating conda environment timed out.\n{e}"
             ) from e
-        return ret.returncode
 
     def get_installed_packages(self, env_dir):
         try:
@@ -174,8 +176,7 @@ class CondaBuilder(EnvBuilder):
             env_exe = sys.executable
         else:
             assert self.target is not None
-            ret = self.create_virtual_env()
-            assert ret == 0
+            self.create_virtual_env()
             env_dir = self.target
             if platform.system() == "Windows":
                 env_exe = os.path.join(env_dir, "python.exe")
