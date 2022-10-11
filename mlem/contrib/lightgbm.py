@@ -40,6 +40,7 @@ class LightGBMDataType(
     :class:`.DataType` implementation for `lightgbm.Dataset` type
 
     :param inner: :class:`.DataType` instance for underlying data
+    :param labels: :class:`.DataType` instance for underlying labels
     """
 
     type: ClassVar[str] = "lightgbm"
@@ -83,7 +84,6 @@ class LightGBMDataType(
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DataType:
-        obj = obj.construct()
         return LightGBMDataType(
             inner=DataAnalyzer.analyze(obj.data),
             labels=DataAnalyzer.analyze(obj.label),
@@ -147,7 +147,7 @@ class LightGBMDataReader(DataReader):
                 inner_data_type.data,
                 label=labels_data_type.data,
                 free_raw_data=False,
-            ).construct()
+            )
         )
 
     def read_batch(
