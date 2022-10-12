@@ -28,7 +28,7 @@ def test_unix_requirement(capsys):
         free_raw_data=False,
     )
     booster = lgb.train({}, data_np, 1)
-    model = MlemModel.from_obj(booster)
+    model = MlemModel.from_obj(booster, sample_data=data_np)
     builder = RequirementsBuilder(platform="unix")
     builder.build(model)
     captured = capsys.readouterr()
