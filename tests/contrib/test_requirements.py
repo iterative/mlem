@@ -1,4 +1,8 @@
+import lightgbm as lgb
+import numpy as np
+
 from mlem.contrib.requirements import RequirementsBuilder
+from mlem.core.objects import MlemModel
 
 
 def test_build_reqs(tmp_path, model_meta):
@@ -14,3 +18,18 @@ def test_build_requirements_should_print_with_no_path(capsys, model_meta):
     builder.build(model_meta)
     captured = capsys.readouterr()
     assert captured.out == "\n".join(model_meta.requirements.to_pip()) + "\n"
+
+
+def test_unix_requirement(capsys):
+    np_payload = np.linspace(0, 2, 5).reshape((-1, 1))
+    data_np = lgb.Dataset(
+        np_payload,
+        label=np_payload.reshape((-1,)).tolist(),
+        free_raw_data=False,
+    )
+    booster = lgb.train({}, data_np, 1)
+    model = MlemModel.from_obj(booster)
+    builder = RequirementsBuilder(platform="unix")
+    builder.build(model)
+    captured = capsys.readouterr()
+    assert captured.out == "\n".join(model.requirements.to_unix()) + "\n"

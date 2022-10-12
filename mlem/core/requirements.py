@@ -296,6 +296,9 @@ class UnixPackageRequirement(Requirement):
     package_name: str
     """Name of the package"""
 
+    def to_str(self):
+        return self.package_name
+
 
 class CondaPackageRequirement(Requirement):
     """Represents a conda package that needs to be installed"""
@@ -443,6 +446,12 @@ class Requirements(BaseModel):
         else:  # TODO better checks here https://github.com/iterative/mlem/issues/49
             if requirement not in self.__root__:
                 self.__root__.append(requirement)
+
+    def to_unix(self) -> List[str]:
+        """
+        :return: list of unix based packages
+        """
+        return [r.to_str() for r in self.of_type(UnixPackageRequirement)]
 
     def to_pip(self) -> List[str]:
         """
