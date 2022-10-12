@@ -32,4 +32,6 @@ def test_unix_requirement(capsys):
     builder = RequirementsBuilder(platform="unix")
     builder.build(model)
     captured = capsys.readouterr()
-    assert captured.out == "\n".join(model.requirements.to_unix()) + "\n"
+    assert str(captured.out).endswith(
+        "\n".join(model.requirements.to_unix()) + "\n"
+    )
