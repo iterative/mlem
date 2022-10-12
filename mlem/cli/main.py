@@ -31,7 +31,7 @@ from mlem.cli.utils import (
     _format_validation_error,
     get_extra_keys,
 )
-from mlem.constants import MLEM_DIR, PREDICT_METHOD_NAME
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
 from mlem.telemetry import telemetry
 from mlem.ui import (
@@ -489,18 +489,6 @@ option_method = Option(
     help="Which model method is to be applied",
 )
 option_rev = Option(None, "--rev", help="Repo revision to use", show_default="none", metavar=COMMITISH_METAVAR)  # type: ignore
-option_index = Option(
-    None,
-    "--index/--no-index",
-    help="Whether to index output in .mlem directory",
-)
-option_external = Option(
-    None,
-    "--external",
-    "-e",
-    is_flag=True,
-    help=f"Save result not in {MLEM_DIR}, but directly in project",
-)
 option_target_project = Option(
     None,
     "--target-project",

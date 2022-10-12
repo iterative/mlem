@@ -1,7 +1,7 @@
 import posixpath
 
-from mlem.config import CONFIG_FILE_NAME, MlemConfig, project_config
-from mlem.constants import MLEM_DIR
+from mlem.config import MlemConfig, project_config
+from mlem.constants import MLEM_CONFIG_FILE_NAME
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.artifacts import FSSpecStorage, LocalStorage
 from mlem.core.meta_io import get_fs
@@ -25,7 +25,7 @@ def test_loading_empty(set_mlem_project_root):
 def test_loading_remote(s3_tmp_path, s3_storage_fs):
     project = s3_tmp_path("remote_conf")
     fs, path = get_fs(project)
-    path = posixpath.join(path, MLEM_DIR, CONFIG_FILE_NAME)
+    path = posixpath.join(path, MLEM_CONFIG_FILE_NAME)
     with fs.open(path, "w") as f:
         f.write("core:\n  ADDITIONAL_EXTENSIONS: ext1\n")
     assert project_config(path, fs=fs).additional_extensions == ["ext1"]

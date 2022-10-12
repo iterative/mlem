@@ -8,14 +8,7 @@ from ..core.base import MlemABC, build_mlem_object, load_impl_ext
 from ..core.meta_io import Location
 from ..core.objects import MlemDeployment, MlemObject
 from ..utils.entrypoints import list_abstractions, list_implementations
-from .main import (
-    app,
-    mlem_command,
-    mlem_group,
-    option_external,
-    option_index,
-    option_project,
-)
+from .main import app, mlem_command, mlem_group, option_project
 from .utils import (
     CliTypeField,
     _option_from_field,
@@ -99,8 +92,6 @@ def create_declare_mlem_object_subcommand(
             ..., help="Where to save the object (.mlem file)"
         ),
         project: str = option_project,
-        external: bool = option_external,
-        index: bool = option_index,
         **__kwargs__,
     ):
         subtype_cls = load_impl_ext(type_name, subtype)
@@ -109,7 +100,7 @@ def create_declare_mlem_object_subcommand(
             meta = build_mlem_object(
                 cls, subtype, str_conf=None, file_conf=[], **__kwargs__
             )
-        meta.dump(path, project=project, index=index, external=external)
+        meta.dump(path, project=project)
 
 
 for meta_type in list_implementations(MlemObject):

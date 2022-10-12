@@ -5,7 +5,6 @@ from typer import Argument, Option
 from mlem.cli.main import (
     PATH_METAVAR,
     mlem_command,
-    option_external,
     option_rev,
     option_target_project,
 )
@@ -26,7 +25,6 @@ def link(
     ),
     rev: Optional[str] = option_rev,
     target_project: Optional[str] = option_target_project,
-    external: bool = option_external,
     follow_links: bool = Option(
         True,
         "--follow-links/--no-follow-links",
@@ -52,6 +50,5 @@ def link(
         target=target,
         target_project=target_project,
         follow_links=follow_links,
-        external=external or False,
         absolute=absolute,
     )

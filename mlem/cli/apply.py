@@ -13,9 +13,7 @@ from mlem.cli.main import (
     option_data,
     option_data_project,
     option_data_rev,
-    option_external,
     option_file_conf,
-    option_index,
     option_json,
     option_load,
     option_method,
@@ -80,8 +78,6 @@ def apply(
     import_: bool = option_import,
     import_type: str = option_import_type,
     batch_size: Optional[int] = option_batch_size,
-    index: bool = option_index,
-    external: bool = option_external,
     json: bool = option_json,
 ):
     """Apply a model to data. The result will be saved as a MLEM object to `output` if
@@ -116,8 +112,6 @@ def apply(
             data,
             method=method,
             output=output,
-            index=index,
-            external=external,
             batch_size=batch_size,
         )
     if output is None and json:
@@ -144,7 +138,6 @@ def _apply_remote(
     data,
     project,
     rev,
-    index,
     method,
     output,
     target_project,
@@ -169,7 +162,6 @@ def _apply_remote(
             data,
             project,
             rev,
-            index,
             method,
             output,
             target_project,
@@ -190,7 +182,6 @@ def apply_remote_load(
     output: Optional[str] = option_output,
     target_project: Optional[str] = option_target_project,
     method: str = option_method,
-    index: bool = option_index,
     json: bool = option_json,
     load: Optional[str] = option_load("client"),
 ):
@@ -198,7 +189,6 @@ def apply_remote_load(
         data,
         project,
         rev,
-        index,
         method,
         output,
         target_project,
@@ -229,7 +219,6 @@ def create_apply_remote(type_name):
         output: Optional[str] = option_output,
         target_project: Optional[str] = option_target_project,
         method: str = option_method,
-        index: bool = option_index,
         json: bool = option_json,
         file_conf: List[str] = option_file_conf("client"),
         **__kwargs__,
@@ -238,7 +227,6 @@ def create_apply_remote(type_name):
             data,
             project,
             rev,
-            index,
             method,
             output,
             target_project,
@@ -255,7 +243,6 @@ def run_apply_remote(
     data_path: str,
     project,
     rev,
-    index,
     method,
     output,
     target_project,
@@ -275,6 +262,5 @@ def run_apply_remote(
         method=method,
         output=output,
         target_project=target_project,
-        index=index,
     )
     return result

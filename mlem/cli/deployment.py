@@ -12,9 +12,7 @@ from mlem.cli.main import (
     mlem_group_callback,
     option_data_project,
     option_data_rev,
-    option_external,
     option_file_conf,
-    option_index,
     option_json,
     option_load,
     option_method,
@@ -69,8 +67,6 @@ def deploy_run_callback(
     model_rev: Optional[str] = option_model_rev,
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
-    external: bool = option_external,
-    index: bool = option_index,
 ):
     """Deploy a model to a target environment. Can use an existing deployment
     declaration or create a new one on-the-fly.
@@ -84,8 +80,6 @@ def deploy_run_callback(
         ),
         project=project,
         rev=rev,
-        external=external,
-        index=index,
     )
 
 
@@ -111,8 +105,6 @@ def create_deploy_run_command(type_name):
         model_project: Optional[str] = option_model_project,
         model_rev: Optional[str] = option_model_rev,
         project: Optional[str] = option_project,
-        external: bool = option_external,
-        index: bool = option_index,
         file_conf: List[str] = option_file_conf("deployment"),
         **__kwargs__,
     ):
@@ -141,8 +133,6 @@ def create_deploy_run_command(type_name):
                 force_type=MlemModel,
             ),
             project=project,
-            external=external,
-            index=index,
         )
 
 
@@ -213,7 +203,6 @@ def deploy_apply(
     ),
     target_project: Optional[str] = option_target_project,
     method: str = option_method,
-    index: bool = option_index,
     json: bool = option_json,
 ):
     """Apply a deployed model to data."""
@@ -236,7 +225,6 @@ def deploy_apply(
             data,
             data_project,
             data_rev,
-            index,
             method,
             output,
             target_project,

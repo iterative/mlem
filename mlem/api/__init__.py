@@ -11,7 +11,6 @@ from .commands import (
     import_object,
     init,
     link,
-    ls,
     serve,
 )
 
@@ -19,7 +18,6 @@ __all__ = [
     "save",
     "load",
     "load_meta",
-    "ls",
     "clone",
     "init",
     "link",

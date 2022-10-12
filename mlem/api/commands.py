@@ -2,7 +2,7 @@
 MLEM's Python API
 """
 import posixpath
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Optional, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
@@ -14,8 +14,7 @@ from mlem.api.utils import (
     get_model_meta,
     parse_import_type_modifier,
 )
-from mlem.config import CONFIG_FILE_NAME, project_config
-from mlem.constants import PREDICT_METHOD_NAME
+from mlem.constants import MLEM_CONFIG_FILE_NAME, PREDICT_METHOD_NAME
 from mlem.core.errors import (
     InvalidArgumentError,
     MlemError,
@@ -25,7 +24,7 @@ from mlem.core.errors import (
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
-from mlem.core.meta_io import MLEM_DIR, Location, get_fs
+from mlem.core.meta_io import Location, get_fs
 from mlem.core.metadata import load_meta, save
 from mlem.core.objects import (
     MlemBuilder,
@@ -56,8 +55,6 @@ def apply(
     method: str = None,
     output: str = None,
     target_project: str = None,
-    index: bool = None,
-    external: bool = None,
     batch_size: Optional[int] = None,
 ) -> Optional[Any]:
     """Apply provided model against provided data
@@ -70,8 +67,6 @@ def apply(
             If more than one is available, will fail.
         output (str, optional): If value is provided,
             assume it's path and save output there.
-        index (bool): Whether to index saved output in MLEM root folder.
-        external (bool): Whether to save result outside mlem dir
 
     Returns:
         If `output=None`, returns results for given data.
@@ -103,9 +98,7 @@ def apply(
         return res
     if len(res) == 1:
         res = res[0]
-    return save(
-        res, output, project=target_project, external=external, index=index
-    )
+    return save(res, output, project=target_project)
 
 
 def apply_remote(
@@ -114,7 +107,6 @@ def apply_remote(
     method: str = None,
     output: str = None,
     target_project: str = None,
-    index: bool = False,
     **client_kwargs,
 ) -> Optional[Any]:
     """Apply provided model against provided data
@@ -127,7 +119,6 @@ def apply_remote(
             If more than one is available, will fail.
         output (str, optional): If value is provided,
             assume it's path and save output there.
-        index (bool): Whether to index saved output in MLEM root folder.
 
     Returns:
         If `output=None`, returns results for given data.
@@ -151,7 +142,7 @@ def apply_remote(
         return res
     if len(res) == 1:
         res = res[0]
-    return save(res, output, project=target_project, index=index)
+    return save(res, output, project=target_project)
 
 
 def clone(
@@ -164,8 +155,6 @@ def clone(
     target_fs: Optional[str] = None,
     follow_links: bool = True,
     load_value: bool = False,
-    index: bool = None,
-    external: bool = None,
 ) -> MlemObject:
     """Clones MLEM object from `path` to `out`
         and returns Python representation for the created object
@@ -181,8 +170,6 @@ def clone(
         follow_links (bool, optional): If object we read is a MLEM link, whether to load
             the actual object link points to. Defaults to True.
         load_value (bool, optional): Load actual python object incorporated in MlemObject. Defaults to False.
-        index: whether to index object in target project
-        external: wheter to put object inside mlem dir in target project
 
     Returns:
         MlemObject: Copy of initial object saved to `out`
@@ -202,14 +189,12 @@ def clone(
         target,
         fs=target_fs,
         project=target_project,
-        index=index,
-        external=external,
     )
 
 
 def init(path: str = ".") -> None:
-    """Creates .mlem directory in `path`"""
-    path = posixpath.join(path, MLEM_DIR)
+    """Creates mlem config in `path`"""
+    path = posixpath.join(path, MLEM_CONFIG_FILE_NAME)
     fs, path = get_fs(path)
     if fs.exists(path):
         echo(
@@ -252,9 +237,8 @@ def init(path: str = ".") -> None:
                     "<https://mlem.ai/docs/user-guide/analytics>"
                 )
             )
-        fs.makedirs(path)
         # some fs dont support creating empty dirs
-        with fs.open(posixpath.join(path, CONFIG_FILE_NAME), "w"):
+        with fs.open(path, "w"):
             pass
         echo(
             EMOJI_MLEM
@@ -273,7 +257,6 @@ def link(
     rev: Optional[str] = None,
     target: Optional[str] = None,
     target_project: Optional[str] = None,
-    external: Optional[bool] = None,
     follow_links: bool = True,
     absolute: bool = False,
 ) -> MlemLink:
@@ -288,7 +271,6 @@ def link(
             treat `target` as link name and dump link in MLEM DIR
         follow_links (bool): Whether to make link to the underlying object
             if `source` is itself a link. Defaults to True.
-        external (bool): Whether to save link outside mlem dir
         absolute (bool): Whether to make link absolute or relative to mlem project
 
     Returns:
@@ -308,7 +290,6 @@ def link(
     return source.make_link(
         target,
         project=target_project,
-        external=external,
         absolute=absolute,
     )
 
@@ -359,25 +340,6 @@ def _validate_ls_project(loc: Location, project):
         mlem_project_exists(loc.project, loc.fs, raise_on_missing=True)
 
 
-def ls(  # pylint: disable=too-many-locals
-    project: str = ".",
-    rev: Optional[str] = None,
-    fs: Optional[AbstractFileSystem] = None,
-    type_filter: Union[
-        Type[MlemObject], Iterable[Type[MlemObject]], None
-    ] = None,
-    include_links: bool = True,
-    ignore_errors: bool = False,
-) -> Dict[Type[MlemObject], List[MlemObject]]:
-    loc = Location.resolve(
-        "", project=project, rev=rev, fs=fs, find_project=True
-    )
-    _validate_ls_project(loc, project)
-    return project_config(project, fs).index.list(
-        loc, type_filter, include_links, ignore_errors
-    )
-
-
 def import_object(
     path: str,
     project: Optional[str] = None,
@@ -388,8 +350,6 @@ def import_object(
     target_fs: Optional[AbstractFileSystem] = None,
     type_: Optional[str] = None,
     copy_data: bool = True,
-    external: bool = None,
-    index: bool = None,
 ):
     """Try to load an object as MLEM model (or data) and return it,
     optionally saving to the specified target location
@@ -408,8 +368,6 @@ def import_object(
             target,
             fs=target_fs,
             project=target_project,
-            index=index,
-            external=external,
         )
     return meta
 
@@ -421,8 +379,6 @@ def deploy(
     project: Optional[str] = None,
     rev: Optional[str] = None,
     fs: Optional[AbstractFileSystem] = None,
-    external: bool = None,
-    index: bool = None,
     env_kwargs: Dict[str, Any] = None,
     **deploy_kwargs,
 ) -> MlemDeployment:
@@ -456,7 +412,7 @@ def deploy(
                 env=env,
                 **deploy_kwargs,
             )
-            deploy_meta.dump(deploy_meta_or_path, fs, project, index, external)
+            deploy_meta.dump(deploy_meta_or_path, fs, project)
     else:
         deploy_meta = deploy_meta_or_path
         update = True

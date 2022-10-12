@@ -322,11 +322,11 @@ class DockerModelDirectory(BaseModel):
         with no_echo():
             path = os.path.join(self.path, self.model_name)
             if self.model.is_saved:
-                self.model.clone(path, external=True)
+                self.model.clone(path)
             else:
                 copy = self.model.copy()
                 copy.model_type.bind(self.model.model_type.model)
-                copy.dump(path, external=True)
+                copy.dump(path)
 
     def write_dockerfile(self, requirements: Requirements):
         echo(EMOJI_BUILD + "Generating dockerfile...")

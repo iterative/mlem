@@ -13,10 +13,10 @@ EXCEPTION_MESSAGE = "Test Exception Message"
 def test_stderr_exception(runner):
     # patch the ls command and ensure it throws an expection.
     with mock.patch(
-        "mlem.api.commands.ls", side_effect=Exception(EXCEPTION_MESSAGE)
+        "mlem.api.commands.init", side_effect=Exception(EXCEPTION_MESSAGE)
     ):
         result = runner.invoke(
-            ["list"],
+            ["init"],
         )
         assert result.exit_code == 1, (
             result.stdout,
@@ -34,10 +34,10 @@ MLEM_ERROR_MESSAGE = "Test Mlem Error Message"
 def test_stderr_mlem_error(runner):
     # patch the ls command and ensure it throws a mlem error.
     with mock.patch(
-        "mlem.api.commands.ls", side_effect=MlemError(MLEM_ERROR_MESSAGE)
+        "mlem.api.commands.init", side_effect=MlemError(MLEM_ERROR_MESSAGE)
     ):
         result = runner.invoke(
-            ["list"],
+            ["init"],
         )
         assert result.exit_code == 1, (
             result.stdout,
