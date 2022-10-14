@@ -29,7 +29,7 @@ def test_unix_requirement(capsys):
     )
     booster = lgb.train({}, data_np, 1)
     model = MlemModel.from_obj(booster, sample_data=data_np)
-    builder = RequirementsBuilder(platform="unix")
+    builder = RequirementsBuilder(req_type="unix")
     builder.build(model)
     captured = capsys.readouterr()
     assert str(captured.out).endswith(
