@@ -18,7 +18,7 @@ def test_build_reqs(tmp_path, model_meta):
 def test_build_reqs_with_invalid_req_type():
     with pytest.raises(ValidationError) as exc:
         RequirementsBuilder(req_type="invalid")
-        assert "req_type invalid is not valid." in str(exc.value)
+    assert "req_type invalid is not valid." in str(exc.value)
 
 
 def test_build_requirements_should_print_with_no_path(capsys, model_meta):
