@@ -131,7 +131,7 @@ class CondaBuilder(EnvBuilder):
             check_output=True,
         )
 
-    def build(self, obj: MlemModel):  # pylint: disable=too-many-branches
+    def build(self, obj: MlemModel):
         pip_based_packages = obj.requirements.to_pip()
         conda_based_packages = [r.get_repr() for r in self.conda_reqs]
 
