@@ -1,3 +1,4 @@
+import os
 import re
 
 import pytest
@@ -60,3 +61,36 @@ def test_install_in_current_venv_not_active(tmp_path, model_meta):
     with pytest.raises(MlemError) as e:
         builder.build(model_meta)
         assert "No virtual environment detected" in str(e.value)
+
+
+def findfile(startdir, pattern):
+    for root, _, files in os.walk(startdir):
+        for name in files:
+            if name.find(pattern) >= 0:
+                return root + os.sep + name
+
+    return None
+
+
+def test_install_in_current_active_venv(tmp_path, model_meta):
+    path = str(tmp_path / "venv-act")
+    builder = VenvBuilder(target=path)
+    builder.create_virtual_env()
+    assert (
+        builder.get_installed_packages(builder.context.env_dir).decode() == ""
+    )
+    os.environ["PATH"] = (
+        os.path.dirname(findfile(tmp_path, "activate"))
+        + os.pathsep
+        + os.environ["PATH"]
+    )
+    os.environ["VIRTUAL_ENV"] = builder.context.env_dir
+    builder.current_env = True
+    builder.build(model_meta)
+    installed_pkgs = (
+        builder.get_installed_packages(builder.context.env_dir)
+        .decode()
+        .splitlines()
+    )
+    for each_req in model_meta.requirements.to_pip():
+        assert each_req in installed_pkgs
