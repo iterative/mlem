@@ -96,14 +96,11 @@ class VenvBuilder(EnvBuilder):
         if self.current_env:
             if (
                 os.getenv("VIRTUAL_ENV") is None
-                and sys.prefix == sys.base_prefix
+                or sys.prefix == sys.base_prefix
             ):
                 raise MlemError("No virtual environment detected.")
-            echo(
-                EMOJI_PACK
-                + f"Detected the virtual env {os.getenv('VIRTUAL_ENV')}"
-            )
-            env_dir = os.environ["VIRTUAL_ENV"]
+            echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
+            env_dir = sys.prefix
             env_exe = get_python_exe_in_virtual_env(env_dir)
         else:
             echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
