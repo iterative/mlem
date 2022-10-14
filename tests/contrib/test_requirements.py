@@ -1,5 +1,7 @@
 import lightgbm as lgb
 import numpy as np
+import pytest
+from pydantic.error_wrappers import ValidationError
 
 from mlem.contrib.requirements import RequirementsBuilder
 from mlem.core.objects import MlemModel
@@ -11,6 +13,12 @@ def test_build_reqs(tmp_path, model_meta):
     builder.build(model_meta)
     with open(path, "r", encoding="utf-8") as f:
         assert model_meta.requirements.to_pip() == f.read().splitlines()
+
+
+def test_build_reqs_with_invalid_req_type():
+    with pytest.raises(ValidationError) as exc:
+        RequirementsBuilder(req_type="invalid")
+        assert "req_type invalid is not valid." in str(exc.value)
 
 
 def test_build_requirements_should_print_with_no_path(capsys, model_meta):
