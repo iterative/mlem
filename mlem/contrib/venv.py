@@ -7,6 +7,7 @@ from abc import abstractmethod
 from types import SimpleNamespace
 from typing import ClassVar, List, Optional
 
+from mlem.contrib.requirements import CondaPackageRequirement
 from mlem.core.errors import MlemError
 from mlem.core.objects import MlemBuilder, MlemModel
 from mlem.ui import EMOJI_OK, EMOJI_PACK, echo
@@ -134,6 +135,8 @@ class CondaBuilder(EnvBuilder):
     """The python version to use"""
     current_env: Optional[bool] = False
     """Whether to install in the current conda env"""
+    conda_reqs: List[CondaPackageRequirement] = []
+    """List of conda package requirements"""
 
     def create_virtual_env(self):
         create_cmd = ["--prefix", self.target, f"python={self.python_version}"]
@@ -151,7 +154,7 @@ class CondaBuilder(EnvBuilder):
 
     def build(self, obj: MlemModel):  # pylint: disable=too-many-branches
         pip_based_packages = obj.requirements.to_pip()
-        conda_based_packages = obj.requirements.to_conda()
+        conda_based_packages = [r.get_repr() for r in self.conda_reqs]
 
         if self.current_env:
             conda_default_env = os.getenv("CONDA_DEFAULT_ENV", None)

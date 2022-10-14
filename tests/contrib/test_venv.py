@@ -4,12 +4,10 @@ import sys
 
 import pytest
 
+from mlem.contrib.requirements import CondaPackageRequirement
 from mlem.contrib.venv import CondaBuilder, VenvBuilder
 from mlem.core.errors import MlemError
-from mlem.core.requirements import (
-    CondaPackageRequirement,
-    InstallableRequirement,
-)
+from mlem.core.requirements import InstallableRequirement
 from tests.contrib.conftest import conda_test
 
 
@@ -30,10 +28,10 @@ def process_conda_list_output(installed_pkgs):
 
 @conda_test
 def test_build_conda(tmp_path, model_meta):
-    path = str(tmp_path / "venv")
-    builder = CondaBuilder(target=path)
-    model_meta.requirements.add(
-        CondaPackageRequirement(package_name="xtensor")
+    path = str(tmp_path / "conda-env")
+    builder = CondaBuilder(
+        target=path,
+        conda_reqs=[CondaPackageRequirement(package_name="xtensor")],
     )
     env_dir = builder.build(model_meta)
     installed_pkgs = builder.get_installed_packages(env_dir).decode()

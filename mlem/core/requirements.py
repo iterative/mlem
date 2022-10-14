@@ -313,26 +313,6 @@ class UnixPackageRequirement(Requirement):
         return self.package_name
 
 
-class CondaPackageRequirement(Requirement):
-    """Represents a conda package that needs to be installed"""
-
-    type: ClassVar[str] = "conda"
-    package_name: str
-    """denotes name of a package such as 'numpy'"""
-    spec: Optional[str] = None
-    """denotes selectors for a package such as '>=1.8,<2'"""
-    channel_name: str = "conda-forge"
-    """denotes channel from which a package is to be installed"""
-
-    def get_repr(self):
-        """
-        conda installable representation of this module
-        """
-        if self.spec is not None:
-            return f"{self.channel_name}::{self.package_name}{self.spec}"
-        return f"{self.channel_name}::{self.package_name}"
-
-
 T = TypeVar("T", bound=Requirement)
 
 
@@ -343,13 +323,6 @@ class Requirements(BaseModel):
 
     __root__: List[Requirement] = []
     """List of :class:`Requirement` instances"""
-
-    @property
-    def conda(self) -> List[CondaPackageRequirement]:
-        """
-        List of conda requirements
-        """
-        return self.of_type(CondaPackageRequirement)
 
     @property
     def installable(self) -> List[InstallableRequirement]:
@@ -382,22 +355,6 @@ class Requirements(BaseModel):
     @property
     def expanded(self) -> "Requirements":
         return expand_requirements(self)
-
-    def _add_conda(self, requirement: CondaPackageRequirement):
-        for req in self.conda:
-            if req.package_name == requirement.package_name:
-                if req.spec == requirement.spec:
-                    break
-                if req.spec is not None and req.spec != requirement.spec:
-                    raise ValueError(
-                        f"Conflicting spec for package {req.package_name}: {req.spec} and {requirement.spec}"
-                    )
-                if req.channel_name != requirement.channel_name:
-                    raise ValueError(
-                        f"Conflicting spec for package {req.package_name}: {req.channel_name} and {requirement.channel_name}"
-                    )
-        else:
-            self.__root__.append(requirement)
 
     def _add_installable(self, requirement: InstallableRequirement):
         for req in self.installable:
@@ -454,8 +411,6 @@ class Requirements(BaseModel):
                 self._add_custom_package(requirement)
             else:
                 self._add_custom(requirement)
-        elif isinstance(requirement, CondaPackageRequirement):
-            self._add_conda(requirement)
         else:  # TODO better checks here https://github.com/iterative/mlem/issues/49
             if requirement not in self.__root__:
                 self.__root__.append(requirement)
@@ -471,12 +426,6 @@ class Requirements(BaseModel):
         :return: list of pip installable packages
         """
         return [r.get_repr() for r in self.installable]
-
-    def to_conda(self) -> List[str]:
-        """
-        :return: list of conda installable packages
-        """
-        return [r.get_repr() for r in self.conda]
 
     def __add__(self, other: "AnyRequirements"):
         other = resolve_requirements(other)
