@@ -55,11 +55,18 @@ class Requirement(MlemABC):
     abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...
 
+    @abstractmethod
+    def get_repr(self):
+        raise NotImplementedError
+
 
 class PythonRequirement(Requirement, ABC):
     type: ClassVar = "_python"
     module: str
     """Python module name"""
+
+    def get_repr(self):
+        raise NotImplementedError
 
 
 class InstallableRequirement(PythonRequirement):
@@ -85,7 +92,7 @@ class InstallableRequirement(PythonRequirement):
             self.module, self.module
         )
 
-    def to_str(self):
+    def get_repr(self):
         """
         pip installable representation of this module
         """
@@ -147,6 +154,9 @@ class CustomRequirement(PythonRequirement):
     """Zipped and base64-encoded source"""
     is_package: bool
     """Whether this code should be in %name%/__init__.py"""
+
+    def get_repr(self):
+        raise NotImplementedError
 
     @staticmethod
     def from_module(mod: ModuleType) -> "CustomRequirement":
@@ -273,6 +283,9 @@ class FileRequirement(CustomRequirement):
     module: str = ""
     """Ignored"""
 
+    def get_repr(self):
+        raise NotImplementedError
+
     def to_sources_dict(self):
         """
         Mapping path -> source code for this requirement
@@ -296,7 +309,7 @@ class UnixPackageRequirement(Requirement):
     package_name: str
     """Name of the package"""
 
-    def to_str(self):
+    def get_repr(self):
         return self.package_name
 
 
@@ -311,7 +324,7 @@ class CondaPackageRequirement(Requirement):
     channel_name: str = "conda-forge"
     """denotes channel from which a package is to be installed"""
 
-    def to_str(self):
+    def get_repr(self):
         """
         conda installable representation of this module
         """
@@ -451,19 +464,19 @@ class Requirements(BaseModel):
         """
         :return: list of unix based packages
         """
-        return [r.to_str() for r in self.of_type(UnixPackageRequirement)]
+        return [r.get_repr() for r in self.of_type(UnixPackageRequirement)]
 
     def to_pip(self) -> List[str]:
         """
         :return: list of pip installable packages
         """
-        return [r.to_str() for r in self.installable]
+        return [r.get_repr() for r in self.installable]
 
     def to_conda(self) -> List[str]:
         """
         :return: list of conda installable packages
         """
-        return [r.to_str() for r in self.conda]
+        return [r.get_repr() for r in self.conda]
 
     def __add__(self, other: "AnyRequirements"):
         other = resolve_requirements(other)

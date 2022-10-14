@@ -16,10 +16,8 @@ def get_python_exe_in_virtual_env(env_dir: str, use_conda_env: bool = False):
     if platform.system() == "Windows":
         if not use_conda_env:
             return os.path.join(env_dir, "Scripts", "python.exe")
-        else:
-            return os.path.join(env_dir, "python.exe")
-    else:
-        return os.path.join(env_dir, "bin", "python")
+        return os.path.join(env_dir, "python.exe")
+    return os.path.join(env_dir, "bin", "python")
 
 
 def run_in_subprocess(cmd: List[str], error_msg: str, check_output=False):
