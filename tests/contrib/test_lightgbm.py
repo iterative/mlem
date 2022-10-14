@@ -196,9 +196,27 @@ def test_deserialize__np(dtype_np, np_payload):
 
 def test_serialize__df(df_payload):
     ds = lgb.Dataset(df_payload, label=None, free_raw_data=False)
-    payload = DataType.create(obj=ds).serialize(ds)
-    assert payload[LIGHTGBM_DATA]["values"] == df_payload.to_dict("records")
-    assert payload[LIGHTGBM_LABEL] is None
+    payload = DataType.create(obj=ds)
+    assert payload.serialize(ds)[LIGHTGBM_DATA][
+        "values"
+    ] == df_payload.to_dict("records")
+    assert LIGHTGBM_LABEL not in payload
+
+    def custom_assert(x, y):
+        assert hasattr(x, "data")
+        assert hasattr(y, "data")
+        assert all(x.data == y.data)
+        assert x.label == y.label
+
+    artifacts = data_write_read_check(
+        payload,
+        writer=LightGBMDataWriter(),
+        reader_type=LightGBMDataReader,
+        custom_assert=custom_assert,
+    )
+
+    assert len(artifacts.keys()) == 1
+    assert list(artifacts.keys()) == [f"{LIGHTGBM_DATA}/data"]
 
 
 def test_deserialize__df(dtype_df, df_payload):

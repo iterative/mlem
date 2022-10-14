@@ -46,23 +46,27 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
-    labels: DataType
+    labels: Optional[DataType]
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
         res = {
-            LIGHTGBM_DATA: self.inner.get_serializer().serialize(
-                instance.data
-            ),
-            LIGHTGBM_LABEL: self.labels.get_serializer().serialize(
-                instance.label
-            ),
+            LIGHTGBM_DATA: self.inner.get_serializer().serialize(instance.data)
         }
+        if self.labels is not None:
+            res[LIGHTGBM_LABEL] = self.labels.get_serializer().serialize(
+                instance.label
+            )
         return res
 
     def deserialize(self, obj: dict) -> Any:
         data = self.inner.get_serializer().deserialize(obj[LIGHTGBM_DATA])
-        label = self.labels.get_serializer().deserialize(obj[LIGHTGBM_LABEL])
+        if self.labels is not None:
+            label = self.labels.get_serializer().deserialize(
+                obj[LIGHTGBM_LABEL]
+            )
+        else:
+            label = None
         try:
             return lgb.Dataset(data, label=label, free_raw_data=False)
         except ValueError as e:
@@ -86,7 +90,9 @@ class LightGBMDataType(
     def process(cls, obj: Any, **kwargs) -> DataType:
         return LightGBMDataType(
             inner=DataAnalyzer.analyze(obj.data),
-            labels=DataAnalyzer.analyze(obj.label),
+            labels=DataAnalyzer.analyze(obj.label)
+            if obj.label is not None
+            else None,
         )
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
@@ -112,13 +118,17 @@ class LightGBMDataWriter(DataWriter):
             posixpath.join(path, LIGHTGBM_DATA),
         )
 
-        labels_reader, labels_art = data.labels.get_writer().write(
-            data.labels.copy().bind(lightgbm_raw.label),
-            storage,
-            posixpath.join(path, LIGHTGBM_LABEL),
-        )
+        res = {LIGHTGBM_DATA: inner_art}
 
-        res = {LIGHTGBM_DATA: inner_art, LIGHTGBM_LABEL: labels_art}
+        if data.labels is not None:
+            labels_reader, labels_art = data.labels.get_writer().write(
+                data.labels.copy().bind(lightgbm_raw.label),
+                storage,
+                posixpath.join(path, LIGHTGBM_LABEL),
+            )
+            res[LIGHTGBM_LABEL] = labels_art
+        else:
+            labels_reader = None
 
         return (
             LightGBMDataReader(
@@ -134,18 +144,23 @@ class LightGBMDataReader(DataReader):
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
-    labels: DataReader
+    labels: Optional[DataReader]
 
     def read(self, artifacts: Artifacts) -> DataType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         inner_data_type = self.inner.read(artifacts[LIGHTGBM_DATA])  # type: ignore[arg-type]
-        labels_data_type = self.labels.read(artifacts[LIGHTGBM_LABEL])  # type: ignore[arg-type]
+        if self.labels is not None:
+            labels_data_type = self.labels.read(artifacts[LIGHTGBM_LABEL])  # type: ignore[arg-type]
+        else:
+            labels_data_type = None
         return LightGBMDataType(
             inner=inner_data_type, labels=labels_data_type
         ).bind(
             lgb.Dataset(
                 inner_data_type.data,
-                label=labels_data_type.data,
+                label=labels_data_type.data
+                if labels_data_type is not None
+                else None,
                 free_raw_data=False,
             )
         )
