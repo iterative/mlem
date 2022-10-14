@@ -53,7 +53,7 @@ def df_payload():
 def data_df(df_payload):
     return lgb.Dataset(
         df_payload,
-        label=np.array([0, 1]).tolist(),
+        label=np.array([0, 1]),
         free_raw_data=False,
     )
 
@@ -101,8 +101,8 @@ def test_hook_df(dtype_df: DataType):
     assert set(dtype_df.get_requirements().modules) == {"lightgbm", "pandas"}
     assert isinstance(dtype_df, LightGBMDataType)
     assert isinstance(dtype_df.inner, DataFrameType)
-    assert isinstance(dtype_df.labels, ArrayType)
-    assert dtype_df.labels.dtype == PrimitiveType(data=None, ptype="int")
+    assert isinstance(dtype_df.labels, NumpyNdarrayType)
+    assert dtype_df.labels.dtype == "int64"
     assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
     assert dtype_df.get_model().schema() == {
         "title": "DataFrame",
@@ -130,7 +130,7 @@ def test_hook_df(dtype_df: DataType):
     "lgb_dtype, data_type, label_type",
     [
         ("dtype_np", NumpyNdarrayType, ArrayType),
-        ("dtype_df", DataFrameType, ArrayType),
+        ("dtype_df", DataFrameType, NumpyNdarrayType),
     ],
 )
 def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
@@ -143,7 +143,11 @@ def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
         assert hasattr(x, "data")
         assert hasattr(y, "data")
         assert all(x.data == y.data)
-        assert x.label == y.label
+        label_check = x.label == y.label
+        if isinstance(label_check, (list, np.ndarray)):
+            assert all(label_check)
+        else:
+            assert label_check
 
     artifacts = data_write_read_check(
         lgb_dtype,
@@ -161,12 +165,35 @@ def test_lightgbm_source(lgb_dtype, data_type, label_type, request):
             f"{LIGHTGBM_LABEL}/3/data",
             f"{LIGHTGBM_LABEL}/4/data",
         ]
+        assert artifacts[f"{LIGHTGBM_DATA}/data"].uri.endswith(
+            f"data/{LIGHTGBM_DATA}"
+        )
+        assert artifacts[f"{LIGHTGBM_LABEL}/0/data"].uri.endswith(
+            f"data/{LIGHTGBM_LABEL}/0"
+        )
+        assert artifacts[f"{LIGHTGBM_LABEL}/1/data"].uri.endswith(
+            f"data/{LIGHTGBM_LABEL}/1"
+        )
+        assert artifacts[f"{LIGHTGBM_LABEL}/2/data"].uri.endswith(
+            f"data/{LIGHTGBM_LABEL}/2"
+        )
+        assert artifacts[f"{LIGHTGBM_LABEL}/3/data"].uri.endswith(
+            f"data/{LIGHTGBM_LABEL}/3"
+        )
+        assert artifacts[f"{LIGHTGBM_LABEL}/4/data"].uri.endswith(
+            f"data/{LIGHTGBM_LABEL}/4"
+        )
     else:
         assert list(artifacts.keys()) == [
             f"{LIGHTGBM_DATA}/data",
-            f"{LIGHTGBM_LABEL}/0/data",
-            f"{LIGHTGBM_LABEL}/1/data",
+            f"{LIGHTGBM_LABEL}/data",
         ]
+        assert artifacts[f"{LIGHTGBM_DATA}/data"].uri.endswith(
+            f"data/{LIGHTGBM_DATA}"
+        )
+        assert artifacts[f"{LIGHTGBM_LABEL}/data"].uri.endswith(
+            f"data/{LIGHTGBM_LABEL}"
+        )
 
 
 def test_serialize__np(dtype_np, np_payload):
@@ -197,9 +224,7 @@ def test_deserialize__np(dtype_np, np_payload):
 def test_serialize__df(df_payload):
     ds = lgb.Dataset(df_payload, label=None, free_raw_data=False)
     payload = DataType.create(obj=ds)
-    assert payload.serialize(ds)[LIGHTGBM_DATA][
-        "values"
-    ] == df_payload.to_dict("records")
+    assert payload.serialize(ds)["values"] == df_payload.to_dict("records")
     assert LIGHTGBM_LABEL not in payload
 
     def custom_assert(x, y):
@@ -216,7 +241,8 @@ def test_serialize__df(df_payload):
     )
 
     assert len(artifacts.keys()) == 1
-    assert list(artifacts.keys()) == [f"{LIGHTGBM_DATA}/data"]
+    assert list(artifacts.keys()) == ["data"]
+    assert artifacts["data"].uri.endswith("/data")
 
 
 def test_deserialize__df(dtype_df, df_payload):
