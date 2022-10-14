@@ -102,7 +102,6 @@ def test_hook_df(dtype_df: DataType):
     assert isinstance(dtype_df, LightGBMDataType)
     assert isinstance(dtype_df.inner, DataFrameType)
     assert isinstance(dtype_df.labels, NumpyNdarrayType)
-    assert dtype_df.labels.dtype == "int64"
     assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
     assert dtype_df.get_model().schema() == {
         "title": "DataFrame",
