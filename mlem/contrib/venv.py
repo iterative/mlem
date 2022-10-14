@@ -4,7 +4,6 @@ import subprocess
 import sys
 import venv
 from abc import abstractmethod
-from types import SimpleNamespace
 from typing import ClassVar, List, Optional
 
 from mlem.contrib.requirements import CondaPackageRequirement
@@ -52,38 +51,16 @@ class EnvBuilder(MlemBuilder):
 
 
 class VenvBuilder(EnvBuilder):
-    class Config:
-        arbitrary_types_allowed = True
-        exclude = {"context"}
-
     type: ClassVar = "venv"
 
     no_cache: bool = False
     """Disable cache"""
     current_env: bool = False
     """Whether to install in the current virtual env, must be active"""
-    context: Optional[SimpleNamespace] = None
-    """context for the virtual env"""
-
-    def get_context(self):
-        if self.context is None:
-            self.create_virtual_env()
-        return self.context
 
     def create_virtual_env(self):
-        env_spec = venv.EnvBuilder(with_pip=True)
         env_dir = os.path.abspath(self.target)
-
-        self.context = env_spec.ensure_directories(env_dir)
-        env_spec.create_configuration(self.context)
-        env_spec.setup_python(self.context)
-        if env_spec.with_pip:
-            env_spec._setup_pip(  # pylint: disable=protected-access
-                self.context
-            )
-        if not env_spec.upgrade:
-            env_spec.setup_scripts(self.context)
-            env_spec.post_setup(self.context)
+        venv.create(env_dir, with_pip=True)
 
     def get_installed_packages(self, env_dir):
         env_exe = get_python_exe_in_virtual_env(env_dir)
@@ -102,13 +79,14 @@ class VenvBuilder(EnvBuilder):
                 raise MlemError("No virtual environment detected.")
             echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
             env_dir = sys.prefix
-            env_exe = get_python_exe_in_virtual_env(env_dir)
         else:
+            assert self.target is not None
             echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
-            context = self.get_context()
-            env_dir = context.env_dir
-            os.environ["VIRTUAL_ENV"] = context.env_dir
-            env_exe = context.env_exe
+            self.create_virtual_env()
+            env_dir = os.path.abspath(self.target)
+            os.environ["VIRTUAL_ENV"] = env_dir
+
+        env_exe = get_python_exe_in_virtual_env(env_dir)
         echo(EMOJI_PACK + "Installing the required packages...")
         # Based on recommendation given in https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
         install_cmd = [env_exe, "-m", "pip", "install"]
@@ -139,7 +117,8 @@ class CondaBuilder(EnvBuilder):
     """List of conda package requirements"""
 
     def create_virtual_env(self):
-        create_cmd = ["--prefix", self.target, f"python={self.python_version}"]
+        env_dir = os.path.abspath(self.target)
+        create_cmd = ["--prefix", env_dir, f"python={self.python_version}"]
         run_in_subprocess(
             ["conda", "create", "-y", *create_cmd],
             error_msg="Error running conda",
@@ -166,7 +145,7 @@ class CondaBuilder(EnvBuilder):
         else:
             assert self.target is not None
             self.create_virtual_env()
-            env_dir = self.target
+            env_dir = os.path.abspath(self.target)
             env_exe = get_python_exe_in_virtual_env(
                 env_dir, use_conda_env=True
             )

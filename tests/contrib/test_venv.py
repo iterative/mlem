@@ -66,18 +66,15 @@ def test_install_in_current_active_venv(tmp_path, model_meta):
     old_sys_prefix = sys.prefix
     path = str(tmp_path / "venv-act")
     builder = VenvBuilder(target=path)
+    env_dir = os.path.abspath(path)
     builder.create_virtual_env()
-    assert (
-        builder.get_installed_packages(builder.context.env_dir).decode() == ""
-    )
-    os.environ["VIRTUAL_ENV"] = builder.context.env_dir
-    sys.prefix = builder.context.env_dir
+    assert builder.get_installed_packages(env_dir).decode() == ""
+    os.environ["VIRTUAL_ENV"] = env_dir
+    sys.prefix = env_dir
     builder.current_env = True
     builder.build(model_meta)
     installed_pkgs = (
-        builder.get_installed_packages(builder.context.env_dir)
-        .decode()
-        .splitlines()
+        builder.get_installed_packages(env_dir).decode().splitlines()
     )
     for each_req in model_meta.requirements.to_pip():
         assert each_req in installed_pkgs
