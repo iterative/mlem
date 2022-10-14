@@ -12,15 +12,14 @@ from mlem.core.objects import MlemBuilder, MlemModel
 from mlem.ui import EMOJI_OK, EMOJI_PACK, echo
 
 
-def get_python_exe_in_virtual_env(env_dir: str, env_type: str = "pip"):
+def get_python_exe_in_virtual_env(env_dir: str, use_conda_env: bool = False):
     if platform.system() == "Windows":
-        if env_type == "pip":
-            env_exe = os.path.join(env_dir, "Scripts", "python.exe")
-        elif env_type == "conda":
-            env_exe = os.path.join(env_dir, "python.exe")
+        if not use_conda_env:
+            return os.path.join(env_dir, "Scripts", "python.exe")
+        else:
+            return os.path.join(env_dir, "python.exe")
     else:
-        env_exe = os.path.join(env_dir, "bin", "python")
-    return env_exe
+        return os.path.join(env_dir, "bin", "python")
 
 
 def run_in_subprocess(cmd: List[str], error_msg: str, check_output=False):
@@ -67,6 +66,11 @@ class VenvBuilder(EnvBuilder):
     context: Optional[SimpleNamespace] = None
     """context for the virtual env"""
 
+    def get_context(self):
+        if self.context is None:
+            self.create_virtual_env()
+        return self.context
+
     def create_virtual_env(self):
         env_spec = venv.EnvBuilder(with_pip=True)
         env_dir = os.path.abspath(self.target)
@@ -102,11 +106,10 @@ class VenvBuilder(EnvBuilder):
             env_exe = get_python_exe_in_virtual_env(env_dir)
         else:
             echo(EMOJI_PACK + f"Creating virtual env {self.target}...")
-            self.create_virtual_env()
-            assert self.context is not None
-            env_dir = self.context.env_dir
-            os.environ["VIRTUAL_ENV"] = self.context.env_dir
-            env_exe = self.context.env_exe
+            context = self.get_context()
+            env_dir = context.env_dir
+            os.environ["VIRTUAL_ENV"] = context.env_dir
+            env_exe = context.env_exe
         echo(EMOJI_PACK + "Installing the required packages...")
         # Based on recommendation given in https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
         install_cmd = [env_exe, "-m", "pip", "install"]
@@ -163,7 +166,9 @@ class CondaBuilder(EnvBuilder):
             assert self.target is not None
             self.create_virtual_env()
             env_dir = self.target
-            env_exe = get_python_exe_in_virtual_env(env_dir, env_type="conda")
+            env_exe = get_python_exe_in_virtual_env(
+                env_dir, use_conda_env=True
+            )
         if conda_based_packages:
             run_in_subprocess(
                 [
