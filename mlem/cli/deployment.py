@@ -4,7 +4,7 @@ from typing import List, Optional
 from typer import Argument, Option, Typer
 
 from mlem.cli.apply import run_apply_remote
-from mlem.cli.declare import add_env_params_deployment
+from mlem.cli.declare import add_env_params_deployment, process_fields
 from mlem.cli.main import (
     app,
     mlem_command,
@@ -110,6 +110,7 @@ def create_deploy_run_command(type_name):
     ):
         from mlem.api.commands import deploy
 
+        __kwargs__ = process_fields(type_name, MlemDeployment, __kwargs__)
         try:
             meta = load_meta(path, project=project, force_type=MlemDeployment)
             raise DeploymentError(

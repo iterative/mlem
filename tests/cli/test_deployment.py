@@ -297,6 +297,7 @@ def _deploy_and_check(
     model_single_path: str,
     load_deploy=True,
     add_args="",
+    env_param_value: Optional[str] = "env_val",
 ):
 
     if load_deploy:
@@ -341,7 +342,7 @@ def _deploy_and_check(
     assert isinstance(state.deployment, MlemDeploymentMock)
     assert state.deployment.param == "val"
     assert isinstance(state.env, MlemEnvMock)
-    assert state.env.env_param == "env_val"
+    assert state.env.env_param == env_param_value
 
     remove_res = runner.invoke(
         f"deploy remove {deploy_path}", raise_on_error=True
@@ -465,6 +466,17 @@ def test_none_declared(runner: Runner, tmp_path, model_single_path):
         model_single_path,
         load_deploy=False,
         add_args="--env.env_param env_val",
+    )
+
+
+def test_no_env_params(runner: Runner, tmp_path, model_single_path):
+    deploy_path = make_posix(str(tmp_path / "deploy"))
+    _deploy_and_check(
+        runner,
+        deploy_path,
+        model_single_path,
+        load_deploy=False,
+        env_param_value=None,
     )
 
 

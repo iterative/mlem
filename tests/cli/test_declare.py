@@ -12,10 +12,11 @@ from mlem.contrib.heroku.meta import HerokuEnv
 from mlem.contrib.pip.base import PipBuilder
 from mlem.core.base import build_mlem_object
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemBuilder, MlemModel
+from mlem.core.objects import EnvLink, MlemBuilder, MlemModel
 from mlem.runtime.server import Server
 from mlem.utils.path import make_posix
 from tests.cli.conftest import Runner
+from tests.cli.test_deployment import MlemDeploymentMock, MlemEnvMock
 
 builder_typer = [
     g.typer_instance
@@ -476,3 +477,28 @@ def test_declare_all_together(runner: Runner, tmp_path):
         str_conf=[f"{k}=lol" for k in args],
         conf=server_args,
     )
+
+
+@pytest.mark.parametrize(
+    "args,env_value",
+    [
+        ("", None),
+        ("--env path", "path"),
+        (
+            "--env.path path --env.project project",
+            EnvLink(path="path", project="project"),
+        ),
+        ("--env.env_param val", MlemEnvMock(env_param="val")),
+    ],
+)
+def test_declare_deployment_env(
+    runner: Runner, tmp_path, args: str, env_value
+):
+    path = make_posix(str(tmp_path))
+    runner.invoke(
+        f"declare deployment {MlemDeploymentMock.type} {path} " + args,
+        raise_on_error=True,
+    )
+    meta = load_meta(path, force_type=MlemDeploymentMock)
+
+    assert meta.env == env_value

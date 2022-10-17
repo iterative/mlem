@@ -13,7 +13,7 @@ from docker import errors
 from docker.errors import NotFound
 from pydantic import BaseModel
 
-from mlem.config import project_config
+from mlem.config import LOCAL_CONFIG, project_config
 from mlem.contrib.docker.context import DockerBuildArgs, DockerModelDirectory
 from mlem.contrib.docker.utils import (
     build_image_with_logs,
@@ -233,7 +233,9 @@ class RemoteRegistry(DockerRegistry):
 class DockerDaemon(MlemABC):
     """Class that represents docker daemon"""
 
-    host: str  # TODO: https://github.com/iterative/mlem/issues/38 credentials
+    host: str = (
+        ""  # TODO: https://github.com/iterative/mlem/issues/38 credentials
+    )
     """adress of the docker daemon (empty string for local)"""
 
     @contextlib.contextmanager
@@ -478,7 +480,7 @@ class DockerDirBuilder(MlemBuilder, _DockerBuildMixin):
     def build(self, obj: MlemModel):
         docker_dir = DockerModelDirectory(
             model=obj,
-            server=self.server,
+            server=self.server or LOCAL_CONFIG.server,
             path=self.target,
             docker_args=self.args,
             debug=True,
