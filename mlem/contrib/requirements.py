@@ -15,26 +15,6 @@ REQUIREMENTS = "requirements.txt"
 logger = logging.getLogger(__name__)
 
 
-class CondaPackageRequirement(Requirement):
-    """Represents a conda package that needs to be installed"""
-
-    type: ClassVar[str] = "conda"
-    package_name: str
-    """denotes name of a package such as 'numpy'"""
-    spec: Optional[str] = None
-    """denotes selectors for a package such as '>=1.8,<2'"""
-    channel_name: str = "conda-forge"
-    """denotes channel from which a package is to be installed"""
-
-    def get_repr(self):
-        """
-        conda installable representation of this module
-        """
-        if self.spec is not None:
-            return f"{self.channel_name}::{self.package_name}{self.spec}"
-        return f"{self.channel_name}::{self.package_name}"
-
-
 class RequirementsBuilder(MlemBuilder):
     """MlemBuilder implementation for building requirements"""
 

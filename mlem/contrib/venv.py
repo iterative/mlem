@@ -6,9 +6,9 @@ import venv
 from abc import abstractmethod
 from typing import ClassVar, List, Optional
 
-from mlem.contrib.requirements import CondaPackageRequirement
 from mlem.core.errors import MlemError
 from mlem.core.objects import MlemBuilder, MlemModel
+from mlem.core.requirements import Requirement
 from mlem.ui import EMOJI_OK, EMOJI_PACK, echo
 
 
@@ -31,6 +31,26 @@ def run_in_subprocess(cmd: List[str], error_msg: str, check_output=False):
         subprocess.TimeoutExpired,
     ) as e:
         raise MlemError(f"{error_msg}\n{e}") from e
+
+
+class CondaPackageRequirement(Requirement):
+    """Represents a conda package that needs to be installed"""
+
+    type: ClassVar[str] = "conda"
+    package_name: str
+    """denotes name of a package such as 'numpy'"""
+    spec: Optional[str] = None
+    """denotes selectors for a package such as '>=1.8,<2'"""
+    channel_name: str = "conda-forge"
+    """denotes channel from which a package is to be installed"""
+
+    def get_repr(self):
+        """
+        conda installable representation of this module
+        """
+        if self.spec is not None:
+            return f"{self.channel_name}::{self.package_name}{self.spec}"
+        return f"{self.channel_name}::{self.package_name}"
 
 
 class EnvBuilder(MlemBuilder):

@@ -4,8 +4,11 @@ import sys
 
 import pytest
 
-from mlem.contrib.requirements import CondaPackageRequirement
-from mlem.contrib.venv import CondaBuilder, VenvBuilder
+from mlem.contrib.venv import (
+    CondaBuilder,
+    CondaPackageRequirement,
+    VenvBuilder,
+)
 from mlem.core.errors import MlemError
 from mlem.core.requirements import InstallableRequirement
 from tests.contrib.conftest import conda_test
