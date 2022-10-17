@@ -1,5 +1,6 @@
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
+import cloudpickle
 import torch
 from pydantic import conlist, create_model
 
@@ -140,9 +141,11 @@ class TorchModelIO(ModelIO):
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         self.is_jit = isinstance(model, torch.jit.ScriptModule)
-        save = torch.jit.save if self.is_jit else torch.save
         with storage.open(path) as (f, art):
-            save(model, f)
+            if self.is_jit:
+                torch.jit.save(model, f)
+            else:
+                torch.save(model, f, pickle_module=cloudpickle)
             return {self.art_name: art}
 
     def load(self, artifacts: Artifacts):
