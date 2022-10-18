@@ -351,9 +351,8 @@ class MlemObject(MlemABC):
             self._write_meta(self.location, False)
 
     def meta_hash(self):
-        return hashlib.md5(
-            safe_dump(self.dict()).encode("utf8"),
-            usedforsecurity=False,
+        return hashlib.md5(  # nosec: B324
+            safe_dump(self.dict()).encode("utf8")
         ).hexdigest()
 
 
