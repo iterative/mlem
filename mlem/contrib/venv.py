@@ -1,3 +1,9 @@
+"""Virtual Environments support
+Extension type: build
+
+MlemBuilder implementations for `Environments` which includes
+conda based and venv based virtual environments.
+"""
 import os
 import platform
 import subprocess

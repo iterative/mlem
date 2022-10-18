@@ -1,3 +1,9 @@
+"""Requirements support
+Extension type: build
+
+MlemBuilder implementation for `Requirements` which includes
+installable, conda, unix, custom, file etc. based requirements.
+"""
 import logging
 from typing import ClassVar, Optional
 
