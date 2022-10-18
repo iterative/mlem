@@ -58,8 +58,6 @@ class CondaPackageRequirement(Requirement):
 
 
 class EnvBuilder(MlemBuilder):
-    """MlemBuilder implementation for building virtual environments"""
-
     type: ClassVar = "env"
 
     target: Optional[str] = "venv"
@@ -75,6 +73,8 @@ class EnvBuilder(MlemBuilder):
 
 
 class VenvBuilder(EnvBuilder):
+    """MlemBuilder implementation for building virtual environments"""
+
     type: ClassVar = "venv"
 
     no_cache: bool = False
@@ -130,6 +130,7 @@ class VenvBuilder(EnvBuilder):
 
 
 class CondaBuilder(EnvBuilder):
+    """MlemBuilder implementation for building conda environments"""
 
     type: ClassVar = "conda"
 
