@@ -44,7 +44,7 @@ def test_requirements_analyzer__model_works(tmpdir):
     from proxy_model import model
 
     reqs = get_object_requirements(model)
-    CustomRequirement.materialize(reqs, tmpdir)
+    CustomRequirement.materialize(reqs.custom, tmpdir)
     assert os.path.exists(
         os.path.join(tmpdir, "pkg", "subpkg", "testfile.json")
     )
@@ -71,7 +71,7 @@ def test_model_custom_requirements(tmpdir):
     assert isinstance(model, MlemModel)
 
     model.dump(os.path.join(tmpdir, "model"))
-    model.requirements.materialize_custom(tmpdir)
+    CustomRequirement.materialize(model.requirements.custom, tmpdir)
     shutil.copy(
         os.path.join(os.path.dirname(__file__), "use_model_meta.py"), tmpdir
     )

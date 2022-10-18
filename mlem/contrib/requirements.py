@@ -20,7 +20,7 @@ class RequirementsBuilder(MlemBuilder):
     type: ClassVar = "requirements"
 
     target: Optional[str] = None
-    """Target path for the requirements.txt file"""
+    """Target path for requirements"""
     req_type: str = "installable"
     """Type of requirements, example: unix"""
 
