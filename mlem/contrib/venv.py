@@ -38,11 +38,11 @@ class CondaPackageRequirement(Requirement):
 
     type: ClassVar[str] = "conda"
     package_name: str
-    """denotes name of a package such as 'numpy'"""
+    """Denotes name of a package such as 'numpy'"""
     spec: Optional[str] = None
-    """denotes selectors for a package such as '>=1.8,<2'"""
+    """Denotes selectors for a package such as '>=1.8,<2'"""
     channel_name: str = "conda-forge"
-    """denotes channel from which a package is to be installed"""
+    """Denotes channel from which a package is to be installed"""
 
     def get_repr(self):
         """

@@ -116,6 +116,8 @@ class ExtensionLoader:
         ),
         Extension("mlem.contrib.pip", [], False),
         Extension("mlem.contrib.kubernetes", ["kubernetes", "docker"], False),
+        Extension("mlem.contrib.requirements", [], False),
+        Extension("mlem.contrib.venv", [], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
