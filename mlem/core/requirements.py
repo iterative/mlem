@@ -59,6 +59,11 @@ class Requirement(MlemABC):
     def get_repr(self):
         raise NotImplementedError
 
+    @classmethod
+    @abstractmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
+
 
 class PythonRequirement(Requirement, ABC):
     type: ClassVar = "_python"
@@ -66,6 +71,10 @@ class PythonRequirement(Requirement, ABC):
     """Python module name"""
 
     def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
         raise NotImplementedError
 
 
@@ -99,6 +108,13 @@ class InstallableRequirement(PythonRequirement):
         if self.version is not None:
             return f"{self.package}=={self.version}"
         return self.package
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        reqs = [r.get_repr() for r in reqs]
+        requirement_string = "\n".join(reqs)
+        with open(os.path.join(target), "w", encoding="utf8") as fp:
+            fp.write(requirement_string + "\n")
 
     @classmethod
     def from_module(
@@ -157,6 +173,15 @@ class CustomRequirement(PythonRequirement):
 
     def get_repr(self):
         raise NotImplementedError
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        for cr in reqs:
+            for part, src in cr.to_sources_dict().items():
+                p = os.path.join(target, part)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(src)
 
     @staticmethod
     def from_module(mod: ModuleType) -> "CustomRequirement":
@@ -286,6 +311,10 @@ class FileRequirement(CustomRequirement):
     def get_repr(self):
         raise NotImplementedError
 
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        super(FileRequirement, cls).materialize(reqs, target)
+
     def to_sources_dict(self):
         """
         Mapping path -> source code for this requirement
@@ -311,6 +340,10 @@ class UnixPackageRequirement(Requirement):
 
     def get_repr(self):
         return self.package_name
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
 
 
 T = TypeVar("T", bound=Requirement)
@@ -447,21 +480,13 @@ class Requirements(BaseModel):
             return Requirements(__root__=[])
         return resolve_requirements(requirements)
 
-    def materialize_custom(self, path: str):
-        for cr in self.custom:
-            for part, src in cr.to_sources_dict().items():
-                p = os.path.join(path, part)
-                os.makedirs(os.path.dirname(p), exist_ok=True)
-                with open(p, "wb") as f:
-                    f.write(src)
-
     @contextlib.contextmanager
     def import_custom(self):
         if not self.custom:
             yield
             return
         with tempfile.TemporaryDirectory(prefix="mlem_custom_reqs") as dirname:
-            self.materialize_custom(dirname)
+            CustomRequirement.materialize(self.custom, dirname)
             sys.path.insert(0, dirname)
             for cr in self.custom:
                 import_module(cr.module)

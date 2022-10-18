@@ -52,6 +52,10 @@ class CondaPackageRequirement(Requirement):
             return f"{self.channel_name}::{self.package_name}{self.spec}"
         return f"{self.channel_name}::{self.package_name}"
 
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
+
 
 class EnvBuilder(MlemBuilder):
     """MlemBuilder implementation for building virtual environments"""

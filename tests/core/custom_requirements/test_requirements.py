@@ -7,6 +7,7 @@ from pack_1 import TestM
 
 from mlem.core.metadata import get_object_metadata
 from mlem.core.objects import MlemModel
+from mlem.core.requirements import CustomRequirement
 from mlem.utils.module import get_object_requirements
 
 
@@ -43,8 +44,7 @@ def test_requirements_analyzer__model_works(tmpdir):
     from proxy_model import model
 
     reqs = get_object_requirements(model)
-
-    reqs.materialize_custom(tmpdir)
+    CustomRequirement.materialize(reqs, tmpdir)
     assert os.path.exists(
         os.path.join(tmpdir, "pkg", "subpkg", "testfile.json")
     )

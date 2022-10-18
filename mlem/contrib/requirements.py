@@ -1,6 +1,5 @@
 import logging
-import os
-from typing import ClassVar, List, Optional
+from typing import ClassVar, Optional
 
 from pydantic import validator
 
@@ -33,19 +32,15 @@ class RequirementsBuilder(MlemBuilder):
             )
         return req_type
 
-    def write_requirements_file(self, reqs: List[str]):
-        requirement_string = "\n".join(reqs)
-        if self.target is None:
-            print(requirement_string)
-        else:
-            echo(EMOJI_PACK + "Generating requirements file...")
-            with open(os.path.join(self.target), "w", encoding="utf8") as fp:
-                fp.write(requirement_string + "\n")
-                echo(EMOJI_OK + f"{self.target} generated!")
-
     def build(self, obj: MlemModel):
         req_type_cls = load_impl_ext(Requirement.abs_name, self.req_type)
         assert issubclass(req_type_cls, Requirement)
         reqs = obj.requirements.of_type(req_type_cls)
-        reqs_representation = [r.get_repr() for r in reqs]
-        self.write_requirements_file(reqs_representation)
+        if self.target is None:
+            reqs_representation = [r.get_repr() for r in reqs]
+            requirement_string = "\n".join(reqs_representation)
+            print(requirement_string)
+        else:
+            echo(EMOJI_PACK + "Materializing requirements...")
+            req_type_cls.materialize(reqs, self.target)
+            echo(EMOJI_OK + f"Materialized to {self.target}!")
