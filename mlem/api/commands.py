@@ -196,7 +196,7 @@ def clone(
 
 def init(path: str = ".") -> None:
     """Creates MLEM config in `path`
-    
+
     Args:
         path: Path to create config in. Defaults to current directory.
 
