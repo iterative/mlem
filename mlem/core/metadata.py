@@ -84,10 +84,10 @@ def load(
     """Load python object saved by MLEM
 
     Args:
-        path (str): Path to the object. Could be local path or path inside a git repo.
-        project (Optional[str], optional): URL to project if object is located there.
-        rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load the
+        path: Path to the object. Could be local path or path inside a git repo.
+        project: URL to project if object is located there.
+        rev: revision, could be git commit SHA, branch name or tag.
+        follow_links: If object we read is a MLEM link, whether to load the
             actual object link points to. Defaults to True.
 
     Returns:
@@ -149,12 +149,12 @@ def load_meta(
     """Load MlemObject
 
     Args:
-        path (str): Path to the object. Could be local path or path inside a git repo.
-        project (Optional[str], optional): URL to project if object is located there.
-        rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load the
+        path: Path to the object. Could be local path or path inside a git repo.
+        project: URL to project if object is located there.
+        rev: revision, could be git commit SHA, branch name or tag.
+        follow_links: If object we read is a MLEM link, whether to load the
             actual object link points to. Defaults to True.
-        load_value (bool, optional): Load actual python object incorporated in MlemObject. Defaults to False.
+        load_value: Load actual python object incorporated in MlemObject. Defaults to False.
         fs: filesystem to load from. If not provided, will be inferred from path
         force_type: type of meta to be loaded. Defaults to MlemObject (any mlem meta)
     Returns:

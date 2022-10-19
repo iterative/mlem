@@ -60,18 +60,19 @@ def apply(
     """Apply provided model against provided data
 
     Args:
-        model (MlemModel): MLEM model.
-        data (Any): Input to the model.
-        method (str, optional): Which model method to use.
+        model: MLEM model.
+        data: Input to the model.
+        method: Which model method to use.
             If None, use the only method model has.
             If more than one is available, will fail.
-        output (str, optional): If value is provided,
+        output: If value is provided,
             assume it's path and save output there.
+        target_project: Path to MLEM project to save the result to.
+        batch_size: If provided, will process data in batches of given size.
 
     Returns:
         If `output=None`, returns results for given data.
             Otherwise returns None.
-
     """
     model = get_model_meta(model)
     w = model.model_type
@@ -112,18 +113,19 @@ def apply_remote(
     """Apply provided model against provided data
 
     Args:
-        client (Client): The client to access methods of deployed model.
-        data (Any): Input to the model.
-        method (str, optional): Which model method to use.
+        client: The client to access methods of deployed model.
+        data: Input to the model.
+        method: Which model method to use.
             If None, use the only method model has.
             If more than one is available, will fail.
-        output (str, optional): If value is provided,
+        output: If value is provided,
             assume it's path and save output there.
+        target_project: Path to MLEM project to save the result to.
+        **client_kwargs: Additional arguments to pass to client.
 
     Returns:
         If `output=None`, returns results for given data.
             Otherwise returns None.
-
     """
     client = ensure_mlem_object(Client, client, **client_kwargs)
     if method is not None:
@@ -160,19 +162,19 @@ def clone(
         and returns Python representation for the created object
 
     Args:
-        path (str): Path to the object. Could be local path or path inside a git repo.
-        target (str): Path to save the copy of initial object to.
-        project (Optional[str], optional): URL to project if object is located there.
-        rev (Optional[str], optional): revision, could be git commit SHA, branch name or tag.
-        fs (Optional[AbstractFileSystem], optional): filesystem to load object from
-        target_project (Optional[str], optional): path to project to save cloned object to
-        target_fs (Optional[AbstractFileSystem], optional): target filesystem
-        follow_links (bool, optional): If object we read is a MLEM link, whether to load
+        path: Path to the object. Could be local path or path inside a git repo.
+        target: Path to save the copy of initial object to.
+        project: URL to project if object is located there.
+        rev: revision, could be git commit SHA, branch name or tag.
+        fs: filesystem to load object from
+        target_project: path to project to save cloned object to
+        target_fs: target filesystem
+        follow_links: If object we read is a MLEM link, whether to load
             the actual object link points to. Defaults to True.
-        load_value (bool, optional): Load actual python object incorporated in MlemObject. Defaults to False.
+        load_value: Load actual python object incorporated in MlemObject. Defaults to False.
 
     Returns:
-        MlemObject: Copy of initial object saved to `out`
+        MlemObject: Copy of initial object saved to `out`.
     """
     meta = load_meta(
         path,
@@ -193,7 +195,14 @@ def clone(
 
 
 def init(path: str = ".") -> None:
-    """Creates mlem config in `path`"""
+    """Creates MLEM config in `path`
+    
+    Args:
+        path: Path to create config in. Defaults to current directory.
+
+    Returns:
+        None
+    """
     path = posixpath.join(path, MLEM_CONFIG_FILE_NAME)
     fs, path = get_fs(path)
     if fs.exists(path):
@@ -263,15 +272,15 @@ def link(
     """Creates MlemLink for an `source` object and dumps it if `target` is provided
 
     Args:
-        source (Union[str, MlemObject]): The object to create link from.
-        source_project (str, optional): Path to mlem project where to load obj from
-        rev (str, optional): Revision if object is stored in git repo.
-        target (str, optional): Where to store the link object.
-        target_project (str, optional): If provided,
+        source: The object to create link from.
+        source_project: Path to mlem project where to load obj from
+        rev: Revision if object is stored in git repo.
+        target: Where to store the link object.
+        target_project: If provided,
             treat `target` as link name and dump link in MLEM DIR
-        follow_links (bool): Whether to make link to the underlying object
+        follow_links: Whether to make link to the underlying object
             if `source` is itself a link. Defaults to True.
-        absolute (bool): Whether to make link absolute or relative to mlem project
+        absolute: Whether to make link absolute or relative to mlem project
 
     Returns:
         MlemLink: Link object to the `source`.
@@ -299,12 +308,15 @@ def build(
     model: Union[str, MlemModel],
     **builder_kwargs,
 ):
-    """Pack model in docker-build-ready folder or directly build a docker image.
+    """Pack model into something useful, such as docker image, Python package or something else.
 
     Args:
-        builder (Union[str, MlemBuilder]): Packager to use.
-            Out-of-the-box supported string values are "docker_dir" and "docker".
-        model (Union[str, MlemModel]): The model to build.
+        builder: Builder to use.
+        model: The model to build.
+        builder_kwargs: Additional keyword arguments to pass to the builder.
+
+    Returns:
+        The result of the build, different for different builders.
     """
     model = get_model_meta(model, load_value=False)
     return ensure_mlem_object(MlemBuilder, builder, **builder_kwargs).build(
@@ -315,11 +327,15 @@ def build(
 def serve(
     model: Union[str, MlemModel], server: Union[Server, str], **server_kwargs
 ):
-    """Serve model via HTTP/HTTPS.
+    """Serve a model by exposing its methods as endpoints.
 
     Args:
-        model (Union[str, MlemModel]): The model to serve.
-        server (Union[Server, str]): Out-of-the-box supported one is "fastapi".
+        model: The model to serve.
+        server: Out-of-the-box supported one is "fastapi".
+        server_kwargs: Additional kwargs to pass to the server.
+
+    Returns:
+        None
     """
     from mlem.runtime.interface import ModelInterface
 
@@ -353,6 +369,22 @@ def import_object(
 ):
     """Try to load an object as MLEM model (or data) and return it,
     optionally saving to the specified target location
+
+    Args:
+        path: Path to the object to import.
+        project: Path to mlem project where to load obj from.
+        rev: Revision if object is stored in git repo.
+        fs: Filesystem to use to load the object.
+        target: Where to store the imported object.
+        target_project: If provided, treat `target` as object name and dump
+            object in this MLEM Project.
+        target_fs: Filesystem to use to save the object.
+        type_: Type of the object to import. If not provided, will try to
+            infer from the object itself.
+        copy_data: Whether to copy data to the target location.
+
+    Returns:
+        MlemObject: Imported object.
     """
     loc = Location.resolve(path, project, rev, fs)
     echo(EMOJI_LOAD + f"Importing object from {loc.uri_repr}")
@@ -382,6 +414,22 @@ def deploy(
     env_kwargs: Dict[str, Any] = None,
     **deploy_kwargs,
 ) -> MlemDeployment:
+    """Deploy a model to a target environment. Can use an existing deployment
+    declaration or create a new one on-the-fly.
+
+    Args:
+        deploy_meta_or_path: MlemDeployment object or path to it.
+        model: The model to deploy.
+        env: The environment to deploy to.
+        project: Path to mlem project where to load obj from.
+        rev: Revision if object is stored in git repo.
+        fs: Filesystem to use to load the object.
+        env_kwargs: Additional kwargs to pass to the environment.
+        deploy_kwargs: Additional kwargs to pass to the deployment.
+
+    Returns:
+        MlemDeployment: The deployment object.
+    """
     deploy_meta: MlemDeployment
     update = False
     if isinstance(deploy_meta_or_path, str):
