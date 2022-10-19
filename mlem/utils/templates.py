@@ -21,6 +21,7 @@ class TemplateModel(BaseModel):
         j2 = Environment(
             loader=FileSystemLoader([self.TEMPLATE_DIR] + self.templates_dir),
             undefined=StrictUndefined,
+            autoescape=True,
         )
         template = j2.get_template(self.TEMPLATE_FILE)
         args = self.prepare_dict()
