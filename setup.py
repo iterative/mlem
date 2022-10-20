@@ -19,7 +19,7 @@ install_requires = [
     "cached-property",
     "entrypoints",
     "gitpython",
-    "python-gitlab",
+    "morefs[gitlab] @ git+https://github.com/skshetry/morefs@gitlabfs",
     "flatdict",
     "iterative-telemetry",
 ]
