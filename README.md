@@ -45,7 +45,7 @@ The main reason to use MLEM instead of other tools is to adopt a **GitOps approa
 
 ## Usage
 
-This a quick walkthrough showcasing deployment and export functionality of MLEM.
+This a quick walkthrough showcasing deployment functionality of MLEM.
 
 Please read [Get Started guide](https://mlem.ai/doc/get-started) for a full version.
 
@@ -81,7 +81,7 @@ def main():
 
     save(
         rf,
-        "rf",
+        "models/rf",
         sample_data=data,
     )
 
@@ -89,10 +89,26 @@ if __name__ == "__main__":
     main()
 ```
 
+### Productionization
+
+We'll show how to deploy your model with MLEM below, but let's briefly mention all the
+scenarios that MLEM enables with a couple lines of code:
+
+- **[Apply model](/doc/get-started/applying)** - load model in Python or get
+  prediction in command line.
+- **[Serve model](/doc/get-started/serving)** - create a service from your model
+  for online serving.
+- **[Build model](/doc/get-started/building)** - export model into Python
+  packages, Docker images, etc.
+- **[Deploy model](/doc/get-started/deploying)** - deploy your model to Heroku,
+  Sagemaker, Kubernetes, etc.
+
+### Codification
+
 Check out what we have:
 
 ```shell
-$ ls
+$ ls models/
 rf
 rf.mlem
 $ cat rf.mlem
@@ -153,51 +169,6 @@ model_type:
         - null
         - 3
         type: ndarray
-    sklearn_predict:
-      args:
-      - name: X
-        type_:
-          columns:
-          - sepal length (cm)
-          - sepal width (cm)
-          - petal length (cm)
-          - petal width (cm)
-          dtypes:
-          - float64
-          - float64
-          - float64
-          - float64
-          index_cols: []
-          type: dataframe
-      name: predict
-      returns:
-        dtype: int64
-        shape:
-        - null
-        type: ndarray
-    sklearn_predict_proba:
-      args:
-      - name: X
-        type_:
-          columns:
-          - sepal length (cm)
-          - sepal width (cm)
-          - petal length (cm)
-          - petal width (cm)
-          dtypes:
-          - float64
-          - float64
-          - float64
-          - float64
-          index_cols: []
-          type: dataframe
-      name: predict_proba
-      returns:
-        dtype: float64
-        shape:
-        - null
-        - 3
-        type: ndarray
   type: sklearn
 object_type: model
 requirements:
@@ -213,54 +184,31 @@ requirements:
 ### Deploying the model
 
 If you want to follow this Quick Start, you'll need to sign up on https://heroku.com,
-create an API_KEY and populate `HEROKU_API_KEY` env var.
-
-First, create an environment to deploy your model:
-
-```shell
-$ mlem declare env heroku staging
-💾 Saving env to staging.mlem
-```
+create an API_KEY and populate `HEROKU_API_KEY` env var (or run `heroku login` in command line).
+Besides, you'll need to run `heroku container:login`. This will log you in to Heroku
+container registry.
 
 Now we can [deploy the model with `mlem deploy`](https://mlem.ai/doc/get-started/deploying)
 (you need to use different `app_name`, since it's going to be published on https://herokuapp.com):
 
 ```shell
-$ mlem deployment run mydeploy -m rf -t staging -c app_name=mlem-quick-start
-⏳️ Loading deployment from .mlem/deployment/myservice.mlem
-🔗 Loading link to .mlem/env/staging.mlem
-🔗 Loading link to .mlem/model/rf.mlem
-💾 Updating deployment at .mlem/deployment/myservice.mlem
-🏛 Creating Heroku App example-mlem-get-started
-💾 Updating deployment at .mlem/deployment/myservice.mlem
+$ mlem deployment run heroku app.mlem \
+  --model models/rf \
+  --app_name example-mlem-get-started-app
+⏳️ Loading model from models/rf.mlem
+⏳️ Loading deployment from app.mlem
 🛠 Creating docker image for heroku
+  🛠 Building MLEM wheel file...
   💼 Adding model files...
   🛠 Generating dockerfile...
   💼 Adding sources...
   💼 Generating requirements file...
-  🛠 Building docker image registry.heroku.com/example-mlem-get-started/web...
-  ✅  Built docker image registry.heroku.com/example-mlem-get-started/web
-  🔼 Pushed image registry.heroku.com/example-mlem-get-started/web to remote registry at host registry.heroku.com
-💾 Updating deployment at .mlem/deployment/myservice.mlem
-🛠 Releasing app my-mlem-service formation
-💾 Updating deployment at .mlem/deployment/myservice.mlem
-✅  Service example-mlem-get-started is up. You can check it out at https://mlem-quick-start.herokuapp.com/
-```
-
-### Exporting the model
-
-You could easily [export the model to a different format using `mlem build`](https://mlem.ai/doc/get-started/building):
-
-```
-$ mlem build rf docker -c server.type=fastapi -c image.name=sklearn-model
-⏳️ Loading model from rf.mlem
-🛠 Building MLEM wheel file...
-💼 Adding model files...
-🛠 Generating dockerfile...
-💼 Adding sources...
-💼 Generating requirements file...
-🛠 Building docker image sklearn-model:latest...
-✅  Built docker image sklearn-model:latest
+  🛠 Building docker image registry.heroku.com/example-mlem-get-started-app/web...
+  ✅  Built docker image registry.heroku.com/example-mlem-get-started-app/web
+  🔼 Pushing image registry.heroku.com/example-mlem-get-started-app/web to registry.heroku.com
+  ✅  Pushed image registry.heroku.com/example-mlem-get-started-app/web to registry.heroku.com
+🛠 Releasing app example-mlem-get-started-app formation
+✅  Service example-mlem-get-started-app is up. You can check it out at https://example-mlem-get-started-app.herokuapp.com/
 ```
 
 ## Contributing
