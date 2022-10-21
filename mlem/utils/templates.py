@@ -2,7 +2,12 @@ from typing import ClassVar, List
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
+from jinja2 import (
+    Environment,
+    FileSystemLoader,
+    StrictUndefined,
+    select_autoescape,
+)
 from pydantic import BaseModel
 
 
