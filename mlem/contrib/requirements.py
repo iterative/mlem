@@ -44,7 +44,7 @@ class RequirementsBuilder(MlemBuilder):
         reqs = obj.requirements.of_type(req_type_cls)
         if self.target is None:
             reqs_representation = [r.get_repr() for r in reqs]
-            requirement_string = "\n".join(reqs_representation)
+            requirement_string = " ".join(reqs_representation)
             print(requirement_string)
         else:
             echo(EMOJI_PACK + "Materializing requirements...")

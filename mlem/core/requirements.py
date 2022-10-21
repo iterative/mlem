@@ -311,10 +311,6 @@ class FileRequirement(CustomRequirement):
     def get_repr(self):
         raise NotImplementedError
 
-    @classmethod
-    def materialize(cls, reqs, target: str):
-        super(FileRequirement, cls).materialize(reqs, target)
-
     def to_sources_dict(self):
         """
         Mapping path -> source code for this requirement
@@ -480,13 +476,16 @@ class Requirements(BaseModel):
             return Requirements(__root__=[])
         return resolve_requirements(requirements)
 
+    def materialize_custom(self, path: str):
+        CustomRequirement.materialize(self.custom, path)
+
     @contextlib.contextmanager
     def import_custom(self):
         if not self.custom:
             yield
             return
         with tempfile.TemporaryDirectory(prefix="mlem_custom_reqs") as dirname:
-            CustomRequirement.materialize(self.custom, dirname)
+            self.materialize_custom(dirname)
             sys.path.insert(0, dirname)
             for cr in self.custom:
                 import_module(cr.module)

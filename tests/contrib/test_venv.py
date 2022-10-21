@@ -14,6 +14,17 @@ from mlem.core.requirements import InstallableRequirement
 from tests.contrib.conftest import conda_test
 
 
+@pytest.fixture
+def sys_prefix_path(tmp_path):
+    old_sys_prefix = sys.prefix
+    path = str(tmp_path / "venv-act")
+    sys.prefix = os.path.abspath(path)
+
+    yield path
+
+    sys.prefix = old_sys_prefix
+
+
 def process_conda_list_output(installed_pkgs):
     def get_words(line):
         return re.findall(r"[^\s]+", line)
@@ -50,30 +61,26 @@ def test_build_venv(tmp_path, model_meta):
     path = str(tmp_path / "venv")
     builder = VenvBuilder(target=path)
     env_dir = builder.build(model_meta)
-    installed_pkgs = (
+    installed_pkgs = set(
         builder.get_installed_packages(env_dir).decode().splitlines()
     )
-    for each_req in model_meta.requirements.to_pip():
-        assert each_req in installed_pkgs
+    required_pkgs = set(model_meta.requirements.to_pip())
+    assert required_pkgs.issubset(installed_pkgs)
 
 
 def test_install_in_current_venv_not_active(tmp_path, model_meta):
     path = str(tmp_path / "venv")
     builder = VenvBuilder(target=path, current_env=True)
-    with pytest.raises(MlemError) as e:
+    with pytest.raises(MlemError, match="No virtual environment detected"):
         builder.build(model_meta)
-    assert "No virtual environment detected" in str(e.value)
 
 
-def test_install_in_current_active_venv(tmp_path, model_meta):
-    old_sys_prefix = sys.prefix
-    path = str(tmp_path / "venv-act")
-    builder = VenvBuilder(target=path)
-    env_dir = os.path.abspath(path)
+def test_install_in_current_active_venv(sys_prefix_path, model_meta):
+    builder = VenvBuilder(target=sys_prefix_path)
+    env_dir = os.path.abspath(sys_prefix_path)
     builder.create_virtual_env()
     assert builder.get_installed_packages(env_dir).decode() == ""
     os.environ["VIRTUAL_ENV"] = env_dir
-    sys.prefix = env_dir
     builder.current_env = True
     builder.build(model_meta)
     installed_pkgs = (
@@ -81,4 +88,3 @@ def test_install_in_current_active_venv(tmp_path, model_meta):
     )
     for each_req in model_meta.requirements.to_pip():
         assert each_req in installed_pkgs
-    sys.prefix = old_sys_prefix
