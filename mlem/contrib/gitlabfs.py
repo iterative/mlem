@@ -32,7 +32,7 @@ class GitlabResolver(CloudGitResolver):
 
     @classmethod
     def check_rev(cls, options):
-        return check_rev(options["project_id"]).branches.get(options["sha"])
+        return check_rev(options["project_id"], options["sha"])
 
     @classmethod
     def get_uri(
