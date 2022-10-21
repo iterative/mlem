@@ -323,7 +323,7 @@ class LocalArtifact(FSSpecArtifact):
 
 
 def md5_fileobj(fobj):
-    hash_md5 = hashlib.md5(usedforsecurity=False)
+    hash_md5 = hashlib.md5()  # nosec: B324
     for chunk in iter(lambda: fobj.read(CHUNK_SIZE), b""):
         hash_md5.update(chunk)
     return hash_md5.hexdigest()
