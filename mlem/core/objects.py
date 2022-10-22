@@ -302,7 +302,9 @@ class MlemObject(MlemABC):
             self._write_meta(self.location)
 
     def meta_hash(self):
-        return hashlib.md5(safe_dump(self.dict()).encode("utf8")).hexdigest()
+        return hashlib.md5(  # nosec: B324
+            safe_dump(self.dict()).encode("utf8")
+        ).hexdigest()
 
 
 TL = TypeVar("TL", bound="MlemLink")

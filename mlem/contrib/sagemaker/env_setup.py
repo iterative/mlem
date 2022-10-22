@@ -23,7 +23,7 @@ def _tf_command(tf_dir, command, *flags, **args):
 def _tf_get_var(tf_dir, varname):
     return (
         subprocess.check_output(
-            _tf_command(tf_dir, "output", varname), shell=True
+            _tf_command(tf_dir, "output", varname), shell=True  # nosec: B602
         )
         .decode("utf8")
         .strip()
@@ -47,7 +47,10 @@ def sagemaker_terraform(
         os.path.join(os.path.dirname(__file__), MLEM_TF),
         os.path.join(work_dir, MLEM_TF),
     )
-    subprocess.check_output(_tf_command(work_dir, "init"), shell=True)
+    subprocess.check_output(
+        _tf_command(work_dir, "init"),
+        shell=True,  # nosec: B602
+    )
 
     flags = ["-auto-approve"] if not plan else []
 
@@ -62,7 +65,7 @@ def sagemaker_terraform(
                 region_name=region_name,
                 profile=profile,
             ),
-            shell=True,
+            shell=True,  # nosec: B602
         )
     )
 

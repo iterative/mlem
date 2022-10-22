@@ -95,7 +95,7 @@ class WhlSource(MlemSource):
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
                 f"pip wheel . --no-deps -w {whl_dir}",
-                shell=True,
+                shell=True,  # nosec: B602
                 cwd=mlem_src_path,
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
