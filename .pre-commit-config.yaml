@@ -61,4 +61,4 @@ repos:
         exclude: tests/
         args:
           - -iii  # high level
-          - -lll  # high confidense
+          - -lll  # high confidence
