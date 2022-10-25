@@ -41,11 +41,9 @@ from mlem.ui import (
     cli_echo,
     color,
     echo,
+    no_echo,
     stderr_echo,
 )
-
-PATH_METAVAR = "path"
-COMMITISH_METAVAR = "commitish"
 
 PATH_METAVAR = "path"
 COMMITISH_METAVAR = "commitish"
@@ -339,6 +337,7 @@ def mlem_callback(
         False, "--verbose", "-v", help="Print debug messages"
     ),
     traceback: bool = Option(False, "--traceback", "--tb", hidden=True),
+    quiet: bool = Option(False, "--quiet", "-q"),
 ):
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
@@ -355,7 +354,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
+    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG, "quiet": quiet}
 
 
 def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
@@ -431,7 +430,7 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
                         and (o not in ikwargs or ikwargs[o] is None)
                     }
                 )
-            with cli_echo():
+            with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
                 res = f(*iargs, **ikwargs) or {}
             res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
         except (ClickException, Exit, Abort) as e:
