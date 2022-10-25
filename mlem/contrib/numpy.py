@@ -187,7 +187,7 @@ class NumpyNdarrayType(
         raise NotImplementedError
 
     @contextlib.contextmanager
-    def dump(self, instance: Any) -> BinaryIO:
+    def dump(self, instance: Any) -> Iterator[BinaryIO]:
         from mlem.contrib.pandas import InMemoryStoage
 
         dt = self.copy()

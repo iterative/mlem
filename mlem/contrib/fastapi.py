@@ -6,7 +6,7 @@ FastAPIServer implementation
 import logging
 from collections.abc import Callable
 from types import ModuleType
-from typing import Any, ClassVar, List, Optional, Type
+from typing import Any, ClassVar, List, Optional, Tuple, Type
 
 import fastapi
 import uvicorn
@@ -53,10 +53,13 @@ class FastAPIServer(Server, LibRequirementsMixin):
     @classmethod
     def _create_handler(
         cls, method_name: str, signature: Signature, executor: Callable
-    ):
+    ) -> Tuple[Optional[Callable], Optional[Type]]:
         serializers = {
-            arg.name: arg.type_.get_serializer() for arg in signature.args
+            arg.name: arg.type_.get_serializer_safe() for arg in signature.args
         }
+        serializers = {k: v for k, v in serializers.items() if v is not None}
+        if len(serializers) != len(signature.args):
+            return None, None
         kwargs = {
             key: (serializer.get_model(), ...)
             for key, serializer in serializers.items()
@@ -79,31 +82,49 @@ class FastAPIServer(Server, LibRequirementsMixin):
             rename_recursively(response_model, method_name + "_response")
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
-        def handler(model: schema_model):  # type: ignore[valid-type]
+        def handler(model: schema_model, return_as_file: bool = True):  # type: ignore[valid-type]
             values = {a.name: getattr(model, a.name) for a in signature.args}
             result = executor(**values)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
-        bin_handler: Optional[Callable]
-        try:
-            bin_serializer = signature.args[0].type_.get_binary_serializer()
+        return handler, response_model
 
-            def bin_handler(file: UploadFile, return_as_file: bool = True):
-                arg = bin_serializer.load(file.file)
-                result = executor(**{signature.args[0].name: arg})
-                if return_as_file:
-                    with signature.returns.get_binary_serializer().dump(
-                        result
-                    ) as buffer:
-                        return StreamingResponse(buffer)
-                response = response_serializer.serialize(result)
-                return parse_obj_as(response_model, response)
+    @classmethod
+    def _create_binary_handler(
+        cls, method_name: str, signature: Signature, executor: Callable
+    ) -> Optional[Callable]:
+        input_serializer = signature.args[0].type_.get_binary_serializer_safe()
+        if input_serializer is None:
+            return None
 
-        except NotImplementedError:
-            bin_handler = None
+        response_serializer = signature.returns.get_serializer_safe()
+        if response_serializer is not None:
+            response_model = response_serializer.get_model()
+            if issubclass(response_model, BaseModel):
+                rename_recursively(response_model, method_name + "_response")
+        else:
+            response_model = None
 
-        return handler, bin_handler, response_model
+        response_binary_serializer = (
+            signature.returns.get_binary_serializer_safe()
+        )
+
+        if (
+            response_serializer is None or response_model is None
+        ) and response_binary_serializer is None:
+            return None
+
+        def bin_handler(file: UploadFile, return_as_file: bool = True):
+            arg = input_serializer.load(file.file)
+            result = executor(**{signature.args[0].name: arg})
+            if return_as_file and response_binary_serializer:
+                with response_binary_serializer.dump(result) as buffer:
+                    return StreamingResponse(buffer)
+            response = response_serializer.serialize(result)
+            return parse_obj_as(response_model, response)
+
+        return bin_handler
 
     def app_init(self, interface: Interface):
         app = FastAPI()
@@ -114,17 +135,21 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
-            handler, bin_handler, response_model = self._create_handler(
+            handler, response_model = self._create_handler(
                 method, signature, executor
             )
 
-            app.add_api_route(
-                f"/{method}",
-                handler,
-                methods=["POST"],
-                response_model=response_model,
-            )
+            if handler:
+                app.add_api_route(
+                    f"/{method}",
+                    handler,
+                    methods=["POST"],
+                    response_model=response_model,
+                )
 
+            bin_handler = self._create_binary_handler(
+                method, signature, executor
+            )
             if bin_handler:
                 app.add_api_route(
                     f"/{method}",

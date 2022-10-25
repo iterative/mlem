@@ -2,7 +2,7 @@
 Base classes for working with data in MLEM
 """
 import builtins
-import io
+import contextlib
 import json
 import posixpath
 from abc import ABC, abstractmethod
@@ -11,12 +11,14 @@ from typing import (
     BinaryIO,
     ClassVar,
     Dict,
+    Generic,
     Iterator,
     List,
     Optional,
     Sized,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
@@ -27,7 +29,7 @@ from pydantic.main import create_model
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.base import MlemABC
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.hooks import Analyzer, Hook
+from mlem.core.hooks import Analyzer, Hook, IsInstanceHookMixin
 from mlem.core.requirements import Requirements, WithRequirements
 from mlem.utils.module import get_object_requirements
 
@@ -68,12 +70,26 @@ class DataType(ABC, MlemABC, WithRequirements):
             return self
         raise NotImplementedError
 
+    def get_serializer_safe(self, **kwargs) -> Optional["DataSerializer"]:
+        try:
+            return self.get_serializer(**kwargs)
+        except NotImplementedError:
+            return None
+
     def get_binary_serializer(
         self, **kwargs  # pylint: disable=unused-argument
     ) -> "DataBinSerializer":
         if isinstance(self, DataBinSerializer):
             return self
         raise NotImplementedError
+
+    def get_binary_serializer_safe(
+        self, **kwargs
+    ) -> Optional["DataBinSerializer"]:
+        try:
+            return self.get_binary_serializer(**kwargs)
+        except NotImplementedError:
+            return None
 
     def bind(self, data: Any):
         self.data = data
@@ -114,7 +130,8 @@ class DataBinSerializer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def dump(self, instance: Any) -> BinaryIO:
+    @contextlib.contextmanager
+    def dump(self, instance: Any) -> Iterator[BinaryIO]:
         raise NotImplementedError
 
     @abstractmethod
@@ -155,7 +172,10 @@ class DataAnalyzer(Analyzer):
     base_hook_class = DataHook
 
 
-class DataReader(MlemABC, ABC):
+DT = TypeVar("DT", bound=DataType)
+
+
+class DataReader(MlemABC, ABC, Generic[DT]):
     """Base class for defining logic to read data from a set of `Artifact`s"""
 
     class Config:
@@ -166,17 +186,17 @@ class DataReader(MlemABC, ABC):
     abs_name: ClassVar[str] = "data_reader"
 
     @abstractmethod
-    def read(self, artifacts: Artifacts) -> DataType:
+    def read(self, artifacts: Artifacts) -> DT:
         raise NotImplementedError
 
     @abstractmethod
     def read_batch(
         self, artifacts: Artifacts, batch_size: int
-    ) -> Iterator[DataType]:
+    ) -> Iterator[DT]:
         raise NotImplementedError
 
 
-class DataWriter(MlemABC):
+class DataWriter(MlemABC, Generic[DT]):
     """Base class for defining logic to write data. Should produce a set of
     `Artifact`s and a corresponding reader"""
 
@@ -188,8 +208,8 @@ class DataWriter(MlemABC):
 
     @abstractmethod
     def write(
-        self, data: DataType, storage: Storage, path: str
-    ) -> Tuple[DataReader, Artifacts]:
+        self, data: DT, storage: Storage, path: str
+    ) -> Tuple[DataReader[DT], Artifacts]:
         raise NotImplementedError
 
 
@@ -235,26 +255,26 @@ class PrimitiveType(DataType, DataHook, DataSerializer):
         return self.to_type
 
 
-class PrimitiveWriter(DataWriter):
+class PrimitiveWriter(DataWriter[PrimitiveType]):
     """Writer for primitive types"""
 
     type: ClassVar[str] = "primitive"
 
     def write(
-        self, data: DataType, storage: Storage, path: str
+        self, data: PrimitiveType, storage: Storage, path: str
     ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
             f.write(str(data.data).encode("utf-8"))
         return PrimitiveReader(data_type=data), {self.art_name: art}
 
 
-class PrimitiveReader(DataReader):
+class PrimitiveReader(DataReader[PrimitiveType]):
     """Reader for primitive types"""
 
     type: ClassVar[str] = "primitive"
     data_type: PrimitiveType
 
-    def read(self, artifacts: Artifacts) -> DataType:
+    def read(self, artifacts: Artifacts) -> PrimitiveType:
         if DataWriter.art_name not in artifacts:
             raise ValueError(
                 f"Wrong artifacts {artifacts}: should be one {DataWriter.art_name} file"
@@ -271,7 +291,7 @@ class PrimitiveReader(DataReader):
 
     def read_batch(
         self, artifacts: Artifacts, batch_size: int
-    ) -> Iterator[DataType]:
+    ) -> Iterator[PrimitiveType]:
         raise NotImplementedError
 
 
@@ -818,4 +838,61 @@ class DynamicDictReader(DataReader):
     def read_batch(
         self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DataType]:
+        raise NotImplementedError
+
+
+class BinaryDataType(
+    DataType, DataBinSerializer, DataHook, IsInstanceHookMixin
+):
+    type: ClassVar = "binary"
+
+    valid_types: ClassVar = (bytes,)
+
+    @classmethod
+    def process(cls, obj: Any, **kwargs) -> DataType:
+        return BinaryDataType().bind(obj)
+
+    def get_requirements(self) -> Requirements:
+        return Requirements.new()
+
+    def get_writer(
+        self, project: str = None, filename: str = None, **kwargs
+    ) -> "DataWriter":
+        raise NotImplementedError
+
+    def write(self, instance: Any) -> bytes:
+        raise NotImplementedError
+
+    def read(self, payload: bytes) -> Any:
+        raise NotImplementedError
+
+    def dump(self, instance: Any) -> BinaryIO:
+        raise NotImplementedError
+
+    def load(self, filelike: BinaryIO) -> Any:
+        return filelike.read()
+
+
+class BinaryWriter(DataWriter[BinaryDataType]):
+    type: ClassVar = "binary"
+
+    def write(
+        self, data: BinaryDataType, storage: Storage, path: str
+    ) -> Tuple[DataReader[BinaryDataType], Artifacts]:
+        with storage.open(path) as (f, art):
+            f.write(data.data)
+        return BinaryReader(data_type=data), {self.art_name: art}
+
+
+class BinaryReader(DataReader[BinaryDataType]):
+    type: ClassVar = "binary"
+
+    def read(self, artifacts: Artifacts) -> BinaryDataType:
+        art = artifacts[BinaryWriter.art_name]
+        with art.open() as f:
+            return BinaryDataType().bind(f.read())
+
+    def read_batch(
+        self, artifacts: Artifacts, batch_size: int
+    ) -> Iterator[BinaryDataType]:
         raise NotImplementedError

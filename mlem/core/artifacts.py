@@ -4,6 +4,7 @@ such as model binaries or .csv files
 """
 import contextlib
 import hashlib
+import io
 import os
 import posixpath
 import tempfile
@@ -320,6 +321,43 @@ class LocalArtifact(FSSpecArtifact):
             size=self.size,
             hash=self.hash,
         )
+
+
+class InMemoryArtifact(Artifact):
+    payload: bytes = b""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    def remove(self):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self) -> Iterator[IO]:
+        buffer = io.BytesIO(self.payload)
+        buffer.seek(0)
+        yield buffer
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
+        raise NotImplementedError
+
+
+class InMemoryStoage(Storage):
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
+        raise NotImplementedError
+
+    def upload(self, local_path: str, target_path: str) -> Artifact:
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self, path) -> Iterator[Tuple[IO, Artifact]]:
+        buffer = io.BytesIO()
+        art = InMemoryArtifact(uri="", size=-1, hash="")
+        yield buffer, art
+        art.payload = buffer.getvalue()
 
 
 def md5_fileobj(fobj):
