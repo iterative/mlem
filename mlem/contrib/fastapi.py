@@ -10,9 +10,10 @@ from typing import Any, ClassVar, List, Type
 
 import fastapi
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
+from starlette.responses import StreamingResponse
 
 from mlem.core.model import Signature
 from mlem.core.requirements import LibRequirementsMixin
@@ -84,7 +85,25 @@ class FastAPIServer(Server, LibRequirementsMixin):
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
-        return handler, response_model
+        bin_handler = None
+        try:
+            bin_serializer = signature.args[0].type_.get_binary_serializer()
+
+            def bin_handler(file: UploadFile, return_as_file: bool = True):
+                arg = bin_serializer.load(file.file)
+                result = executor(**{signature.args[0].name: arg})
+                if return_as_file:
+                    with signature.returns.get_binary_serializer().dump(
+                        result
+                    ) as buffer:
+                        return StreamingResponse(buffer)
+                response = response_serializer.serialize(result)
+                return parse_obj_as(response_model, response)
+
+        except NotImplementedError:
+            pass
+
+        return handler, bin_handler, response_model
 
     def app_init(self, interface: Interface):
         app = FastAPI()
@@ -95,7 +114,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
-            handler, response_model = self._create_handler(
+            handler, bin_handler, response_model = self._create_handler(
                 method, signature, executor
             )
 
@@ -105,6 +124,15 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 methods=["POST"],
                 response_model=response_model,
             )
+
+            if bin_handler:
+                app.add_api_route(
+                    f"/{method}",
+                    bin_handler,
+                    methods=["PUT"],
+                    response_model=response_model,
+                    response_class=StreamingResponse,
+                )
 
         return app
 

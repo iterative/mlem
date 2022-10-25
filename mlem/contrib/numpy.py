@@ -3,14 +3,26 @@ Extension type: data
 
 DataType, Reader and Writer implementations for `np.ndarray` and `np.number` primitives
 """
+import contextlib
 from types import ModuleType
-from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    BinaryIO,
+    ClassVar,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
+    DataBinSerializer,
     DataHook,
     DataReader,
     DataSerializer,
@@ -79,7 +91,7 @@ class NumpyNumberType(
 
 
 class NumpyNdarrayType(
-    LibRequirementsMixin, DataType, DataHook, DataSerializer
+    LibRequirementsMixin, DataType, DataHook, DataSerializer, DataBinSerializer
 ):
     """DataType implementation for `np.ndarray`"""
 
@@ -167,6 +179,26 @@ class NumpyNdarrayType(
 
     def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyArrayWriter()
+
+    def write(self, instance: Any) -> bytes:
+        raise NotImplementedError
+
+    def read(self, payload: bytes) -> Any:
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def dump(self, instance: Any) -> BinaryIO:
+        from mlem.contrib.pandas import InMemoryStoage
+
+        dt = self.copy()
+        dt.bind(instance)
+        w = self.get_writer()
+        _, art = w.write(dt, InMemoryStoage(), "")
+        with art[w.art_name].open() as f:
+            yield f
+
+    def load(self, filelike: BinaryIO) -> Any:
+        raise NotImplementedError
 
 
 DATA_KEY = "data"

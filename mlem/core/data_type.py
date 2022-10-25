@@ -2,11 +2,13 @@
 Base classes for working with data in MLEM
 """
 import builtins
+import io
 import json
 import posixpath
 from abc import ABC, abstractmethod
 from typing import (
     Any,
+    BinaryIO,
     ClassVar,
     Dict,
     Iterator,
@@ -66,6 +68,13 @@ class DataType(ABC, MlemABC, WithRequirements):
             return self
         raise NotImplementedError
 
+    def get_binary_serializer(
+        self, **kwargs  # pylint: disable=unused-argument
+    ) -> "DataBinSerializer":
+        if isinstance(self, DataBinSerializer):
+            return self
+        raise NotImplementedError
+
     def bind(self, data: Any):
         self.data = data
         return self
@@ -90,6 +99,26 @@ class DataSerializer(ABC):
 
     @abstractmethod
     def get_model(self, prefix: str = "") -> Union[Type[BaseModel], type]:
+        raise NotImplementedError
+
+
+class DataBinSerializer(ABC):
+    """Base class for data-to-dict serialization logic"""
+
+    @abstractmethod
+    def write(self, instance: Any) -> bytes:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read(self, payload: bytes) -> Any:
+        raise NotImplementedError
+
+    @abstractmethod
+    def dump(self, instance: Any) -> BinaryIO:
+        raise NotImplementedError
+
+    @abstractmethod
+    def load(self, filelike: BinaryIO) -> Any:
         raise NotImplementedError
 
 

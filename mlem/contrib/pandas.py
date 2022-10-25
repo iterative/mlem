@@ -4,6 +4,8 @@ Extension type: data
 DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
 ImportHook implementation for files saved with pandas
 """
+import contextlib
+import io
 import os.path
 import posixpath
 import re
@@ -12,6 +14,7 @@ from dataclasses import dataclass
 from typing import (
     IO,
     Any,
+    BinaryIO,
     Callable,
     ClassVar,
     Dict,
@@ -25,6 +28,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from fsspec import AbstractFileSystem
 from pandas import Int64Dtype, SparseDtype, StringDtype
 from pandas.core.dtypes.dtypes import (
     CategoricalDtype,
@@ -39,6 +43,7 @@ from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
 from mlem.core.artifacts import Artifact, Artifacts, Storage
 from mlem.core.data_type import (
+    DataBinSerializer,
     DataHook,
     DataReader,
     DataSerializer,
@@ -118,7 +123,12 @@ class PandasConfig(MlemConfigBase):
 
 
 class _PandasDataType(
-    LibRequirementsMixin, DataType, DataHook, DataSerializer, ABC
+    LibRequirementsMixin,
+    DataType,
+    DataHook,
+    DataSerializer,
+    DataBinSerializer,
+    ABC,
 ):
     """Intermidiate class for pandas DataType implementations"""
 
@@ -215,6 +225,66 @@ class _PandasDataType(
                 instance[col] = instance[col].astype("string")
 
         return {"values": (instance.to_dict("records"))}
+
+    def write(self, instance: Any) -> bytes:
+        fmt = project_config("", section=PandasConfig).default_format
+        f = PANDAS_FORMATS[fmt]
+        art = f.write(instance, InMemoryStoage())
+        return art.payload
+
+    def read(self, payload: bytes) -> Any:
+        pass
+
+    def dump(self, instance: Any) -> BinaryIO:
+        pass
+
+    def load(self, filelike: BinaryIO) -> Any:
+        fmt = project_config("", section=PandasConfig).default_format
+        f: PandasFormat = PANDAS_FORMATS[fmt]
+        return f.read(
+            {
+                PandasWriter.art_name: InMemoryArtifact(
+                    uri="", size=-1, hash="", payload=filelike.read()
+                )
+            }
+        )
+
+
+class InMemoryArtifact(Artifact):
+    payload: bytes = b""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    def remove(self):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self) -> Iterator[IO]:
+        buffer = io.BytesIO(self.payload)
+        buffer.seek(0)
+        yield buffer
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
+        raise NotImplementedError
+
+
+class InMemoryStoage(Storage):
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
+        raise NotImplementedError
+
+    def upload(self, local_path: str, target_path: str) -> Artifact:
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self, path) -> Iterator[Tuple[IO, Artifact]]:
+        buffer = io.BytesIO()
+        art = InMemoryArtifact(uri="", size=-1, hash="")
+        yield buffer, art
+        art.payload = buffer.getvalue()
 
 
 class SeriesType(_PandasDataType):
