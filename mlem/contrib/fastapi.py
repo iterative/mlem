@@ -6,7 +6,7 @@ FastAPIServer implementation
 import logging
 from collections.abc import Callable
 from types import ModuleType
-from typing import Any, ClassVar, List, Type
+from typing import Any, ClassVar, List, Optional, Type
 
 import fastapi
 import uvicorn
@@ -85,7 +85,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
-        bin_handler = None
+        bin_handler: Optional[Callable]
         try:
             bin_serializer = signature.args[0].type_.get_binary_serializer()
 
@@ -101,7 +101,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 return parse_obj_as(response_model, response)
 
         except NotImplementedError:
-            pass
+            bin_handler = None
 
         return handler, bin_handler, response_model
 
@@ -130,8 +130,8 @@ class FastAPIServer(Server, LibRequirementsMixin):
                     f"/{method}",
                     bin_handler,
                     methods=["PUT"],
-                    response_model=response_model,
-                    response_class=StreamingResponse,
+                    # response_model=response_model,
+                    # response_class=StreamingResponse,
                 )
 
         return app
