@@ -996,13 +996,13 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
         cls, value  # noqa: B902
     ):
         if value is None:
-            value = project_config("").state
+            value = project_config("").state or LocalFileStateManager()
         return value
 
     @property
     def _state_manager(self) -> StateManager:
         if self.state_manager is None:
-            return LocalFileStateManager()
+            self.state_manager = LocalFileStateManager()
         return self.state_manager
 
     def get_state(self) -> ST:
