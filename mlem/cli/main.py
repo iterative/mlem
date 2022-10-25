@@ -337,7 +337,7 @@ def mlem_callback(
         False, "--verbose", "-v", help="Print debug messages"
     ),
     traceback: bool = Option(False, "--traceback", "--tb", hidden=True),
-    quiet: bool = Option(False, "--quiet", "-q"),
+    quiet: bool = Option(False, "--quiet", "-q", help="Suppress output"),
 ):
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
