@@ -8,11 +8,13 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
 from mlem.api.utils import (
+    api_telemetry,
     ensure_meta,
     ensure_mlem_object,
     get_data_value,
     get_model_meta,
     parse_import_type_modifier,
+    set_api_event_param,
 )
 from mlem.constants import MLEM_CONFIG_FILE_NAME, PREDICT_METHOD_NAME
 from mlem.core.errors import (
@@ -49,6 +51,7 @@ from mlem.ui import (
 from mlem.utils.root import find_project_root, mlem_project_exists
 
 
+@api_telemetry
 def apply(
     model: Union[str, MlemModel],
     *data: Union[str, MlemData, Any],
@@ -102,6 +105,7 @@ def apply(
     return save(res, output, project=target_project)
 
 
+@api_telemetry
 def apply_remote(
     client: Union[str, Client],
     *data: Union[str, MlemData, Any],
@@ -147,6 +151,7 @@ def apply_remote(
     return save(res, output, project=target_project)
 
 
+@api_telemetry
 def clone(
     path: str,
     target: str,
@@ -194,6 +199,7 @@ def clone(
     )
 
 
+@api_telemetry
 def init(path: str = ".") -> None:
     """Creates MLEM config in `path`
 
@@ -260,6 +266,7 @@ def init(path: str = ".") -> None:
         )
 
 
+@api_telemetry
 def link(
     source: Union[str, MlemObject],
     source_project: Optional[str] = None,
@@ -303,6 +310,7 @@ def link(
     )
 
 
+@api_telemetry
 def build(
     builder: Union[str, MlemBuilder],
     model: Union[str, MlemModel],
@@ -324,6 +332,7 @@ def build(
     )
 
 
+@api_telemetry
 def serve(
     model: Union[str, MlemModel], server: Union[Server, str], **server_kwargs
 ):
@@ -343,6 +352,7 @@ def serve(
     interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
+    set_api_event_param("server_impl", server_obj.type)
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 
@@ -356,6 +366,7 @@ def _validate_ls_project(loc: Location, project):
         mlem_project_exists(loc.project, loc.fs, raise_on_missing=True)
 
 
+@api_telemetry
 def import_object(
     path: str,
     project: Optional[str] = None,
@@ -404,6 +415,7 @@ def import_object(
     return meta
 
 
+@api_telemetry
 def deploy(
     deploy_meta_or_path: Union[MlemDeployment, str],
     model: Union[MlemModel, str],

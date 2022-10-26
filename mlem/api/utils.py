@@ -1,6 +1,19 @@
+import contextlib
 import re
-from typing import Any, Optional, Tuple, Type, TypeVar, Union, overload
+from functools import wraps
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
+from pydantic import BaseModel
 from typing_extensions import Literal
 
 from mlem.core.base import MlemABC, build_mlem_object, load_impl_ext
@@ -109,3 +122,52 @@ def parse_import_type_modifier(type_: str) -> Tuple[str, Optional[str]]:
     if not match:
         return type_, None
     return match.group(1), match.group(2)
+
+
+class ApiEvent(BaseModel):
+    name: str
+    error: Optional[str] = None
+    kwargs: Dict[str, Any] = {}
+
+
+_current_event: Optional[ApiEvent] = None
+
+
+def set_api_event_param(key: str, value):
+    if _current_event:
+        _current_event.kwargs[key] = value
+
+
+@contextlib.contextmanager
+def api_event_scope(name: str) -> Iterator[ApiEvent]:
+    global _current_event  # pylint: disable=global-statement
+    event = ApiEvent(name=name)
+    tmp = _current_event
+    _current_event = event
+    try:
+        yield event
+    finally:
+        _current_event = tmp
+
+
+def api_telemetry(f):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        with api_event_scope(f.__name__) as event:
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                event.error = e.__class__.__name__
+                raise
+            finally:
+                send_api_event(event.name, event.error, **event.kwargs)
+
+    return inner
+
+
+def send_api_event(name: str, error: str = None, **kwargs):
+    from mlem.cli.utils import is_cli
+    from mlem.telemetry import telemetry
+
+    if not is_cli():
+        telemetry.send_event("api", name, error, **kwargs)

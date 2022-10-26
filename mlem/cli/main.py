@@ -30,6 +30,7 @@ from mlem.cli.utils import (
     CallContext,
     _format_validation_error,
     get_extra_keys,
+    mark_as_cli,
 )
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
@@ -348,6 +349,7 @@ def mlem_callback(
     \b
     Documentation: <https://mlem.ai/doc>
     """
+    mark_as_cli()
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():
             echo(EMOJI_MLEM + f"MLEM Version: {version.__version__}")
