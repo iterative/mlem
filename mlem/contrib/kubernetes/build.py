@@ -15,7 +15,7 @@ def build_k8s_docker(
     daemon: Optional[DockerDaemon],
     server: Server,
     platform: Optional[str] = "linux/amd64",
-    # runners usually do not support arm64 images built on Mac M1 devices
+    # runners usually do not support arm64 images built on M1 Mac devices
 ):
     echo(EMOJI_BUILD + f"Creating docker image {image_name}")
     with set_offset(2):
