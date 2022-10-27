@@ -36,6 +36,11 @@ from mlem.core.objects import (
     MlemObject,
 )
 from mlem.runtime.client import Client
+from mlem.runtime.interface import (
+    Interface,
+    conform_interface,
+    standard_interface,
+)
 from mlem.runtime.server import Server
 from mlem.ui import (
     EMOJI_APPLY,
@@ -325,13 +330,17 @@ def build(
 
 
 def serve(
-    model: Union[str, MlemModel], server: Union[Server, str], **server_kwargs
+    model: Union[str, MlemModel],
+    server: Union[Server, str],
+    standardize: bool = True,
+    **server_kwargs,
 ):
     """Serve a model by exposing its methods as endpoints.
 
     Args:
         model: The model to serve.
         server: Out-of-the-box supported one is "fastapi".
+        standardize: Whether to conform model interface to standard ("predict" method with single arg "data")
         server_kwargs: Additional kwargs to pass to the server.
 
     Returns:
@@ -340,9 +349,17 @@ def serve(
     from mlem.runtime.interface import ModelInterface
 
     model = get_model_meta(model, load_value=True)
-    interface = ModelInterface(model_type=model.model_type)
+    interface: Interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
+    if server_obj.interface:
+        interface = conform_interface(
+            server_obj.interface, interface, server_obj.strict_interface
+        )
+    elif standardize:
+        interface = conform_interface(
+            standard_interface(model.model_type), interface, strict=False
+        )
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 

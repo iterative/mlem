@@ -12,7 +12,6 @@ from typing import Any, ClassVar, Dict, List, Optional, Type
 import xgboost
 from pydantic import BaseModel
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
@@ -165,12 +164,7 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
     ) -> ModelType:
         model = XGBoostModel(model=obj, methods={})
         methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "xgboost_predict": Signature.from_method(
+            "predict": Signature.from_method(
                 obj.predict, auto_infer=sample_data is None, data=sample_data
             ),
         }

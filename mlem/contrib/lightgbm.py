@@ -12,7 +12,6 @@ from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type
 import lightgbm as lgb
 from pydantic import BaseModel
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataAnalyzer,
@@ -183,21 +182,11 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     ) -> ModelType:
         gbm_model = LightGBMModel(model=obj, methods={})
         gbm_model.methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                gbm_model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "lightgbm_predict": Signature.from_method(
+            "predict": Signature.from_method(
                 obj.predict, auto_infer=sample_data is None, data=sample_data
             ),
         }
         return gbm_model
-
-    def predict(self, data):
-        if isinstance(data, lgb.Dataset):
-            data = data.data
-        return self.model.predict(data)
 
     def get_requirements(self) -> Requirements:
         return (

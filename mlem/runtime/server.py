@@ -4,7 +4,7 @@ from typing import ClassVar, Dict, List, Optional
 
 from mlem.core.base import MlemABC
 from mlem.core.requirements import WithRequirements
-from mlem.runtime.interface import Interface
+from mlem.runtime.interface import Interface, InterfaceDescriptor
 
 
 class Server(MlemABC, ABC, WithRequirements):
@@ -19,6 +19,8 @@ class Server(MlemABC, ABC, WithRequirements):
     abs_name: ClassVar[str] = "server"
     env_vars: ClassVar[Optional[Dict[str, str]]] = None
     additional_source_files: ClassVar[Optional[List[str]]] = None
+    interface: Optional[InterfaceDescriptor] = None
+    strict_interface: bool = False
 
     @abstractmethod
     def serve(self, interface: Interface):

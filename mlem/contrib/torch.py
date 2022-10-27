@@ -10,7 +10,6 @@ from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 import torch
 from pydantic import conlist, create_model
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, FSSpecArtifact, Storage
 from mlem.core.data_type import (
@@ -176,12 +175,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     ) -> ModelType:
         model = TorchModel(model=obj, methods={})
         model.methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "torch_predict": Signature.from_method(
+            "predict": Signature.from_method(
                 obj.__call__,
                 sample_data,
                 auto_infer=sample_data is not None,
