@@ -71,8 +71,7 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python }}
-        auto-activate-base: true
-        activate-environment: ""
+        activate-environment: true
     - name: get pip cache dir
       id: pip-cache-dir
       run: |
