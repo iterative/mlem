@@ -3,6 +3,7 @@ from pathlib import Path
 from setuptools import find_packages, setup
 
 install_requires = [
+    "cloudpickle",
     "dill",
     "requests",
     "isort>=5.10",
