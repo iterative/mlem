@@ -52,7 +52,9 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
+    """DataType of Inner"""
     labels: Optional[DataType]
+    """DataType of Labels"""
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
@@ -165,7 +167,9 @@ class LightGBMDataReader(DataReader):
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
+    """DataReader of Inner"""
     labels: Optional[DataReader]
+    """DataReader of Labels"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         if self.labels is not None:
