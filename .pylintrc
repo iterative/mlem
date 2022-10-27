@@ -170,7 +170,8 @@ disable=print-statement,
         redefined-builtin, # TODO: https://github.com/iterative/mlem/issues/60
         no-self-use, # TODO: https://github.com/iterative/mlem/issues/60 maybe leave it
         import-outside-toplevel,
-        wrong-import-order # handeled by isort
+        wrong-import-order, # handeled by isort
+        cannot-enumerate-pytest-fixtures # TODO: https://github.com/iterative/mlem/issues/60
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -369,7 +370,7 @@ indent-string='    '
 max-line-length=100
 
 # Maximum number of lines in a module.
-max-module-lines=1000
+max-module-lines=2000
 
 # Allow the body of a class to be on the same line as the declaration if body
 # contains single statement.
@@ -389,7 +390,7 @@ ignore-comments=yes
 ignore-docstrings=yes
 
 # Ignore imports when computing similarities.
-ignore-imports=no
+ignore-imports=yes
 
 # Ignore function signatures when computing similarities.
 ignore-signatures=no

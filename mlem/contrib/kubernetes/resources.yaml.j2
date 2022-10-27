@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ namespace }}
+  labels:
+    name: {{ namespace }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ image_name }}
+  namespace: {{ namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ image_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ image_name }}
+    spec:
+      containers:
+      - name: {{ image_name }}
+        image: {{ image_uri }}
+        imagePullPolicy: {{ image_pull_policy }}
+        ports:
+        - containerPort: {{ port }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ image_name }}
+  namespace: {{ namespace }}
+  labels:
+    run: {{ image_name }}
+spec:
+  ports:
+  - port: {{ port }}
+    protocol: TCP
+    targetPort: {{ port }}
+  selector:
+    app: {{ image_name }}
+  type: {{ service_type }}

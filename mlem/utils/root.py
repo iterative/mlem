@@ -6,7 +6,7 @@ from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from typing_extensions import Literal
 
-from mlem.constants import MLEM_DIR
+from mlem.constants import MLEM_CONFIG_FILE_NAME
 from mlem.core.errors import MlemProjectNotFound
 
 
@@ -15,7 +15,7 @@ def mlem_project_exists(
 ):
     """Check is mlem project exists at path"""
     try:
-        exists = fs.exists(posixpath.join(path, MLEM_DIR))
+        exists = fs.exists(posixpath.join(path, MLEM_CONFIG_FILE_NAME))
     except ValueError:
         # some fsspec implementations throw ValueError because of
         # wrong bucket/container names containing "."

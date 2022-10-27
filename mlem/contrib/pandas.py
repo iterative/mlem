@@ -1,3 +1,9 @@
+"""Pandas data types support
+Extension type: data
+
+DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
+ImportHook implementation for files saved with pandas
+"""
 import os.path
 import posixpath
 import re
@@ -114,16 +120,15 @@ class PandasConfig(MlemConfigBase):
 class _PandasDataType(
     LibRequirementsMixin, DataType, DataHook, DataSerializer, ABC
 ):
-    """Intermidiate class for pandas DataType implementations
-
-    :param columns: list of column names (including index)
-    :param dtypes: list of string representations of pandas dtypes of columns
-    :param index_cols: list of column names that are used as index"""
+    """Intermidiate class for pandas DataType implementations"""
 
     libraries: ClassVar = [pd]
     columns: List[str]
+    """Column names"""
     dtypes: List[str]
+    """Column types"""
     index_cols: List[str]
+    """Column names that should be in index"""
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> "_PandasDataType":
@@ -562,6 +567,7 @@ def get_pandas_batch_formats(batch_size: int):
 
 class _PandasIO(BaseModel):
     format: str
+    """name of pandas-supported format"""
 
     @validator("format")
     def is_valid_format(  # pylint: disable=no-self-argument
@@ -671,6 +677,8 @@ class PandasWriter(DataWriter, _PandasIO):
 
 
 class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):
+    """Import files as pd.DataFrame"""
+
     EXTS: ClassVar = tuple(f".{k}" for k in PANDAS_FORMATS)
     type: ClassVar = "pandas"
     force_type: ClassVar = MlemData

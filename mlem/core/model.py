@@ -102,10 +102,15 @@ class Argument(BaseModel):
     """Function argument descriptor"""
 
     name: str
+    """argument name"""
     type_: DataType
+    """argument data type"""
     required: bool = True
+    """is required"""
     default: Any = None
+    """default value"""
     kw_only: bool = False
+    """is keyword only"""
 
     @classmethod
     def from_argspec(
@@ -177,10 +182,15 @@ class Signature(BaseModel, WithRequirements):
     """Function signature descriptor"""
 
     name: str
+    """function name"""
     args: List[Argument]
+    """list of arguments"""
     returns: DataType
+    """returning data type"""
     varargs: Optional[str] = None
+    """name of var arg"""
     varkw: Optional[str] = None
+    """name of varkw arg"""
 
     @classmethod
     def from_method(
@@ -230,9 +240,7 @@ T = TypeVar("T", bound="ModelType")
 
 
 class ModelType(ABC, MlemABC, WithRequirements):
-    """
-    Base class for model metadata.
-    """
+    """Base class for model metadata."""
 
     class Config:
         type_root = True
@@ -243,7 +251,9 @@ class ModelType(ABC, MlemABC, WithRequirements):
     model: Any = None
 
     io: ModelIO
+    """Model IO"""
     methods: Dict[str, Signature]
+    """Model method signatures"""
 
     def load(self, artifacts: Artifacts):
         self.model = self.io.load(artifacts)

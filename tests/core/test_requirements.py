@@ -46,39 +46,41 @@ def test_resolve_requirement_list_arg():
 def test_resolve_str_arg():
     req = "dumb==0.4.1"
     actual_reqs = resolve_requirements(req)
-    assert actual_reqs.installable[0].to_str() == req
+    assert actual_reqs.installable[0].get_repr() == req
 
 
 def test_resolve_str_list_arg():
     req = ["dumb==0.4.1", "art==4.0"]
     actual_reqs = resolve_requirements(req)
     assert len(actual_reqs.installable) == 2
-    assert sorted(req) == sorted([r.to_str() for r in actual_reqs.installable])
+    assert sorted(req) == sorted(
+        [r.get_repr() for r in actual_reqs.installable]
+    )
 
 
 def test_installable_requirement__from_module():
     import pandas as pd
 
     assert (
-        InstallableRequirement.from_module(pd).to_str()
+        InstallableRequirement.from_module(pd).get_repr()
         == f"pandas=={pd.__version__}"
     )
 
     import numpy as np
 
     assert (
-        InstallableRequirement.from_module(np).to_str()
+        InstallableRequirement.from_module(np).get_repr()
         == f"numpy=={np.__version__}"
     )
 
     import sklearn as sk
 
     assert (
-        InstallableRequirement.from_module(sk).to_str()
+        InstallableRequirement.from_module(sk).get_repr()
         == f"scikit-learn=={sk.__version__}"
     )
     assert (
-        InstallableRequirement.from_module(sk, "xyz").to_str()
+        InstallableRequirement.from_module(sk, "xyz").get_repr()
         == f"xyz=={sk.__version__}"
     )
 
@@ -138,9 +140,15 @@ def test_req_collection_main(tmpdir, postfix):
     assert res == 0
     meta = load_meta(model_path, force_type=MlemModel)
     assert set(meta.requirements.to_pip()) == {
-        InstallableRequirement.from_module(emoji).to_str(),
-        InstallableRequirement.from_module(numpy).to_str(),
+        InstallableRequirement.from_module(emoji).get_repr(),
+        InstallableRequirement.from_module(numpy).get_repr(),
     }
+
+
+def test_consistent_resolve_order():
+    reqs = ["a", "b", "c"]
+    for _ in range(10):
+        assert resolve_requirements(reqs).modules == reqs
 
 
 # Copyright 2019 Zyfra

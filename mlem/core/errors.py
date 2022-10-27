@@ -1,7 +1,7 @@
 """Exceptions raised by the MLEM."""
 from typing import List, Optional
 
-from mlem.constants import MLEM_DIR
+from mlem.constants import MLEM_CONFIG_FILE_NAME
 
 
 class MlemError(Exception):
@@ -22,7 +22,7 @@ class SerializationError(MlemError):
 
 
 class MlemProjectNotFound(MlemError):
-    _message = "{MLEM_DIR} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
+    _message = "{MLEM_CONFIG_FILE_NAME} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
 
     def __init__(self, path, fs=None, rev=None) -> None:
 
@@ -30,13 +30,20 @@ class MlemProjectNotFound(MlemError):
         self.fs = fs
         self.rev = rev
         self.message = self._message.format(
-            MLEM_DIR=MLEM_DIR, path=path, fs=fs, rev=rev
+            MLEM_CONFIG_FILE_NAME=MLEM_CONFIG_FILE_NAME,
+            path=path,
+            fs=fs,
+            rev=rev,
         )
         super().__init__(self.message)
 
 
 class LocationNotFound(MlemError):
     """Thrown if MLEM could not resolve location"""
+
+
+class EndpointNotFound(MlemError):
+    """Thrown if MLEM could not resolve endpoint"""
 
 
 class RevisionNotFound(LocationNotFound):
@@ -119,6 +126,21 @@ class WrongMetaType(TypeError, MlemError):
         )
 
 
+class WrongMetaSubType(TypeError, MlemError):
+    def __init__(self, meta, force_type):
+        loc = f"from {meta.loc.uri} " if meta.is_saved else ""
+        super().__init__(
+            f"Wrong type of meta loaded, got {meta.object_type} {meta.type} {loc}instead of {force_type.object_type} {force_type.type}"
+        )
+
+
+class WrongABCType(TypeError, MlemError):
+    def __init__(self, instance, expected_abc_type):
+        super().__init__(
+            f"Wrong implementation type, got {instance.type} instead of {expected_abc_type.type}"
+        )
+
+
 class DeploymentError(MlemError):
     """Thrown if something goes wrong during deployment process"""
 
@@ -147,7 +169,7 @@ class UnknownConfigSection(MlemError):
         super().__init__(f'Unknown config section "{section}"')
 
 
-class ExtensionRequirementError(MlemError):
+class ExtensionRequirementError(MlemError, ImportError):
     def __init__(self, ext: str, reqs: List[str], extra: Optional[str]):
         self.ext = ext
         self.reqs = reqs

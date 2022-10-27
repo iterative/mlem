@@ -1,3 +1,8 @@
+"""FastAPI serving
+Extension type: serving
+
+FastAPIServer implementation
+"""
 import logging
 from collections.abc import Callable
 from types import ModuleType
@@ -34,11 +39,15 @@ def _create_schema_route(app: FastAPI, interface: Interface):
 
 
 class FastAPIServer(Server, LibRequirementsMixin):
+    """Serves model with http"""
+
     libraries: ClassVar[List[ModuleType]] = [uvicorn, fastapi]
     type: ClassVar[str] = "fastapi"
 
     host: str = "0.0.0.0"
+    """Network interface to use"""
     port: int = 8080
+    """Port to use"""
 
     @classmethod
     def _create_handler(

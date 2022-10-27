@@ -4,8 +4,6 @@ from typer import Argument
 
 from mlem.cli.main import (
     mlem_command,
-    option_external,
-    option_index,
     option_project,
     option_rev,
     option_target_project,
@@ -19,17 +17,9 @@ def clone(
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     target_project: Optional[str] = option_target_project,
-    external: Optional[bool] = option_external,
-    index: Optional[bool] = option_index,
 ):
-    """Download MLEM object from `uri` and save it to `target`
-
-    Examples:
-        Copy remote model to local directory
-        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main mymodel
-
-        Copy remote model to remote MLEM project
-        $ mlem clone models/logreg --project https://github.com/iterative/example-mlem --rev main mymodel --tp s3://mybucket/mymodel
+    """Copy a MLEM Object from `uri` and
+    saves a copy of it to `target` path.
     """
     from mlem.api.commands import clone
 
@@ -39,6 +29,4 @@ def clone(
         project=project,
         rev=rev,
         target_project=target_project,
-        external=external,
-        index=index,
     )

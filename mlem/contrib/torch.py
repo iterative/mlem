@@ -1,3 +1,10 @@
+"""Torch models support
+Extension type: model
+
+ModelType and ModelIO implementations for `torch.nn.Module`
+ImportHook for importing files saved with `torch.save`
+DataType, Reader and Writer implementations for `torch.Tensor`
+"""
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import cloudpickle
@@ -31,18 +38,14 @@ def python_type_from_torch_string_repr(dtype: str):
 class TorchTensorDataType(
     DataType, DataSerializer, DataHook, IsInstanceHookMixin
 ):
-    """
-    :class:`.DataType` implementation for `torch.Tensor` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `torch.Tensor` objects in data
-    :param dtype: data type of `torch.Tensor` objects in data
-    """
+    """DataType implementation for `torch.Tensor`"""
 
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.Tensor,)
     shape: Tuple[Optional[int], ...]
+    """Shape of `torch.Tensor` object"""
     dtype: str
+    """Type name of `torch.Tensor` elements"""
 
     def _check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
@@ -103,6 +106,8 @@ class TorchTensorDataType(
 
 
 class TorchTensorWriter(DataWriter):
+    """Write torch tensors"""
+
     type: ClassVar[str] = "torch"
 
     def write(
@@ -114,6 +119,8 @@ class TorchTensorWriter(DataWriter):
 
 
 class TorchTensorReader(DataReader):
+    """Read torch tensors"""
+
     type: ClassVar[str] = "torch"
 
     def read(self, artifacts: Artifacts) -> DataType:
@@ -132,12 +139,11 @@ class TorchTensorReader(DataReader):
 
 
 class TorchModelIO(ModelIO):
-    """
-    :class:`.ModelIO` implementation for PyTorch models
-    """
+    """IO for PyTorch models"""
 
     type: ClassVar[str] = "torch_io"
     is_jit: bool = False
+    """Is model jit compiled"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         self.is_jit = isinstance(model, torch.jit.ScriptModule)
@@ -165,6 +171,7 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "torch"
     valid_types: ClassVar = (torch.nn.Module,)
     io: ModelIO = TorchModelIO()
+    """TorchModelIO"""
 
     @classmethod
     def process(
@@ -197,6 +204,8 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
 
 
 class TorchModelImport(LoadAndAnalyzeImportHook):
+    """Import torch models saved with `torch.save`"""
+
     type: ClassVar = "torch"
     force_type: ClassVar = MlemModel
 

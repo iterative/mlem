@@ -1,19 +1,22 @@
 from io import StringIO
 from unittest import mock
 
+import pytest
+
 from mlem.core.errors import MlemError
 from mlem.ui import echo, stderr_echo
 
 EXCEPTION_MESSAGE = "Test Exception Message"
 
 
+@pytest.mark.usefixtures("no_debug")
 def test_stderr_exception(runner):
     # patch the ls command and ensure it throws an expection.
     with mock.patch(
-        "mlem.api.commands.ls", side_effect=Exception(EXCEPTION_MESSAGE)
+        "mlem.api.commands.init", side_effect=Exception(EXCEPTION_MESSAGE)
     ):
         result = runner.invoke(
-            ["list"],
+            ["init"],
         )
         assert result.exit_code == 1, (
             result.stdout,
@@ -27,13 +30,14 @@ def test_stderr_exception(runner):
 MLEM_ERROR_MESSAGE = "Test Mlem Error Message"
 
 
+@pytest.mark.usefixtures("no_debug")
 def test_stderr_mlem_error(runner):
     # patch the ls command and ensure it throws a mlem error.
     with mock.patch(
-        "mlem.api.commands.ls", side_effect=MlemError(MLEM_ERROR_MESSAGE)
+        "mlem.api.commands.init", side_effect=MlemError(MLEM_ERROR_MESSAGE)
     ):
         result = runner.invoke(
-            ["list"],
+            ["init"],
         )
         assert result.exit_code == 1, (
             result.stdout,

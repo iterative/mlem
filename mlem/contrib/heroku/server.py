@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class HerokuServer(FastAPIServer):
-    type: ClassVar = "heroku"
+    """Special FastAPI server to pickup port from env PORT"""
+
+    type: ClassVar = "_heroku"
 
     def serve(self, interface: Interface):
         self.port = int(os.environ["PORT"])

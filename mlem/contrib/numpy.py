@@ -1,3 +1,8 @@
+"""Numpy data types support
+Extension type: data
+
+DataType, Reader and Writer implementations for `np.ndarray` and `np.number` primitives
+"""
 from types import ModuleType
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type, Union
 
@@ -40,19 +45,12 @@ def np_type_from_string(string_repr) -> np.dtype:
 class NumpyNumberType(
     LibRequirementsMixin, DataType, DataSerializer, DataHook
 ):
-    """
-    :class:`.DataType` implementation for `numpy.number` objects which
-    converts them to built-in Python numbers and vice versa.
-
-    :param dtype: `numpy.number` data type as string
-    """
+    """numpy.number DataType"""
 
     libraries: ClassVar[List[ModuleType]] = [np]
     type: ClassVar[str] = "number"
     dtype: str
-
-    # def get_spec(self) -> ArgList:
-    #     return [Field(None, python_type_from_np_string_repr(self.dtype), False)]
+    """`numpy.number` type name as string"""
 
     def deserialize(self, obj: dict) -> Any:
         return self.actual_type(obj)  # pylint: disable=not-callable
@@ -83,19 +81,15 @@ class NumpyNumberType(
 class NumpyNdarrayType(
     LibRequirementsMixin, DataType, DataHook, DataSerializer
 ):
-    """
-    :class:`.DataType` implementation for `np.ndarray` objects
-    which converts them to built-in Python lists and vice versa.
-
-    :param shape: shape of `numpy.ndarray` objects in data
-    :param dtype: data type of `numpy.ndarray` objects in data
-    """
+    """DataType implementation for `np.ndarray`"""
 
     type: ClassVar[str] = "ndarray"
     libraries: ClassVar[List[ModuleType]] = [np]
 
     shape: Optional[Tuple[Optional[int], ...]]
+    """Shape of `numpy.ndarray`"""
     dtype: str
+    """Data type of elements"""
 
     @staticmethod
     def _abstract_shape(shape):
@@ -179,6 +173,8 @@ DATA_KEY = "data"
 
 
 class NumpyNumberWriter(DataWriter):
+    """Write np.number objects"""
+
     type: ClassVar[str] = "numpy_number"
 
     def write(
@@ -190,8 +186,11 @@ class NumpyNumberWriter(DataWriter):
 
 
 class NumpyNumberReader(DataReader):
+    """Read np.number objects"""
+
     type: ClassVar[str] = "numpy_number"
     data_type: NumpyNumberType
+    """Resulting data type"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         if DataWriter.art_name not in artifacts:

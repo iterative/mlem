@@ -1,3 +1,9 @@
+"""LightGBM models support
+Extension type: model
+
+ModelType and ModelIO implementations for `lightgbm.Booster` as well as
+LightGBMDataType with Reader and Writer for `lightgbm.Dataset`
+"""
 import os
 import posixpath
 import tempfile
@@ -46,7 +52,9 @@ class LightGBMDataType(
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Dataset,)
     inner: DataType
+    """DataType of Inner"""
     labels: Optional[DataType]
+    """DataType of Labels"""
 
     def serialize(self, instance: Any) -> dict:
         self.check_type(instance, lgb.Dataset, SerializationError)
@@ -103,6 +111,8 @@ class LightGBMDataType(
 
 
 class LightGBMDataWriter(DataWriter):
+    """Wrapper writer for lightgbm.Dataset objects"""
+
     type: ClassVar[str] = "lightgbm"
 
     def write(
@@ -152,10 +162,14 @@ class LightGBMDataWriter(DataWriter):
 
 
 class LightGBMDataReader(DataReader):
+    """Wrapper reader for lightgbm.Dataset objects"""
+
     type: ClassVar[str] = "lightgbm"
     data_type: LightGBMDataType
     inner: DataReader
+    """DataReader of Inner"""
     labels: Optional[DataReader]
+    """DataReader of Labels"""
 
     def read(self, artifacts: Artifacts) -> DataType:
         if self.labels is not None:
@@ -189,7 +203,8 @@ class LightGBMModelIO(ModelIO):
     """
 
     type: ClassVar[str] = "lightgbm_io"
-    model_file_name = "model.lgb"
+    model_file_name: str = "model.lgb"
+    """Filename to use"""
 
     def dump(self, storage: Storage, path, model) -> Artifacts:
         with tempfile.TemporaryDirectory(prefix="mlem_lightgbm_dump") as f:
@@ -222,6 +237,7 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     type: ClassVar[str] = "lightgbm"
     valid_types: ClassVar = (lgb.Booster,)
     io: ModelIO = LightGBMModelIO()
+    """LightGBMModelIO"""
 
     @classmethod
     def process(

@@ -3,12 +3,12 @@ import os
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from mlem.contrib.bitbucketfs import BitBucketFileSystem
+from mlem.contrib.bitbucketfs import BitBucketFileSystem, ls_bb_refs
 from mlem.core.errors import RevisionNotFound
-from mlem.core.meta_io import UriResolver, get_fs
+from mlem.core.meta_io import Location, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
-from tests.conftest import long
+from tests.conftest import get_current_test_branch, long
 
 MLEM_TEST_REPO_PROJECT = "iterative-ai/mlem-test"
 
@@ -29,6 +29,11 @@ def fs_no_auth():
 @pytest.fixture()
 def fs_auth():
     return BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
+
+
+@pytest.fixture()
+def current_test_branch_bb():
+    return get_current_test_branch(set(ls_bb_refs(MLEM_TEST_REPO_PROJECT)))
 
 
 @long
@@ -71,7 +76,7 @@ def test_uri_resolver(uri):
     ["main", "branch", "tag", "3897d2ab"],
 )
 def test_uri_resolver_rev(rev):
-    location = UriResolver.resolve(MLEM_TEST_REPO_URI, None, rev=rev, fs=None)
+    location = Location.resolve(MLEM_TEST_REPO_URI, None, rev=rev, fs=None)
     assert isinstance(location.fs, BitBucketFileSystem)
     assert location.fs.root == rev
     assert "README.md" in location.fs.ls("")
@@ -80,12 +85,16 @@ def test_uri_resolver_rev(rev):
 @long
 def test_uri_resolver_wrong_rev():
     with pytest.raises(RevisionNotFound):
-        UriResolver.resolve(
+        Location.resolve(
             MLEM_TEST_REPO_URI, None, rev="__not_exists__", fs=None
         )
 
 
 @long
-def test_loading_object():
-    meta = load_meta("latest", project=MLEM_TEST_REPO_URI + "/src/main/simple")
+def test_loading_object(current_test_branch_bb):
+    meta = load_meta(
+        "latest",
+        project=MLEM_TEST_REPO_URI + "/src/main/simple",
+        rev=current_test_branch_bb,
+    )
     assert isinstance(meta, MlemModel)

@@ -1,13 +1,10 @@
 FROM {{ base_image }}
 WORKDIR /app
 {% include "pre_install.j2" ignore missing %}
-{% if packages %}RUN {{ package_install_cmd }} {{ packages|join(" ")  }} {{ package_clean_cmd }}{% endif %}
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-{{ mlem_install }}
+{% include "install_req.j2" %}
 {% include "post_install.j2" ignore missing %}
-COPY . ./
+{% include "copy.j2" %}
 {% for name, value in env.items() %}ENV {{ name }}={{ value }}
 {% endfor %}
 {% include "post_copy.j2" ignore missing %}
-{% if run_cmd is not false %}CMD {{ run_cmd }}{% endif %}
+{% if run_cmd is not none %}CMD {{ run_cmd }}{% endif %}

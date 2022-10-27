@@ -2,6 +2,7 @@
 Utils functions that parse and process supplied URI, serialize/derialize MLEM objects
 """
 import contextlib
+import os
 import posixpath
 from abc import ABC, abstractmethod
 from inspect import isabstract
@@ -19,7 +20,7 @@ from mlem.core.errors import (
     MlemObjectNotFound,
     RevisionNotFound,
 )
-from mlem.utils.root import MLEM_DIR, find_project_root
+from mlem.utils.root import find_project_root
 
 MLEM_EXT = ".mlem"
 
@@ -43,8 +44,18 @@ class Location(BaseModel):
     def path_in_project(self):
         return posixpath.relpath(self.fullpath, self.project)
 
+    @property
+    def dirname(self):
+        return posixpath.dirname(self.fullpath)
+
+    @property
+    def basename(self):
+        return posixpath.basename(self.path)
+
     @contextlib.contextmanager
-    def open(self, mode="r", **kwargs):
+    def open(self, mode="r", make_dir: bool = False, **kwargs):
+        if make_dir:
+            self.fs.makedirs(posixpath.dirname(self.fullpath), exist_ok=True)
         with self.fs.open(self.fullpath, mode, **kwargs) as f:
             yield f
 
@@ -57,11 +68,16 @@ class Location(BaseModel):
     def update_path(self, path):
         if not self.uri.endswith(self.path):
             raise ValueError("cannot automatically update uri")
+        if os.path.isabs(self.path) and not os.path.isabs(path):
+            path = posixpath.join(posixpath.dirname(self.path), path)
         self.uri = self.uri[: -len(self.path)] + path
         self.path = path
 
     def exists(self):
         return self.fs.exists(self.fullpath)
+
+    def delete(self):
+        self.fs.delete(self.fullpath)
 
     def is_same_project(self, other: "Location"):
         return other.fs == self.fs and other.project == self.project
@@ -74,6 +90,23 @@ class Location(BaseModel):
         ):
             return posixpath.relpath(self.fullpath, "")
         return self.uri
+
+    @classmethod
+    def resolve(
+        cls,
+        path: str,
+        project: str = None,
+        rev: str = None,
+        fs: AbstractFileSystem = None,
+        find_project: bool = False,
+    ):
+        return UriResolver.resolve(
+            path=path,
+            project=project,
+            rev=rev,
+            fs=fs,
+            find_project=find_project,
+        )
 
 
 class UriResolver(MlemABC):
@@ -260,9 +293,7 @@ class CloudGitResolver(UriResolver, ABC):
         except FileNotFoundError as e:  # TODO catch HTTPError for wrong orgrepo
             if options["sha"] is not None and not cls.check_rev(options):
                 raise RevisionNotFound(options["sha"], uri) from e
-            raise LocationNotFound(
-                f"Could not resolve github location {uri}"
-            ) from e
+            raise LocationNotFound(f"Could not resolve location {uri}") from e
         return fs, path
 
     @classmethod
@@ -299,6 +330,7 @@ class CloudGitResolver(UriResolver, ABC):
 class FSSpecResolver(UriResolver):
     """Resolve different fsspec URIs"""
 
+    type: ClassVar = "fsspec"
     low_priority: ClassVar = True
 
     @classmethod
@@ -338,7 +370,7 @@ class FSSpecResolver(UriResolver):
 
 
 def get_fs(uri: str) -> Tuple[AbstractFileSystem, str]:
-    location = UriResolver.resolve(path=uri, project=None, rev=None, fs=None)
+    location = Location.resolve(path=uri, project=None, rev=None, fs=None)
     return location.fs, location.fullpath
 
 
@@ -353,7 +385,7 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
 
 
 def get_uri(fs: AbstractFileSystem, path: str, repr: bool = False):
-    loc = UriResolver.resolve(path, None, None, fs=fs)
+    loc = Location.resolve(path, None, None, fs=fs)
     if repr:
         return loc.uri_repr
     return loc.uri
@@ -373,15 +405,10 @@ def get_meta_path(uri: str, fs: AbstractFileSystem) -> str:
     if uri.endswith(MLEM_EXT) and fs.isfile(uri):
         # .../<META_FILE_NAME>.<MLEM_EXT>
         return uri
-    # if fs.isdir(uri) and fs.isfile(posixpath.join(uri, META_FILE_NAME)):
-    #     # .../path and .../path/<META_FILE_NAME> exists
-    #     return posixpath.join(uri, META_FILE_NAME)
+
     if fs.isfile(uri + MLEM_EXT):
         # .../name without <MLEM_EXT>
         return uri + MLEM_EXT
-    if MLEM_DIR in uri and fs.isfile(uri):
-        # .../<MLEM_DIR>/.../file
-        return uri
     if fs.exists(uri):
         raise MlemObjectNotFound(
             f"{uri} is not a valid MLEM metafile or a folder with a MLEM model or data"

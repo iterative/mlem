@@ -10,11 +10,9 @@ from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseSettings, Field, parse_obj_as, root_validator
 from pydantic.env_settings import InitSettingsSource
 
-from mlem.constants import MLEM_DIR
+from mlem.constants import MLEM_CONFIG_FILE_NAME
 from mlem.core.errors import UnknownConfigSection
 from mlem.utils.entrypoints import MLEM_CONFIG_ENTRY_POINT, load_entrypoints
-
-CONFIG_FILE_NAME = "config.yaml"
 
 
 def _set_location_init_source(init_source: InitSettingsSource):
@@ -41,7 +39,7 @@ def mlem_config_settings_source(section: Optional[str]):
         project = find_project_root(config_path, fs=fs, raise_on_missing=False)
         if project is None:
             return {}
-        config_file = posixpath.join(project, MLEM_DIR, CONFIG_FILE_NAME)
+        config_file = posixpath.join(project, MLEM_CONFIG_FILE_NAME)
         if not fs.exists(config_file):
             return {}
         with fs.open(config_file, encoding=encoding) as f:
@@ -116,9 +114,9 @@ class MlemConfig(MlemConfigBase):
     NO_ANALYTICS: bool = False
     TESTS: bool = False
     STORAGE: Dict = {}
-    INDEX: Dict = {}
-    EXTERNAL: bool = False
     EMOJIS: bool = True
+    STATE: Dict = {}
+    SERVER: Dict = {}
 
     @property
     def storage(self):
@@ -130,20 +128,28 @@ class MlemConfig(MlemConfigBase):
         return s
 
     @property
-    def index(self):
-        from mlem.core.index import Index, LinkIndex
-
-        if not self.INDEX:
-            return LinkIndex()
-        return parse_obj_as(Index, self.INDEX)
-
-    @property
     def additional_extensions(self) -> List[str]:
         if self.ADDITIONAL_EXTENSIONS == "":
             return []
         return self.ADDITIONAL_EXTENSIONS.split(  # pylint: disable=no-member
             ","
         )
+
+    @property
+    def state(self):
+        if not self.STATE:
+            return None
+        from mlem.core.objects import StateManager
+
+        return parse_obj_as(StateManager, self.STATE)
+
+    @property
+    def server(self):
+        from mlem.runtime.server import Server
+
+        if not self.SERVER:
+            return parse_obj_as(Server, {"type": "fastapi"})
+        return parse_obj_as(Server, self.SERVER)
 
 
 LOCAL_CONFIG = MlemConfig()

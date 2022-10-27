@@ -1,6 +1,10 @@
+"""Github URI support
+Extension type: uri
+
+Implementation of `GithubResolver`
+"""
 import pathlib
 import posixpath
-import re
 from typing import ClassVar, Dict, Optional
 from urllib.parse import quote_plus, urlparse
 
@@ -9,6 +13,7 @@ from fsspec.implementations.github import GithubFileSystem
 
 from mlem.config import LOCAL_CONFIG
 from mlem.core.meta_io import CloudGitResolver
+from mlem.utils.git import is_long_sha
 
 
 def ls_branches(repo_url: str) -> Dict[str, str]:
@@ -54,21 +59,17 @@ def _ls_github_refs(org: str, repo: str, endpoint: str):
     return None
 
 
-def is_long_sha(sha: str):
-    return re.match(r"^[a-f\d]{40}$", sha)
-
-
 class GithubResolver(CloudGitResolver):
     """Resolve https://github.com URLs"""
 
     type: ClassVar = "github"
     FS: ClassVar = GithubFileSystem
-    PROTOCOL = "github"
-    GITHUB_COM = "https://github.com"
+    PROTOCOL: ClassVar = "github"
+    GITHUB_COM: ClassVar = "https://github.com"
 
-    # TODO: support on-prem github (other hosts)
-    PREFIXES = [GITHUB_COM, PROTOCOL + "://"]
-    versioning_support = True
+    # TODO: https://github.com//issues/388
+    PREFIXES: ClassVar = [GITHUB_COM, PROTOCOL + "://"]
+    versioning_support: ClassVar = True
 
     @classmethod
     def get_envs(cls):

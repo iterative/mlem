@@ -6,15 +6,18 @@ import time
 import pytest
 from requests.exceptions import HTTPError
 
+from mlem.api import deploy
 from mlem.contrib.docker.base import (
     DockerContainer,
     DockerContainerState,
     DockerEnv,
     DockerImage,
 )
+from mlem.contrib.docker.context import DockerBuildArgs
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import DeployStatus
+from tests.conftest import resource_path
 from tests.contrib.test_docker.conftest import docker_test
 
 IMAGE_NAME = "mike0sv/ebaklya"
@@ -26,7 +29,15 @@ REGISTRY_PORT = 5000
 
 
 @pytest.fixture(scope="session")
-def _test_images(tmpdir_factory, dockerenv_local, dockerenv_remote):
+def _test_images(dockerenv_local):
+    with dockerenv_local.daemon.client() as client:
+        client.images.pull(IMAGE_NAME, "latest")
+
+
+@pytest.fixture(scope="session")
+def _test_images_remote(
+    tmpdir_factory, dockerenv_local, dockerenv_remote, _test_images
+):
     with dockerenv_local.daemon.client() as client:
         tag_name = f"{dockerenv_remote.registry.get_host()}/{REPOSITORY_NAME}/{IMAGE_NAME}"
         client.images.pull(IMAGE_NAME, "latest").tag(tag_name)
@@ -57,7 +68,7 @@ def test_run_default_registry(
 
 @docker_test
 def test_run_remote_registry(
-    dockerenv_remote, _test_images, model_meta_saved_single
+    dockerenv_remote, _test_images_remote, model_meta_saved_single
 ):
     _check_runner(IMAGE_NAME, dockerenv_remote, model_meta_saved_single)
 
@@ -76,7 +87,7 @@ def test_run_local_image_name_that_will_never_exist(
 
 @docker_test
 def test_run_local_fail_inside_container(
-    dockerenv_remote, _test_images, model_meta_saved_single
+    dockerenv_remote, _test_images_remote, model_meta_saved_single
 ):
     with pytest.raises(DeploymentError):
         _check_runner(
@@ -86,31 +97,60 @@ def test_run_local_fail_inside_container(
         )
 
 
+@docker_test
+def test_deploy_full(
+    tmp_path_factory, dockerenv_local, model_meta_saved_single
+):
+    meta_path = tmp_path_factory.mktemp("deploy-meta")
+    meta = deploy(
+        str(meta_path),
+        model_meta_saved_single,
+        dockerenv_local,
+        args=DockerBuildArgs(templates_dir=[resource_path(__file__)]),
+        server="fastapi",
+        container_name="test_full_deploy",
+    )
+
+    meta.wait_for_status(
+        DeployStatus.RUNNING,
+        allowed_intermediate=[
+            DeployStatus.NOT_DEPLOYED,
+            DeployStatus.STARTING,
+        ],
+        times=50,
+    )
+    assert meta.get_status() == DeployStatus.RUNNING
+
+
 def _check_runner(img, env: DockerEnv, model):
     with tempfile.TemporaryDirectory() as tmpdir:
         instance = DockerContainer(
             container_name=CONTAINER_NAME,
             port_mapping={80: 8008},
-            state=DockerContainerState(image=DockerImage(name=img)),
             server=FastAPIServer(),
-            model_link=model.make_link(),
-            env_link=env.make_link(),
+            env=env,
             rm=False,
         )
-        instance.update_model_hash(model)
         instance.dump(os.path.join(tmpdir, "deploy"))
-        assert env.get_status(instance) == DeployStatus.NOT_DEPLOYED
+        instance.update_state(
+            DockerContainerState(
+                image=DockerImage(name=img),
+                model_hash=model.meta_hash(),
+                declaration=instance,
+            )
+        )
+        assert instance.get_status() == DeployStatus.NOT_DEPLOYED
 
-        env.deploy(instance)
+        instance.deploy(model)
 
         instance.wait_for_status(
             DeployStatus.RUNNING, allowed_intermediate=[DeployStatus.STARTING]
         )
         time.sleep(0.1)
 
-        assert env.get_status(instance) == DeployStatus.RUNNING
+        assert instance.get_status() == DeployStatus.RUNNING
 
-        env.remove(instance)
+        instance.remove()
         time.sleep(0.1)
 
-        assert env.get_status(instance) == DeployStatus.NOT_DEPLOYED
+        assert instance.get_status() == DeployStatus.NOT_DEPLOYED

@@ -1,24 +1,32 @@
 from json import dumps
 from typing import List, Optional
 
-from typer import Argument, Option
+from typer import Argument, Option, Typer
 
 from mlem.api import import_object
 from mlem.cli.main import (
-    config_arg,
+    PATH_METAVAR,
+    app,
     mlem_command,
-    option_conf,
+    mlem_group,
+    mlem_group_callback,
+    option_data,
     option_data_project,
     option_data_rev,
-    option_external,
     option_file_conf,
-    option_index,
     option_json,
     option_load,
     option_method,
     option_project,
     option_rev,
     option_target_project,
+)
+from mlem.cli.utils import (
+    abc_fields_parameters,
+    config_arg,
+    for_each_impl,
+    lazy_class_docstring,
+    make_not_required,
 )
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
@@ -29,55 +37,51 @@ from mlem.runtime.client import Client
 from mlem.ui import set_echo
 from mlem.utils.entrypoints import list_implementations
 
+option_output = Option(
+    None,
+    "-o",
+    "--output",
+    help="Where to save model outputs",
+    metavar=PATH_METAVAR,
+)
+option_import = Option(
+    False,
+    "-i",
+    "--import",
+    help="Try to import data on-the-fly",
+)
+option_import_type = Option(
+    None,
+    "--import-type",
+    "--it",
+    # TODO: change ImportHook to MlemObject to support ext machinery
+    help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
+)
+option_batch_size = Option(
+    None,
+    "-b",
+    "--batch_size",
+    help="Batch size for reading data in batches",
+)
+
 
 @mlem_command("apply", section="runtime")
 def apply(
-    model: str = Argument(..., help="Path to model object"),
+    model: str = Argument(..., metavar="model", help="Path to model object"),
     data_path: str = Argument(..., metavar="data", help="Path to data object"),
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
-    output: Optional[str] = Option(
-        None, "-o", "--output", help="Where to store the outputs."
-    ),
+    output: Optional[str] = option_output,
     method: str = option_method,
     data_project: Optional[str] = option_data_project,
     data_rev: Optional[str] = option_data_rev,
-    import_: bool = Option(
-        False,
-        "-i",
-        "--import",
-        help="Try to import data on-the-fly",
-    ),
-    import_type: str = Option(
-        None,
-        "--import-type",
-        "--it",
-        # TODO: change ImportHook to MlemObject to support ext machinery
-        help=f"Specify how to read data file for import. Available types: {list_implementations(ImportHook)}",
-    ),
-    batch_size: Optional[int] = Option(
-        None,
-        "-b",
-        "--batch_size",
-        help="Batch size for reading data in batches.",
-    ),
-    index: bool = option_index,
-    external: bool = option_external,
+    import_: bool = option_import,
+    import_type: str = option_import_type,
+    batch_size: Optional[int] = option_batch_size,
     json: bool = option_json,
 ):
-    """Apply a model to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
-
-    Examples:
-        Apply local mlem model to local mlem data
-        $ mlem apply mymodel mydata --method predict --output myprediction
-
-        Apply local mlem model to local data file
-        $ mlem apply mymodel data.csv --method predict --import --import-type pandas[csv] --output myprediction
-
-        Apply a version of remote model to a version of remote data
-        $ mlem apply models/logreg --project https://github.com/iterative/example-mlem --rev main
-                     data/test_x --data-project https://github.com/iterative/example-mlem --data-rev main
-                     --method predict --output myprediction
+    """Apply a model to data. The result will be saved as a MLEM object to `output` if
+    provided. Otherwise, it will be printed to `stdout`.
     """
     from mlem.api import apply
 
@@ -108,8 +112,6 @@ def apply(
             data,
             method=method,
             output=output,
-            index=index,
-            external=external,
             batch_size=batch_size,
         )
     if output is None and json:
@@ -120,38 +122,49 @@ def apply(
         )
 
 
-@mlem_command("apply-remote", section="runtime")
-def apply_remote(
-    subtype: str = Argument(
-        "",
-        help=f"Type of client. Choices: {list_implementations(Client)}",
-        show_default=False,
-    ),
-    data: str = Argument(..., help="Path to data object"),
-    project: Optional[str] = option_project,
-    rev: Optional[str] = option_rev,
-    output: Optional[str] = Option(
-        None, "-o", "--output", help="Where to store the outputs."
-    ),
-    target_project: Optional[str] = option_target_project,
-    method: str = option_method,
-    index: bool = option_index,
-    json: bool = option_json,
-    load: Optional[str] = option_load("client"),
-    conf: List[str] = option_conf("client"),
-    file_conf: List[str] = option_file_conf("client"),
-):
-    """Apply a model (deployed somewhere remotely) to data. Resulting data will be saved as MLEM object to `output` if it is provided, otherwise will be printed
+apply_remote = Typer(
+    name="apply-remote",
+    help="""Apply a deployed-model (possibly remotely) to data. The results will be saved as
+a MLEM object to `output` if provided. Otherwise, it will be printed to
+`stdout`.
+    """,
+    cls=mlem_group("runtime"),
+    subcommand_metavar="client",
+)
+app.add_typer(apply_remote)
 
-    Examples:
-        Apply hosted mlem model to local mlem data
-        $ mlem apply-remote http mydata -c host="0.0.0.0" -c port=8080 --output myprediction
-    """
-    client = config_arg(Client, load, subtype, conf, file_conf)
+
+def _apply_remote(
+    data,
+    project,
+    rev,
+    method,
+    output,
+    target_project,
+    json,
+    type_name,
+    load,
+    file_conf,
+    kwargs,
+):
+    client = config_arg(
+        Client,
+        load,
+        type_name,
+        conf=None,
+        file_conf=file_conf,
+        **(kwargs or {}),
+    )
 
     with set_echo(None if json else ...):
         result = run_apply_remote(
-            client, data, project, rev, index, method, output, target_project
+            client,
+            data,
+            project,
+            rev,
+            method,
+            output,
+            target_project,
         )
     if output is None and json:
         print(
@@ -161,12 +174,75 @@ def apply_remote(
         )
 
 
+@mlem_group_callback(apply_remote, required=["data", "load"])
+def apply_remote_load(
+    data: str = make_not_required(option_data),
+    project: Optional[str] = option_project,
+    rev: Optional[str] = option_rev,
+    output: Optional[str] = option_output,
+    target_project: Optional[str] = option_target_project,
+    method: str = option_method,
+    json: bool = option_json,
+    load: Optional[str] = option_load("client"),
+):
+    return _apply_remote(
+        data,
+        project,
+        rev,
+        method,
+        output,
+        target_project,
+        json,
+        None,
+        load,
+        None,
+        None,
+    )
+
+
+@for_each_impl(Client)
+def create_apply_remote(type_name):
+    @mlem_command(
+        type_name,
+        section="clients",
+        parent=apply_remote,
+        dynamic_metavar="__kwargs__",
+        dynamic_options_generator=abc_fields_parameters(type_name, Client),
+        hidden=type_name.startswith("_"),
+        lazy_help=lazy_class_docstring(Client.abs_name, type_name),
+        no_pass_from_parent=["file_conf"],
+    )
+    def apply_remote_func(
+        data: str = option_data,
+        project: Optional[str] = option_project,
+        rev: Optional[str] = option_rev,
+        output: Optional[str] = option_output,
+        target_project: Optional[str] = option_target_project,
+        method: str = option_method,
+        json: bool = option_json,
+        file_conf: List[str] = option_file_conf("client"),
+        **__kwargs__,
+    ):
+        return _apply_remote(
+            data,
+            project,
+            rev,
+            method,
+            output,
+            target_project,
+            json,
+            type_name,
+            None,
+            file_conf,
+            __kwargs__,
+        )
+
+
 def run_apply_remote(
     client: Client,
     data_path: str,
     project,
     rev,
-    index,
     method,
     output,
     target_project,
@@ -186,6 +262,5 @@ def run_apply_remote(
         method=method,
         output=output,
         target_project=target_project,
-        index=index,
     )
     return result

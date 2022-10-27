@@ -1,5 +1,10 @@
+"""BitBucket URI support
+Extension type: uri
+
+Implementation of `BitbucketFileSystem` and `BitbucketResolver`
+"""
 import posixpath
-from typing import ClassVar, List, Optional
+from typing import ClassVar, Dict, Optional
 from urllib.parse import quote_plus, urljoin, urlparse, urlsplit
 
 import requests
@@ -11,6 +16,7 @@ from requests import HTTPError
 
 from mlem.config import MlemConfigBase
 from mlem.core.meta_io import CloudGitResolver
+from mlem.utils.git import is_long_sha
 
 BITBUCKET_ORG = "https://bitbucket.org"
 
@@ -28,6 +34,7 @@ class BitbucketWrapper:
         self.username = username
         self.password = password
         self.url = url
+        self.refs_cache: Dict[str, Dict[str, str]] = {}
 
     @property
     def auth(self):
@@ -36,6 +43,7 @@ class BitbucketWrapper:
         return None
 
     def tree(self, path: str, repo: str, rev: str):
+        rev = self.get_rev_sha(repo, rev)
         r = requests.get(
             urljoin(
                 self.url,
@@ -55,6 +63,7 @@ class BitbucketWrapper:
         return r.json()["mainbranch"]["name"]
 
     def open(self, path: str, repo: str, rev: str):
+        rev = self.get_rev_sha(repo, rev)
         r = requests.get(
             urljoin(
                 self.url,
@@ -65,13 +74,26 @@ class BitbucketWrapper:
         r.raise_for_status()
         return r.content
 
-    def get_refs(self, repo: str) -> List[str]:
+    def _get_refs(self, repo: str) -> Dict[str, str]:
         r = requests.get(
             urljoin(self.url, self.refs_endpoint.format(repo=repo)),
             auth=self.auth,
         )
         r.raise_for_status()
-        return [v["name"] for v in r.json()["values"]]
+        return {v["name"]: v["target"]["hash"] for v in r.json()["values"]}
+
+    def get_refs(self, repo: str) -> Dict[str, str]:
+        if repo not in self.refs_cache:
+            self.refs_cache[repo] = self._get_refs(repo)
+        return self.refs_cache[repo]
+
+    def invalidate_cache(self):
+        self.refs_cache = {}
+
+    def get_rev_sha(self, repo: str, rev: str):
+        if is_long_sha(rev):
+            return rev
+        return self.get_refs(repo).get(rev, rev)
 
     def check_rev(self, repo: str, rev: str) -> bool:
         r = requests.head(
@@ -119,6 +141,7 @@ class BitBucketFileSystem(
     def invalidate_cache(self, path=None):
         super().invalidate_cache(path)
         self.dircache.clear()
+        self.bb.invalidate_cache()
 
     def ls(self, path, detail=False, sha=None, **kwargs):
         path = self._strip_protocol(path)
@@ -195,7 +218,7 @@ known_implementations["bitbucket"] = {
 }
 
 
-def ls_bb_refs(repo):
+def ls_bb_refs(repo) -> Dict[str, str]:
     conf = BitbucketConfig.local()
     password = conf.PASSWORD
     username = conf.USERNAME
@@ -222,11 +245,13 @@ def _mathch_path_with_ref(repo, path):
 
 
 class BitBucketResolver(CloudGitResolver):
+    """Resolve bitbucket URIs"""
+
     type: ClassVar = "bitbucket"
     FS = BitBucketFileSystem
     PROTOCOL = "bitbucket"
 
-    # TODO: support on-prem gitlab (other hosts)
+    # TODO: https://github.com/iterative/mlem/issues/388
     PREFIXES = [BITBUCKET_ORG, PROTOCOL + "://"]
     versioning_support = True
 

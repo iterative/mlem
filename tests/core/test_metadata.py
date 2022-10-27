@@ -12,10 +12,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
-from mlem.constants import MLEM_DIR
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import MlemLink, MlemModel
+from mlem.core.objects import MlemModel
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -59,7 +58,7 @@ def test_model_saving_without_sample_data(model, tmpdir_factory):
         tmpdir_factory.mktemp("saving-models-without-sample-data") / "model"
     )
     # index=True would require having .mlem folder somewhere
-    save(model, path, index=False)
+    save(model, path)
 
 
 def test_model_saving_in_mlem_project_root(model_train_target, tmpdir_factory):
@@ -67,7 +66,7 @@ def test_model_saving_in_mlem_project_root(model_train_target, tmpdir_factory):
     init(project)
     model_dir = os.path.join(project, "generated-model")
     model, train, _ = model_train_target
-    save(model, model_dir, sample_data=train, index=True)
+    save(model, model_dir, sample_data=train)
 
 
 def test_model_saving(model_path):
@@ -108,8 +107,7 @@ def test_meta_loading(model_path):
     [
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model",
         f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/data/model.mlem",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/data/model.mlem",
-        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/.mlem/link/latest.mlem",
+        f"github://{MLEM_TEST_REPO_ORG}:{MLEM_TEST_REPO_NAME}@{{branch}}/simple/latest.mlem",
         f"{MLEM_TEST_REPO}tree/{{branch}}/simple/data/model/",
     ],
 )
@@ -127,8 +125,7 @@ def test_model_loading_from_github_with_fsspec(url, current_test_branch):
     [
         "data/model",
         "data/model.mlem",
-        ".mlem/link/data/model.mlem",
-        ".mlem/link/latest.mlem",
+        "latest.mlem",
     ],
 )
 def test_model_loading_from_github(path, current_test_branch):
@@ -164,11 +161,9 @@ def test_saving_to_s3(model, s3_storage_fs, s3_tmp_path):
     path = s3_tmp_path("model_save")
     init(path)
     model_path = posixpath.join(path, "model")
-    save(model, model_path, fs=s3_storage_fs, external=True)
+    save(model, model_path, fs=s3_storage_fs)
     model_path = model_path[len("s3:/") :]
-    assert s3_storage_fs.isfile(
-        posixpath.join(path, MLEM_DIR, MlemLink.object_type, "model.mlem")
-    )
+    assert s3_storage_fs.isfile(posixpath.join(path, "model.mlem"))
     assert s3_storage_fs.isfile(model_path + MLEM_EXT)
     assert s3_storage_fs.isfile(model_path)
 

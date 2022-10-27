@@ -2,7 +2,7 @@ import os
 import posixpath
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Type
+from typing import Any, Callable, Set, Type
 
 import git
 import numpy as np
@@ -43,6 +43,10 @@ MLEM_TEST_REPO = (
 MLEM_S3_TEST_BUCKET = "mlem-tests"
 
 
+def _cut_empty_lines(string):
+    return "\n".join(line for line in string.splitlines() if line)
+
+
 def _check_github_test_repo_ssh_auth():
     try:
         git.cmd.Git().ls_remote(MLEM_TEST_REPO)
@@ -72,8 +76,7 @@ need_test_repo_ssh_auth = pytest.mark.skipif(
 )
 
 
-@pytest.fixture()
-def current_test_branch():
+def get_current_test_branch(branch_list: Set[str]):
     try:
         branch = Repo(str(Path(__file__).parent.parent)).active_branch.name
     except TypeError:
@@ -82,18 +85,28 @@ def current_test_branch():
         branch = os.environ.get("GITHUB_HEAD_REF", os.environ["GITHUB_REF"])
         if branch.startswith("refs/heads/"):
             branch = branch[len("refs/heads/") :]
-    remote_refs = set(
-        ls_github_branches(MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME).keys()
-    )
-    if branch in remote_refs:
+    if branch in branch_list:
         return branch
     return "main"
+
+
+@pytest.fixture()
+def current_test_branch():
+    return get_current_test_branch(
+        set(ls_github_branches(MLEM_TEST_REPO_ORG, MLEM_TEST_REPO_NAME).keys())
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
 def add_test_env():
     os.environ["MLEM_TESTS"] = "true"
     LOCAL_CONFIG.TESTS = True
+
+
+@pytest.fixture(scope="session", autouse=True)
+def add_debug_env():
+    os.environ["MLEM_DEBUG"] = "true"
+    LOCAL_CONFIG.DEBUG = True
 
 
 def resource_path(test_file, *paths):
@@ -201,14 +214,14 @@ def model_path(model_train_target, tmp_path_factory):
     model, train, _ = model_train_target
     # because of index=False we test reading by path here
     # reading by link name is not tested
-    save(model, path, sample_data=train, index=False)
+    save(model, path, sample_data=train)
     yield path
 
 
 @pytest.fixture
 def data_path(train, tmpdir_factory):
     temp_dir = str(tmpdir_factory.mktemp("saved-data") / "data")
-    save(train, temp_dir, index=False)
+    save(train, temp_dir)
     yield temp_dir
 
 
@@ -285,7 +298,7 @@ def filled_mlem_project(mlem_project):
         requirements=Requirements.new("sklearn"),
         model_type=SklearnModel(methods={}, model=""),
     )
-    model.dump("model1", project=mlem_project, external=True)
+    model.dump("model1", project=mlem_project)
 
     model.make_link("latest", project=mlem_project)
     yield mlem_project
@@ -297,7 +310,7 @@ def model_path_mlem_project(model_train_target, tmpdir_factory):
     dir = str(tmpdir_factory.mktemp("mlem-root-with-model"))
     init(dir)
     model_dir = os.path.join(dir, "generated-model")
-    save(model, model_dir, sample_data=train, index=True, external=True)
+    save(model, model_dir, sample_data=train)
     yield model_dir, dir
 
 

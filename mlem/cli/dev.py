@@ -14,7 +14,10 @@ app.add_typer(dev)
 
 @dev.callback()
 def dev_callback():
-    """Developer utility tools"""
+    """Developer utility tools
+
+    Documentation: <https://mlem.ai/doc/contributing/core>
+    """
 
 
 @mlem_command(parent=dev, aliases=["fi"])
@@ -24,8 +27,7 @@ def find_implementations_diff(
     """Loads `root` module or package and finds implementations of MLEM base classes
     Shows differences between what was found and what is registered in entrypoints
 
-    Examples:
-        $ mlem dev fi
+    Documentation: <https://mlem.ai/doc/contributing/core>
     """
     exts = {e.entry for e in load_entrypoints().values()}
     impls = set(find_abc_implementations(root)[MLEM_ENTRY_POINT])

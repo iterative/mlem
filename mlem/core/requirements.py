@@ -2,6 +2,7 @@
 Base classes to work with requirements which come with ML models and data
 """
 import base64
+import collections
 import contextlib
 import glob
 import itertools
@@ -54,25 +55,42 @@ class Requirement(MlemABC):
     abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...
 
+    @abstractmethod
+    def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
+
 
 class PythonRequirement(Requirement, ABC):
+    type: ClassVar = "_python"
     module: str
+    """Python module name"""
+
+    def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
 
 
 class InstallableRequirement(PythonRequirement):
     """
-    This class represents pip-installable python library
-
-    :param module: name of python module
-    :param version: version of python package
-    :param package_name: Optional. pip package name for this module, if it is different from module name
+    pip-installable python library
     """
 
     type: ClassVar[str] = "installable"
 
     module: str
+    """Name of python module"""
     version: Optional[str] = None
+    """Version of python package"""
     package_name: Optional[str] = None
+    """Pip package name for this module, if it is different from module name"""
 
     @property
     def package(self):
@@ -83,13 +101,20 @@ class InstallableRequirement(PythonRequirement):
             self.module, self.module
         )
 
-    def to_str(self):
+    def get_repr(self):
         """
         pip installable representation of this module
         """
         if self.version is not None:
             return f"{self.package}=={self.version}"
         return self.package
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        reqs = [r.get_repr() for r in reqs]
+        requirement_string = "\n".join(reqs)
+        with open(os.path.join(target), "w", encoding="utf8") as fp:
+            fp.write(requirement_string + "\n")
 
     @classmethod
     def from_module(
@@ -135,17 +160,28 @@ class InstallableRequirement(PythonRequirement):
 
 class CustomRequirement(PythonRequirement):
     """
-    This class represents local python code that you need as a requirement for your code
-
-    :param name: filename of this code
-    :param source64zip: zipped and base64-encoded source
-    :param is_package: whether this code should be in %name%/__init__.py
+    local python code that you need as a requirement for your code
     """
 
     type: ClassVar[str] = "custom"
     name: str
+    """Filename of this code"""
     source64zip: str
+    """Zipped and base64-encoded source"""
     is_package: bool
+    """Whether this code should be in %name%/__init__.py"""
+
+    def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        for cr in reqs:
+            for part, src in cr.to_sources_dict().items():
+                p = os.path.join(target, part)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(src)
 
     @staticmethod
     def from_module(mod: ModuleType) -> "CustomRequirement":
@@ -264,11 +300,16 @@ class CustomRequirement(PythonRequirement):
 
 
 class FileRequirement(CustomRequirement):
-    """Represents an additional file"""
+    """Additional file"""
 
     type: ClassVar[str] = "file"
     is_package: bool = False
+    """Ignored"""
     module: str = ""
+    """Ignored"""
+
+    def get_repr(self):
+        raise NotImplementedError
 
     def to_sources_dict(self):
         """
@@ -287,10 +328,18 @@ class FileRequirement(CustomRequirement):
 
 
 class UnixPackageRequirement(Requirement):
-    """Represents a unix package that needs to be installed"""
+    """Unix package that needs to be installed"""
 
     type: ClassVar[str] = "unix"
     package_name: str
+    """Name of the package"""
+
+    def get_repr(self):
+        return self.package_name
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
 
 
 T = TypeVar("T", bound=Requirement)
@@ -299,11 +348,10 @@ T = TypeVar("T", bound=Requirement)
 class Requirements(BaseModel):
     """
     A collection of requirements
-
-    :param requirements: list of :class:`Requirement` instances
     """
 
     __root__: List[Requirement] = []
+    """List of :class:`Requirement` instances"""
 
     @property
     def installable(self) -> List[InstallableRequirement]:
@@ -396,11 +444,17 @@ class Requirements(BaseModel):
             if requirement not in self.__root__:
                 self.__root__.append(requirement)
 
+    def to_unix(self) -> List[str]:
+        """
+        :return: list of unix based packages
+        """
+        return [r.get_repr() for r in self.of_type(UnixPackageRequirement)]
+
     def to_pip(self) -> List[str]:
         """
         :return: list of pip installable packages
         """
-        return [r.to_str() for r in self.installable]
+        return [r.get_repr() for r in self.installable]
 
     def __add__(self, other: "AnyRequirements"):
         other = resolve_requirements(other)
@@ -423,12 +477,7 @@ class Requirements(BaseModel):
         return resolve_requirements(requirements)
 
     def materialize_custom(self, path: str):
-        for cr in self.custom:
-            for part, src in cr.to_sources_dict().items():
-                p = os.path.join(path, part)
-                os.makedirs(os.path.dirname(p), exist_ok=True)
-                with open(p, "wb") as f:
-                    f.write(src)
+        CustomRequirement.materialize(self.custom, path)
 
     @contextlib.contextmanager
     def import_custom(self):
@@ -490,7 +539,8 @@ def resolve_requirements(other: "AnyRequirements") -> Requirements:
         if isinstance(other[0], str):
             return Requirements(
                 __root__=[
-                    InstallableRequirement.from_str(r) for r in set(other)
+                    InstallableRequirement.from_str(r)
+                    for r in collections.OrderedDict.fromkeys(other)
                 ]
             )
 
@@ -522,7 +572,7 @@ AnyRequirements = Union[
 
 
 class WithRequirements:
-    """A mixing for objects that should provide their requirements"""
+    """A mixin for objects that should provide their requirements"""
 
     def get_requirements(self) -> Requirements:
         from mlem.utils.module import get_object_requirements
