@@ -383,7 +383,7 @@ def mlem_command(
         context_settings = kwargs.get("context_settings", {})
         if dynamic_options_generator:
             context_settings.update(
-                {"allow_extra_args": True, "ignore_unknown_options": True}
+                {"allow_extra_args": True, "ignore_unknown_options": False}
             )
         if no_pass_from_parent is not None:
             _pass_from_parent = [
