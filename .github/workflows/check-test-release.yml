@@ -102,18 +102,25 @@ jobs:
       uses: medyagh/setup-minikube@master
     - name: Run tests
       timeout-minutes: 40
-      run: pytest
+      run: pytest -k 'not heroku'
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        HEROKU_TEAM: iterative-sandbox
         GITHUB_MATRIX_OS: ${{ matrix.os }}
         GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
         BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
         BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
+    - name: Run Heroku tests
+      if: ${{ github.event_name == 'schedule' || contains(github.event.pull_request.title, 'heroku') }}
+      timeout-minutes: 40
+      run: pytest -k 'heroku'
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        HEROKU_TEAM: iterative-sandbox
+        GITHUB_MATRIX_OS: ${{ matrix.os }}
+        GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v3
       with:
