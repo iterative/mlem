@@ -117,8 +117,6 @@ jobs:
       timeout-minutes: 40
       run: pytest -k 'heroku'
       env:
-        GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         HEROKU_TEAM: iterative-sandbox
         GITHUB_MATRIX_OS: ${{ matrix.os }}
