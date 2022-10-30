@@ -17,7 +17,7 @@ from typing import (
 import click
 import typer
 from click import Abort, ClickException, Command, HelpFormatter, Parameter
-from click.exceptions import Exit, MissingParameter
+from click.exceptions import Exit, MissingParameter, NoSuchOption
 from pydantic import ValidationError
 from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
@@ -133,6 +133,8 @@ class MlemCommand(
         **extra: Any,
     ) -> Context:
         args_copy = args[:]
+        if self.dynamic_options_generator:
+            extra["ignore_unknown_options"] = True
         ctx = super().make_context(info_name, args, parent, **extra)
         if not self.dynamic_options_generator:
             return ctx
@@ -146,6 +148,16 @@ class MlemCommand(
                 params.update(ctx.params)
 
             if ctx.args == extra_args:
+                if not self.ignore_unknown_options:
+                    from difflib import get_close_matches
+
+                    opt = "--" + get_extra_keys(extra_args)[0]
+                    possibilities = get_close_matches(
+                        opt, {f"--{o}" for o in params}
+                    )
+                    raise NoSuchOption(
+                        opt, possibilities=possibilities, ctx=ctx
+                    )
                 break
             extra_args = ctx.args
 
@@ -382,9 +394,7 @@ def mlem_command(
     def decorator(f):
         context_settings = kwargs.get("context_settings", {})
         if dynamic_options_generator:
-            context_settings.update(
-                {"allow_extra_args": True, "ignore_unknown_options": False}
-            )
+            context_settings.update({"allow_extra_args": True})
         if no_pass_from_parent is not None:
             _pass_from_parent = [
                 a
