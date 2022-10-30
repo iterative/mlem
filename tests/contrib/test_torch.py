@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import pytest
 import torch
@@ -16,6 +17,7 @@ from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
 from mlem.core.objects import MlemModel
+from mlem.utils.path import make_posix
 from tests.conftest import data_write_read_check
 
 
@@ -172,6 +174,21 @@ def test_torch_import(tmp_path, net, torchsave):
     meta = import_object(str(path), type_=TorchModelImport.type)
     assert isinstance(meta, MlemModel)
     assert isinstance(meta.model_type, TorchModel)
+
+
+def test_torch_import_in_separate_shell(tmp_path):
+    path = make_posix(os.path.join(str(tmp_path), "model"))
+    m = MyNet()
+    save(m, path)
+    x = subprocess.run(
+        [
+            "python",
+            "-c",
+            f""""from mlem.api import load; loaded = load('{path}')" """,
+        ],
+        check=True,
+    )
+    assert x.returncode == 0
 
 
 # Copyright 2019 Zyfra

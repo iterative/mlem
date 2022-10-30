@@ -307,7 +307,11 @@ def get_module_as_requirement(
 
 def get_local_module_reqs(mod) -> List[ModuleType]:
     """Parses module AST to find all import statements"""
-    tree = ast.parse(inspect.getsource(mod))
+    try:
+        tree = ast.parse(inspect.getsource(mod))
+    except OSError:
+        logger.debug("Failed to get source of %s", str(mod))
+        return []
     imports: List[Tuple[str, Optional[str]]] = []
     for statement in tree.body:
         if isinstance(statement, ast.Import):
