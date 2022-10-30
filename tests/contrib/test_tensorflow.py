@@ -194,7 +194,7 @@ def test_model_wrapper(net, input_data, tmpdir, request):
 
     prediction = tmw.call_method("predict", input_data)
 
-    np.testing.assert_array_equal(orig_pred, prediction)
+    np.testing.assert_allclose(orig_pred, prediction)
 
     model_name = str(tmpdir / "tensorflow-model")
     artifacts = tmw.dump(LOCAL_STORAGE, model_name)
@@ -214,7 +214,7 @@ def test_model_wrapper(net, input_data, tmpdir, request):
 
     prediction2 = tmw.call_method("predict", input_data)
 
-    np.testing.assert_array_equal(prediction, prediction2)
+    np.testing.assert_allclose(prediction, prediction2)
 
     assert set(tmw.get_requirements().modules) == expected_requirements
 

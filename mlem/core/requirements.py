@@ -55,11 +55,27 @@ class Requirement(MlemABC):
     abs_name: ClassVar[str] = "requirement"
     type: ClassVar = ...
 
+    @abstractmethod
+    def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
+
 
 class PythonRequirement(Requirement, ABC):
     type: ClassVar = "_python"
     module: str
     """Python module name"""
+
+    def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
 
 
 class InstallableRequirement(PythonRequirement):
@@ -85,13 +101,20 @@ class InstallableRequirement(PythonRequirement):
             self.module, self.module
         )
 
-    def to_str(self):
+    def get_repr(self):
         """
         pip installable representation of this module
         """
         if self.version is not None:
             return f"{self.package}=={self.version}"
         return self.package
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        reqs = [r.get_repr() for r in reqs]
+        requirement_string = "\n".join(reqs)
+        with open(os.path.join(target), "w", encoding="utf8") as fp:
+            fp.write(requirement_string + "\n")
 
     @classmethod
     def from_module(
@@ -147,6 +170,18 @@ class CustomRequirement(PythonRequirement):
     """Zipped and base64-encoded source"""
     is_package: bool
     """Whether this code should be in %name%/__init__.py"""
+
+    def get_repr(self):
+        raise NotImplementedError
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        for cr in reqs:
+            for part, src in cr.to_sources_dict().items():
+                p = os.path.join(target, part)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(src)
 
     @staticmethod
     def from_module(mod: ModuleType) -> "CustomRequirement":
@@ -273,6 +308,9 @@ class FileRequirement(CustomRequirement):
     module: str = ""
     """Ignored"""
 
+    def get_repr(self):
+        raise NotImplementedError
+
     def to_sources_dict(self):
         """
         Mapping path -> source code for this requirement
@@ -295,6 +333,13 @@ class UnixPackageRequirement(Requirement):
     type: ClassVar[str] = "unix"
     package_name: str
     """Name of the package"""
+
+    def get_repr(self):
+        return self.package_name
+
+    @classmethod
+    def materialize(cls, reqs, target: str):
+        raise NotImplementedError
 
 
 T = TypeVar("T", bound=Requirement)
@@ -399,11 +444,17 @@ class Requirements(BaseModel):
             if requirement not in self.__root__:
                 self.__root__.append(requirement)
 
+    def to_unix(self) -> List[str]:
+        """
+        :return: list of unix based packages
+        """
+        return [r.get_repr() for r in self.of_type(UnixPackageRequirement)]
+
     def to_pip(self) -> List[str]:
         """
         :return: list of pip installable packages
         """
-        return [r.to_str() for r in self.installable]
+        return [r.get_repr() for r in self.installable]
 
     def __add__(self, other: "AnyRequirements"):
         other = resolve_requirements(other)
@@ -426,12 +477,7 @@ class Requirements(BaseModel):
         return resolve_requirements(requirements)
 
     def materialize_custom(self, path: str):
-        for cr in self.custom:
-            for part, src in cr.to_sources_dict().items():
-                p = os.path.join(path, part)
-                os.makedirs(os.path.dirname(p), exist_ok=True)
-                with open(p, "wb") as f:
-                    f.write(src)
+        CustomRequirement.materialize(self.custom, path)
 
     @contextlib.contextmanager
     def import_custom(self):

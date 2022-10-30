@@ -3,6 +3,7 @@ Functions to work with metadata: saving, loading,
 searching for MLEM object by given path.
 """
 import logging
+import os
 import posixpath
 from typing import Any, Dict, Optional, Type, TypeVar, Union, overload
 
@@ -43,7 +44,7 @@ def get_object_metadata(
 
 def save(
     obj: Any,
-    path: str,
+    path: Union[str, os.PathLike],
     project: Optional[str] = None,
     sample_data=None,
     fs: Optional[AbstractFileSystem] = None,
@@ -70,12 +71,13 @@ def save(
         sample_data,
         params=params,
     )
+    path = os.fspath(path)
     meta.dump(path, fs=fs, project=project)
     return meta
 
 
 def load(
-    path: str,
+    path: Union[str, os.PathLike],
     project: Optional[str] = None,
     rev: Optional[str] = None,
     batch_size: Optional[int] = None,
@@ -93,6 +95,7 @@ def load(
     Returns:
         Any: Python object saved by MLEM
     """
+    path = os.fspath(path)
     meta = load_meta(
         path,
         project=project,
@@ -110,7 +113,7 @@ T = TypeVar("T", bound=MlemObject)
 
 @overload
 def load_meta(
-    path: str,
+    path: Union[str, os.PathLike],
     project: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
@@ -124,7 +127,7 @@ def load_meta(
 
 @overload
 def load_meta(
-    path: str,
+    path: Union[str, os.PathLike],
     project: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
@@ -137,7 +140,7 @@ def load_meta(
 
 
 def load_meta(
-    path: str,
+    path: Union[str, os.PathLike],
     project: Optional[str] = None,
     rev: Optional[str] = None,
     follow_links: bool = True,
@@ -160,6 +163,7 @@ def load_meta(
     Returns:
         MlemObject: Saved MlemObject
     """
+    path = os.fspath(path)
     location = Location.resolve(
         path=make_posix(path),
         project=make_posix(project),
