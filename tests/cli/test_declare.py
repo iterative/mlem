@@ -66,7 +66,7 @@ def test_declare(runner: Runner, tmp_path):
 @pytest.mark.parametrize(
     "args, res",
     [
-        # ("", []),
+        ("", []),
         (
             "--args.templates_dir.0 kek --args.templates_dir.1 kek2",
             ["kek", "kek2"],
