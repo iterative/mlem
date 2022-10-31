@@ -347,15 +347,6 @@ def serve(
     server_obj.serve(interface)
 
 
-def _validate_ls_project(loc: Location, project):
-    if loc.project is None:
-        raise MlemProjectNotFound(project, loc.fs)
-    if isinstance(loc.fs, LocalFileSystem):
-        loc.project = find_project_root(loc.project, loc.fs)
-    else:
-        mlem_project_exists(loc.project, loc.fs, raise_on_missing=True)
-
-
 def import_object(
     path: str,
     project: Optional[str] = None,
