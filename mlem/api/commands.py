@@ -5,7 +5,6 @@ import posixpath
 from typing import Any, Dict, Optional, Union
 
 from fsspec import AbstractFileSystem
-from fsspec.implementations.local import LocalFileSystem
 
 from mlem.api.utils import (
     ensure_meta,
@@ -46,7 +45,6 @@ from mlem.ui import (
     color,
     echo,
 )
-from mlem.utils.root import find_project_root, mlem_project_exists
 
 
 def apply(
