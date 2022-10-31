@@ -19,7 +19,6 @@ from mlem.core.errors import (
     MlemError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
-    MlemProjectNotFound,
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
