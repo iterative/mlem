@@ -506,9 +506,7 @@ def test_declare_deployment_env(
 
 
 def test_declare_unknown_option_raises(runner: Runner):
-    with pytest.raises(
-        RuntimeError, match=".*No such option.*"
-    ):
+    with pytest.raises(RuntimeError, match=".*No such option.*"):
         runner.invoke(
             f"--tb declare deployment {MlemDeploymentMock.type} nowhere --nonexistent_option value",
             raise_on_error=True,
