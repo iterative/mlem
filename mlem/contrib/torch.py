@@ -80,6 +80,8 @@ class TorchTensorDataType(
 
 
 class TorchTensorSerializer(DataSerializer[TorchTensorDataType]):
+    """Serializer for torch tensors"""
+
     is_default: ClassVar = True
     data_class: ClassVar = TorchTensorDataType
 

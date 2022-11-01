@@ -92,6 +92,8 @@ class TFTensorDataType(
 
 
 class TFTensorSerializer(DataSerializer[TFTensorDataType]):
+    """Serializer for `tf.Tensor` type"""
+
     is_default: ClassVar = True
     data_class: ClassVar = TFTensorDataType
 
