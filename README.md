@@ -11,7 +11,7 @@ MLEM helps you package and deploy machine learning models.
 It saves ML models in a standard format that can be used in a variety of production scenarios such as real-time REST serving or batch processing.
 
 - **Run your ML models anywhere:**
-  Wrap models as a Python package or Docker Image, or deploy them to Heroku (SageMaker, Kubernetes, and more platforms coming soon).
+  Wrap models as a Python package or Docker Image, or deploy them to Heroku, SageMaker or Kubernetes (more platforms coming soon).
   Switch between platforms transparently, with a single command.
 
 - **Model metadata into YAML automatically:**

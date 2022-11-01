@@ -101,7 +101,8 @@ def test_declare_list(runner: Runner, tmp_path, args, res):
 def test_declare_dict(runner: Runner, tmp_path, args, res):
     result = runner.invoke(
         f"declare builder pip {make_posix(str(tmp_path))} --package_name lol --target lol "
-        + args
+        + args,
+        raise_on_error=True,
     )
     assert result.exit_code == 0, (result.exception, result.output)
     builder = load_meta(str(tmp_path))
@@ -502,3 +503,11 @@ def test_declare_deployment_env(
     meta = load_meta(path, force_type=MlemDeploymentMock)
 
     assert meta.env == env_value
+
+
+def test_declare_unknown_option_raises(runner: Runner):
+    with pytest.raises(RuntimeError, match=".*No such option.*"):
+        runner.invoke(
+            f"--tb declare deployment {MlemDeploymentMock.type} nowhere --nonexistent_option value",
+            raise_on_error=True,
+        )
