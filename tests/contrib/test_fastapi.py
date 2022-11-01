@@ -71,12 +71,12 @@ def test_rename_recursively(payload_model):
 
 def test_create_handler(signature, executor):
     server = FastAPIServer()
-    _, response_model = server._create_handler(
+    _, response_model, _ = server._create_handler(
         PREDICT_METHOD_NAME, signature, executor
     )
     assert (
         response_model.__name__
-        == f"{PREDICT_METHOD_NAME}_response_{signature.returns.get_serializer().get_model().__name__}"
+        == f"{PREDICT_METHOD_NAME}_response_{signature.returns.get_model().__name__}"
     )
     assert isinstance(response_model, ModelMetaclass)
 
@@ -88,7 +88,7 @@ def test_create_handler_primitive():
     signature = Signature.from_method(f, auto_infer=True, data="value")
 
     server = FastAPIServer()
-    handler, response_model = server._create_handler(
+    handler, response_model, _ = server._create_handler(
         PREDICT_METHOD_NAME, signature, f
     )
     request_model = handler.__annotations__["model"]

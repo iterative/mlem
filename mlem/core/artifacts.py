@@ -335,10 +335,15 @@ class LocalArtifact(FSSpecArtifact):
 
 
 class InMemoryArtifact(Artifact):
+    """Virtual artifact representing in-memory bytes object"""
+
     class Config:
         arbitrary_types_allowed = True
 
+    type: ClassVar = "_in_memory"
+
     payload: bytes = b""
+    """Payload in bytes"""
 
     def _download(self, target_path: str) -> "LocalArtifact":
         raise NotImplementedError
@@ -357,10 +362,15 @@ class InMemoryArtifact(Artifact):
 
 
 class InMemoryFileobjArtifact(Artifact):
+    """Virtual artifact representing in-memory bytes buffer"""
+
     class Config:
         arbitrary_types_allowed = True
 
+    type: ClassVar = "_in_memory_buffer"
+
     fileobj: Union[BinaryIO, Any]
+    """BinaryIO buffer"""
 
     def _download(self, target_path: str) -> "LocalArtifact":
         raise NotImplementedError
@@ -377,6 +387,10 @@ class InMemoryFileobjArtifact(Artifact):
 
 
 class InMemoryStorage(Storage):
+    """Virtual storage for in-memory artifacts"""
+
+    type: ClassVar = "_in_memory"
+
     def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
         raise NotImplementedError
 

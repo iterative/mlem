@@ -19,6 +19,7 @@ from mlem.core.data_type import (
     DataAnalyzer,
     DataHook,
     DataReader,
+    DataSerializer,
     DataType,
     DataWriter,
     JsonTypes,
@@ -57,35 +58,6 @@ class LightGBMDataType(
     labels: Optional[DataType]
     """DataType of Labels"""
 
-    def serialize(self, instance: Any) -> JsonTypes:
-        self.check_type(instance, lgb.Dataset, SerializationError)
-        if self.labels is not None:
-            return {
-                LIGHTGBM_DATA: self.inner.get_serializer().serialize(
-                    instance.data
-                ),
-                LIGHTGBM_LABEL: self.labels.get_serializer().serialize(
-                    instance.label
-                ),
-            }
-        return self.inner.get_serializer().data.serialize(instance.data)
-
-    def deserialize(self, obj: dict) -> Any:
-        if self.labels is not None:
-            data = self.inner.get_serializer().deserialize(obj[LIGHTGBM_DATA])
-            label = self.labels.get_serializer().deserialize(
-                obj[LIGHTGBM_LABEL]
-            )
-        else:
-            data = self.inner.get_serializer().deserialize(obj)
-            label = None
-        try:
-            return lgb.Dataset(data, label=label, free_raw_data=False)
-        except ValueError as e:
-            raise DeserializationError(
-                f"object: {obj} could not be converted to lightgbm dataset"
-            ) from e
-
     def get_requirements(self) -> Requirements:
         return (
             Requirements.new([InstallableRequirement.from_module(lgb)])
@@ -107,8 +79,50 @@ class LightGBMDataType(
             else None,
         )
 
+
+class LightGBMDataSerializer(DataSerializer[LightGBMDataType]):
+    """Serializer for lighgbm datasets"""
+
+    is_default: ClassVar = True
+    data_class: ClassVar = LightGBMDataType
+
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return self.inner.get_serializer().data.get_model(prefix)
+        return self.data_type.inner.get_serializer().data.get_model(prefix)
+
+    def serialize(self, instance: Any) -> JsonTypes:
+        self.data_type.check_type(instance, lgb.Dataset, SerializationError)
+        if self.data_type.labels is not None:
+            return {
+                LIGHTGBM_DATA: self.data_type.inner.get_serializer().serialize(
+                    instance.data
+                ),
+                LIGHTGBM_LABEL: self.data_type.labels.get_serializer().serialize(
+                    instance.label
+                ),
+            }
+        return self.data_type.inner.get_serializer().data.serialize(
+            instance.data
+        )
+
+    def deserialize(self, obj: JsonTypes) -> Any:
+        self.data_type.check_type(obj, dict, DeserializationError)
+        assert isinstance(obj, dict)
+        if self.data_type.labels is not None:
+            data = self.data_type.inner.get_serializer().deserialize(
+                obj[LIGHTGBM_DATA]
+            )
+            label = self.data_type.labels.get_serializer().deserialize(
+                obj[LIGHTGBM_LABEL]
+            )
+        else:
+            data = self.data_type.inner.get_serializer().deserialize(obj)
+            label = None
+        try:
+            return lgb.Dataset(data, label=label, free_raw_data=False)
+        except ValueError as e:
+            raise DeserializationError(
+                f"object: {obj} could not be converted to lightgbm dataset"
+            ) from e
 
 
 class LightGBMDataWriter(DataWriter):

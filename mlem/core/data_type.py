@@ -101,6 +101,15 @@ class DataType(ABC, MlemABC, WithRequirements, Generic[DDT]):
             obj
         )
 
+    def serialize(self, instance):
+        return self.get_serializer().serialize(instance)
+
+    def deserialize(self, obj):
+        return self.get_serializer().deserialize(obj)
+
+    def get_model(self, prefix: str = "", **kwargs):
+        return self.get_serializer(**kwargs).data.get_model(prefix=prefix)
+
 
 DT = TypeVar("DT", bound=DataType)
 JsonTypes = Union[dict, list, int, str, bool, float, None]
@@ -116,6 +125,7 @@ class Serializer(MlemABC, Generic[DT]):
     data_class: ClassVar[Type[DataType]]
     is_default: ClassVar[bool] = False
     data_type: DT
+    """DataType instance to use for serialization"""
 
     @abstractmethod
     def serialize(self, instance: Any):
@@ -126,8 +136,8 @@ class Serializer(MlemABC, Generic[DT]):
         raise NotImplementedError
 
     @property
-    def binary(self) -> "BinaryDataSerializer":
-        if not isinstance(self, BinaryDataSerializer):
+    def binary(self) -> "BinarySerializer":
+        if not isinstance(self, BinarySerializer):
             raise NotImplementedError
         return self
 
@@ -139,7 +149,7 @@ class Serializer(MlemABC, Generic[DT]):
 
     @property
     def is_binary(self):
-        return isinstance(self, BinaryDataSerializer)
+        return isinstance(self, BinarySerializer)
 
     def __init_subclass__(cls):
         if cls.is_default and issubclass(
@@ -151,6 +161,8 @@ class Serializer(MlemABC, Generic[DT]):
 
 
 class DataSerializer(Serializer[DT], Generic[DT], ABC):
+    """Base class for serializers to JSON data"""
+
     @abstractmethod
     def serialize(self, instance: Any) -> JsonTypes:
         raise NotImplementedError
@@ -164,7 +176,9 @@ class DataSerializer(Serializer[DT], Generic[DT], ABC):
         raise NotImplementedError
 
 
-class BinaryDataSerializer(Serializer[DT], Generic[DT], ABC):
+class BinarySerializer(Serializer[DT], Generic[DT], ABC):
+    """Base class for serializers from/to raw binary data"""
+
     @abstractmethod
     def serialize(self, instance: Any) -> bytes:
         raise NotImplementedError
@@ -193,9 +207,6 @@ class UnspecifiedDataType(DataType):
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
     ) -> "DataWriter":
-        raise NotImplementedError
-
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
 
@@ -257,6 +268,8 @@ class DataWriter(MlemABC, Generic[DT]):
 
 
 class WithDefaultSerializer:
+    """Mixin to use for DataTypes with default serializer implementations"""
+
     serializer_class: ClassVar[Type[Serializer]]
 
     def get_serializer(
@@ -275,6 +288,12 @@ class PrimitiveType(WithDefaultSerializer, DataType, DataHook):
 
     ptype: str
     """Name of builtin type"""
+
+    @property
+    def data(self) -> Any:
+        if self.value is None and self.ptype != "NoneType":
+            raise MlemError("Cannot access data on empty data type object")
+        return self.value
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
@@ -298,6 +317,8 @@ class PrimitiveType(WithDefaultSerializer, DataType, DataHook):
 
 
 class PrimitiveSerializer(DataSerializer[PrimitiveType]):
+    """Serialzier for primitive types"""
+
     data_class: ClassVar = PrimitiveType
     is_default: ClassVar = True
 
@@ -371,6 +392,8 @@ class ArrayType(WithDefaultSerializer, DataType):
 
 
 class ArraySerializer(DataSerializer[ArrayType]):
+    """Serialzier for list with single element type"""
+
     data_class: ClassVar = ArrayType
     is_default: ClassVar = True
 
@@ -475,6 +498,8 @@ class _TupleLikeType(WithDefaultSerializer, DataType):
 
 
 class _TupleLikeSerializer(DataSerializer[_TupleLikeType]):
+    """Serialzier for tuple-like sequence"""
+
     data_class: ClassVar = _TupleLikeType
     is_default: ClassVar = True
 
@@ -513,8 +538,7 @@ class _TupleLikeSerializer(DataSerializer[_TupleLikeType]):
             __root__=(
                 Tuple[
                     tuple(
-                        t.get_serializer().data().get_model(name)
-                        for name, t in zip(names, self.items)
+                        t.get_model(name) for name, t in zip(names, self.items)
                     )
                 ],
                 ...,
@@ -698,6 +722,8 @@ class DictType(WithDefaultSerializer, DataType):
 
 
 class DictSerializer(DataSerializer[DictType]):
+    """Serialzier for dict"""
+
     data_class: ClassVar = DictType
     is_default: ClassVar = True
 
@@ -854,6 +880,8 @@ class DynamicDictType(WithDefaultSerializer, DataType):
 
 
 class DynamicDictSerializer(DataSerializer[DynamicDictType]):
+    """Serialzier for dynamic dict"""
+
     data_class: ClassVar = DynamicDictType
     is_default: ClassVar = True
 
@@ -946,6 +974,8 @@ class DynamicDictReader(DataReader[DynamicDictType]):
 class BinaryDataType(
     WithDefaultSerializer, DataType, DataHook, IsInstanceHookMixin
 ):
+    """Represents raw binary data"""
+
     type: ClassVar = "binary"
 
     valid_types: ClassVar = (bytes,)
@@ -960,11 +990,13 @@ class BinaryDataType(
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
     ) -> "DataWriter":
-        return BinaryWriter()
+        return BinaryDataWriter()
 
 
-class BinarySerializer(BinaryDataSerializer[BinaryDataType]):
-    data_class: ClassVar = BinaryDataSerializer
+class BinaryDataSerializer(BinarySerializer[BinaryDataType]):
+    """Serializer for binary data"""
+
+    data_class: ClassVar = BinaryDataType
     is_default: ClassVar = True
 
     def serialize(self, instance: bytes) -> bytes:
@@ -980,7 +1012,9 @@ class BinarySerializer(BinaryDataSerializer[BinaryDataType]):
         return obj.read()
 
 
-class BinaryWriter(DataWriter[BinaryDataType]):
+class BinaryDataWriter(DataWriter[BinaryDataType]):
+    """Writer for binary data"""
+
     type: ClassVar = "binary"
 
     def write(
@@ -988,14 +1022,16 @@ class BinaryWriter(DataWriter[BinaryDataType]):
     ) -> Tuple[DataReader[BinaryDataType], Artifacts]:
         with storage.open(path) as (f, art):
             f.write(data.data)
-        return BinaryReader(data_type=data), {self.art_name: art}
+        return BinaryDataReader(data_type=data), {self.art_name: art}
 
 
-class BinaryReader(DataReader[BinaryDataType]):
+class BinaryDataReader(DataReader[BinaryDataType]):
+    """Reader for binary data"""
+
     type: ClassVar = "binary"
 
     def read(self, artifacts: Artifacts) -> BinaryDataType:
-        art = artifacts[BinaryWriter.art_name]
+        art = artifacts[BinaryDataWriter.art_name]
         with art.open() as f:
             return BinaryDataType().bind(f.read())
 
@@ -1005,7 +1041,11 @@ class BinaryReader(DataReader[BinaryDataType]):
         raise NotImplementedError
 
 
-class FileSerializer(BinaryDataSerializer):
+class FileSerializer(BinarySerializer):
+    """BinarySerialzier for arbitrary data using reader and writer"""
+
+    type: ClassVar = "file"
+
     def _get_artifact(self, instance: Any) -> InMemoryArtifact:
         writer = self.data_type.get_writer()
         _, arts = writer.write(

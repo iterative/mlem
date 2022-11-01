@@ -20,6 +20,7 @@ from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
     DataReader,
+    DataSerializer,
     DataType,
     DataWriter,
     WithDefaultSerializer,
@@ -59,32 +60,11 @@ class TFTensorDataType(
     def tf_type(self):
         return getattr(tf, self.dtype)
 
-    def _check_shape(self, tensor, exc_type):
+    def check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
             raise exc_type(
                 f"given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}"
             )
-
-    def serialize(self, instance: tf.Tensor):
-        self.check_type(instance, tf.Tensor, SerializationError)
-        if instance.dtype is not self.tf_type:
-            raise SerializationError(
-                f"given tensor is of dtype: {instance.dtype}, "
-                f"expected: {self.tf_type}"
-            )
-        self._check_shape(instance, SerializationError)
-        return instance.numpy().tolist()
-
-    def deserialize(self, obj):
-        try:
-            ret = tf.convert_to_tensor(obj, dtype=self.tf_type)
-        except (ValueError, TypeError):
-            raise DeserializationError(  # pylint: disable=raise-missing-from
-                f"given object: {obj} could not be converted to tensor "
-                f"of type: {self.tf_type}"
-            )
-        self._check_shape(ret, DeserializationError)
-        return ret
 
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(tf)])
@@ -94,19 +74,13 @@ class TFTensorDataType(
     ) -> DataWriter:
         return TFTensorWriter(**kwargs)
 
-    def _subtype(self, subshape: Tuple[Optional[int], ...]):
+    def subtype(self, subshape: Tuple[Optional[int], ...]):
         if len(subshape) == 0:
             return python_type_from_tf_string_repr(self.dtype)
         return conlist(
-            self._subtype(subshape[1:]),
+            self.subtype(subshape[1:]),
             min_items=subshape[0],
             max_items=subshape[0],
-        )
-
-    def get_model(self, prefix: str = ""):
-        return create_model(
-            prefix + "TFTensor",
-            __root__=(List[self._subtype(self.shape[1:])], ...),  # type: ignore
         )
 
     @classmethod
@@ -115,6 +89,39 @@ class TFTensorDataType(
             shape=(None,) + tuple(obj.shape)[1:],
             dtype=obj.dtype.name,
         )
+
+
+class TFTensorSerializer(DataSerializer[TFTensorDataType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = TFTensorDataType
+
+    def get_model(self, prefix: str = ""):
+        item_type = List[self.data_type.subtype(self.data_type.shape[1:])]  # type: ignore[index]
+        return create_model(
+            prefix + "TFTensor",
+            __root__=(item_type, ...),
+        )
+
+    def serialize(self, instance: tf.Tensor):
+        self.data_type.check_type(instance, tf.Tensor, SerializationError)
+        if instance.dtype is not self.data_type.tf_type:
+            raise SerializationError(
+                f"given tensor is of dtype: {instance.dtype}, "
+                f"expected: {self.data_type.tf_type}"
+            )
+        self.data_type.check_shape(instance, SerializationError)
+        return instance.numpy().tolist()
+
+    def deserialize(self, obj):
+        try:
+            ret = tf.convert_to_tensor(obj, dtype=self.data_type.tf_type)
+        except (ValueError, TypeError):
+            raise DeserializationError(  # pylint: disable=raise-missing-from
+                f"given object: {obj} could not be converted to tensor "
+                f"of type: {self.data_type.tf_type}"
+            )
+        self.data_type.check_shape(ret, DeserializationError)
+        return ret
 
 
 DATA_KEY = "data"

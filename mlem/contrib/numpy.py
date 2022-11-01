@@ -70,7 +70,9 @@ class NumpyNumberType(
         return NumpyNumberWriter(**kwargs)
 
 
-class NumpyNumberSerilizer(DataSerializer[NumpyNumberType]):
+class NumpyNumberSerializer(DataSerializer[NumpyNumberType]):
+    """Serializer for numpy numbers"""
+
     is_default: ClassVar = True
     data_class: ClassVar = NumpyNumberType
 
@@ -142,6 +144,8 @@ class NumpyNdarrayType(
 
 
 class NumpyNdarraySerializer(DataSerializer[NumpyNdarrayType]):
+    """Serialzier for numpy arrays"""
+
     is_default: ClassVar = True
     data_class: ClassVar = NumpyNdarrayType
 

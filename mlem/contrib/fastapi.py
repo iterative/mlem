@@ -16,11 +16,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from mlem.core.data_type import (
-    BinaryDataSerializer,
-    DataSerializer,
-    Serializer,
-)
+from mlem.core.data_type import BinarySerializer, DataSerializer, Serializer
 from mlem.core.model import Argument, Signature
 from mlem.core.requirements import LibRequirementsMixin
 from mlem.runtime.interface import Interface
@@ -65,7 +61,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         executor: Callable,
         response_serializer: Serializer,
     ):
-        deserialzied_model = create_model(
+        deserialized_model = create_model(
             "Model", **{a.name: (Any, ...) for a in args}
         )  # type: ignore[call-overload]
 
@@ -75,7 +71,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 field_values[a.name] = arg_serializers[a.name].deserialize(
                     values[a.name]
                 )
-            return deserialzied_model(**field_values)
+            return deserialized_model(**field_values)
 
         arg_models = {
             key: (serializer.get_model(), ...)
@@ -118,7 +114,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def _create_handler_executor_binary(
         cls,
         method_name: str,
-        serializer: BinaryDataSerializer,
+        serializer: BinarySerializer,
         arg_name: str,
         executor: Callable,
         response_serializer: Serializer,

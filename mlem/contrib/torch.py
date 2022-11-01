@@ -17,6 +17,7 @@ from mlem.core.artifacts import Artifacts, FSSpecArtifact, Storage
 from mlem.core.data_type import (
     DataHook,
     DataReader,
+    DataSerializer,
     DataType,
     DataWriter,
     WithDefaultSerializer,
@@ -47,32 +48,11 @@ class TorchTensorDataType(
     dtype: str
     """Type name of `torch.Tensor` elements"""
 
-    def _check_shape(self, tensor, exc_type):
+    def check_shape(self, tensor, exc_type):
         if tuple(tensor.shape)[1:] != self.shape[1:]:
             raise exc_type(
                 f"given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}"
             )
-
-    def serialize(self, instance: torch.Tensor):
-        self.check_type(instance, torch.Tensor, SerializationError)
-        if instance.dtype is not getattr(torch, self.dtype):
-            raise SerializationError(
-                f"given tensor is of dtype: {instance.dtype}, "
-                f"expected: {getattr(torch, self.dtype)}"
-            )
-        self._check_shape(instance, SerializationError)
-        return instance.tolist()
-
-    def deserialize(self, obj):
-        try:
-            ret = torch.tensor(obj, dtype=getattr(torch, self.dtype))
-        except (ValueError, TypeError):
-            raise DeserializationError(  # pylint: disable=W0707
-                f"given object: {obj} could not be converted to tensor "
-                f"of type: {getattr(torch, self.dtype)}"
-            )
-        self._check_shape(ret, DeserializationError)
-        return ret
 
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(torch)])
@@ -82,19 +62,13 @@ class TorchTensorDataType(
     ) -> DataWriter:
         return TorchTensorWriter(**kwargs)
 
-    def _subtype(self, subshape: Tuple[Optional[int], ...]):
+    def subtype(self, subshape: Tuple[Optional[int], ...]):
         if len(subshape) == 0:
             return python_type_from_torch_string_repr(self.dtype)
         return conlist(
-            self._subtype(subshape[1:]),
+            self.subtype(subshape[1:]),
             min_items=subshape[0],
             max_items=subshape[0],
-        )
-
-    def get_model(self, prefix: str = ""):
-        return create_model(
-            prefix + "TorchTensor",
-            __root__=(List[self._subtype(self.shape[1:])], ...),  # type: ignore
         )
 
     @classmethod
@@ -103,6 +77,38 @@ class TorchTensorDataType(
             shape=(None,) + obj.shape[1:],
             dtype=str(obj.dtype)[len("torch") + 1 :],
         )
+
+
+class TorchTensorSerializer(DataSerializer[TorchTensorDataType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = TorchTensorDataType
+
+    def get_model(self, prefix: str = ""):
+        return create_model(
+            prefix + "TorchTensor",
+            __root__=(List[self.data_type.subtype(self.data_type.shape[1:])], ...),  # type: ignore[index]
+        )
+
+    def serialize(self, instance: torch.Tensor):
+        self.data_type.check_type(instance, torch.Tensor, SerializationError)
+        if instance.dtype is not getattr(torch, self.data_type.dtype):
+            raise SerializationError(
+                f"given tensor is of dtype: {instance.dtype}, "
+                f"expected: {getattr(torch, self.data_type.dtype)}"
+            )
+        self.data_type.check_shape(instance, SerializationError)
+        return instance.tolist()
+
+    def deserialize(self, obj):
+        try:
+            ret = torch.tensor(obj, dtype=getattr(torch, self.data_type.dtype))
+        except (ValueError, TypeError):
+            raise DeserializationError(  # pylint: disable=W0707
+                f"given object: {obj} could not be converted to tensor "
+                f"of type: {getattr(torch, self.data_type.dtype)}"
+            )
+        self.data_type.check_shape(ret, DeserializationError)
+        return ret
 
 
 class TorchTensorWriter(DataWriter):

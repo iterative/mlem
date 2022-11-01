@@ -191,6 +191,8 @@ class _PandasDataType(
 
 
 class PandasSerializer(DataSerializer, ABC):
+    """Base class for pandas serializers"""
+
     def deserialize(self, obj: JsonTypes):
         self.data_type.check_type(obj, dict, DeserializationError)
         assert isinstance(obj, dict)
@@ -227,7 +229,7 @@ class PandasSerializer(DataSerializer, ABC):
         return {"values": (instance.to_dict("records"))}
 
 
-class SeriesType(_PandasDataType):
+class SeriesType(WithDefaultSerializer, _PandasDataType):
     """
     :class:`.DataType` implementation for `pandas.Series` objects which stores them as built-in Python dicts
 
@@ -258,6 +260,8 @@ class SeriesType(_PandasDataType):
 
 
 class SeriesSerializer(PandasSerializer, DataSerializer[SeriesType]):
+    """Serialzier for `pd.Series`"""
+
     is_default: ClassVar = True
     data_class: ClassVar = SeriesType
 
@@ -346,6 +350,8 @@ class DataFrameType(WithDefaultSerializer, _PandasDataType):
 
 
 class DataFrameSerializer(PandasSerializer, DataSerializer[DataFrameType]):
+    """Serialzier for `pd.DataFrame`"""
+
     is_default: ClassVar = True
     data_class: ClassVar = DataFrameType
 

@@ -17,8 +17,10 @@ from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
+    DataSerializer,
     DataType,
     DataWriter,
+    JsonTypes,
     WithDefaultSerializer,
 )
 from mlem.core.errors import DeserializationError, SerializationError
@@ -76,22 +78,6 @@ class DMatrixDataType(
             else ["float32" for _ in range(len(self.feature_names))]
         )
 
-    def serialize(self, instance: xgboost.DMatrix) -> Dict[Any, Any]:
-        """
-        Raises an error because there is no way to extract original data from DMatrix
-        """
-        raise SerializationError(
-            "xgboost matrix does not support serialization"
-        )
-
-    def deserialize(self, obj: Dict[Any, Any]) -> xgboost.DMatrix:
-        try:
-            return xgboost.DMatrix(obj)
-        except (ValueError, TypeError) as e:
-            raise DeserializationError(
-                f"given object: {obj} could not be converted to xgboost matrix"
-            ) from e
-
     @classmethod
     def from_dmatrix(cls, dmatrix: xgboost.DMatrix):
         """
@@ -116,10 +102,31 @@ class DMatrixDataType(
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
     ) -> DataWriter:
-        raise NotImplementedError()
+        raise NotImplementedError
+
+
+class DMatrixSerializer(DataSerializer[DMatrixDataType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = DMatrixDataType
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
+
+    def serialize(self, instance: xgboost.DMatrix) -> Dict[Any, Any]:
+        """
+        Raises an error because there is no way to extract original data from DMatrix
+        """
+        raise SerializationError(
+            "xgboost matrix does not support serialization"
+        )
+
+    def deserialize(self, obj: JsonTypes) -> xgboost.DMatrix:
+        try:
+            return xgboost.DMatrix(obj)
+        except (ValueError, TypeError) as e:
+            raise DeserializationError(
+                f"given object: {obj} could not be converted to xgboost matrix"
+            ) from e
 
 
 class XGBoostModelIO(ModelIO):
