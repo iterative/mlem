@@ -15,7 +15,12 @@ from pydantic import BaseModel
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
+from mlem.core.data_type import (
+    DataHook,
+    DataType,
+    DataWriter,
+    WithDefaultSerializer,
+)
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
@@ -40,9 +45,9 @@ class XGBoostRequirement(WithRequirements):
 
 
 class DMatrixDataType(
+    WithDefaultSerializer,
     XGBoostRequirement,
     DataType,
-    DataSerializer,
     DataHook,
     IsInstanceHookMixin,
 ):

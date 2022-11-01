@@ -20,9 +20,9 @@ from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
     DataReader,
-    DataSerializer,
     DataType,
     DataWriter,
+    WithDefaultSerializer,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
@@ -42,7 +42,7 @@ def python_type_from_tf_string_repr(dtype: str):
 
 
 class TFTensorDataType(
-    DataType, DataSerializer, DataHook, IsInstanceHookMixin
+    WithDefaultSerializer, DataType, DataHook, IsInstanceHookMixin
 ):
     """
     DataType implementation for `tensorflow.Tensor`

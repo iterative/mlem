@@ -6,8 +6,10 @@ import boto3
 import fastapi
 import sagemaker
 import uvicorn
+from fastapi.datastructures import Default
 from sagemaker.deserializers import JSONDeserializer
 from sagemaker.serializers import JSONSerializer
+from starlette.responses import JSONResponse
 
 from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.fastapi import FastAPIServer
@@ -56,7 +58,7 @@ class SageMakerServer(FastAPIServer):
     def app_init(self, interface: Interface):
         app = super().app_init(interface)
 
-        handler, response_model = self._create_handler(
+        handler, response_model, response_class = self._create_handler(
             "invocations",
             interface.get_method_signature(self.method),
             interface.get_method_executor(self.method),
@@ -66,6 +68,7 @@ class SageMakerServer(FastAPIServer):
             handler,
             methods=["POST"],
             response_model=response_model,
+            response_class=response_class or Default(JSONResponse),
         )
         app.add_api_route("/ping", ping, methods=["GET"])
         return app

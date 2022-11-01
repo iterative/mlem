@@ -4,7 +4,6 @@ Extension type: data
 DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
 ImportHook implementation for files saved with pandas
 """
-import contextlib
 import os.path
 import posixpath
 import re
@@ -13,7 +12,6 @@ from dataclasses import dataclass
 from typing import (
     IO,
     Any,
-    BinaryIO,
     Callable,
     ClassVar,
     Dict,
@@ -39,20 +37,15 @@ from pydantic import BaseModel, create_model, validator
 
 from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.numpy import np_type_from_string, python_type_from_np_type
-from mlem.core.artifacts import (
-    Artifact,
-    Artifacts,
-    InMemoryArtifact,
-    InMemoryStoage,
-    Storage,
-)
+from mlem.core.artifacts import Artifact, Artifacts, Storage
 from mlem.core.data_type import (
-    DataBinSerializer,
     DataHook,
     DataReader,
     DataSerializer,
     DataType,
     DataWriter,
+    JsonTypes,
+    WithDefaultSerializer,
 )
 from mlem.core.errors import (
     DeserializationError,
@@ -130,8 +123,6 @@ class _PandasDataType(
     LibRequirementsMixin,
     DataType,
     DataHook,
-    DataSerializer,
-    DataBinSerializer,
     ABC,
 ):
     """Intermidiate class for pandas DataType implementations"""
@@ -181,14 +172,14 @@ class _PandasDataType(
     def align(self, df):
         return self.align_index(self.align_types(df))
 
-    def _validate_columns(self, df: pd.DataFrame, exc_type):
+    def validate_columns(self, df: pd.DataFrame, exc_type):
         """Validates that df has correct columns"""
         if set(df.columns) != set(self.columns):
             raise exc_type(
                 f"given dataframe has columns: {list(df.columns)}, expected: {self.columns}"
             )
 
-    def _validate_dtypes(self, df: pd.DataFrame, exc_type):
+    def validate_dtypes(self, df: pd.DataFrame, exc_type):
         """Validates that df has correct column dtypes"""
         df = df[self.columns]
         for col, expected, dtype in zip(self.columns, self.dtypes, df.dtypes):
@@ -198,8 +189,11 @@ class _PandasDataType(
                     f"given dataframe has incorrect type {pd_type} in column {col}. Expected: {expected}"
                 )
 
-    def deserialize(self, obj):
-        self.check_type(obj, dict, DeserializationError)
+
+class PandasSerializer(DataSerializer, ABC):
+    def deserialize(self, obj: JsonTypes):
+        self.data_type.check_type(obj, dict, DeserializationError)
+        assert isinstance(obj, dict)
         try:
             ret = pd.DataFrame.from_records(obj["values"])
         except (ValueError, KeyError) as e:
@@ -207,21 +201,23 @@ class _PandasDataType(
                 f"given object: {obj} could not be converted to dataframe"
             ) from e
 
-        self._validate_columns(
+        self.data_type.validate_columns(
             ret, DeserializationError
         )  # including index columns
-        ret = self.align_types(ret)  # including index columns
-        self._validate_dtypes(ret, DeserializationError)
-        return self.align_index(ret)
+        ret = self.data_type.align_types(ret)  # including index columns
+        self.data_type.validate_dtypes(ret, DeserializationError)
+        return self.data_type.align_index(ret)
 
-    def serialize(self, instance: pd.DataFrame):
-        self.check_type(instance, pd.DataFrame, SerializationError)
+    def serialize(self, instance: pd.DataFrame) -> dict:
+        self.data_type.check_type(instance, pd.DataFrame, SerializationError)
         is_copied, instance = reset_index(instance, return_copied=True)
 
-        self._validate_columns(instance, SerializationError)
-        self._validate_dtypes(instance, SerializationError)
+        self.data_type.validate_columns(instance, SerializationError)
+        self.data_type.validate_dtypes(instance, SerializationError)
 
-        for col, dtype in zip(self.columns, self.actual_dtypes):
+        for col, dtype in zip(
+            self.data_type.columns, self.data_type.actual_dtypes
+        ):
             if need_string_value(dtype):
                 if not is_copied:
                     instance = instance.copy()
@@ -229,31 +225,6 @@ class _PandasDataType(
                 instance[col] = instance[col].astype("string")
 
         return {"values": (instance.to_dict("records"))}
-
-    def write(self, instance: Any) -> bytes:
-        fmt = project_config("", section=PandasConfig).default_format
-        f = PANDAS_FORMATS[fmt]
-        art = f.write(instance, InMemoryStoage(), "")
-        assert isinstance(art, InMemoryArtifact)
-        return art.payload
-
-    def read(self, payload: bytes) -> Any:
-        raise NotImplementedError
-
-    @contextlib.contextmanager
-    def dump(self, instance: Any) -> Iterator[BinaryIO]:
-        raise NotImplementedError
-
-    def load(self, filelike: BinaryIO) -> Any:
-        fmt = project_config("", section=PandasConfig).default_format
-        f: PandasFormat = PANDAS_FORMATS[fmt]
-        return f.read(
-            {
-                PandasWriter.art_name: InMemoryArtifact(
-                    uri="", size=-1, hash="", payload=filelike.read()
-                )
-            }
-        )
 
 
 class SeriesType(_PandasDataType):
@@ -264,15 +235,6 @@ class SeriesType(_PandasDataType):
 
     type: ClassVar[str] = "series"
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return create_model(  # type: ignore[call-overload]
-            prefix + "Series",
-            **{
-                c: (python_type_from_pd_string_repr(t), ...)
-                for c, t in zip(self.columns, self.dtypes)
-            },
-        )
-
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, pd.Series)
@@ -280,15 +242,6 @@ class SeriesType(_PandasDataType):
     @classmethod
     def process(cls, obj: pd.Series, **kwargs) -> "_PandasDataType":
         return super().process(pd.DataFrame(obj))
-
-    def deserialize(self, obj):
-        res = super().deserialize({"values": obj}).squeeze()
-        if res.index.name == "":
-            res.index.name = None
-        return res
-
-    def serialize(self, instance: pd.Series):
-        return super().serialize(pd.DataFrame(instance))["values"]
 
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
@@ -302,6 +255,29 @@ class SeriesType(_PandasDataType):
             if ext in PANDAS_SERIES_FORMATS:
                 fmt = ext
         return PandasSeriesWriter(format=fmt)
+
+
+class SeriesSerializer(PandasSerializer, DataSerializer[SeriesType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = SeriesType
+
+    def deserialize(self, obj):
+        res = super().deserialize({"values": obj}).squeeze()
+        if res.index.name == "":
+            res.index.name = None
+        return res
+
+    def serialize(self, instance: pd.Series):
+        return super().serialize(pd.DataFrame(instance))["values"]
+
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        return create_model(  # type: ignore[call-overload]
+            prefix + "Series",
+            **{
+                c: (python_type_from_pd_string_repr(t), ...)
+                for c, t in zip(self.data_type.columns, self.data_type.dtypes)
+            },
+        )
 
 
 def has_index(df: pd.DataFrame):
@@ -335,7 +311,7 @@ def reset_index(df: pd.DataFrame, return_copied=False):
     return df
 
 
-class DataFrameType(_PandasDataType):
+class DataFrameType(WithDefaultSerializer, _PandasDataType):
     """
     :class:`.DataType` implementation for `pandas.DataFrame`
     """
@@ -345,10 +321,6 @@ class DataFrameType(_PandasDataType):
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, pd.DataFrame)
-
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        # TODO: https://github.com/iterative/mlem/issues/33
-        return create_model(prefix + "DataFrame", values=(List[self.row_type()], ...))  # type: ignore
 
     def row_type(self):
         return create_model(
@@ -371,6 +343,16 @@ class DataFrameType(_PandasDataType):
             if ext in PANDAS_FORMATS:
                 fmt = ext
         return PandasWriter(format=fmt)
+
+
+class DataFrameSerializer(PandasSerializer, DataSerializer[DataFrameType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = DataFrameType
+
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        # TODO: https://github.com/iterative/mlem/issues/33
+        row_type = List[self.data_type.row_type()]  # type: ignore[index]
+        return create_model(prefix + "DataFrame", values=(row_type, ...))
 
 
 # class PandasFormatHdf(PandasFormat):
@@ -713,6 +695,9 @@ class PandasWriter(DataWriter, _PandasIO):
         return PandasReader(data_type=data, format=self.format), {
             self.art_name: art
         }
+
+    def get_reader(self, data_type) -> PandasReader:
+        return PandasReader(format=self.format, data_type=data_type)
 
 
 class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):

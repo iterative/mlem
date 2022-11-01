@@ -9,7 +9,18 @@ import os
 import posixpath
 import tempfile
 from abc import ABC, abstractmethod
-from typing import IO, ClassVar, Dict, Iterator, Optional, Tuple, overload
+from typing import (
+    IO,
+    Any,
+    BinaryIO,
+    ClassVar,
+    Dict,
+    Iterator,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 from urllib.parse import urlparse
 
 import fsspec
@@ -324,10 +335,10 @@ class LocalArtifact(FSSpecArtifact):
 
 
 class InMemoryArtifact(Artifact):
-    payload: bytes = b""
-
     class Config:
         arbitrary_types_allowed = True
+
+    payload: bytes = b""
 
     def _download(self, target_path: str) -> "LocalArtifact":
         raise NotImplementedError
@@ -345,7 +356,27 @@ class InMemoryArtifact(Artifact):
         raise NotImplementedError
 
 
-class InMemoryStoage(Storage):
+class InMemoryFileobjArtifact(Artifact):
+    class Config:
+        arbitrary_types_allowed = True
+
+    fileobj: Union[BinaryIO, Any]
+
+    def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    def remove(self):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self) -> Iterator[IO]:
+        yield self.fileobj
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
+        raise NotImplementedError
+
+
+class InMemoryStorage(Storage):
     def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
         raise NotImplementedError
 

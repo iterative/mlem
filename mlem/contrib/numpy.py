@@ -3,31 +3,21 @@ Extension type: data
 
 DataType, Reader and Writer implementations for `np.ndarray` and `np.number` primitives
 """
-import contextlib
 from types import ModuleType
-from typing import (
-    Any,
-    BinaryIO,
-    ClassVar,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, ClassVar, Iterator, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from pydantic import BaseModel, conlist, create_model
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
-    DataBinSerializer,
     DataHook,
     DataReader,
     DataSerializer,
     DataType,
     DataWriter,
+    JsonTypes,
+    WithDefaultSerializer,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.requirements import LibRequirementsMixin
@@ -55,7 +45,7 @@ def np_type_from_string(string_repr) -> np.dtype:
 
 
 class NumpyNumberType(
-    LibRequirementsMixin, DataType, DataSerializer, DataHook
+    WithDefaultSerializer, LibRequirementsMixin, DataType, DataHook
 ):
     """numpy.number DataType"""
 
@@ -63,13 +53,6 @@ class NumpyNumberType(
     type: ClassVar[str] = "number"
     dtype: str
     """`numpy.number` type name as string"""
-
-    def deserialize(self, obj: dict) -> Any:
-        return self.actual_type(obj)  # pylint: disable=not-callable
-
-    def serialize(self, instance: np.number) -> object:  # type: ignore
-        self.check_type(instance, np.number, ValueError)
-        return instance.item()
 
     @property
     def actual_type(self) -> Type:
@@ -86,12 +69,24 @@ class NumpyNumberType(
     def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyNumberWriter(**kwargs)
 
+
+class NumpyNumberSerilizer(DataSerializer[NumpyNumberType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = NumpyNumberType
+
     def get_model(self, prefix: str = "") -> Type:
-        return python_type_from_np_string_repr(self.dtype)
+        return python_type_from_np_string_repr(self.data_type.dtype)
+
+    def deserialize(self, obj: JsonTypes) -> Any:
+        return self.data_type.actual_type(obj)  # pylint: disable=not-callable
+
+    def serialize(self, instance: np.number) -> JsonTypes:  # type: ignore
+        self.data_type.check_type(instance, np.number, ValueError)
+        return instance.item()
 
 
 class NumpyNdarrayType(
-    LibRequirementsMixin, DataType, DataHook, DataSerializer, DataBinSerializer
+    WithDefaultSerializer, LibRequirementsMixin, DataType, DataHook
 ):
     """DataType implementation for `np.ndarray`"""
 
@@ -117,51 +112,16 @@ class NumpyNdarrayType(
     def is_object_valid(cls, obj: Any) -> bool:
         return isinstance(obj, np.ndarray)
 
-    def deserialize(self, obj):
-        try:
-            ret = np.array(obj, dtype=np_type_from_string(self.dtype))
-        except (ValueError, TypeError) as e:
-            raise DeserializationError(
-                f"given object: {obj} could not be converted to array "
-                f"of type: {np_type_from_string(self.dtype)}"
-            ) from e
-        self._check_shape(ret, DeserializationError)
-        return ret
-
-    def _subtype(self, subshape: Tuple[Optional[int], ...]):
+    def subtype(self, subshape: Tuple[Optional[int], ...]):
         if len(subshape) == 0:
             return python_type_from_np_string_repr(self.dtype)
         return conlist(
-            self._subtype(subshape[1:]),
+            self.subtype(subshape[1:]),
             min_items=subshape[0],
             max_items=subshape[0],
         )
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return create_model(
-            prefix + "NumpyNdarray",
-            __root__=(
-                self._subtype(self.shape)
-                if self.shape is not None
-                else List[
-                    Union[python_type_from_np_string_repr(self.dtype), List]
-                ],  # type: ignore
-                ...,
-            )
-            # type: ignore
-        )
-
-    def serialize(self, instance: np.ndarray):
-        self.check_type(instance, np.ndarray, SerializationError)
-        exp_type = np_type_from_string(self.dtype)
-        if instance.dtype != exp_type:
-            raise SerializationError(
-                f"given array is of type: {instance.dtype}, expected: {exp_type}"
-            )
-        self._check_shape(instance, SerializationError)
-        return instance.tolist()
-
-    def _check_shape(self, array, exc_type):
+    def check_shape(self, array, exc_type):
         if self.shape is not None:
             if len(array.shape) != len(self.shape):
                 raise exc_type(
@@ -180,25 +140,47 @@ class NumpyNdarrayType(
     def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyArrayWriter()
 
-    def write(self, instance: Any) -> bytes:
-        raise NotImplementedError
 
-    def read(self, payload: bytes) -> Any:
-        raise NotImplementedError
+class NumpyNdarraySerializer(DataSerializer[NumpyNdarrayType]):
+    is_default: ClassVar = True
+    data_class: ClassVar = NumpyNdarrayType
 
-    @contextlib.contextmanager
-    def dump(self, instance: Any) -> Iterator[BinaryIO]:
-        from mlem.contrib.pandas import InMemoryStoage
+    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+        if self.data_type.shape is None:
+            subitem = python_type_from_np_string_repr(self.data_type.dtype)
+            item_type = List[Union[subitem, List]]  # type: ignore[valid-type]
+        else:
+            item_type = self.data_type.subtype(self.data_type.shape)
+        return create_model(
+            prefix + "NumpyNdarray",
+            __root__=(
+                item_type,
+                ...,
+            ),
+        )
 
-        dt = self.copy()
-        dt.bind(instance)
-        w = self.get_writer()
-        _, art = w.write(dt, InMemoryStoage(), "")
-        with art[w.art_name].open() as f:
-            yield f
+    def deserialize(self, obj):
+        try:
+            ret = np.array(
+                obj, dtype=np_type_from_string(self.data_type.dtype)
+            )
+        except (ValueError, TypeError) as e:
+            raise DeserializationError(
+                f"given object: {obj} could not be converted to array "
+                f"of type: {np_type_from_string(self.data_type.dtype)}"
+            ) from e
+        self.data_type.check_shape(ret, DeserializationError)
+        return ret
 
-    def load(self, filelike: BinaryIO) -> Any:
-        raise NotImplementedError
+    def serialize(self, instance: np.ndarray):
+        self.data_type.check_type(instance, np.ndarray, SerializationError)
+        exp_type = np_type_from_string(self.data_type.dtype)
+        if instance.dtype != exp_type:
+            raise SerializationError(
+                f"given array is of type: {instance.dtype}, expected: {exp_type}"
+            )
+        self.data_type.check_shape(instance, SerializationError)
+        return instance.tolist()
 
 
 DATA_KEY = "data"
@@ -251,6 +233,9 @@ class NumpyArrayWriter(DataWriter):
         with storage.open(path) as (f, art):
             np.savez_compressed(f, **{DATA_KEY: data.data})
         return NumpyArrayReader(data_type=data), {self.art_name: art}
+
+    def get_reader(self, data_type: NumpyNdarrayType):
+        return NumpyArrayReader(data_type=data_type)
 
 
 class NumpyArrayReader(DataReader):

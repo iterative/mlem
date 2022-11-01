@@ -19,9 +19,10 @@ from mlem.core.data_type import (
     DataAnalyzer,
     DataHook,
     DataReader,
-    DataSerializer,
     DataType,
     DataWriter,
+    JsonTypes,
+    WithDefaultSerializer,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
@@ -40,7 +41,7 @@ LIGHTGBM_LABEL = "label"
 
 
 class LightGBMDataType(
-    DataType, DataSerializer, DataHook, IsInstanceHookMixin
+    WithDefaultSerializer, DataType, DataHook, IsInstanceHookMixin
 ):
     """
     :class:`.DataType` implementation for `lightgbm.Dataset` type
@@ -56,7 +57,7 @@ class LightGBMDataType(
     labels: Optional[DataType]
     """DataType of Labels"""
 
-    def serialize(self, instance: Any) -> dict:
+    def serialize(self, instance: Any) -> JsonTypes:
         self.check_type(instance, lgb.Dataset, SerializationError)
         if self.labels is not None:
             return {
@@ -67,7 +68,7 @@ class LightGBMDataType(
                     instance.label
                 ),
             }
-        return self.inner.get_serializer().serialize(instance.data)
+        return self.inner.get_serializer().data.serialize(instance.data)
 
     def deserialize(self, obj: dict) -> Any:
         if self.labels is not None:
@@ -107,7 +108,7 @@ class LightGBMDataType(
         )
 
     def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return self.inner.get_serializer().get_model(prefix)
+        return self.inner.get_serializer().data.get_model(prefix)
 
 
 class LightGBMDataWriter(DataWriter):

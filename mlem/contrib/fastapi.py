@@ -6,16 +6,22 @@ FastAPIServer implementation
 import logging
 from collections.abc import Callable
 from types import ModuleType
-from typing import Any, ClassVar, List, Optional, Tuple, Type
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
 
 import fastapi
 import uvicorn
 from fastapi import FastAPI, UploadFile
+from fastapi.datastructures import Default
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
-from starlette.responses import StreamingResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from mlem.core.model import Signature
+from mlem.core.data_type import (
+    BinaryDataSerializer,
+    DataSerializer,
+    Serializer,
+)
+from mlem.core.model import Argument, Signature
 from mlem.core.requirements import LibRequirementsMixin
 from mlem.runtime.interface import Interface
 from mlem.runtime.server import Server
@@ -51,80 +57,127 @@ class FastAPIServer(Server, LibRequirementsMixin):
     """Port to use"""
 
     @classmethod
-    def _create_handler(
-        cls, method_name: str, signature: Signature, executor: Callable
-    ) -> Tuple[Optional[Callable], Optional[Type]]:
-        serializers = {
-            arg.name: arg.type_.get_serializer_safe() for arg in signature.args
-        }
-        serializers = {k: v for k, v in serializers.items() if v is not None}
-        if len(serializers) != len(signature.args):
-            return None, None
-        kwargs = {
-            key: (serializer.get_model(), ...)
-            for key, serializer in serializers.items()
-        }
+    def _create_handler_executor(
+        cls,
+        method_name: str,
+        args: List[Argument],
+        arg_serializers: Dict[str, DataSerializer],
+        executor: Callable,
+        response_serializer: Serializer,
+    ):
+        deserialzied_model = create_model(
+            "Model", **{a.name: (Any, ...) for a in args}
+        )  # type: ignore[call-overload]
 
         def serializer_validator(_, values):
             field_values = {}
-            for a in signature.args:
-                field_values[a.name] = serializers[a.name].deserialize(
+            for a in args:
+                field_values[a.name] = arg_serializers[a.name].deserialize(
                     values[a.name]
                 )
             return deserialzied_model(**field_values)
 
-        schema_model = create_model("Model", **kwargs, __validators__={"validate": classmethod(serializer_validator)})  # type: ignore
-        deserialzied_model = create_model("Model", **{a.name: (Any, ...) for a in signature.args})  # type: ignore
+        arg_models = {
+            key: (serializer.get_model(), ...)
+            for key, serializer in arg_serializers.items()
+        }
+
+        schema_model = create_model(
+            "Model",
+            **arg_models,
+            __validators__={"validate": classmethod(serializer_validator)},
+        )  # type: ignore[call-overload]
         rename_recursively(schema_model, method_name + "_request")
-        response_serializer = signature.returns.get_serializer()
-        response_model = response_serializer.get_model()
+
+        if response_serializer.is_binary:
+            bin_serializer = response_serializer.binary
+
+            def bin_handler(model: schema_model):  # type: ignore[valid-type]
+                values = {a.name: getattr(model, a.name) for a in args}
+                result = executor(**values)
+                with bin_serializer.dump(result) as buffer:
+                    return StreamingResponse(
+                        buffer, media_type="application/octet-stream"
+                    )
+
+            return bin_handler, None, StreamingResponse
+
+        response_model = response_serializer.data.get_model()
         if issubclass(response_model, BaseModel):
             rename_recursively(response_model, method_name + "_response")
-        echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
-        def handler(model: schema_model, return_as_file: bool = True):  # type: ignore[valid-type]
-            values = {a.name: getattr(model, a.name) for a in signature.args}
+        def handler(model: schema_model):  # type: ignore[valid-type]
+            values = {a.name: getattr(model, a.name) for a in args}
             result = executor(**values)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
-        return handler, response_model
+        return handler, response_model, None
 
     @classmethod
-    def _create_binary_handler(
-        cls, method_name: str, signature: Signature, executor: Callable
-    ) -> Optional[Callable]:
-        input_serializer = signature.args[0].type_.get_binary_serializer_safe()
-        if input_serializer is None:
-            return None
+    def _create_handler_executor_binary(
+        cls,
+        method_name: str,
+        serializer: BinaryDataSerializer,
+        arg_name: str,
+        executor: Callable,
+        response_serializer: Serializer,
+    ):
+        if response_serializer.is_binary:
+            bin_serializer = response_serializer.binary
 
-        response_serializer = signature.returns.get_serializer_safe()
-        if response_serializer is not None:
-            response_model = response_serializer.get_model()
-            if issubclass(response_model, BaseModel):
-                rename_recursively(response_model, method_name + "_response")
-        else:
-            response_model = None
+            def bin_handler(file: UploadFile):
+                arg = serializer.deserialize(file.file)
+                result = executor(**{arg_name: arg})
+                with bin_serializer.dump(result) as buffer:
+                    return StreamingResponse(
+                        buffer, media_type="application/octet-stream"
+                    )
 
-        response_binary_serializer = (
-            signature.returns.get_binary_serializer_safe()
-        )
+            return bin_handler, None, StreamingResponse
 
-        if (
-            response_serializer is None or response_model is None
-        ) and response_binary_serializer is None:
-            return None
+        response_model = response_serializer.data.get_model()
+        if issubclass(response_model, BaseModel):
+            rename_recursively(response_model, method_name + "_response")
 
-        def bin_handler(file: UploadFile, return_as_file: bool = True):
-            arg = input_serializer.load(file.file)
-            result = executor(**{signature.args[0].name: arg})
-            if return_as_file and response_binary_serializer:
-                with response_binary_serializer.dump(result) as buffer:
-                    return StreamingResponse(buffer)
+        def handler(file: UploadFile):
+            arg = serializer.deserialize(file.file)
+            result = executor(**{arg_name: arg})
+
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
-        return bin_handler
+        return handler, response_model, None
+
+    @classmethod
+    def _create_handler(
+        cls, method_name: str, signature: Signature, executor: Callable
+    ) -> Tuple[Optional[Callable], Optional[Type], Optional[Response]]:
+        serializers: Dict[str, Serializer] = {
+            arg.name: arg.type_.get_serializer() for arg in signature.args
+        }
+        response_serializer = signature.returns.get_serializer()
+        echo(EMOJI_NAILS + f"Adding route for /{method_name}")
+        if any(s.is_binary for s in serializers.values()):
+            if len(serializers) > 1:
+                raise NotImplementedError(
+                    "Multiple file requests are not supported yet"
+                )
+            arg_name = signature.args[0].name
+            return cls._create_handler_executor_binary(
+                method_name,
+                serializers[arg_name].binary,
+                arg_name,
+                executor,
+                response_serializer,
+            )
+        return cls._create_handler_executor(
+            method_name,
+            signature.args,
+            {k: s.data for k, s in serializers.items()},
+            executor,
+            response_serializer,
+        )
 
     def app_init(self, interface: Interface):
         app = FastAPI()
@@ -135,29 +188,17 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
-            handler, response_model = self._create_handler(
+            handler, response_model, response_class = self._create_handler(
                 method, signature, executor
             )
 
-            if handler:
-                app.add_api_route(
-                    f"/{method}",
-                    handler,
-                    methods=["POST"],
-                    response_model=response_model,
-                )
-
-            bin_handler = self._create_binary_handler(
-                method, signature, executor
+            app.add_api_route(
+                f"/{method}",
+                handler,
+                methods=["POST"],
+                response_model=response_model,
+                response_class=response_class or Default(JSONResponse),
             )
-            if bin_handler:
-                app.add_api_route(
-                    f"/{method}",
-                    bin_handler,
-                    methods=["PUT"],
-                    # response_model=response_model,
-                    # response_class=StreamingResponse,
-                )
 
         return app
 
