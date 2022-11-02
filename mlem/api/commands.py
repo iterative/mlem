@@ -7,13 +7,11 @@ from typing import Any, Dict, Optional, Union
 from fsspec import AbstractFileSystem
 
 from mlem.api.utils import (
-    api_telemetry,
     ensure_meta,
     ensure_mlem_object,
     get_data_value,
     get_model_meta,
     parse_import_type_modifier,
-    set_api_event_param,
 )
 from mlem.constants import MLEM_CONFIG_FILE_NAME, PREDICT_METHOD_NAME
 from mlem.core.errors import (
@@ -37,6 +35,7 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client
 from mlem.runtime.server import Server
+from mlem.telemetry import api_telemetry, log_telemetry_param
 from mlem.ui import (
     EMOJI_APPLY,
     EMOJI_COPY,
@@ -349,7 +348,7 @@ def serve(
     interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
-    set_api_event_param("server_impl", server_obj.type)
+    log_telemetry_param("server_impl", server_obj.type)
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 
