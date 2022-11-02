@@ -193,8 +193,8 @@ class _PandasDataType(
 class PandasSerializer(DataSerializer, ABC):
     """Base class for pandas serializers"""
 
-    def deserialize(self, obj: JsonTypes):
-        self.data_type.check_type(obj, dict, DeserializationError)
+    def deserialize(self, data_type, obj: JsonTypes):
+        data_type.check_type(obj, dict, DeserializationError)
         assert isinstance(obj, dict)
         try:
             ret = pd.DataFrame.from_records(obj["values"])
@@ -203,23 +203,21 @@ class PandasSerializer(DataSerializer, ABC):
                 f"given object: {obj} could not be converted to dataframe"
             ) from e
 
-        self.data_type.validate_columns(
+        data_type.validate_columns(
             ret, DeserializationError
         )  # including index columns
-        ret = self.data_type.align_types(ret)  # including index columns
-        self.data_type.validate_dtypes(ret, DeserializationError)
-        return self.data_type.align_index(ret)
+        ret = data_type.align_types(ret)  # including index columns
+        data_type.validate_dtypes(ret, DeserializationError)
+        return data_type.align_index(ret)
 
-    def serialize(self, instance: pd.DataFrame) -> dict:
-        self.data_type.check_type(instance, pd.DataFrame, SerializationError)
+    def serialize(self, data_type, instance: pd.DataFrame) -> dict:
+        data_type.check_type(instance, pd.DataFrame, SerializationError)
         is_copied, instance = reset_index(instance, return_copied=True)
 
-        self.data_type.validate_columns(instance, SerializationError)
-        self.data_type.validate_dtypes(instance, SerializationError)
+        data_type.validate_columns(instance, SerializationError)
+        data_type.validate_dtypes(instance, SerializationError)
 
-        for col, dtype in zip(
-            self.data_type.columns, self.data_type.actual_dtypes
-        ):
+        for col, dtype in zip(data_type.columns, data_type.actual_dtypes):
             if need_string_value(dtype):
                 if not is_copied:
                     instance = instance.copy()
@@ -265,21 +263,21 @@ class SeriesSerializer(PandasSerializer, DataSerializer[SeriesType]):
     is_default: ClassVar = True
     data_class: ClassVar = SeriesType
 
-    def deserialize(self, obj):
-        res = super().deserialize({"values": obj}).squeeze()
+    def deserialize(self, data_type, obj):
+        res = super().deserialize(data_type, {"values": obj}).squeeze()
         if res.index.name == "":
             res.index.name = None
         return res
 
-    def serialize(self, instance: pd.Series):
-        return super().serialize(pd.DataFrame(instance))["values"]
+    def serialize(self, data_type, instance: pd.Series):
+        return super().serialize(data_type, pd.DataFrame(instance))["values"]
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         return create_model(  # type: ignore[call-overload]
             prefix + "Series",
             **{
                 c: (python_type_from_pd_string_repr(t), ...)
-                for c, t in zip(self.data_type.columns, self.data_type.dtypes)
+                for c, t in zip(data_type.columns, data_type.dtypes)
             },
         )
 
@@ -355,9 +353,9 @@ class DataFrameSerializer(PandasSerializer, DataSerializer[DataFrameType]):
     is_default: ClassVar = True
     data_class: ClassVar = DataFrameType
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33
-        row_type = List[self.data_type.row_type()]  # type: ignore[index]
+        row_type = List[data_type.row_type()]  # type: ignore[index]
         return create_model(prefix + "DataFrame", values=(row_type, ...))
 
 

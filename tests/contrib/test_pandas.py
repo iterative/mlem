@@ -543,8 +543,8 @@ def test_dataframe():
     assert dt.dict() == payload
     dt2 = parse_obj_as(DataType, payload)
     assert dt2 == dt
-    assert dt.get_serializer().data.get_model().__name__ == "DataFrame"
-    assert dt.get_serializer().data.get_model().schema() == {
+    assert dt.get_serializer().get_model().__name__ == "DataFrame"
+    assert dt.get_serializer().get_model().schema() == {
         "title": "DataFrame",
         "type": "object",
         "properties": {

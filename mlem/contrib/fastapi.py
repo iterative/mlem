@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from mlem.core.data_type import BinarySerializer, DataSerializer, Serializer
+from mlem.core.data_type import DataTypeSerializer
 from mlem.core.model import Argument, Signature
 from mlem.core.requirements import LibRequirementsMixin
 from mlem.runtime.interface import Interface
@@ -57,9 +57,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
         cls,
         method_name: str,
         args: List[Argument],
-        arg_serializers: Dict[str, DataSerializer],
+        arg_serializers: Dict[str, DataTypeSerializer],
         executor: Callable,
-        response_serializer: Serializer,
+        response_serializer: DataTypeSerializer,
     ):
         deserialized_model = create_model(
             "Model", **{a.name: (Any, ...) for a in args}
@@ -85,20 +85,19 @@ class FastAPIServer(Server, LibRequirementsMixin):
         )  # type: ignore[call-overload]
         rename_recursively(schema_model, method_name + "_request")
 
-        if response_serializer.is_binary:
-            bin_serializer = response_serializer.binary
+        if response_serializer.serializer.is_binary:
 
             def bin_handler(model: schema_model):  # type: ignore[valid-type]
                 values = {a.name: getattr(model, a.name) for a in args}
                 result = executor(**values)
-                with bin_serializer.dump(result) as buffer:
+                with response_serializer.dump(result) as buffer:
                     return StreamingResponse(
                         buffer, media_type="application/octet-stream"
                     )
 
             return bin_handler, None, StreamingResponse
 
-        response_model = response_serializer.data.get_model()
+        response_model = response_serializer.get_model()
         if issubclass(response_model, BaseModel):
             rename_recursively(response_model, method_name + "_response")
 
@@ -114,25 +113,24 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def _create_handler_executor_binary(
         cls,
         method_name: str,
-        serializer: BinarySerializer,
+        serializer: DataTypeSerializer,
         arg_name: str,
         executor: Callable,
-        response_serializer: Serializer,
+        response_serializer: DataTypeSerializer,
     ):
-        if response_serializer.is_binary:
-            bin_serializer = response_serializer.binary
+        if response_serializer.serializer.is_binary:
 
             def bin_handler(file: UploadFile):
                 arg = serializer.deserialize(file.file)
                 result = executor(**{arg_name: arg})
-                with bin_serializer.dump(result) as buffer:
+                with response_serializer.dump(result) as buffer:
                     return StreamingResponse(
                         buffer, media_type="application/octet-stream"
                     )
 
             return bin_handler, None, StreamingResponse
 
-        response_model = response_serializer.data.get_model()
+        response_model = response_serializer.get_model()
         if issubclass(response_model, BaseModel):
             rename_recursively(response_model, method_name + "_response")
 
@@ -149,12 +147,12 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def _create_handler(
         cls, method_name: str, signature: Signature, executor: Callable
     ) -> Tuple[Optional[Callable], Optional[Type], Optional[Response]]:
-        serializers: Dict[str, Serializer] = {
+        serializers: Dict[str, DataTypeSerializer] = {
             arg.name: arg.type_.get_serializer() for arg in signature.args
         }
         response_serializer = signature.returns.get_serializer()
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
-        if any(s.is_binary for s in serializers.values()):
+        if any(s.serializer.is_binary for s in serializers.values()):
             if len(serializers) > 1:
                 raise NotImplementedError(
                     "Multiple file requests are not supported yet"
@@ -162,7 +160,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             arg_name = signature.args[0].name
             return cls._create_handler_executor_binary(
                 method_name,
-                serializers[arg_name].binary,
+                serializers[arg_name],
                 arg_name,
                 executor,
                 response_serializer,
@@ -170,7 +168,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         return cls._create_handler_executor(
             method_name,
             signature.args,
-            {k: s.data for k, s in serializers.items()},
+            serializers,
             executor,
             response_serializer,
         )

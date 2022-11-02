@@ -111,18 +111,17 @@ class DMatrixSerializer(DataSerializer[DMatrixDataType]):
     is_default: ClassVar = True
     data_class: ClassVar = DMatrixDataType
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
 
-    def serialize(self, instance: xgboost.DMatrix) -> Dict[Any, Any]:
-        """
-        Raises an error because there is no way to extract original data from DMatrix
-        """
+    def serialize(
+        self, data_type, instance: xgboost.DMatrix
+    ) -> Dict[Any, Any]:
         raise SerializationError(
             "xgboost matrix does not support serialization"
         )
 
-    def deserialize(self, obj: JsonTypes) -> xgboost.DMatrix:
+    def deserialize(self, data_type, obj: JsonTypes) -> xgboost.DMatrix:
         try:
             return xgboost.DMatrix(obj)
         except (ValueError, TypeError) as e:

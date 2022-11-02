@@ -88,7 +88,7 @@ class DataType(ABC, MlemABC, WithRequirements, Generic[DDT]):
 
     def get_serializer(
         self, **kwargs  # pylint: disable=unused-argument
-    ) -> "Serializer":
+    ) -> "DataTypeSerializer":
         raise NotImplementedError
 
     def bind(self: T, data: Any) -> T:
@@ -108,7 +108,7 @@ class DataType(ABC, MlemABC, WithRequirements, Generic[DDT]):
         return self.get_serializer().deserialize(obj)
 
     def get_model(self, prefix: str = "", **kwargs):
-        return self.get_serializer(**kwargs).data.get_model(prefix=prefix)
+        return self.get_serializer(**kwargs).get_model(prefix=prefix)
 
 
 DT = TypeVar("DT", bound=DataType)
@@ -124,15 +124,13 @@ class Serializer(MlemABC, Generic[DT]):
     abs_name: ClassVar = "serializer"
     data_class: ClassVar[Type[DataType]]
     is_default: ClassVar[bool] = False
-    data_type: DT
-    """DataType instance to use for serialization"""
 
     @abstractmethod
-    def serialize(self, instance: Any):
+    def serialize(self, data_type: DT, instance: Any):
         raise NotImplementedError
 
     @abstractmethod
-    def deserialize(self, obj) -> Any:
+    def deserialize(self, data_type: DT, obj) -> Any:
         raise NotImplementedError
 
     @property
@@ -160,19 +158,58 @@ class Serializer(MlemABC, Generic[DT]):
         super().__init_subclass__()
 
 
+class DataTypeSerializer(BaseModel):
+    serializer: Serializer
+    """Serializer object"""
+    data_type: DataType
+    """DataType instance to use for serialization"""
+
+    def serialize(self, instance: Any):
+        return self.serializer.serialize(self.data_type, instance)
+
+    def deserialize(self, obj) -> Any:
+        return self.serializer.deserialize(self.data_type, obj)
+
+    @contextlib.contextmanager
+    def dump(self, instance: Any) -> Iterator[BinaryIO]:
+        if not self.serializer.is_binary:
+            raise NotImplementedError
+        with self.serializer.binary.dump(self.data_type, instance) as f:
+            yield f
+
+    def get_model(self, prefix: str = "") -> Union[Type[BaseModel], type]:
+        if self.serializer.is_binary:
+            raise NotImplementedError
+        return self.serializer.data.get_model(self.data_type, prefix)
+
+
+class DefaultDataTypeSerializer(DataTypeSerializer):
+    data_class: ClassVar[Type[DataType]]
+
+    @validator("data_type")
+    def is_correct_data_type(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        if not isinstance(value, cls.data_class):
+            raise ValueError(f"Cannot use {cls} with {value.__class__}")
+        return value
+
+
 class DataSerializer(Serializer[DT], Generic[DT], ABC):
     """Base class for serializers to JSON data"""
 
     @abstractmethod
-    def serialize(self, instance: Any) -> JsonTypes:
+    def serialize(self, data_type: DT, instance: Any) -> JsonTypes:
         raise NotImplementedError
 
     @abstractmethod
-    def deserialize(self, obj: JsonTypes) -> Any:
+    def deserialize(self, data_type: DT, obj: JsonTypes) -> Any:
         raise NotImplementedError
 
     @abstractmethod
-    def get_model(self, prefix: str = "") -> Union[Type[BaseModel], type]:
+    def get_model(
+        self, data_type: DT, prefix: str = ""
+    ) -> Union[Type[BaseModel], type]:
         raise NotImplementedError
 
 
@@ -180,16 +217,16 @@ class BinarySerializer(Serializer[DT], Generic[DT], ABC):
     """Base class for serializers from/to raw binary data"""
 
     @abstractmethod
-    def serialize(self, instance: Any) -> bytes:
+    def serialize(self, data_type: DT, instance: Any) -> bytes:
         raise NotImplementedError
 
     @abstractmethod
     @contextlib.contextmanager
-    def dump(self, instance: Any) -> Iterator[BinaryIO]:
+    def dump(self, data_type: DT, instance: Any) -> Iterator[BinaryIO]:
         raise NotImplementedError
 
     @abstractmethod
-    def deserialize(self, obj: Union[bytes, BinaryIO]) -> Any:
+    def deserialize(self, data_type: DT, obj: Union[bytes, BinaryIO]) -> Any:
         raise NotImplementedError
 
 
@@ -198,7 +235,7 @@ class UnspecifiedDataType(DataType):
 
     type: ClassVar = "unspecified"
 
-    def get_serializer(self, **kwargs) -> "Serializer":
+    def get_serializer(self, **kwargs) -> "DataTypeSerializer":
         raise NotImplementedError
 
     def get_requirements(self) -> Requirements:
@@ -274,8 +311,13 @@ class WithDefaultSerializer:
 
     def get_serializer(
         self, **kwargs  # pylint: disable=unused-argument
-    ) -> "Serializer":
-        return self.serializer_class(data_type=self)
+    ) -> "DataTypeSerializer":
+        serializer = self.serializer_class()
+        if not isinstance(self, DataType):
+            raise ValueError(
+                "WithDefaultSerializer should be used as a mixin with DataType"
+            )
+        return DefaultDataTypeSerializer(serializer=serializer, data_type=self)
 
 
 class PrimitiveType(WithDefaultSerializer, DataType, DataHook):
@@ -322,14 +364,16 @@ class PrimitiveSerializer(DataSerializer[PrimitiveType]):
     data_class: ClassVar = PrimitiveType
     is_default: ClassVar = True
 
-    def get_model(self, prefix: str = "") -> Union[Type[BaseModel], type]:
-        return self.data_type.to_type
+    def get_model(
+        self, data_type, prefix: str = ""
+    ) -> Union[Type[BaseModel], type]:
+        return data_type.to_type
 
-    def deserialize(self, obj):
-        return self.data_type.to_type(obj)
+    def deserialize(self, data_type, obj):
+        return data_type.to_type(obj)
 
-    def serialize(self, instance):
-        self.data_type.check_type(instance, self.data_type.to_type, ValueError)
+    def serialize(self, data_type, instance):
+        data_type.check_type(instance, data_type.to_type, ValueError)
         return instance
 
 
@@ -397,31 +441,26 @@ class ArraySerializer(DataSerializer[ArrayType]):
     data_class: ClassVar = ArrayType
     is_default: ClassVar = True
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         subname = prefix + "__root__"
         item_type = List[
-            self.data_type.dtype.get_serializer().data.get_model(subname)
+            data_type.dtype.get_serializer().get_model(subname)
         ]  # type: ignore[index]
         return create_model(
             prefix + "Array",
             __root__=(item_type, ...),
         )
 
-    def deserialize(self, obj):
-        _check_type_and_size(
-            obj, list, self.data_type.size, DeserializationError
-        )
-        return [
-            self.data_type.dtype.get_serializer().deserialize(o) for o in obj
-        ]
+    def deserialize(self, data_type, obj):
+        _check_type_and_size(obj, list, data_type.size, DeserializationError)
+        return [data_type.dtype.get_serializer().deserialize(o) for o in obj]
 
-    def serialize(self, instance: list):
+    def serialize(self, data_type, instance: list):
         _check_type_and_size(
-            instance, list, self.data_type.size, SerializationError
+            instance, list, data_type.size, SerializationError
         )
         return [
-            self.data_type.dtype.get_serializer().serialize(o)
-            for o in instance
+            data_type.dtype.get_serializer().serialize(o) for o in instance
         ]
 
 
@@ -503,42 +542,40 @@ class _TupleLikeSerializer(DataSerializer[_TupleLikeType]):
     data_class: ClassVar = _TupleLikeType
     is_default: ClassVar = True
 
-    data_type: _TupleLikeType
-
-    @property
-    def actual_type(self):
-        return self.data_type.actual_type
-
-    @property
-    def items(self):
-        return self.data_type.items
-
-    def deserialize(self, obj):
+    def deserialize(self, data_type, obj):
         _check_type_and_size(
-            obj, self.actual_type, len(self.items), DeserializationError
+            obj,
+            data_type.actual_type,
+            len(data_type.items),
+            DeserializationError,
         )
-        return self.actual_type(
-            t.get_serializer().deserialize(o) for t, o in zip(self.items, obj)
+        return data_type.actual_type(
+            t.get_serializer().deserialize(o)
+            for t, o in zip(data_type.items, obj)
         )
 
-    def serialize(self, instance: Sized):
+    def serialize(self, data_type, instance: Sized):
         _check_type_and_size(
-            instance, self.actual_type, len(self.items), SerializationError
+            instance,
+            data_type.actual_type,
+            len(data_type.items),
+            SerializationError,
         )
-        return self.actual_type(
+        return data_type.actual_type(
             t.get_serializer().serialize(o)
-            for t, o in zip(self.items, instance)  # type: ignore
+            for t, o in zip(data_type.items, instance)  # type: ignore[call-overload]
             # TODO: https://github.com/iterative/mlem/issues/33 inspect non-iterable sized
         )
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        names = [f"{prefix}{i}_" for i in range(len(self.items))]
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
+        names = [f"{prefix}{i}_" for i in range(len(data_type.items))]
         return create_model(
             prefix + "_TupleLikeType",
             __root__=(
                 Tuple[
                     tuple(
-                        t.get_model(name) for name, t in zip(names, self.items)
+                        t.get_model(name)
+                        for name, t in zip(names, data_type.items)
                     )
                 ],
                 ...,
@@ -727,17 +764,18 @@ class DictSerializer(DataSerializer[DictType]):
     data_class: ClassVar = DictType
     is_default: ClassVar = True
 
-    def _check_type_and_keys(self, obj, exc_type):
-        self.data_type.check_type(obj, dict, exc_type)
-        if set(obj.keys()) != set(self.data_type.item_types.keys()):
+    @staticmethod
+    def _check_type_and_keys(data_type, obj, exc_type):
+        data_type.check_type(obj, dict, exc_type)
+        if set(obj.keys()) != set(data_type.item_types.keys()):
             raise exc_type(
-                f"given dict has keys: {set(obj.keys())}, expected: {set(self.data_type.item_types.keys())}"
+                f"given dict has keys: {set(obj.keys())}, expected: {set(data_type.item_types.keys())}"
             )
 
-    def deserialize(self, obj):
-        self._check_type_and_keys(obj, DeserializationError)
+    def deserialize(self, data_type, obj):
+        self._check_type_and_keys(data_type, obj, DeserializationError)
         return {
-            k: self.data_type.item_types[k]
+            k: data_type.item_types[k]
             .get_serializer()
             .deserialize(
                 v,
@@ -745,20 +783,20 @@ class DictSerializer(DataSerializer[DictType]):
             for k, v in obj.items()
         }
 
-    def serialize(self, instance: dict):
-        self._check_type_and_keys(instance, SerializationError)
+    def serialize(self, data_type, instance: dict):
+        self._check_type_and_keys(data_type, instance, SerializationError)
         return {
-            k: self.data_type.item_types[k].get_serializer().serialize(v)
+            k: data_type.item_types[k].get_serializer().serialize(v)
             for k, v in instance.items()
         }
 
-    def get_model(self, prefix="") -> Type[BaseModel]:
+    def get_model(self, data_type, prefix="") -> Type[BaseModel]:
         kwargs = {
             str(k): (
-                v.get_serializer().data.get_model(prefix + str(k) + "_"),
+                v.get_serializer().get_model(prefix + str(k) + "_"),
                 ...,
             )
-            for k, v in self.data_type.item_types.items()
+            for k, v in data_type.item_types.items()
         }
         return create_model(prefix + "DictType", **kwargs)  # type: ignore
 
@@ -885,40 +923,32 @@ class DynamicDictSerializer(DataSerializer[DynamicDictType]):
     data_class: ClassVar = DynamicDictType
     is_default: ClassVar = True
 
-    def deserialize(self, obj):
-        self.data_type.check_type(obj, dict, DeserializationError)
+    def deserialize(self, data_type, obj):
+        data_type.check_type(obj, dict, DeserializationError)
         return {
-            self.data_type.key_type.get_serializer()
-            .deserialize(
-                k,
-            ): self.data_type.value_type.get_serializer()
-            .deserialize(
+            data_type.key_type.get_serializer(): data_type.value_type.get_serializer().deserialize(
                 v,
             )
             for k, v in obj.items()
         }
 
-    def serialize(self, instance: dict):
-        self.data_type.check_types(instance, SerializationError)
+    def serialize(self, data_type, instance: dict):
+        data_type.check_types(instance, SerializationError)
 
         return {
-            self.data_type.key_type.get_serializer()
-            .serialize(
-                k,
-            ): self.data_type.value_type.get_serializer()
-            .serialize(
+            data_type.key_type.get_serializer(): data_type.value_type.get_serializer().serialize(
                 v,
             )
             for k, v in instance.items()
         }
 
-    def get_model(self, prefix="") -> Type[BaseModel]:
+    def get_model(self, data_type, prefix="") -> Type[BaseModel]:
         field_type = (
-            Dict[  # type: ignore
-                self.data_type.key_type.get_serializer().data.get_model(
-                    prefix + "_key_"  # noqa: F821
+            Dict[  # type: ignore[index]
+                data_type.key_type.get_serializer().get_model(
+                    prefix + "_key_"  # noqa: F821  # wtf
                 ),
-                self.data_type.value_type.get_serializer().data.get_model(
+                data_type.value_type.get_serializer().get_model(
                     prefix + "_val_"  # noqa: F821
                 ),
             ],
@@ -999,14 +1029,14 @@ class BinaryDataSerializer(BinarySerializer[BinaryDataType]):
     data_class: ClassVar = BinaryDataType
     is_default: ClassVar = True
 
-    def serialize(self, instance: bytes) -> bytes:
+    def serialize(self, data_type, instance: bytes) -> bytes:
         return instance
 
     @contextlib.contextmanager
-    def dump(self, instance: Any) -> Iterator[BinaryIO]:
+    def dump(self, data_type, instance: Any) -> Iterator[BinaryIO]:
         yield io.BytesIO(instance)
 
-    def deserialize(self, obj: Union[bytes, BinaryIO]) -> Any:
+    def deserialize(self, data_type, obj: Union[bytes, BinaryIO]) -> Any:
         if isinstance(obj, bytes):
             return obj
         return obj.read()
@@ -1046,26 +1076,25 @@ class FileSerializer(BinarySerializer):
 
     type: ClassVar = "file"
 
-    def _get_artifact(self, instance: Any) -> InMemoryArtifact:
-        writer = self.data_type.get_writer()
-        _, arts = writer.write(
-            self.data_type.bind(instance), InMemoryStorage(), ""
-        )
+    @staticmethod
+    def _get_artifact(data_type: DataType, instance: Any) -> InMemoryArtifact:
+        writer = data_type.get_writer()
+        _, arts = writer.write(data_type.bind(instance), InMemoryStorage(), "")
         art = arts[writer.art_name]
         assert isinstance(art, InMemoryArtifact)  # TODO make buffered
         return art
 
-    def serialize(self, instance: Any) -> bytes:
-        return self._get_artifact(instance).payload
+    def serialize(self, data_type, instance: Any) -> bytes:
+        return self._get_artifact(data_type, instance).payload
 
     @contextlib.contextmanager
-    def dump(self, instance: Any) -> Iterator[BinaryIO]:
-        with self._get_artifact(instance).open() as f:
+    def dump(self, data_type, instance: Any) -> Iterator[BinaryIO]:
+        with self._get_artifact(data_type, instance).open() as f:
             yield f
 
-    def deserialize(self, obj: Union[bytes, BinaryIO]) -> Any:
-        writer = self.data_type.get_writer()
-        reader: DataReader = writer.get_reader(self.data_type)
+    def deserialize(self, data_type, obj: Union[bytes, BinaryIO]) -> Any:
+        writer = data_type.get_writer()
+        reader: DataReader = writer.get_reader(data_type)
         art: Artifact
         if isinstance(obj, bytes):
             art = InMemoryArtifact(uri="", size=-1, hash="", payload=obj)

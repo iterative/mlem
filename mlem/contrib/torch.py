@@ -85,31 +85,31 @@ class TorchTensorSerializer(DataSerializer[TorchTensorDataType]):
     is_default: ClassVar = True
     data_class: ClassVar = TorchTensorDataType
 
-    def get_model(self, prefix: str = ""):
+    def get_model(self, data_type, prefix: str = ""):
         return create_model(
             prefix + "TorchTensor",
-            __root__=(List[self.data_type.subtype(self.data_type.shape[1:])], ...),  # type: ignore[index]
+            __root__=(List[data_type.subtype(data_type.shape[1:])], ...),  # type: ignore[index]
         )
 
-    def serialize(self, instance: torch.Tensor):
-        self.data_type.check_type(instance, torch.Tensor, SerializationError)
-        if instance.dtype is not getattr(torch, self.data_type.dtype):
+    def serialize(self, data_type, instance: torch.Tensor):
+        data_type.check_type(instance, torch.Tensor, SerializationError)
+        if instance.dtype is not getattr(torch, data_type.dtype):
             raise SerializationError(
                 f"given tensor is of dtype: {instance.dtype}, "
-                f"expected: {getattr(torch, self.data_type.dtype)}"
+                f"expected: {getattr(torch, data_type.dtype)}"
             )
-        self.data_type.check_shape(instance, SerializationError)
+        data_type.check_shape(instance, SerializationError)
         return instance.tolist()
 
-    def deserialize(self, obj):
+    def deserialize(self, data_type, obj):
         try:
-            ret = torch.tensor(obj, dtype=getattr(torch, self.data_type.dtype))
+            ret = torch.tensor(obj, dtype=getattr(torch, data_type.dtype))
         except (ValueError, TypeError):
             raise DeserializationError(  # pylint: disable=W0707
                 f"given object: {obj} could not be converted to tensor "
-                f"of type: {getattr(torch, self.data_type.dtype)}"
+                f"of type: {getattr(torch, data_type.dtype)}"
             )
-        self.data_type.check_shape(ret, DeserializationError)
+        data_type.check_shape(ret, DeserializationError)
         return ret
 
 

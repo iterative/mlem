@@ -76,14 +76,14 @@ class NumpyNumberSerializer(DataSerializer[NumpyNumberType]):
     is_default: ClassVar = True
     data_class: ClassVar = NumpyNumberType
 
-    def get_model(self, prefix: str = "") -> Type:
-        return python_type_from_np_string_repr(self.data_type.dtype)
+    def get_model(self, data_type, prefix: str = "") -> Type:
+        return python_type_from_np_string_repr(data_type.dtype)
 
-    def deserialize(self, obj: JsonTypes) -> Any:
-        return self.data_type.actual_type(obj)  # pylint: disable=not-callable
+    def deserialize(self, data_type, obj: JsonTypes) -> Any:
+        return data_type.actual_type(obj)  # pylint: disable=not-callable
 
-    def serialize(self, instance: np.number) -> JsonTypes:  # type: ignore
-        self.data_type.check_type(instance, np.number, ValueError)
+    def serialize(self, data_type, instance: np.number) -> JsonTypes:  # type: ignore
+        data_type.check_type(instance, np.number, ValueError)
         return instance.item()
 
 
@@ -149,12 +149,12 @@ class NumpyNdarraySerializer(DataSerializer[NumpyNdarrayType]):
     is_default: ClassVar = True
     data_class: ClassVar = NumpyNdarrayType
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        if self.data_type.shape is None:
-            subitem = python_type_from_np_string_repr(self.data_type.dtype)
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
+        if data_type.shape is None:
+            subitem = python_type_from_np_string_repr(data_type.dtype)
             item_type = List[Union[subitem, List]]  # type: ignore[valid-type]
         else:
-            item_type = self.data_type.subtype(self.data_type.shape)
+            item_type = data_type.subtype(data_type.shape)
         return create_model(
             prefix + "NumpyNdarray",
             __root__=(
@@ -163,40 +163,38 @@ class NumpyNdarraySerializer(DataSerializer[NumpyNdarrayType]):
             ),
         )
 
-    def deserialize(self, obj):
+    def deserialize(self, data_type, obj):
         try:
-            ret = np.array(
-                obj, dtype=np_type_from_string(self.data_type.dtype)
-            )
+            ret = np.array(obj, dtype=np_type_from_string(data_type.dtype))
         except (ValueError, TypeError) as e:
             raise DeserializationError(
                 f"given object: {obj} could not be converted to array "
-                f"of type: {np_type_from_string(self.data_type.dtype)}"
+                f"of type: {np_type_from_string(data_type.dtype)}"
             ) from e
-        self.data_type.check_shape(ret, DeserializationError)
+        data_type.check_shape(ret, DeserializationError)
         return ret
 
-    def serialize(self, instance: np.ndarray):
-        self.data_type.check_type(instance, np.ndarray, SerializationError)
-        exp_type = np_type_from_string(self.data_type.dtype)
+    def serialize(self, data_type, instance: np.ndarray):
+        data_type.check_type(instance, np.ndarray, SerializationError)
+        exp_type = np_type_from_string(data_type.dtype)
         if instance.dtype != exp_type:
             raise SerializationError(
                 f"given array is of type: {instance.dtype}, expected: {exp_type}"
             )
-        self.data_type.check_shape(instance, SerializationError)
+        data_type.check_shape(instance, SerializationError)
         return instance.tolist()
 
 
 DATA_KEY = "data"
 
 
-class NumpyNumberWriter(DataWriter):
+class NumpyNumberWriter(DataWriter[NumpyNumberType]):
     """Write np.number objects"""
 
     type: ClassVar[str] = "numpy_number"
 
     def write(
-        self, data: DataType, storage: Storage, path: str
+        self, data: NumpyNumberType, storage: Storage, path: str
     ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
             f.write(str(data.data).encode("utf-8"))

@@ -86,36 +86,34 @@ class LightGBMDataSerializer(DataSerializer[LightGBMDataType]):
     is_default: ClassVar = True
     data_class: ClassVar = LightGBMDataType
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return self.data_type.inner.get_serializer().data.get_model(prefix)
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
+        return data_type.inner.get_serializer().get_model(prefix)
 
-    def serialize(self, instance: Any) -> JsonTypes:
-        self.data_type.check_type(instance, lgb.Dataset, SerializationError)
-        if self.data_type.labels is not None:
+    def serialize(self, data_type, instance: Any) -> JsonTypes:
+        data_type.check_type(instance, lgb.Dataset, SerializationError)
+        if data_type.labels is not None:
             return {
-                LIGHTGBM_DATA: self.data_type.inner.get_serializer().serialize(
+                LIGHTGBM_DATA: data_type.inner.get_serializer().serialize(
                     instance.data
                 ),
-                LIGHTGBM_LABEL: self.data_type.labels.get_serializer().serialize(
+                LIGHTGBM_LABEL: data_type.labels.get_serializer().serialize(
                     instance.label
                 ),
             }
-        return self.data_type.inner.get_serializer().data.serialize(
-            instance.data
-        )
+        return data_type.inner.get_serializer().serialize(instance.data)
 
-    def deserialize(self, obj: JsonTypes) -> Any:
-        self.data_type.check_type(obj, dict, DeserializationError)
+    def deserialize(self, data_type, obj: JsonTypes) -> Any:
+        data_type.check_type(obj, dict, DeserializationError)
         assert isinstance(obj, dict)
-        if self.data_type.labels is not None:
-            data = self.data_type.inner.get_serializer().deserialize(
+        if data_type.labels is not None:
+            data = data_type.inner.get_serializer().deserialize(
                 obj[LIGHTGBM_DATA]
             )
-            label = self.data_type.labels.get_serializer().deserialize(
+            label = data_type.labels.get_serializer().deserialize(
                 obj[LIGHTGBM_LABEL]
             )
         else:
-            data = self.data_type.inner.get_serializer().deserialize(obj)
+            data = data_type.inner.get_serializer().deserialize(obj)
             label = None
         try:
             return lgb.Dataset(data, label=label, free_raw_data=False)

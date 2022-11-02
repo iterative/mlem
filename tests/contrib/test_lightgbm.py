@@ -85,8 +85,8 @@ def test_hook_np(dtype_np: DataType):
     assert isinstance(dtype_np.labels, ArrayType)
     assert dtype_np.labels.dtype == PrimitiveType(ptype="float")
     assert (
-        dtype_np.get_serializer().data.get_model().__name__
-        == dtype_np.inner.get_serializer().data.get_model().__name__
+        dtype_np.get_serializer().get_model().__name__
+        == dtype_np.inner.get_serializer().get_model().__name__
     )
     assert dtype_np.get_model().schema() == {
         "title": "NumpyNdarray",
@@ -106,8 +106,8 @@ def test_hook_df(dtype_df: DataType):
     assert isinstance(dtype_df.inner, DataFrameType)
     assert isinstance(dtype_df.labels, NumpyNdarrayType)
     assert (
-        dtype_df.get_serializer().data.get_model().__name__
-        == dtype_df.inner.get_serializer().data.get_model().__name__
+        dtype_df.get_serializer().get_model().__name__
+        == dtype_df.inner.get_serializer().get_model().__name__
     )
     assert dtype_df.get_model().schema() == {
         "title": "DataFrame",
