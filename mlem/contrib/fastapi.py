@@ -143,14 +143,12 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         return handler, response_model, None
 
-    @classmethod
     def _create_handler(
-        cls, method_name: str, signature: Signature, executor: Callable
+        self, method_name: str, signature: Signature, executor: Callable
     ) -> Tuple[Optional[Callable], Optional[Type], Optional[Response]]:
-        serializers: Dict[str, DataTypeSerializer] = {
-            arg.name: arg.type_.get_serializer() for arg in signature.args
-        }
-        response_serializer = signature.returns.get_serializer()
+        serializers, response_serializer = self.get_serializers(
+            method_name, signature
+        )
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
         if any(s.serializer.is_binary for s in serializers.values()):
             if len(serializers) > 1:
@@ -158,14 +156,14 @@ class FastAPIServer(Server, LibRequirementsMixin):
                     "Multiple file requests are not supported yet"
                 )
             arg_name = signature.args[0].name
-            return cls._create_handler_executor_binary(
+            return self._create_handler_executor_binary(
                 method_name,
                 serializers[arg_name],
                 arg_name,
                 executor,
                 response_serializer,
             )
-        return cls._create_handler_executor(
+        return self._create_handler_executor(
             method_name,
             signature.args,
             serializers,

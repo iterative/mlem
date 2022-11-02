@@ -1,8 +1,10 @@
 import os
 from abc import ABC, abstractmethod
-from typing import ClassVar, Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional, Tuple
 
 from mlem.core.base import MlemABC
+from mlem.core.data_type import DataTypeSerializer, Serializer
+from mlem.core.model import Signature
 from mlem.core.requirements import WithRequirements
 from mlem.runtime.interface import Interface
 
@@ -19,6 +21,14 @@ class Server(MlemABC, ABC, WithRequirements):
     abs_name: ClassVar[str] = "server"
     env_vars: ClassVar[Optional[Dict[str, str]]] = None
     additional_source_files: ClassVar[Optional[List[str]]] = None
+    request_serializer: Optional[Serializer] = None
+    """Serializer to use for all requests"""
+    response_serializer: Optional[Serializer] = None
+    """Serializer to use for all responses"""
+    serializers: Dict[str, Dict[str, Serializer]] = {}
+    """Serializer mapping (method, arg) -> Serializer.
+    Use special arg name `returns` for method response serializer.
+    Overrides request_serializer and response_serializer fields"""
 
     @abstractmethod
     def serve(self, interface: Interface):
@@ -33,3 +43,31 @@ class Server(MlemABC, ABC, WithRequirements):
             with open(path, "rb") as f:
                 res[os.path.basename(path)] = f.read()
         return res
+
+    def get_serializers(
+        self, method_name: str, signature: Signature
+    ) -> Tuple[Dict[str, DataTypeSerializer], DataTypeSerializer]:
+        method_serializers = self.serializers.get(method_name, {})
+        response_serializer = method_serializers.get(
+            "returns", self.response_serializer
+        )
+        if response_serializer is None:
+            returns = signature.returns.get_serializer()
+        else:
+            returns = DataTypeSerializer(
+                serializer=response_serializer, data_type=signature.returns
+            )
+
+        arg_serializers: Dict[str, DataTypeSerializer] = {}
+        for arg in signature.args:
+            serializer = method_serializers.get(
+                arg.name, self.request_serializer
+            )
+            if serializer is None:
+                arg_serializers[arg.name] = arg.type_.get_serializer()
+            else:
+                arg_serializers[arg.name] = DataTypeSerializer(
+                    serializer=serializer, data_type=arg.type_
+                )
+
+        return arg_serializers, returns
