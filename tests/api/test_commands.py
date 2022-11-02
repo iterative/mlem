@@ -8,9 +8,10 @@ from numpy import ndarray
 from pytest_lazyfixture import lazy_fixture
 
 from mlem.api import apply, apply_remote, link, load_meta
-from mlem.api.commands import build, import_object, init
+from mlem.api.commands import build, import_object, init, serve
 from mlem.constants import MLEM_CONFIG_FILE_NAME, PREDICT_METHOD_NAME
 from mlem.core.artifacts import LocalArtifact
+from mlem.core.errors import MlemError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
@@ -240,3 +241,12 @@ def test_build_lazy(model_meta, tmp_path):
     build(
         "pip", model_meta, target=str(tmp_path / "build"), package_name="lol"
     )
+
+
+def test_serve_no_signature(model):
+    meta = MlemModel.from_obj(model)
+    with pytest.raises(
+        MlemError,
+        match="Cannot create interface from model with uspecified signature. Please re-save it and provide sample_data argument",
+    ):
+        serve(meta, "fastapi")
