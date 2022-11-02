@@ -106,6 +106,8 @@ class DMatrixDataType(
 
 
 class DMatrixSerializer(DataSerializer[DMatrixDataType]):
+    """Serialzier for XGBoost DMatrix"""
+
     is_default: ClassVar = True
     data_class: ClassVar = DMatrixDataType
 
