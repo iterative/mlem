@@ -57,7 +57,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             arg.name: arg.type_.get_serializer() for arg in signature.args
         }
         kwargs = {
-            key: (serializer.get_model(), ...)
+            key: (serializer.get_model(prefix=method_name + "_request"), ...)
             for key, serializer in serializers.items()
         }
 
@@ -69,11 +69,13 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 )
             return deserialzied_model(**field_values)
 
-        schema_model = create_model("Model", **kwargs, __validators__={"validate": classmethod(serializer_validator)})  # type: ignore
-        deserialzied_model = create_model("Model", **{a.name: (Any, ...) for a in signature.args})  # type: ignore
+        schema_model = create_model(f"Model_{method_name}_request", **kwargs, __validators__={"validate": classmethod(serializer_validator)})  # type: ignore
+        deserialzied_model = create_model(f"Model_{method_name}_response", **{a.name: (Any, ...) for a in signature.args})  # type: ignore
         rename_recursively(schema_model, method_name + "_request")
         response_serializer = signature.returns.get_serializer()
-        response_model = response_serializer.get_model()
+        response_model = response_serializer.get_model(
+            prefix=method_name + "_response"
+        )
         if issubclass(response_model, BaseModel):
             rename_recursively(response_model, method_name + "_response")
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
