@@ -184,14 +184,15 @@ class DataTypeSerializer(BaseModel):
 
 
 class DefaultDataTypeSerializer(DataTypeSerializer):
-    data_class: ClassVar[Type[DataType]]
-
     @validator("data_type")
     def is_correct_data_type(  # pylint: disable=no-self-argument
-        cls, value  # noqa: B902
+        cls, value, values  # noqa: B902
     ):
-        if not isinstance(value, cls.data_class):
-            raise ValueError(f"Cannot use {cls} with {value.__class__}")
+        serializer = values["serializer"]
+        if isinstance(value, WithDefaultSerializer) and not isinstance(
+            serializer, value.serializer_class
+        ):
+            raise ValueError(f"Cannot use {serializer} with {value.__class__}")
         return value
 
 
@@ -926,7 +927,9 @@ class DynamicDictSerializer(DataSerializer[DynamicDictType]):
     def deserialize(self, data_type, obj):
         data_type.check_type(obj, dict, DeserializationError)
         return {
-            data_type.key_type.get_serializer(): data_type.value_type.get_serializer().deserialize(
+            data_type.key_type.get_serializer()
+            .deserialize(k): data_type.value_type.get_serializer()
+            .deserialize(
                 v,
             )
             for k, v in obj.items()
@@ -936,7 +939,9 @@ class DynamicDictSerializer(DataSerializer[DynamicDictType]):
         data_type.check_types(instance, SerializationError)
 
         return {
-            data_type.key_type.get_serializer(): data_type.value_type.get_serializer().serialize(
+            data_type.key_type.get_serializer()
+            .serialize(k): data_type.value_type.get_serializer()
+            .serialize(
                 v,
             )
             for k, v in instance.items()
