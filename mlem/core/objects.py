@@ -617,23 +617,35 @@ class MlemModel(_WithArtifacts):
         params: Dict[str, str] = None,
         preprocessor: Any = None,
     ) -> "MlemModel":
-        mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
-        if mt.model is None:
-            mt = mt.bind(model)
-
         if isinstance(preprocessor, str):
             preprocessor_value = ModelLink.from_uri(
                 preprocessor, link_type=MlemModel
             )
+            if sample_data is not None:
+                sample_data = preprocessor_value.load_link(
+                    force_type=MlemModel
+                ).predict(sample_data)
         elif isinstance(preprocessor, MlemLink) or preprocessor is None:
             preprocessor_value = preprocessor
+            if preprocessor is not None and sample_data is not None:
+                sample_data = preprocessor.load_link(
+                    force_type=MlemModel
+                ).predict(sample_data)
         elif isinstance(preprocessor, MlemModel):
             if preprocessor.is_saved:
                 preprocessor_value = preprocessor.make_link()
             else:
                 preprocessor_value = preprocessor
+            if sample_data is not None:
+                sample_data = preprocessor.predict(sample_data)
         else:
             preprocessor_value = MlemModel.from_obj(preprocessor)
+            if sample_data is not None:
+                sample_data = preprocessor_value.predict(sample_data)
+
+        mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
+        if mt.model is None:
+            mt = mt.bind(model)
 
         return MlemModel(
             model_type=mt,
@@ -668,10 +680,12 @@ class MlemModel(_WithArtifacts):
             return func
         return lambda x: func(self.get_preprocessor()(x))
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, data):
         if "__call__" not in self.model_type.methods:
             raise TypeError("Model is not callable")
-        return self.model_type.model(*args, **kwargs)
+
+        preproc = self.get_preprocessor() or (lambda x: x)
+        return self.model_type.model(preproc(data))
 
     def get_preprocessor(self, load_value: bool = True):
         if isinstance(self.preprocessor, MlemLink):
