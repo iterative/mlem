@@ -404,6 +404,10 @@ class MlemLink(MlemObject):
         )
 
     @classmethod
+    def from_uri(cls, uri: str, link_type: Union[str, Type[MlemObject]]):
+        return cls.from_location(Location.resolve(uri), link_type)
+
+    @classmethod
     def typed_link(
         cls: Type["MlemLink"], type_: Union[str, Type[MlemObject]]
     ) -> Type["MlemLink"]:
@@ -603,21 +607,39 @@ class MlemModel(_WithArtifacts):
         ModelType, "model_type", "model_type_cache"
     )
 
+    preprocessor: Union["ModelLink", "MlemModel", None] = None
+
     @classmethod
     def from_obj(
         cls,
         model: Any,
         sample_data: Any = None,
         params: Dict[str, str] = None,
+        preprocessor: Any = None,
     ) -> "MlemModel":
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
         if mt.model is None:
             mt = mt.bind(model)
 
+        if isinstance(preprocessor, str):
+            preprocessor_value = ModelLink.from_uri(
+                preprocessor, link_type=MlemModel
+            )
+        elif isinstance(preprocessor, MlemLink) or preprocessor is None:
+            preprocessor_value = preprocessor
+        elif isinstance(preprocessor, MlemModel):
+            if preprocessor.is_saved:
+                preprocessor_value = preprocessor.make_link()
+            else:
+                preprocessor_value = preprocessor
+        else:
+            preprocessor_value = MlemModel.from_obj(preprocessor)
+
         return MlemModel(
             model_type=mt,
             requirements=mt.get_requirements().expanded,
             params=params or {},
+            preprocessor=preprocessor_value,
         )
 
     def write_value(self) -> Artifacts:
@@ -641,7 +663,23 @@ class MlemModel(_WithArtifacts):
             raise AttributeError(
                 f"{self.model_type.__class__} does not have {item} attribute"
             )
-        return partial(self.model_type.call_method, item)
+        func = partial(self.model_type.call_method, item)
+        if self.preprocessor is None:
+            return func
+        return lambda x: func(self.get_preprocessor()(x))
+
+    def __call__(self, *args, **kwargs):
+        if "__call__" not in self.model_type.methods:
+            raise TypeError("Model is not callable")
+        return self.model_type.model(*args, **kwargs)
+
+    def get_preprocessor(self, load_value: bool = True):
+        if isinstance(self.preprocessor, MlemLink):
+            link = self.preprocessor.load_link(force_type=MlemModel)
+            if load_value:
+                link.load_value()
+            return link
+        return self.preprocessor
 
 
 class MlemData(_WithArtifacts):
@@ -1175,3 +1213,4 @@ def find_object(
 
 
 DeployState.update_forward_refs()
+MlemModel.update_forward_refs()

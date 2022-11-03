@@ -27,19 +27,21 @@ def get_object_metadata(
     obj: Any,
     sample_data=None,
     params: Dict[str, str] = None,
+    preprocessor: Any = None,
 ) -> Union[MlemData, MlemModel]:
     """Convert given object to appropriate MlemObject subclass"""
-    try:
-        return MlemData.from_data(
-            obj,
-            params=params,
-        )
-    except HookNotFound:
-        return MlemModel.from_obj(
-            obj,
-            sample_data=sample_data,
-            params=params,
-        )
+    if preprocessor is None:
+        try:
+            return MlemData.from_data(
+                obj,
+                params=params,
+            )
+        except HookNotFound:
+            pass
+
+    return MlemModel.from_obj(
+        obj, sample_data=sample_data, params=params, preprocessor=preprocessor
+    )
 
 
 def save(
@@ -49,6 +51,7 @@ def save(
     sample_data=None,
     fs: Optional[AbstractFileSystem] = None,
     params: Dict[str, str] = None,
+    preprocessor: Any = None,
 ) -> MlemObject:
     """Saves given object to a given path
 
@@ -67,9 +70,7 @@ def save(
         None
     """
     meta = get_object_metadata(
-        obj,
-        sample_data,
-        params=params,
+        obj, sample_data, params=params, preprocessor=preprocessor
     )
     path = os.fspath(path)
     meta.dump(path, fs=fs, project=project)
