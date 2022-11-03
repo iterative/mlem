@@ -6,13 +6,13 @@ FastAPIServer implementation
 import logging
 from collections.abc import Callable
 from types import ModuleType
-from typing import Any, ClassVar, List, Type
+from typing import Any, ClassVar, List
 
 import fastapi
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, create_model, parse_obj_as
+from pydantic import create_model, parse_obj_as
 
 from mlem.core.model import Signature
 from mlem.core.requirements import LibRequirementsMixin
@@ -21,15 +21,6 @@ from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 
 logger = logging.getLogger(__name__)
-
-
-def rename_recursively(model: Type[BaseModel], prefix: str):
-    model.__name__ = f"{prefix}_{model.__name__}"
-    for field in model.__fields__.values():
-        if isinstance(field.type_, type) and issubclass(
-            field.type_, BaseModel
-        ):
-            rename_recursively(field.type_, prefix)
 
 
 def _create_schema_route(app: FastAPI, interface: Interface):
@@ -69,15 +60,19 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 )
             return deserialzied_model(**field_values)
 
-        schema_model = create_model(f"Model_{method_name}_request", **kwargs, __validators__={"validate": classmethod(serializer_validator)})  # type: ignore
-        deserialzied_model = create_model(f"Model_{method_name}_response", **{a.name: (Any, ...) for a in signature.args})  # type: ignore
-        rename_recursively(schema_model, method_name + "_request")
+        schema_model = create_model(
+            f"Model_{method_name}_request",
+            **kwargs,
+            __validators__={"validate": classmethod(serializer_validator)},
+        )  # type: ignore[call-overload]
+        deserialzied_model = create_model(
+            f"Model_{method_name}_response",
+            **{a.name: (Any, ...) for a in signature.args},
+        )  # type: ignore[call-overload]
         response_serializer = signature.returns.get_serializer()
         response_model = response_serializer.get_model(
             prefix=method_name + "_response"
         )
-        if issubclass(response_model, BaseModel):
-            rename_recursively(response_model, method_name + "_response")
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
         def handler(model: schema_model):  # type: ignore[valid-type]
