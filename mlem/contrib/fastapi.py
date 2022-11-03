@@ -48,7 +48,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             arg.name: arg.type_.get_serializer() for arg in signature.args
         }
         kwargs = {
-            key: (serializer.get_model(prefix=method_name + "_request"), ...)
+            key: (serializer.get_model(prefix=method_name + "_request_"), ...)
             for key, serializer in serializers.items()
         }
 
@@ -71,7 +71,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         )  # type: ignore[call-overload]
         response_serializer = signature.returns.get_serializer()
         response_model = response_serializer.get_model(
-            prefix=method_name + "_response"
+            prefix=method_name + "_response_"
         )
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
 
