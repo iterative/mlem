@@ -166,7 +166,7 @@ def _apply_remote(
             output,
             target_project,
         )
-    if output is None and json:
+    if output is None:
         print(
             dumps(
                 DataAnalyzer.analyze(result).get_serializer().serialize(result)
