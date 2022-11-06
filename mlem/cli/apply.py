@@ -114,7 +114,7 @@ def apply(
             output=output,
             batch_size=batch_size,
         )
-    if output is None and json:
+    if output is None:
         print(
             dumps(
                 DataAnalyzer.analyze(result).get_serializer().serialize(result)
