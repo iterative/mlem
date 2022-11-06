@@ -5,6 +5,7 @@ DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
 ImportHook implementation for files saved with pandas
 """
 import os.path
+import logging
 import posixpath
 import re
 from abc import ABC
@@ -67,6 +68,9 @@ _PD_EXT_TYPES = {
 PD_EXT_TYPES = {
     dtype: re.compile(pattern) for dtype, pattern in _PD_EXT_TYPES.items()
 }
+
+
+logger = logging.getLogger(__name__)
 
 
 def string_repr_from_pd_type(
@@ -694,4 +698,8 @@ class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):
         read_args = fmt.read_args or {}
         read_args.update(kwargs)
         with location.open("rb") as f:
-            return fmt.read_func(f, **read_args)
+            df = fmt.read_func(f, **read_args)
+
+            # note: should consider using head() here, more meaningful for small dfs and vectors
+            logger.debug("Loaded dataframe object, showing 'describe'\n %s", df.head())
+            return df
