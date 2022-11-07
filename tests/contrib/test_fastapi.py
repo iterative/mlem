@@ -2,11 +2,11 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, create_model
+from pydantic import create_model
 from pydantic.main import ModelMetaclass
 
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
-from mlem.contrib.fastapi import FastAPIServer, rename_recursively
+from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import Argument, Signature
@@ -57,18 +57,6 @@ def client(interface):
     return TestClient(app)
 
 
-def test_rename_recursively(payload_model):
-    rename_recursively(payload_model, "predict")
-
-    def recursive_assert(model):
-        assert model.__name__.startswith("predict")
-        for field in model.__fields__.values():
-            if issubclass(field.type_, BaseModel):
-                recursive_assert(field.type_)
-
-    recursive_assert(payload_model)
-
-
 def test_create_handler(signature, executor):
     server = FastAPIServer()
     _, response_model = server._create_handler(
@@ -112,8 +100,29 @@ def test_endpoint(client, interface, train):
     assert response.json() == [0] * 50 + [1] * 50 + [2] * 50
 
 
-def test_endpoint_with_primitive():
-    model = MlemModel.from_obj(lambda x: x, sample_data=[-1, 0, 1])
+@pytest.mark.parametrize(
+    "data",
+    [
+        [-1, 0, 1],
+        [{"key": "value", "key2": 1}, {"key": "value", "key2": 1}],
+        [{"key": "value", "key2": 1}],
+        [{"key": "value"}],
+        {"key": [1]},
+        {"key": [1], "key2": [2]},
+        {"key": [1, 2]},
+        {"key": [1, 2], "key2": [3, 4]},
+        [[1]],
+        [[1, 1]],
+        [[1], [2]],
+        [[1, 1], [2, 2]],
+        {"key": {"key": 1}},
+        {"key": {"key": 1}, "key2": {"key": 1}},
+        {"key": {"key": 1, "key2": 1}},
+        {"key": {"key": 1, "key2": 1}, "key2": {"key": 1, "key2": 1}},
+    ],
+)
+def test_nested_objects_in_schema(data):
+    model = MlemModel.from_obj(lambda x: x, sample_data=data)
     interface = ModelInterface.from_model(model)
 
     app = FastAPIServer().app_init(interface)
@@ -125,11 +134,11 @@ def test_endpoint_with_primitive():
         interface.model_type.methods[PREDICT_METHOD_NAME]
         .args[0]
         .type_.get_serializer()
-        .serialize([1, 2, 3])
+        .serialize(data)
     )
     response = client.post(
         f"/{PREDICT_METHOD_NAME}",
         json={"data": payload},
     )
     assert response.status_code == 200, response.json()
-    assert response.json() == [1, 2, 3]
+    assert response.json() == data
