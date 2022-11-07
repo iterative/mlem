@@ -19,6 +19,7 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    List,
     Optional,
     Tuple,
     Type,
@@ -596,18 +597,37 @@ class _WithArtifacts(ABC, MlemObject):
         self.requirements.check()
 
 
+MAIN_PROCESSOR_NAME = "__main__"
+TMP_PREPROCESSOR_NAME = "pre"
+
+
 class MlemModel(_WithArtifacts):
     """MlemObject representing a ML model"""
 
     object_type: ClassVar = "model"
-    model_type_cache: Any
-    model_type: ModelType
-    """Framework-specific metadata"""
-    model_type, model_type_raw, model_type_cache = lazy_field(
-        ModelType, "model_type", "model_type_cache"
-    )
+    # model_type_cache: Any
+    # model_type: ModelType
+    # """Framework-specific metadata"""
+    # model_type, model_type_raw, model_type_cache = lazy_field(
+    #     ModelType, "model_type", "model_type_cache"
+    # )
 
-    preprocessor: Union["ModelLink", "MlemModel", None] = None
+    # preprocessor: Union["ModelLink", "MlemModel", None] = None
+
+    processors: Dict[str, Any] = {}
+    _processors_cache: Dict[str, ModelType] = {}
+    pipelines: Dict[str, List[Tuple[str, str]]] = {}
+
+    def get_processor(self, name: str) -> ModelType:
+        if name not in self._processors_cache:
+            self._processors_cache[name] = parse_obj_as(
+                ModelType, self.processors[name]
+            )
+        return self._processors_cache[name]
+
+    @property
+    def model_type(self) -> ModelType:
+        return self.get_processor(MAIN_PROCESSOR_NAME)
 
     @classmethod
     def from_obj(
@@ -617,51 +637,50 @@ class MlemModel(_WithArtifacts):
         params: Dict[str, str] = None,
         preprocessor: Any = None,
     ) -> "MlemModel":
-        if isinstance(preprocessor, str):
-            preprocessor_value = ModelLink.from_uri(
-                preprocessor, link_type=MlemModel
-            )
+        mlem_model = MlemModel(
+            params=params or {},
+        )
+        if callable(preprocessor):
+            pre = ModelAnalyzer.analyze(
+                preprocessor, sample_data=sample_data
+            ).bind(preprocessor)
+            mlem_model.add_processor(TMP_PREPROCESSOR_NAME, pre)
             if sample_data is not None:
-                sample_data = preprocessor_value.load_link(
-                    force_type=MlemModel
-                ).predict(sample_data)
-        elif isinstance(preprocessor, MlemLink) or preprocessor is None:
-            preprocessor_value = preprocessor
-            if preprocessor is not None and sample_data is not None:
-                sample_data = preprocessor.load_link(
-                    force_type=MlemModel
-                ).predict(sample_data)
-        elif isinstance(preprocessor, MlemModel):
-            if preprocessor.is_saved:
-                preprocessor_value = preprocessor.make_link()
-            else:
-                preprocessor_value = preprocessor
-            if sample_data is not None:
-                sample_data = preprocessor.predict(sample_data)
-        else:
-            preprocessor_value = MlemModel.from_obj(preprocessor)
-            if sample_data is not None:
-                sample_data = preprocessor_value.predict(sample_data)
+                sample_data = pre.call_method("predict", sample_data)
 
         mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
         if mt.model is None:
             mt = mt.bind(model)
 
-        return MlemModel(
-            model_type=mt,
-            requirements=mt.get_requirements().expanded,
-            params=params or {},
-            preprocessor=preprocessor_value,
-        )
+        mlem_model.add_processor(MAIN_PROCESSOR_NAME, mt)
+        return mlem_model
+
+    def add_processor(self, name: str, model_type: ModelType):
+        if name in self.processors:
+            raise ValueError(f"Processor named {name} already exists in model")
+        self.processors[name] = model_type.dict()
+        self._processors_cache[name] = model_type
+        self.requirements += model_type.get_requirements().expanded
 
     def write_value(self) -> Artifacts:
-        if self.model_type.model is not None:
-            return self.model_type.io.dump(
-                self.storage,
-                posixpath.basename(self.name),
-                self.model_type.model,
+        if len(self.processors) == 1:
+            if self.model_type.model is not None:
+                return self.model_type.io.dump(
+                    self.storage,
+                    posixpath.basename(self.name),
+                    self.model_type.model,
+                )
+            raise ValueError("Meta is not binded to actual model")
+        artifacts = {}
+        for name, mt in self._processors_cache.items():  # TODO not only cache?
+            artifacts.update(
+                mt.io.dump(
+                    self.storage,
+                    posixpath.join(posixpath.basename(self.name), name),
+                    mt.model,
+                )
             )
-        raise ValueError("Meta is not binded to actual model")
+        return artifacts
 
     def load_value(self):
         with self.requirements.import_custom():
@@ -676,24 +695,32 @@ class MlemModel(_WithArtifacts):
                 f"{self.model_type.__class__} does not have {item} attribute"
             )
         func = partial(self.model_type.call_method, item)
-        if self.preprocessor is None:
+        if self.get_preprocessor() is None:
             return func
-        return lambda x: func(self.get_preprocessor()(x))
+        return lambda x: func(
+            self.get_preprocessor().call_method("predict", x)
+        )
 
     def __call__(self, data):
         if "__call__" not in self.model_type.methods:
             raise TypeError("Model is not callable")
 
-        preproc = self.get_preprocessor() or (lambda x: x)
-        return self.model_type.model(preproc(data))
+        preproc = self.get_preprocessor()
+        if preproc:
+            data = preproc.call_method("predict", data)
+        return self.model_type.model(data)
 
-    def get_preprocessor(self, load_value: bool = True):
-        if isinstance(self.preprocessor, MlemLink):
-            link = self.preprocessor.load_link(force_type=MlemModel)
-            if load_value:
-                link.load_value()
-            return link
-        return self.preprocessor
+    def get_preprocessor(self):
+        try:
+            return self.get_processor(TMP_PREPROCESSOR_NAME)
+        except KeyError:
+            return None
+        # if isinstance(self.preprocessor, MlemLink):
+        #     link = self.preprocessor.load_link(force_type=MlemModel)
+        #     if load_value:
+        #         link.load_value()
+        #     return link
+        # return self.preprocessor
 
 
 class MlemData(_WithArtifacts):
