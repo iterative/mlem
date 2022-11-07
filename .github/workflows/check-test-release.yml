@@ -96,7 +96,6 @@ jobs:
         pip install --upgrade pip setuptools wheel
         pip install pre-commit .[tests]
     - run: pre-commit run pylint -a -v --show-diff-on-failure
-      if: matrix.python != '3.7'
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
