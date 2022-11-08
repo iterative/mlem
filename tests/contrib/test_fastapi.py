@@ -142,3 +142,10 @@ def test_nested_objects_in_schema(data):
     )
     assert response.status_code == 200, response.json()
     assert response.json() == data
+
+    response = client.post(
+        "/__call__",
+        json={"data": payload},
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json() == data
