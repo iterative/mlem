@@ -5,7 +5,6 @@ import posixpath
 from typing import Any, Dict, Optional, Union
 
 from fsspec import AbstractFileSystem
-from fsspec.implementations.local import LocalFileSystem
 
 from mlem.api.utils import (
     ensure_meta,
@@ -20,7 +19,6 @@ from mlem.core.errors import (
     MlemError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
-    MlemProjectNotFound,
     WrongMethodError,
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
@@ -51,7 +49,6 @@ from mlem.ui import (
     color,
     echo,
 )
-from mlem.utils.root import find_project_root, mlem_project_exists
 
 
 def apply(
@@ -362,15 +359,6 @@ def serve(
         )
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
-
-
-def _validate_ls_project(loc: Location, project):
-    if loc.project is None:
-        raise MlemProjectNotFound(project, loc.fs)
-    if isinstance(loc.fs, LocalFileSystem):
-        loc.project = find_project_root(loc.project, loc.fs)
-    else:
-        mlem_project_exists(loc.project, loc.fs, raise_on_missing=True)
 
 
 def import_object(

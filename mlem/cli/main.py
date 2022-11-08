@@ -17,7 +17,7 @@ from typing import (
 import click
 import typer
 from click import Abort, ClickException, Command, HelpFormatter, Parameter
-from click.exceptions import Exit, MissingParameter
+from click.exceptions import Exit, MissingParameter, NoSuchOption
 from pydantic import ValidationError
 from typer import Context, Option, Typer
 from typer.core import TyperCommand, TyperGroup
@@ -41,11 +41,9 @@ from mlem.ui import (
     cli_echo,
     color,
     echo,
+    no_echo,
     stderr_echo,
 )
-
-PATH_METAVAR = "path"
-COMMITISH_METAVAR = "commitish"
 
 PATH_METAVAR = "path"
 COMMITISH_METAVAR = "commitish"
@@ -91,7 +89,7 @@ class MlemMixin(Command):
     def _add_docs_link(help, cmd_name):
         return (
             help
-            if "Documentation" in help
+            if help is None or "Documentation" in help
             else f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
         )
 
@@ -135,6 +133,8 @@ class MlemCommand(
         **extra: Any,
     ) -> Context:
         args_copy = args[:]
+        if self.dynamic_options_generator:
+            extra["ignore_unknown_options"] = True
         ctx = super().make_context(info_name, args, parent, **extra)
         if not self.dynamic_options_generator:
             return ctx
@@ -148,6 +148,16 @@ class MlemCommand(
                 params.update(ctx.params)
 
             if ctx.args == extra_args:
+                if not self.ignore_unknown_options:
+                    from difflib import get_close_matches
+
+                    opt = "--" + get_extra_keys(extra_args)[0]
+                    possibilities = get_close_matches(
+                        opt, {f"--{o}" for o in params}
+                    )
+                    raise NoSuchOption(
+                        opt, possibilities=possibilities, ctx=ctx
+                    )
                 break
             extra_args = ctx.args
 
@@ -339,6 +349,7 @@ def mlem_callback(
         False, "--verbose", "-v", help="Print debug messages"
     ),
     traceback: bool = Option(False, "--traceback", "--tb", hidden=True),
+    quiet: bool = Option(False, "--quiet", "-q", help="Suppress output"),
 ):
     """\b
     MLEM is a tool to help you version and deploy your Machine Learning models:
@@ -355,7 +366,7 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG}
+    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG, "quiet": quiet}
 
 
 def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
@@ -383,9 +394,7 @@ def mlem_command(
     def decorator(f):
         context_settings = kwargs.get("context_settings", {})
         if dynamic_options_generator:
-            context_settings.update(
-                {"allow_extra_args": True, "ignore_unknown_options": True}
-            )
+            context_settings.update({"allow_extra_args": True})
         if no_pass_from_parent is not None:
             _pass_from_parent = [
                 a
@@ -431,7 +440,7 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
                         and (o not in ikwargs or ikwargs[o] is None)
                     }
                 )
-            with cli_echo():
+            with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
                 res = f(*iargs, **ikwargs) or {}
             res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
         except (ClickException, Exit, Abort) as e:
