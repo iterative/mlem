@@ -208,6 +208,7 @@ class CallableModelType(ModelType, ModelHook):
         s = Signature.from_method(
             obj, sample_data, auto_infer=sample_data is not None
         )
+        s.name = "__call__"
         predict = s.copy()
         predict.name = "predict"
         predict.args[0].name = "data"
