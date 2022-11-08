@@ -9,13 +9,13 @@ from mlem.contrib.callable import CallableModelType
 from mlem.core.artifacts import LOCAL_STORAGE, Artifacts, Storage
 from mlem.core.data_type import PrimitiveType
 from mlem.core.model import (
+    Argument,
     ModelAnalyzer,
     ModelHook,
     ModelIO,
     ModelType,
     Signature,
 )
-from tests.conftest import check_model_type_common_interface
 
 
 def clbl_model(some_argname):
@@ -31,20 +31,23 @@ class ModelClass:
 def test_callable_analyze(model, tmpdir):
     mt = ModelAnalyzer.analyze(model, 1)
     assert isinstance(mt, CallableModelType)
-    check_model_type_common_interface(
-        mt, PrimitiveType(ptype="int"), PrimitiveType(ptype="int")
-    )
-    assert mt.predict(1) == 1
+    returns = PrimitiveType(ptype="int")
+
+    signature = mt.methods["__call__"]
+    assert signature.name == "__call__"
+    assert signature.args[0] == Argument(name="some_argname", type_=returns)
+    assert signature.returns == returns
+
     assert mt.model(1) == 1
 
     artifacts = mt.dump(LOCAL_STORAGE, str(tmpdir / "model"))
 
     mt.unbind()
     with pytest.raises(ValueError):
-        mt.call_method(PREDICT_METHOD_NAME, 1)
+        mt.call_method("__call__", 1)
 
     mt.load(artifacts)
-    mt.call_method(PREDICT_METHOD_NAME, 1)
+    assert mt.call_method("__call__", 1) == 1
 
 
 class SklearnWrappedModel:

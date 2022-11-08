@@ -6,8 +6,8 @@ from mlem.constants import PREDICT_METHOD_NAME, PREDICT_PROBA_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
-from mlem.core.model import ModelAnalyzer
-from tests.conftest import check_model_type_common_interface, long
+from mlem.core.model import Argument, ModelAnalyzer
+from tests.conftest import long
 
 
 @pytest.fixture
@@ -36,17 +36,17 @@ def test_catboost_model(catboost_model_fixture, pandas_data, tmpdir, request):
 
     data_type = DataAnalyzer.analyze(pandas_data)
 
-    assert "catboost_predict" in cbmw.methods
-    check_model_type_common_interface(
-        cbmw,
-        data_type,
-        NumpyNdarrayType(
-            shape=(None,),
-            dtype="float64"
-            if catboost_model_fixture == "catboost_regressor"
-            else "int64",
-        ),
+    assert "predict" in cbmw.methods
+    signature = cbmw.methods["predict"]
+    assert signature.name == "predict"
+    assert signature.args[0] == Argument(name="data", type_=data_type)
+    returns = NumpyNdarrayType(
+        shape=(None,),
+        dtype="float64"
+        if catboost_model_fixture == "catboost_regressor"
+        else "int64",
     )
+    assert signature.returns == returns
 
     expected_requirements = {"catboost", "pandas"}
     reqs = set(cbmw.get_requirements().modules)
