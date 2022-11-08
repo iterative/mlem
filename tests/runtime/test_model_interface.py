@@ -41,7 +41,7 @@ def test_interface_types(pd_model: MlemModel, data, prediction):
     interface = ModelInterface.from_model(pd_model)
     # assert interface.exposed_method_docs('predict') == pd_model.description
     # TODO: https://github.com/iterative/mlem/issues/43
-    pred = interface.execute("predict", {"data": data})
+    pred = interface.execute("predict", {"X": data})
     assert (pred == prediction).all()
 
 
@@ -53,4 +53,4 @@ def test_with_serde(pd_model: MlemModel):
     data_type = pd_model.model_type.methods["predict"].args[0].type_
     data = data_type.get_serializer().deserialize(obj)
 
-    interface.execute("predict", {"data": data})
+    interface.execute("predict", {"X": data})

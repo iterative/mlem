@@ -1,6 +1,15 @@
 import inspect
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
 
 from pydantic import BaseModel
 
@@ -18,16 +27,22 @@ from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemModel
 
+if TYPE_CHECKING:
+    from mlem.runtime.server import Server
+
 
 class ExecutionError(MlemError):
     pass
 
 
 class InterfaceDescriptor(BaseModel):
-    version: str = mlem.version.__version__
-    """mlem version"""
     methods: Dict[str, Signature] = {}
     """interface methods"""
+
+
+class VersionedInterfaceDescriptor(InterfaceDescriptor):
+    version: str = mlem.version.__version__
+    """mlem version"""
 
 
 class Interface(ABC, MlemABC):
@@ -124,7 +139,7 @@ class Interface(ABC, MlemABC):
         return self.get_method_signature(method_name).returns
 
     def get_descriptor(self) -> InterfaceDescriptor:
-        return InterfaceDescriptor(
+        return VersionedInterfaceDescriptor(
             version=mlem.__version__,
             methods={
                 name: self.get_method_signature(name)
@@ -205,7 +220,12 @@ class ModelInterface(Interface):
         signature = self.get_method_signature(method_name)
 
         def executor(**kwargs):
-            args = [kwargs[arg.name] for arg in signature.args]
+            args = [
+                kwargs[arg.name]
+                if arg.required
+                else kwargs.get(arg.name, arg.default)
+                for arg in signature.args
+            ]
             return self.model_type.call_method(method_name, *args)
 
         return executor
@@ -222,6 +242,19 @@ class ModelInterface(Interface):
         return {
             a.name: a.type_ for a in self.model_type.methods[method_name].args
         }
+
+
+def prepare_model_interface(model: MlemModel, server: "Server"):
+    interface: Interface = ModelInterface(model_type=model.model_type)
+    if server.interface:
+        interface = conform_interface(
+            server.interface, interface, server.strict_interface
+        )
+    elif server.standardize:
+        interface = conform_interface(
+            standard_interface(model.model_type), interface, strict=False
+        )
+    return interface
 
 
 class ConformedInterface(Interface):
@@ -361,4 +394,4 @@ def standard_interface(
         predict_proba.args[0].name = PREDICT_ARG_NAME
         predict_proba.name = PREDICT_PROBA_METHOD_NAME
         methods[PREDICT_PROBA_METHOD_NAME] = predict_proba
-    return InterfaceDescriptor(version=mlem.__version__, methods=methods)
+    return InterfaceDescriptor(methods=methods)

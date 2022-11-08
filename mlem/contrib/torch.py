@@ -176,17 +176,20 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        model = TorchModel(model=obj, methods={})
-        model.methods = {
-            "predict": Signature.from_method(
-                obj.__call__,
-                sample_data,
-                auto_infer=sample_data is not None,
-            ),
-        }
-        return model
+        signature = Signature.from_method(
+            obj.__call__,
+            sample_data,
+            override_name="__call__",
+            auto_infer=sample_data is not None,
+        )
+        return TorchModel(
+            model=obj,
+            methods={
+                "__call__": signature,
+            },
+        )
 
-    def predict(self, data):
+    def __call__(self, data):
         if isinstance(data, torch.Tensor):
             return self.model(data)
         return self.model(*data)

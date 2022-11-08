@@ -11,7 +11,11 @@ from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
-from mlem.runtime.interface import ModelInterface
+from mlem.runtime.interface import (
+    Interface,
+    ModelInterface,
+    prepare_model_interface,
+)
 
 
 @pytest.fixture
@@ -42,7 +46,7 @@ def payload_model(signature):
 @pytest.fixture
 def interface(model, train):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = ModelInterface.from_model(model)
+    interface = prepare_model_interface(model, FastAPIServer(standardize=True))
     return interface
 
 
@@ -53,7 +57,7 @@ def executor(interface):
 
 @pytest.fixture
 def client(interface):
-    app = FastAPIServer().app_init(interface)
+    app = FastAPIServer(standardize=True).app_init(interface)
     return TestClient(app)
 
 
@@ -85,9 +89,9 @@ def test_create_handler_primitive():
     assert handler(request_model(data="value")) == "value"
 
 
-def test_endpoint(client, interface, train):
+def test_endpoint(client, interface: Interface, train):
     payload = (
-        interface.model_type.methods[PREDICT_METHOD_NAME]
+        interface.get_method_signature(PREDICT_METHOD_NAME)
         .args[0]
         .type_.get_serializer()
         .serialize(train)

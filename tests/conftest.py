@@ -29,7 +29,7 @@ from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
-from mlem.runtime.interface import ModelInterface
+from mlem.runtime.interface import prepare_model_interface
 
 RESOURCES = "resources"
 
@@ -151,16 +151,21 @@ def model(model_train_target):
     return model_train_target[0]
 
 
+@pytest.fixture()
+def server():
+    return FastAPIServer(standardize=True)
+
+
 @pytest.fixture
-def interface(model, train):
+def interface(model, train, server):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = ModelInterface.from_model(model)
+    interface = prepare_model_interface(model, server)
     return interface
 
 
 @pytest.fixture
-def client(interface):
-    app = FastAPIServer().app_init(interface)
+def client(interface, server):
+    app = server.app_init(interface)
     return TestClient(app)
 
 
