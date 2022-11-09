@@ -15,7 +15,8 @@ from typing import (
 )
 
 from pydantic import BaseModel, parse_obj_as
-from typing_extensions import Literal
+from pydantic.typing import get_args, is_union
+from typing_extensions import Literal, get_origin
 from yaml import safe_load
 
 from mlem.core.errors import ExtensionRequirementError, UnknownImplementation
@@ -228,13 +229,58 @@ IntStr = Union[int, str]
 Keys = Tuple[IntStr, ...]
 KeyValue = Tuple[IntStr, Any]
 Aggregates = Dict[Keys, List[KeyValue]]
+TypeHints = Dict[Keys, Type]
 
 
 class SmartSplitDict(dict):
-    def __init__(self, value=None, sep=".", type_field="type"):
+    def __init__(
+        self,
+        value=None,
+        sep=".",
+        type_field="type",
+        model: Type[BaseModel] = None,
+    ):
         self.type_field = type_field
         self.sep = sep
+        self.type_hints: TypeHints = (
+            {} if model is None else self._prepare_type_hints(model)
+        )
         super().__init__(value or ())
+
+    @classmethod
+    def _prepare_type_hints(cls, model: Type[BaseModel]) -> TypeHints:
+        # this works only for first-level fields rn.
+        # So f: Dict[int, Dict[int, int]] will fail because
+        # Nested dict won't get type hint and be treated as list
+        # Also, __root__ element type is not checked
+        res: TypeHints = {(): dict}
+        for name, field in model.__fields__.items():
+            field_type = field.outer_type_
+            if not isinstance(field_type, type):
+                # Handle generics. Probably will break in complex cases
+                origin = get_origin(field_type)
+                while is_union(origin):
+                    # get first type for union
+                    generic_args = get_args(field_type)
+                    field_type = generic_args[0]
+                    origin = (
+                        get_origin(field_type)
+                        if not isinstance(field_type, type)
+                        else None
+                    )
+                if origin is not None:
+                    res[(name,)] = origin
+                    continue
+
+            if issubclass(field_type, BaseModel):
+                for prefix, type_hint in cls._prepare_type_hints(
+                    field_type
+                ).items():
+                    if not prefix:
+                        continue
+                    res[(name,) + prefix] = type_hint
+
+        return res
 
     def update(self, __m: Dict[Any, Any], **kwargs) -> None:  # type: ignore[override]
         for k, v in __m.items():
@@ -264,13 +310,15 @@ class SmartSplitDict(dict):
         prefix_values: Aggregates = self._aggregate_by_prefix()
         while prefix_values:
             if len(prefix_values) == 1 and () in prefix_values:
-                return self._merge_aggregates(prefix_values[()])
+                return self._merge_aggregates(prefix_values[()], None)
             max_len = max(len(k) for k in prefix_values)
             to_aggregate: Dict[Keys, Any] = {}
             postponed: Aggregates = defaultdict(list)
             for prefix, values in prefix_values.items():
                 if len(prefix) == max_len:
-                    to_aggregate[prefix] = self._merge_aggregates(values)
+                    to_aggregate[prefix] = self._merge_aggregates(
+                        values, self.type_hints.get(prefix)
+                    )
                     continue
                 postponed[prefix] = values
             aggregated: Aggregates = self._aggregate_by_prefix(to_aggregate)
@@ -282,8 +330,14 @@ class SmartSplitDict(dict):
         # this can only be reached if loop was not entered
         return {}
 
-    def _merge_aggregates(self, values: List[KeyValue]) -> Any:
-        if all(isinstance(k, int) for k, _ in values):
+    def _merge_aggregates(
+        self, values: List[KeyValue], type_hint: Optional[Type]
+    ) -> Any:
+        if (
+            type_hint is list
+            or all(isinstance(k, int) for k, _ in values)
+            and type_hint is None
+        ):
             return self._merge_as_list(values)
         return self._merge_as_dict(values)
 
@@ -348,7 +402,17 @@ def build_model(
     conf: Dict[str, Any] = None,
     **kwargs,
 ) -> TBM:
-    model_dict = SmartSplitDict()
+    if (
+        issubclass(model, MlemABC)
+        and model.__is_root__
+        and model.__config__.type_field in kwargs
+    ):
+        type_hint_model: Type[BaseModel] = load_impl_ext(
+            model.abs_name, kwargs[model.__config__.type_field]
+        )
+    else:
+        type_hint_model = model
+    model_dict = SmartSplitDict(model=type_hint_model)
     model_dict.update(kwargs)
     model_dict.update(conf or {})
 

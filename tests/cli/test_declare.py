@@ -342,6 +342,68 @@ all_test_params.extend(
 )
 
 
+class DictIntKey(_MockBuilder):
+    field: Dict[int, int] = {}
+
+
+all_test_params.extend(
+    (
+        pytest.param(
+            DictIntKey(field={10: 10}), "--field.10 10", id="dict_int_key"
+        ),
+        pytest.param(DictIntKey(), "", id="dict_int_key_empty"),
+    )
+)
+
+
+class NestedDictIntKey(_MockBuilder):
+    field: DictIntKey
+
+
+all_test_params.extend(
+    (
+        pytest.param(
+            NestedDictIntKey(field=DictIntKey(field={10: 10})),
+            "--field.field.10 10",
+            id="nested_dict_int_key",
+        ),
+    )
+)
+
+
+class DoubleDictIntKey(_MockBuilder):
+    field: Dict[int, Dict[int, int]]
+
+
+# TODO
+# all_test_params.extend(
+#     (
+#         pytest.param(
+#             DoubleDictIntKey(field={10:{10:10}}), "--field.10.10 10", id="double_dict_int_key"
+#         ),
+#     )
+# )
+
+
+class RootList(BaseModel):
+    __root__: List[int]
+
+
+class RootListNested(_MockBuilder):
+    field: RootList
+
+
+all_test_params.extend(
+    (
+        pytest.param(
+            RootListNested(field=RootList(__root__=[10])),
+            "--field.0 10",
+            id="root_list_nested",
+        ),
+    )
+)
+
+
 @lru_cache()
 def _declare_builder_command(type_: str):
     create_declare_mlem_object_subcommand(
