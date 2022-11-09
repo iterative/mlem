@@ -5,10 +5,10 @@ ModelType and ModelIO implementations for `torch.nn.Module`
 ImportHook for importing files saved with `torch.save`
 DataType, Reader and Writer implementations for `torch.Tensor`
 """
+import logging
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import cloudpickle
-import logging
 import torch
 from pydantic import conlist, create_model
 

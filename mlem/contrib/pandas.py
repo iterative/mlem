@@ -4,8 +4,8 @@ Extension type: data
 DataType, Reader and Writer implementations for `pd.DataFrame` and `pd.Series`
 ImportHook implementation for files saved with pandas
 """
-import os.path
 import logging
+import os.path
 import posixpath
 import re
 from abc import ABC
@@ -693,7 +693,6 @@ class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):
 
     @classmethod
     def load_obj(cls, location: Location, modifier: Optional[str], **kwargs):
-
         class _LazyDescribe:
             def __init__(self, _df):
                 self._df = _df
@@ -709,5 +708,8 @@ class PandasImport(ExtImportHook, LoadAndAnalyzeImportHook):
             df = fmt.read_func(f, **read_args)
 
             # note: should consider using head() here, more meaningful for small dfs and vectors
-            logger.debug("Loaded dataframe object, showing 'describe'\n %s", _LazyDescribe(df))
+            logger.debug(
+                "Loaded dataframe object, showing 'describe'\n %s",
+                _LazyDescribe(df),
+            )
             return df
