@@ -14,7 +14,7 @@ from mlem.core.objects import MlemData, MlemModel, MlemObject
 
 class ImportHook(Hook[MlemObject], MlemABC, ABC):
     """Base class for defining import hooks.
-    On every import attemt all available hooks are checked if the imported path
+    On every import attempt all available hooks are checked if the imported path
     represented by `Location` instance if valid for them. Then process method is
     called on a hook that first passed the check"""
 
