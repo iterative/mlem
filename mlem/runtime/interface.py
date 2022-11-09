@@ -369,6 +369,8 @@ def standard_interface(
         else:
             if len(single_arg_methods) > 1:
                 predict_proba_method_name = single_arg_methods[1]
+            else:
+                predict_proba_method_name = None
     else:
         predict_proba_method_name = predict_proba_method
     if predict_method is None:
