@@ -4,7 +4,6 @@ from typing import Any, ClassVar, Dict, Optional
 import pytest
 from sklearn.linear_model import LinearRegression
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.callable import CallableModelType
 from mlem.core.artifacts import LOCAL_STORAGE, Artifacts, Storage
 from mlem.core.data_type import PrimitiveType
@@ -63,15 +62,15 @@ def test_complex_pickle_loading_simple(tmpdir):
     model = SklearnWrappedModel()
     mt = ModelAnalyzer.analyze(model.run_predict, [[1]])
     assert isinstance(mt, CallableModelType)
-    mt.predict([[1]])
+    mt.model([[1]])
     artifacts = mt.dump(LOCAL_STORAGE, str(tmpdir / "model"))
     assert len(artifacts) == 1
     mt.unbind()
     with pytest.raises(ValueError):
-        mt.call_method(PREDICT_METHOD_NAME, [[1]])
+        mt.call_method("__call__", [[1]])
     mt.load(artifacts)
     assert mt.model is not model.run_predict
-    mt.call_method(PREDICT_METHOD_NAME, [[1]])
+    mt.call_method("__call__", [[1]])
 
 
 class ComplexModelIO(ModelIO):
@@ -122,12 +121,12 @@ def test_complex_pickle_loading(tmpdir):
     model = ComplexWrappedModel("a")
     mt = ModelAnalyzer.analyze(model.run_predict, "b")
     assert isinstance(mt, CallableModelType)
-    assert mt.predict("b") == "ab"
+    assert mt.model("b") == "ab"
     artifacts = mt.dump(LOCAL_STORAGE, tmpdir)
     assert len(artifacts) == 3
     mt.unbind()
     with pytest.raises(ValueError):
-        mt.call_method(PREDICT_METHOD_NAME, "b")
+        mt.call_method("__call__", "b")
     mt.load(artifacts)
     assert mt.model is not model.run_predict
-    assert mt.call_method(PREDICT_METHOD_NAME, "b") == "ab"
+    assert mt.call_method("__call__", "b") == "ab"

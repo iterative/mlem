@@ -135,21 +135,15 @@ def test_nested_objects_in_schema(data):
     docs = client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
     payload = (
-        interface.model_type.methods[PREDICT_METHOD_NAME]
+        interface.model_type.methods["__call__"]
         .args[0]
         .type_.get_serializer()
         .serialize(data)
     )
-    response = client.post(
-        f"/{PREDICT_METHOD_NAME}",
-        json={"data": payload},
-    )
-    assert response.status_code == 200, response.json()
-    assert response.json() == data
 
     response = client.post(
         "/__call__",
-        json={"data": payload},
+        json={"x": payload},
     )
     assert response.status_code == 200, response.json()
     assert response.json() == data
