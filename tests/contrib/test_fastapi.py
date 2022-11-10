@@ -102,6 +102,8 @@ def test_create_handler_primitive():
 
 
 def test_endpoint(client, interface: Interface, train):
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
     payload = (
         interface.get_method_signature(PREDICT_METHOD_NAME)
         .args[0]
