@@ -185,6 +185,7 @@ def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
 
 def test_ls_local(filled_mlem_project):
     objects = list_objects(filled_mlem_project)
+
     assert len(objects) == 1
     assert MlemModel in objects
     models = objects[MlemModel]
