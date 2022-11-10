@@ -3,10 +3,10 @@
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import create_model
-from pydantic.main import ModelMetaclass
+from pydantic.main import BaseModel, ModelMetaclass
 
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
-from mlem.contrib.fastapi import FastAPIServer
+from mlem.contrib.fastapi import FastAPIServer, rename_recursively
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import Argument, Signature
@@ -59,6 +59,18 @@ def executor(interface):
 def client(interface):
     app = FastAPIServer(standardize=True).app_init(interface)
     return TestClient(app)
+
+
+def test_rename_recursively(payload_model):
+    rename_recursively(payload_model, "predict")
+
+    def recursive_assert(model):
+        assert model.__name__.startswith("predict")
+        for field in model.__fields__.values():
+            if issubclass(field.type_, BaseModel):
+                recursive_assert(field.type_)
+
+    recursive_assert(payload_model)
 
 
 def test_create_handler(signature, executor):
