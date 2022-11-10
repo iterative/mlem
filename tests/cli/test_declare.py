@@ -375,7 +375,7 @@ class DoubleDictIntKey(_MockBuilder):
     field: Dict[int, Dict[int, int]]
 
 
-# TODO
+# TODO: https://github.com/iterative/mlem/issues/483
 # all_test_params.extend(
 #     (
 #         pytest.param(
