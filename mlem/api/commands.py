@@ -48,7 +48,7 @@ from mlem.ui import (
 
 
 def apply(
-    model: Union[str, MlemModel],
+    model: Union[str, MlemModel, Any],
     *data: Union[str, MlemData, Any],
     method: str = None,
     output: str = None,
@@ -72,7 +72,10 @@ def apply(
         If `output=None`, returns results for given data.
             Otherwise returns None.
     """
-    model = get_model_meta(model)
+    if isinstance(model, (str, MlemModel)):
+        model = get_model_meta(model)
+    else:
+        model = MlemModel.from_obj(model)
     w = model.model_type
     try:
         resolved_method = w.resolve_method(method)

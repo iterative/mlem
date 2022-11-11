@@ -5,6 +5,7 @@ ModelType and ModelIO implementations for `torch.nn.Module`
 ImportHook for importing files saved with `torch.save`
 DataType, Reader and Writer implementations for `torch.Tensor`
 """
+import logging
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import cloudpickle
@@ -32,6 +33,9 @@ from mlem.core.requirements import InstallableRequirement, Requirements
 def python_type_from_torch_string_repr(dtype: str):
     #  not sure this will work all the time
     return python_type_from_np_string_repr(dtype)
+
+
+logger = logging.getLogger(__name__)
 
 
 class TorchTensorDataType(
@@ -213,13 +217,15 @@ class TorchModelImport(LoadAndAnalyzeImportHook):
 
     @classmethod
     def load_obj(cls, location: Location, modifier: Optional[str], **kwargs):
-        return TorchModelIO().load(
+        torch_obj = TorchModelIO().load(
             {
                 TorchModelIO.art_name: FSSpecArtifact(
                     uri=location.uri, size=0, hash=""
                 )
             }
         )
+        logger.debug("Loaded dataframe object\n %s", torch_obj)
+        return torch_obj
 
 
 # Copyright 2019 Zyfra
