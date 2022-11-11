@@ -346,7 +346,7 @@ class DockerContainer(
     """Name to use for container"""
     image_name: Optional[str] = None
     """Name to use for image"""
-    port_mapping: List[str]
+    port_mapping: List[str] = []
     """Publish container ports. See https://docs.docker.com/config/containers/container-networking/#published-ports"""
     params: Dict[str, str] = {}
     """Additional params"""
