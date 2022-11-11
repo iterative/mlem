@@ -27,6 +27,7 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
+    pass_api_log_params,
 )
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
@@ -107,7 +108,7 @@ def apply(
             )
         meta = load_meta(model, project, rev, force_type=MlemModel)
 
-        result = apply(
+        result = pass_api_log_params(apply)(
             meta,
             data,
             method=method,
@@ -256,7 +257,7 @@ def run_apply_remote(
         load_value=True,
         force_type=MlemData,
     )
-    result = apply_remote(
+    result = pass_api_log_params(apply_remote)(
         client,
         data,
         method=method,

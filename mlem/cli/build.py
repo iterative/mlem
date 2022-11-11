@@ -19,6 +19,7 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
+    pass_api_log_params,
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemBuilder, MlemModel
@@ -44,7 +45,7 @@ def build_load(
 ):
     from mlem.api.commands import build
 
-    build(
+    pass_api_log_params(build)(
         config_arg(
             MlemBuilder,
             load,
@@ -79,7 +80,7 @@ def create_build_command(type_name):
     ):
         from mlem.api.commands import build
 
-        build(
+        pass_api_log_params(build)(
             config_arg(
                 MlemBuilder,
                 None,

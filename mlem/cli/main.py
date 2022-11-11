@@ -428,59 +428,63 @@ def mlem_command(
 def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
     @wraps(f)
     def inner(*iargs, **ikwargs):
-        res = {}
         error = None
         ctx = click.get_current_context()
         cmd_name = get_cmd_name(ctx)
-        try:
-            if pass_from_parent is not None:
-                ikwargs.update(
-                    {
-                        o: ctx.parent.params[o]
-                        for o in pass_from_parent
-                        if o in ctx.parent.params
-                        and (o not in ikwargs or ikwargs[o] is None)
-                    }
-                )
-            with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
-                res = f(*iargs, **ikwargs) or {}
-            res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
-        except (ClickException, Exit, Abort) as e:
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            raise
-        except MlemError as e:
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            if ctx.obj["traceback"]:
-                raise
-            with stderr_echo():
-                echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
-            raise typer.Exit(1)
-        except ValidationError as e:
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            if ctx.obj["traceback"]:
-                raise
-            msgs = "\n".join(_format_validation_error(e))
-            with stderr_echo():
-                echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
-            raise typer.Exit(1)
-        except Exception as e:  # pylint: disable=broad-except
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            if ctx.obj["traceback"]:
-                raise
-            with stderr_echo():
-                echo(
-                    EMOJI_FAIL
-                    + color(
-                        "Unexpected error: " + str(e), col=typer.colors.RED
+        with telemetry.event_scope("cli", cmd_name) as event:
+            try:
+                if pass_from_parent is not None:
+                    ikwargs.update(
+                        {
+                            o: ctx.parent.params[o]
+                            for o in pass_from_parent
+                            if o in ctx.parent.params
+                            and (o not in ikwargs or ikwargs[o] is None)
+                        }
                     )
-                )
-                echo(
-                    "Please report it here: <https://github.com/iterative/mlem/issues>"
-                )
-            raise typer.Exit(1)
-        finally:
-            if error is not None or ctx.invoked_subcommand is None:
-                telemetry.send_cli_call(cmd_name, error=error, **res)
+                with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
+                    f(*iargs, **ikwargs)
+            except (ClickException, Exit, Abort) as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                raise
+            except MlemError as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                with stderr_echo():
+                    echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
+                raise typer.Exit(1)
+            except ValidationError as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                msgs = "\n".join(_format_validation_error(e))
+                with stderr_echo():
+                    echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
+                raise typer.Exit(1)
+            except Exception as e:  # pylint: disable=broad-except
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                with stderr_echo():
+                    echo(
+                        EMOJI_FAIL
+                        + color(
+                            "Unexpected error: " + str(e), col=typer.colors.RED
+                        )
+                    )
+                    echo(
+                        "Please report it here: <https://github.com/iterative/mlem/issues>"
+                    )
+                raise typer.Exit(1)
+            finally:
+                if error is not None or ctx.invoked_subcommand is None:
+                    telemetry.send_event(
+                        event.interface,
+                        event.action,
+                        error,
+                        **event.kwargs,
+                    )
 
     return inner
 
