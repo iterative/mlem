@@ -4,18 +4,17 @@ from typing import Any, ClassVar, Dict, Optional
 import pytest
 from sklearn.linear_model import LinearRegression
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.callable import CallableModelType
 from mlem.core.artifacts import LOCAL_STORAGE, Artifacts, Storage
 from mlem.core.data_type import PrimitiveType
 from mlem.core.model import (
+    Argument,
     ModelAnalyzer,
     ModelHook,
     ModelIO,
     ModelType,
     Signature,
 )
-from tests.conftest import check_model_type_common_interface
 
 
 def clbl_model(some_argname):
@@ -31,20 +30,23 @@ class ModelClass:
 def test_callable_analyze(model, tmpdir):
     mt = ModelAnalyzer.analyze(model, 1)
     assert isinstance(mt, CallableModelType)
-    check_model_type_common_interface(
-        mt, PrimitiveType(ptype="int"), PrimitiveType(ptype="int")
-    )
-    assert mt.predict(1) == 1
+    returns = PrimitiveType(ptype="int")
+
+    signature = mt.methods["__call__"]
+    assert signature.name == "__call__"
+    assert signature.args[0] == Argument(name="some_argname", type_=returns)
+    assert signature.returns == returns
+
     assert mt.model(1) == 1
 
     artifacts = mt.dump(LOCAL_STORAGE, str(tmpdir / "model"))
 
     mt.unbind()
     with pytest.raises(ValueError):
-        mt.call_method(PREDICT_METHOD_NAME, 1)
+        mt.call_method("__call__", 1)
 
     mt.load(artifacts)
-    mt.call_method(PREDICT_METHOD_NAME, 1)
+    assert mt.call_method("__call__", 1) == 1
 
 
 class SklearnWrappedModel:
@@ -60,15 +62,15 @@ def test_complex_pickle_loading_simple(tmpdir):
     model = SklearnWrappedModel()
     mt = ModelAnalyzer.analyze(model.run_predict, [[1]])
     assert isinstance(mt, CallableModelType)
-    mt.predict([[1]])
+    mt.model([[1]])
     artifacts = mt.dump(LOCAL_STORAGE, str(tmpdir / "model"))
     assert len(artifacts) == 1
     mt.unbind()
     with pytest.raises(ValueError):
-        mt.call_method(PREDICT_METHOD_NAME, [[1]])
+        mt.call_method("__call__", [[1]])
     mt.load(artifacts)
     assert mt.model is not model.run_predict
-    mt.call_method(PREDICT_METHOD_NAME, [[1]])
+    mt.call_method("__call__", [[1]])
 
 
 class ComplexModelIO(ModelIO):
@@ -119,12 +121,12 @@ def test_complex_pickle_loading(tmpdir):
     model = ComplexWrappedModel("a")
     mt = ModelAnalyzer.analyze(model.run_predict, "b")
     assert isinstance(mt, CallableModelType)
-    assert mt.predict("b") == "ab"
+    assert mt.model("b") == "ab"
     artifacts = mt.dump(LOCAL_STORAGE, tmpdir)
     assert len(artifacts) == 3
     mt.unbind()
     with pytest.raises(ValueError):
-        mt.call_method(PREDICT_METHOD_NAME, "b")
+        mt.call_method("__call__", "b")
     mt.load(artifacts)
     assert mt.model is not model.run_predict
-    assert mt.call_method(PREDICT_METHOD_NAME, "b") == "ab"
+    assert mt.call_method("__call__", "b") == "ab"

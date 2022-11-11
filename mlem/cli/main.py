@@ -90,7 +90,7 @@ class MlemMixin(Command):
     def _add_docs_link(help, cmd_name):
         return (
             help
-            if "Documentation" in help
+            if help is None or "Documentation" in help
             else f"{help}\n\nDocumentation: <https://mlem.ai/doc/command-reference/{cmd_name}>"
         )
 

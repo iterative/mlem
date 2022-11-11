@@ -8,7 +8,11 @@ from pydantic import BaseModel, parse_obj_as
 from mlem.core.base import MlemABC
 from mlem.core.errors import MlemError, WrongMethodError
 from mlem.core.model import Signature
-from mlem.runtime.interface import ExecutionError, InterfaceDescriptor
+from mlem.runtime.interface import (
+    ExecutionError,
+    InterfaceDescriptor,
+    VersionedInterfaceDescriptor,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +124,7 @@ class HTTPClient(Client):
                 raise MlemError(
                     f"Cannot create client for {self.base_url}"
                 ) from e
-        return parse_obj_as(InterfaceDescriptor, resp.json())
+        return parse_obj_as(VersionedInterfaceDescriptor, resp.json())
 
     def _call_method(self, name, args):  # pylint: disable=R1710
         ret = requests.post(f"{self.base_url}/{name}", json=args)

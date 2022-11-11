@@ -34,6 +34,7 @@ from mlem.core.objects import (
     MlemObject,
 )
 from mlem.runtime.client import Client
+from mlem.runtime.interface import prepare_model_interface
 from mlem.runtime.server import Server
 from mlem.telemetry import api_telemetry, telemetry
 from mlem.ui import (
@@ -49,7 +50,7 @@ from mlem.ui import (
 
 @api_telemetry
 def apply(
-    model: Union[str, MlemModel],
+    model: Union[str, MlemModel, Any],
     *data: Union[str, MlemData, Any],
     method: str = None,
     output: str = None,
@@ -73,7 +74,10 @@ def apply(
         If `output=None`, returns results for given data.
             Otherwise returns None.
     """
-    model = get_model_meta(model)
+    if isinstance(model, (str, MlemModel)):
+        model = get_model_meta(model)
+    else:
+        model = MlemModel.from_obj(model)
     w = model.model_type
     try:
         resolved_method = w.resolve_method(method)
@@ -328,7 +332,9 @@ def build(
 
 @api_telemetry
 def serve(
-    model: Union[str, MlemModel], server: Union[Server, str], **server_kwargs
+    model: Union[str, MlemModel],
+    server: Union[Server, str],
+    **server_kwargs,
 ):
     """Serve a model by exposing its methods as endpoints.
 
@@ -340,13 +346,11 @@ def serve(
     Returns:
         None
     """
-    from mlem.runtime.interface import ModelInterface
-
     model = get_model_meta(model, load_value=True)
-    interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
     telemetry.log_param("server_impl", server_obj.type)
+    interface = prepare_model_interface(model, server_obj)
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 
