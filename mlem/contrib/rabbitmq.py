@@ -16,7 +16,10 @@ from mlem.core.errors import MlemError
 from mlem.core.model import Signature
 from mlem.runtime import Interface
 from mlem.runtime.client import Client
-from mlem.runtime.interface import InterfaceDescriptor
+from mlem.runtime.interface import (
+    InterfaceDescriptor,
+    VersionedInterfaceDescriptor,
+)
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 
@@ -118,7 +121,7 @@ class RabbitMQClient(Client, RabbitMQMixin):
             self.queue_prefix + INTERFACE, auto_ack=False
         )
         self.channel.basic_nack(res.delivery_tag)
-        return parse_obj_as(InterfaceDescriptor, json.loads(payload))
+        return parse_obj_as(VersionedInterfaceDescriptor, json.loads(payload))
 
     def _call_method(self, name, args):
         response = None

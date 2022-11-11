@@ -47,7 +47,6 @@ def interface() -> Interface:
 
 def test_interface_descriptor__from_interface(interface: Interface):
     d = interface.get_descriptor()
-    assert d.version == mlem.__version__
     sig = Signature(
         name="method1",
         args=[

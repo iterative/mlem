@@ -8,14 +8,15 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
+from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
-from mlem.core.model import ModelAnalyzer
+from mlem.core.model import Argument, ModelAnalyzer
 from mlem.core.objects import MlemModel
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface, long
+from tests.conftest import long
 
 
 @pytest.fixture
@@ -64,14 +65,15 @@ def test_hook(model_fixture, inp_data, request):
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)
-    check_model_type_common_interface(
-        model_type,
-        data_type,
-        NumpyNdarrayType(
-            shape=(None,),
-            dtype=model.predict(inp_data).dtype.name,
-        ),
+    returns = NumpyNdarrayType(
+        shape=(None,),
+        dtype=model.predict(inp_data).dtype.name,
     )
+    assert PREDICT_METHOD_NAME in model_type.methods
+    signature = model_type.methods[PREDICT_METHOD_NAME]
+    assert signature.name == PREDICT_METHOD_NAME
+    assert signature.args[0] == Argument(name="X", type_=data_type)
+    assert signature.returns == returns
 
 
 def test_hook_lgb(lgbm_model, inp_data):
@@ -79,15 +81,16 @@ def test_hook_lgb(lgbm_model, inp_data):
     model_type = ModelAnalyzer.analyze(lgbm_model, sample_data=inp_data)
 
     assert isinstance(model_type, SklearnModel)
-    check_model_type_common_interface(
-        model_type,
-        data_type,
-        NumpyNdarrayType(
-            shape=(None,),
-            dtype="float64",
-        ),
-        varkw="kwargs",
+
+    returns = NumpyNdarrayType(
+        shape=(None,),
+        dtype="float64",
     )
+    assert PREDICT_METHOD_NAME in model_type.methods
+    signature = model_type.methods[PREDICT_METHOD_NAME]
+    assert signature.name == PREDICT_METHOD_NAME
+    assert signature.args[0] == Argument(name="X", type_=data_type)
+    assert signature.returns == returns
 
 
 @pytest.mark.parametrize("model", ["classifier", "regressor", "pipeline"])
