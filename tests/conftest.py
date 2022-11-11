@@ -128,8 +128,6 @@ def model_train_target(request):
     elif request.param == "pandas":
         train, target = load_iris(return_X_y=True)
         train = pd.DataFrame(train)
-        # TODO: https://github.com/iterative/mlem/issues/148
-        train.columns = train.columns.astype(str)
     model = DecisionTreeClassifier().fit(train, target)
     return model, train, target
 

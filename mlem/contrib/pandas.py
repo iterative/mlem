@@ -132,11 +132,11 @@ class _PandasDataType(
     """Intermidiate class for pandas DataType implementations"""
 
     libraries: ClassVar = [pd]
-    columns: List[str]
+    columns: List[Union[int, str]]
     """Column names"""
     dtypes: List[str]
     """Column types"""
-    index_cols: List[str]
+    index_cols: List[Union[int, str]]
     """Column names that should be in index"""
 
     @classmethod
@@ -173,12 +173,22 @@ class _PandasDataType(
             df = df.set_index(self.index_cols)
         return df
 
-    def align(self, df):
-        return self.align_index(self.align_types(df))
+    def align_column_types(self, df: pd.DataFrame):
+        int_columns = {str(c) for c in self.columns if isinstance(c, int)}
+        return df.rename(
+            {c: int(c) for c in int_columns.intersection(df.columns)}, axis=1
+        )
 
-    def validate_columns(self, df: pd.DataFrame, exc_type):
+    def align(self, df):
+        return self.align_index(self.align_types(self.align_column_types(df)))
+
+    def validate_columns(
+        self, df: pd.DataFrame, exc_type, force_str: bool = False
+    ):
         """Validates that df has correct columns"""
-        if set(df.columns) != set(self.columns):
+        if {str(c) if force_str else c for c in df.columns} != {
+            str(c) if force_str else c for c in self.columns
+        }:
             raise exc_type(
                 f"given dataframe has columns: {list(df.columns)}, expected: {self.columns}"
             )
@@ -206,7 +216,7 @@ class PandasSerializer(DataSerializer, ABC):
             raise DeserializationError(
                 f"given object: {obj} could not be converted to dataframe"
             ) from e
-
+        ret = data_type.align_column_types(ret)
         data_type.validate_columns(
             ret, DeserializationError
         )  # including index columns
@@ -218,7 +228,9 @@ class PandasSerializer(DataSerializer, ABC):
         data_type.check_type(instance, pd.DataFrame, SerializationError)
         is_copied, instance = reset_index(instance, return_copied=True)
 
-        data_type.validate_columns(instance, SerializationError)
+        data_type.validate_columns(
+            instance, SerializationError, force_str=True
+        )
         data_type.validate_dtypes(instance, SerializationError)
 
         for col, dtype in zip(data_type.columns, data_type.actual_dtypes):
@@ -245,7 +257,7 @@ class SeriesType(WithDefaultSerializer, _PandasDataType):
 
     @classmethod
     def process(cls, obj: pd.Series, **kwargs) -> "_PandasDataType":
-        return super().process(pd.DataFrame(obj))
+        return super().process(pd.DataFrame(obj.T))
 
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
@@ -274,7 +286,9 @@ class SeriesSerializer(PandasSerializer, DataSerializer[SeriesType]):
         return res
 
     def serialize(self, data_type, instance: pd.Series):
-        return super().serialize(data_type, pd.DataFrame(instance))["values"]
+        df = pd.DataFrame(instance)
+        df = data_type.align_column_types(df)
+        return super().serialize(data_type, df)["values"]
 
     def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         return create_model(  # type: ignore[call-overload]
@@ -332,7 +346,7 @@ class DataFrameType(WithDefaultSerializer, _PandasDataType):
         return create_model(
             "DataFrameRow",
             **{
-                c: (python_type_from_pd_string_repr(t), ...)
+                str(c): (python_type_from_pd_string_repr(t), ...)
                 for c, t in zip(self.columns, self.dtypes)
             },
         )
@@ -641,10 +655,10 @@ class PandasSeriesWriter(DataWriter, _PandasIO):
     def write(
         self, data: DataType, storage: Storage, path: str
     ) -> Tuple[DataReader, Artifacts]:
-        fmt = self.series_fmt
-        art = fmt.write(pd.DataFrame(data.data), storage, path)
         if not isinstance(data, SeriesType):
             raise ValueError("Cannot write non-pandas data")
+        fmt = self.series_fmt
+        art = fmt.write(pd.DataFrame(data.data), storage, path)
         return PandasSeriesReader(data_type=data, format=self.format), {
             self.art_name: art
         }

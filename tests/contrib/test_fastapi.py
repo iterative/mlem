@@ -19,7 +19,7 @@ from mlem.runtime.interface import (
 
 
 @pytest.fixture
-def signature(train):
+def f_signature(train):
     data_type = DataAnalyzer.analyze(train)
     returns_type = NumpyNdarrayType(shape=(None,), dtype="float64")
     kwargs = {"varkw": "kwargs"}
@@ -32,9 +32,9 @@ def signature(train):
 
 
 @pytest.fixture
-def payload_model(signature):
+def payload_model(f_signature):
     serializers = {
-        arg.name: arg.type_.get_serializer() for arg in signature.args
+        arg.name: arg.type_.get_serializer() for arg in f_signature.args
     }
     kwargs = {
         key: (serializer.get_model(), ...)
@@ -44,20 +44,20 @@ def payload_model(signature):
 
 
 @pytest.fixture
-def interface(model, train):
+def f_interface(model, train):
     model = MlemModel.from_obj(model, sample_data=train)
     interface = prepare_model_interface(model, FastAPIServer(standardize=True))
     return interface
 
 
 @pytest.fixture
-def executor(interface):
-    return interface.get_method_executor(PREDICT_METHOD_NAME)
+def executor(f_interface):
+    return f_interface.get_method_executor(PREDICT_METHOD_NAME)
 
 
 @pytest.fixture
-def client(interface):
-    app = FastAPIServer(standardize=True).app_init(interface)
+def f_client(f_interface):
+    app = FastAPIServer(standardize=True).app_init(f_interface)
     return TestClient(app)
 
 
@@ -73,14 +73,14 @@ def test_rename_recursively(payload_model):
     recursive_assert(payload_model)
 
 
-def test_create_handler(signature, executor):
+def test_create_handler(f_signature, executor):
     server = FastAPIServer()
     _, response_model, _ = server._create_handler(
-        PREDICT_METHOD_NAME, signature, executor
+        PREDICT_METHOD_NAME, f_signature, executor
     )
     assert (
         response_model.__name__
-        == f"{PREDICT_METHOD_NAME}_response_{signature.returns.get_model().__name__}"
+        == f"{PREDICT_METHOD_NAME}_response_{f_signature.returns.get_model().__name__}"
     )
     assert isinstance(response_model, ModelMetaclass)
 
@@ -101,16 +101,16 @@ def test_create_handler_primitive():
     assert handler(request_model(data="value")) == "value"
 
 
-def test_endpoint(client, interface: Interface, train):
-    docs = client.get("/openapi.json")
+def test_endpoint(f_client, f_interface: Interface, train):
+    docs = f_client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
     payload = (
-        interface.get_method_signature(PREDICT_METHOD_NAME)
+        f_interface.get_method_signature(PREDICT_METHOD_NAME)
         .args[0]
         .type_.get_serializer()
         .serialize(train)
     )
-    response = client.post(
+    response = f_client.post(
         f"/{PREDICT_METHOD_NAME}",
         json={"data": payload},
     )
