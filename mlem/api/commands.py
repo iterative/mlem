@@ -35,7 +35,7 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client
 from mlem.runtime.server import Server
-from mlem.telemetry import api_telemetry, log_telemetry_param
+from mlem.telemetry import api_telemetry, telemetry
 from mlem.ui import (
     EMOJI_APPLY,
     EMOJI_COPY,
@@ -212,8 +212,6 @@ def init(path: str = ".") -> None:
             f"{posixpath.abspath(path)} already exists, no need to run `mlem init` again"
         )
     else:
-        from mlem.telemetry import telemetry
-
         echo(
             color("███╗   ███╗", "#13ADC7")
             + color("██╗     ", "#945DD5")
@@ -348,7 +346,7 @@ def serve(
     interface = ModelInterface(model_type=model.model_type)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
-    log_telemetry_param("server_impl", server_obj.type)
+    telemetry.log_param("server_impl", server_obj.type)
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
 

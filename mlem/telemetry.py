@@ -1,7 +1,4 @@
-import contextlib
-import dataclasses
 from functools import wraps
-from typing import Any, Callable, Dict, Iterator, Optional, Union
 
 from iterative_telemetry import IterativeTelemetryLogger
 
@@ -22,74 +19,22 @@ telemetry = IterativeTelemetryLogger(
 )
 
 
-@dataclasses.dataclass
-class TelemetryEvent:
-    interface: str
-    action: str
-    error: Optional[str] = None
-    kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
+_is_api_running = False
 
 
-_current_event: Optional[TelemetryEvent] = None
+def api_telemetry(f):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        global _is_api_running  # pylint: disable=global-statement
+        is_nested = _is_api_running
+        _is_api_running = True
+        try:
+            from mlem.cli.utils import is_cli
 
+            return telemetry.log("api", skip=is_nested or is_cli())(f)(
+                *args, **kwargs
+            )
+        finally:
+            _is_api_running = not is_nested
 
-def log_telemetry_param(key: str, value):
-    if _current_event:
-        _current_event.kwargs[key] = value
-
-
-@contextlib.contextmanager
-def telemetry_event_scope(
-    interface: str, action: str
-) -> Iterator[TelemetryEvent]:
-    global _current_event  # pylint: disable=global-statement
-    event = TelemetryEvent(interface=interface, action=action)
-    tmp = _current_event
-    _current_event = event
-    try:
-        yield event
-    finally:
-        _current_event = tmp
-
-
-def log_telemetry(
-    interface: str,
-    action: str = None,
-    skip: Union[bool, Callable[[TelemetryEvent], bool]] = None,
-):
-    def decorator(f):
-        @wraps(f)
-        def inner(*args, **kwargs):
-            with telemetry_event_scope(
-                interface, action or f.__name__
-            ) as event:
-                try:
-                    return f(*args, **kwargs)
-                except Exception as e:
-                    event.error = e.__class__.__name__
-                    raise
-                finally:
-                    if (
-                        skip is None
-                        or (callable(skip) and not skip(event))
-                        or not skip
-                    ):
-                        telemetry.send_event(
-                            event.interface,
-                            event.action,
-                            event.error,
-                            **event.kwargs
-                        )
-
-        return inner
-
-    return decorator
-
-
-def skip_api_log(_):
-    from mlem.cli.utils import is_cli
-
-    return is_cli()
-
-
-api_telemetry = log_telemetry("api", skip=skip_api_log)
+    return inner
