@@ -35,6 +35,6 @@ def api_telemetry(f):
                 *args, **kwargs
             )
         finally:
-            _is_api_running = not is_nested
+            _is_api_running = is_nested
 
     return inner

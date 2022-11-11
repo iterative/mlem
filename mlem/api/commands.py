@@ -23,7 +23,7 @@ from mlem.core.errors import (
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
 from mlem.core.meta_io import Location, get_fs
-from mlem.core.metadata import load_meta, save
+from mlem.core.metadata import load_meta, log_meta_params, save
 from mlem.core.objects import (
     MlemBuilder,
     MlemData,
@@ -78,6 +78,7 @@ def apply(
         model = get_model_meta(model)
     else:
         model = MlemModel.from_obj(model)
+    log_meta_params(model, add_object_type=False)
     w = model.model_type
     try:
         resolved_method = w.resolve_method(method)
@@ -132,6 +133,7 @@ def apply_remote(
             Otherwise returns None.
     """
     client = ensure_mlem_object(Client, client, **client_kwargs)
+    telemetry.log_param("client_type", client.type)
     if method is not None:
         try:
             resolved_method = getattr(client, method)
@@ -325,9 +327,10 @@ def build(
         The result of the build, different for different builders.
     """
     model = get_model_meta(model, load_value=False)
-    return ensure_mlem_object(MlemBuilder, builder, **builder_kwargs).build(
-        model
-    )
+    builder = ensure_mlem_object(MlemBuilder, builder, **builder_kwargs)
+    log_meta_params(model, add_object_type=False)
+    log_meta_params(builder, add_object_type=False)
+    return builder.build(model)
 
 
 @api_telemetry
@@ -349,7 +352,8 @@ def serve(
     model = get_model_meta(model, load_value=True)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
-    telemetry.log_param("server_impl", server_obj.type)
+    telemetry.log_param("server_type", server_obj.type)
+    log_meta_params(model)
     interface = prepare_model_interface(model, server_obj)
     echo(f"Starting {server_obj.type} server...")
     server_obj.serve(interface)
@@ -395,6 +399,7 @@ def import_object(
         )
     else:
         meta = ImportAnalyzer.analyze(loc, copy_data=copy_data)
+    log_meta_params(meta, add_object_type=True)
     if target is not None:
         meta.dump(
             target,
@@ -469,8 +474,10 @@ def deploy(
     if update:
         pass  # todo update from deploy_args and env_args
     # ensuring links are working
+    log_meta_params(deploy_meta)
     deploy_meta.get_env()
     model_meta = get_model_meta(model)
+    log_meta_params(model_meta)
 
     deploy_meta.check_unchanged()
     deploy_meta.deploy(model_meta)

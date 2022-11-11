@@ -40,6 +40,7 @@ class DataType(ABC, MlemABC, WithRequirements):
         exclude = {"data"}
 
     abs_name: ClassVar[str] = "data_type"
+    type: ClassVar[str]
     data: Any
 
     @staticmethod
