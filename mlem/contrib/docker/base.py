@@ -4,8 +4,18 @@ import logging
 import os
 import tempfile
 import time
+from collections import defaultdict
 from time import sleep
-from typing import ClassVar, Dict, Generator, Iterator, Optional
+from typing import (
+    ClassVar,
+    Dict,
+    Generator,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import docker
 import requests
@@ -336,12 +346,48 @@ class DockerContainer(
     """Name to use for container"""
     image_name: Optional[str] = None
     """Name to use for image"""
-    port_mapping: Dict[int, int] = {}
-    """Expose ports"""
+    port_mapping: List[str]
+    """Publish container ports. See https://docs.docker.com/config/containers/container-networking/#published-ports"""
     params: Dict[str, str] = {}
     """Additional params"""
     rm: bool = True
     """Remove container on stop"""
+
+    def get_port_mapping(
+        self,
+    ) -> Dict[
+        Union[int, str], Union[int, str, None, Tuple[str, int], List[int]]
+    ]:
+        container_ports: Dict[
+            Union[int, str], List[Union[int, str, None, Tuple[str, int]]]
+        ] = defaultdict(list)
+        cport: Union[int, str]
+        for str_port in self.port_mapping:
+            parts = str_port.split(":")
+            if len(parts) == 1:
+                # 80 -> container:80 - host:random -> {80: None}
+                cport = parts[0]
+                cport = int(cport) if cport.isnumeric() else cport
+                container_ports[cport].append(None)
+            elif len(parts) == 2:
+                # 8080:80 -> container:80 - host:8080 -> {80: 8080}
+                # 8080:80/udp -> container:80/udp - host:8080 -> {'80/udp': 8080}
+                hport, cport = parts
+                cport = int(cport) if cport.isnumeric() else cport
+                container_ports[cport].append(int(hport))
+            elif len(parts) == 3:
+                # 192.168.1.100:8080:80 -> container:80 - 192.168.1.100:8080 -> {80: ('192.168.1.100', 8080)}
+                iface, hport, cport = parts
+                cport = int(cport) if cport.isnumeric() else cport
+                container_ports[cport].append((iface, int(hport)))
+            else:
+                raise ValueError(
+                    f"Unable to parse '{str_port}' for port mapping"
+                )
+        return {
+            cport: ports if len(ports) > 1 else ports[0]
+            for cport, ports in container_ports.items()
+        }
 
     @property
     def ensure_image_name(self):
@@ -434,7 +480,7 @@ class DockerContainer(
                     state.image.uri,
                     name=name,
                     auto_remove=self.rm,
-                    ports=self.port_mapping,
+                    ports=self.get_port_mapping(),
                     detach=True,
                     **self.params,
                 )

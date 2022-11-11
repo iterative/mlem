@@ -1,7 +1,12 @@
 import docker.errors
 import pytest
 
-from mlem.contrib.docker.base import DockerEnv, DockerImage, RemoteRegistry
+from mlem.contrib.docker.base import (
+    DockerContainer,
+    DockerEnv,
+    DockerImage,
+    RemoteRegistry,
+)
 from tests.contrib.test_docker.conftest import docker_test
 
 HELLO_WORLD_NAME = "mlem_hello_world"
@@ -158,6 +163,28 @@ def test_docker_builder__delete(docker_env, helloworld_image, request):
     assert docker_env.image_exists(image)
     docker_env.delete_image(image)
     assert not docker_env.image_exists(image)
+
+
+# 8080:80 -> container:80 - host:8080 -> {80: 8080}
+# 192.168.1.100:8080:80 -> container:80 - 192.168.1.100:8080 -> {80: ('192.168.1.100', 8080)}
+# 8080:80/udp -> container:80/udp - host:8080 -> {'80/udp': 8080}
+# 80 -> container:80 - host:random -> {80: None}
+# 8080:80, 8081:80 -> ... -> {80: [8080, 8081]}
+@pytest.mark.parametrize(
+    "ports,result",
+    [
+        ([], {}),
+        (["8080:80"], {80: 8080}),
+        (["192.168.1.100:8080:80"], {80: ("192.168.1.100", 8080)}),
+        (["8080:80/udp"], {"80/udp": 8080}),
+        (["80"], {80: None}),
+        (["8080:80", "8081:80"], {80: [8080, 8081]}),
+    ],
+)
+def test_docker_container_port_mapping(ports, result):
+    dc = DockerContainer(port_mapping=ports)
+
+    assert dc.get_port_mapping() == result
 
 
 # def test_docker_builder__delete__extra_args(docker_builder: DockerBuilder, dockerenv_local):
