@@ -62,7 +62,7 @@ def is_cli():
 
 
 def pass_api_log_params(f):
-    return f.__wrapped__
+    return getattr(f, "__wrapped__", f)
 
 
 def mark_as_cli():

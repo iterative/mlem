@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Type, TypeVar, Union, overload
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
 
+from mlem.core.data_type import DataType
 from mlem.core.errors import (
     HookNotFound,
     MlemObjectNotFound,
@@ -17,6 +18,7 @@ from mlem.core.errors import (
     WrongMetaType,
 )
 from mlem.core.meta_io import Location, get_meta_path
+from mlem.core.model import ModelType
 from mlem.core.objects import MlemData, MlemModel, MlemObject, find_object
 from mlem.telemetry import api_telemetry, telemetry
 from mlem.utils.path import make_posix
@@ -47,15 +49,19 @@ def log_meta_params(meta: MlemObject, add_object_type: bool = False):
     if add_object_type:
         telemetry.log_param("object_type", meta.object_type)
     if isinstance(meta, MlemModel):
-        telemetry.log_param("model_type", meta.model_type.type)
+        telemetry.log_param(
+            "model_type", meta.model_type_raw[ModelType.__config__.type_field]
+        )
     elif isinstance(meta, MlemData):
         data_type = None
         if meta.data_type is not None:
-            data_type = meta.data_type
+            data_type = meta.data_type.type
         if data_type is None and meta.reader is not None:
-            data_type = meta.reader.data_type
+            data_type = meta.reader_raw["data_type"][
+                DataType.__config__.type_field
+            ]
         if data_type is not None:
-            telemetry.log_param("data_type", data_type.type)
+            telemetry.log_param("data_type", data_type)
     elif meta.__parent__ is not MlemObject:
         telemetry.log_param(f"{meta.object_type}_type", meta.__get_alias__())
 
