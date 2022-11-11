@@ -18,7 +18,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem import LOCAL_CONFIG
 from mlem.api import init, save
-from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.github import ls_github_branches
 from mlem.contrib.sklearn import SklearnModel
@@ -26,10 +25,9 @@ from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.data_type import DataReader, DataType, DataWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
-from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
-from mlem.runtime.interface import ModelInterface
+from mlem.runtime.interface import prepare_model_interface
 
 RESOURCES = "resources"
 
@@ -151,16 +149,21 @@ def model(model_train_target):
     return model_train_target[0]
 
 
+@pytest.fixture()
+def server():
+    return FastAPIServer(standardize=True)
+
+
 @pytest.fixture
-def interface(model, train):
+def interface(model, train, server):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = ModelInterface.from_model(model)
+    interface = prepare_model_interface(model, server)
     return interface
 
 
 @pytest.fixture
-def client(interface):
-    app = FastAPIServer().app_init(interface)
+def client(interface, server):
+    app = server.app_init(interface)
     return TestClient(app)
 
 
@@ -343,21 +346,6 @@ def data_write_read_check(
                 assert new.data == data.data
 
         return artifacts
-
-
-def check_model_type_common_interface(
-    model_type: ModelType,
-    data_type: DataType,
-    returns_type: DataType,
-    **kwargs,
-):
-    assert PREDICT_METHOD_NAME in model_type.methods
-    assert model_type.methods[PREDICT_METHOD_NAME] == Signature(
-        name=PREDICT_METHOD_NAME,
-        args=[Argument(name=PREDICT_ARG_NAME, type_=data_type)],
-        returns=returns_type,
-        **kwargs,
-    )
 
 
 @pytest.fixture()

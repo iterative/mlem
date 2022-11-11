@@ -2,11 +2,13 @@ import os
 from abc import ABC, abstractmethod
 from typing import ClassVar, Dict, List, Optional, Tuple
 
+from pydantic import validator
+
 from mlem.core.base import MlemABC
 from mlem.core.data_type import DataTypeSerializer, Serializer
 from mlem.core.model import Signature
 from mlem.core.requirements import WithRequirements
-from mlem.runtime.interface import Interface
+from mlem.runtime.interface import Interface, InterfaceDescriptor
 
 
 class Server(MlemABC, ABC, WithRequirements):
@@ -29,6 +31,20 @@ class Server(MlemABC, ABC, WithRequirements):
     """Serializer mapping (method, arg) -> Serializer.
     Use special arg name `returns` for method response serializer.
     Overrides request_serializer and response_serializer fields"""
+
+    interface: Optional[InterfaceDescriptor] = None
+    """Optional augmented interface"""
+    strict_interface: bool = False
+    """Whether to force identical interface"""
+    standardize: bool = True
+    """Whether to conform model interface to standard ("predict" method with single arg "data")"""
+
+    @validator("interface")
+    @classmethod
+    def validate_interface(cls, value):
+        if not value:
+            return None
+        return value
 
     @abstractmethod
     def serve(self, interface: Interface):

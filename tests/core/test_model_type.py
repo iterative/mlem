@@ -19,11 +19,9 @@ from mlem.core.model import ModelAnalyzer, Signature
             [
                 "predict",
                 "predict_proba",
-                "sklearn_predict",
-                "sklearn_predict_proba",
             ],
         ),
-        (LinearRegression, ["predict", "sklearn_predict"]),
+        (LinearRegression, ["predict"]),
     ],
 )
 def test_sklearn_model(mtype):

@@ -14,6 +14,7 @@ from fastapi import FastAPI, UploadFile
 from fastapi.datastructures import Default
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
+from pydantic.typing import get_args
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from mlem.core.data_type import DataTypeSerializer
@@ -26,13 +27,15 @@ from mlem.ui import EMOJI_NAILS, echo
 logger = logging.getLogger(__name__)
 
 
-def rename_recursively(model: Type[BaseModel], prefix: str):
-    model.__name__ = f"{prefix}_{model.__name__}"
-    for field in model.__fields__.values():
-        if isinstance(field.type_, type) and issubclass(
-            field.type_, BaseModel
-        ):
+def rename_recursively(model: Type, prefix: str):
+    if isinstance(model, type):
+        if not issubclass(model, BaseModel):
+            return
+        model.__name__ = f"{prefix}_{model.__name__}"
+        for field in model.__fields__.values():
             rename_recursively(field.type_, prefix)
+    for arg in get_args(model):
+        rename_recursively(arg, prefix)
 
 
 def _create_schema_route(app: FastAPI, interface: Interface):

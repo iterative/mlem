@@ -5,13 +5,13 @@ ModelType and ModelIO implementations for `torch.nn.Module`
 ImportHook for importing files saved with `torch.save`
 DataType, Reader and Writer implementations for `torch.Tensor`
 """
+import logging
 from typing import Any, ClassVar, Iterator, List, Optional, Tuple
 
 import cloudpickle
 import torch
 from pydantic import conlist, create_model
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, FSSpecArtifact, Storage
 from mlem.core.data_type import (
@@ -34,6 +34,9 @@ from mlem.core.requirements import InstallableRequirement, Requirements
 def python_type_from_torch_string_repr(dtype: str):
     #  not sure this will work all the time
     return python_type_from_np_string_repr(dtype)
+
+
+logger = logging.getLogger(__name__)
 
 
 class TorchTensorDataType(
@@ -185,22 +188,20 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        model = TorchModel(model=obj, methods={})
-        model.methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "torch_predict": Signature.from_method(
-                obj.__call__,
-                sample_data,
-                auto_infer=sample_data is not None,
-            ),
-        }
-        return model
+        signature = Signature.from_method(
+            obj.__call__,
+            sample_data,
+            override_name="__call__",
+            auto_infer=sample_data is not None,
+        )
+        return TorchModel(
+            model=obj,
+            methods={
+                "__call__": signature,
+            },
+        )
 
-    def predict(self, data):
+    def __call__(self, data):
         if isinstance(data, torch.Tensor):
             return self.model(data)
         return self.model(*data)
@@ -224,13 +225,15 @@ class TorchModelImport(LoadAndAnalyzeImportHook):
 
     @classmethod
     def load_obj(cls, location: Location, modifier: Optional[str], **kwargs):
-        return TorchModelIO().load(
+        torch_obj = TorchModelIO().load(
             {
                 TorchModelIO.art_name: FSSpecArtifact(
                     uri=location.uri, size=0, hash=""
                 )
             }
         )
+        logger.debug("Loaded dataframe object\n %s", torch_obj)
+        return torch_obj
 
 
 # Copyright 2019 Zyfra

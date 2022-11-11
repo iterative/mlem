@@ -198,6 +198,7 @@ class Signature(BaseModel, WithRequirements):
         method: Callable,
         *call_args,
         auto_infer: bool = False,
+        override_name: str = None,
         **call_kwargs,
     ):
         # no support for positional-only args, but who uses them anyway
@@ -212,7 +213,7 @@ class Signature(BaseModel, WithRequirements):
         else:
             returns = UnspecifiedDataType()
         return Signature(
-            name=method.__name__,
+            name=override_name or method.__name__,
             args=compose_args(
                 argspec,
                 skip_first=len(argspec.args) > 0 and argspec.args[0] == "self",
