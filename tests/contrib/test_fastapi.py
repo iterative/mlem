@@ -1,5 +1,8 @@
 # pylint: disable=W0212
+from typing import Callable
 
+import numpy as np
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import create_model
@@ -8,14 +11,16 @@ from pydantic.main import BaseModel, ModelMetaclass
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer, rename_recursively
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.core.data_type import DataAnalyzer
+from mlem.core.data_type import DataAnalyzer, FileSerializer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
+from mlem.runtime.client import Client
 from mlem.runtime.interface import (
     Interface,
     ModelInterface,
     prepare_model_interface,
 )
+from tests.contrib.test_pandas import pandas_assert
 
 
 @pytest.fixture
@@ -161,3 +166,39 @@ def test_nested_objects_in_schema(data):
     )
     assert response.status_code == 200, response.json()
     assert response.json() == data
+
+
+@pytest.mark.parametrize(
+    "data,eq_assert",
+    [
+        [np.array([1, 2]), np.testing.assert_allclose],
+        [pd.DataFrame([{"col": 1}]), pandas_assert],
+    ],
+)
+def test_file_endpoint(
+    create_mlem_client, create_client, data, eq_assert: Callable
+):
+    model = MlemModel.from_obj(lambda x: x, sample_data=data)
+    interface = ModelInterface.from_model(model)
+
+    server = FastAPIServer(
+        standardize=True,
+        request_serializer=FileSerializer(),
+        response_serializer=FileSerializer(),
+    )
+    client = create_client(server, interface)
+
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+
+    mlem_client: Client = create_mlem_client(client)
+    remote_interface = mlem_client.interface
+    dt = remote_interface.methods["__call__"].args[0].type_
+    ser = FileSerializer()
+    with ser.dump(dt, data) as f:
+        response = client.post("/__call__", files={"file": f})
+    assert response.status_code == 200
+    resp_array = ser.deserialize(dt, response.content)
+    eq_assert(resp_array, data)
+
+    eq_assert(mlem_client(data), data)

@@ -54,6 +54,15 @@ class Client(MlemABC, ABC):
             call_method=self._call_method,
         )
 
+    def __call__(self, *args, **kwargs):
+        if "__call__" not in self.methods:
+            raise WrongMethodError("__call__ method is not exposed by server")
+        return _MethodCall(
+            method=self.methods["__call__"],
+            name="__call__",
+            call_method=self._call_method,
+        )(*args, **kwargs)
+
 
 class _MethodCall(BaseModel):
     method: Signature

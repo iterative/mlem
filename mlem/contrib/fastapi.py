@@ -124,7 +124,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         if response_serializer.serializer.is_binary:
 
             def bin_handler(file: UploadFile):
-                arg = serializer.deserialize(file.file)
+                arg = serializer.deserialize(_SpooledFileIOWrapper(file.file))
                 result = executor(**{arg_name: arg})
                 with response_serializer.dump(result) as buffer:
                     return StreamingResponse(
@@ -201,3 +201,27 @@ class FastAPIServer(Server, LibRequirementsMixin):
         app = self.app_init(interface)
         echo(f"Checkout openapi docs at <http://{self.host}:{self.port}/docs>")
         uvicorn.run(app, host=self.host, port=self.port)
+
+
+class _SpooledFileIOWrapper:
+    """https://stackoverflow.com/questions/47160211/why-doesnt-tempfile-spooledtemporaryfile-implement-readable-writable-seekable
+    Waiting for 3.10 EOL to drop this
+    """
+
+    def __init__(self, _file):
+        self.__file = _file
+
+    def __getattr__(self, item):
+        return getattr(self.__file, item)
+
+    @property
+    def readable(self):
+        return self.__file._file.readable  # pylint: disable=protected-access
+
+    @property
+    def writable(self):
+        return self.__file._file.writable  # pylint: disable=protected-access
+
+    @property
+    def seekable(self):
+        return self.__file._file.seekable  # pylint: disable=protected-access
