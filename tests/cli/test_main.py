@@ -62,13 +62,13 @@ def test_commands_args_help(app_cli_cmd):
 
 
 @long
-def test_commands_docs_links(app_cli_cmd):
+def test_commands_docs_links(runner: Runner, app_cli_cmd):
     no_link = []
     link_broken = []
     for name, _cmd in app_cli_cmd:
-        result = Runner().invoke(name.split() + ["--help"])
+        result = runner.invoke(name.split() + ["--help"])
         if result.output is None or "Documentation: <" not in result.output:
-            no_link.append(name)
+            no_link.append((name, result.output))
         else:
             link = result.output.split("Documentation: <")[1].split(">")[0]
             response = requests.get(link, timeout=5)
