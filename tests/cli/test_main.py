@@ -54,7 +54,9 @@ def test_commands_help(app_cli_cmd):
             else:
                 link = cli_cmd.help.split("Documentation: <")[1].split(">")[0]
                 response = requests.head(link, timeout=5)
-                if response.status_code != 200:
+                try:
+                    response.raise_for_status()
+                except requests.HTTPError:
                     link_broken.append(name)
 
     assert len(no_help) == 0, f"{no_help} cli commands do not have help!"
