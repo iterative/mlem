@@ -37,8 +37,11 @@ def app_cli_cmd():
     ]
 
 
+@long
 def test_commands_help(app_cli_cmd):
     no_help = []
+    no_link = []
+    link_broken = []
     group = get_group(app)
     ctx = Context(group, info_name="mlem", help_option_names=["-h", "--help"])
 
@@ -46,7 +49,21 @@ def test_commands_help(app_cli_cmd):
         for name, cli_cmd in app_cli_cmd:
             if cli_cmd.help is None:
                 no_help.append(name)
+            elif "Documentation: <" not in cli_cmd.help:
+                no_link.append(name)
+            else:
+                link = cli_cmd.help.split("Documentation: <")[1].split(">")[0]
+                response = requests.head(link, timeout=5)
+                if response.status_code != 200:
+                    link_broken.append(name)
+
     assert len(no_help) == 0, f"{no_help} cli commands do not have help!"
+    assert (
+        len(no_link) == 0
+    ), f"{no_link} cli commands do not have documentation link!"
+    assert (
+        len(link_broken) == 0
+    ), f"{link_broken} cli commands have broken documentation links!"
 
 
 def test_commands_args_help(app_cli_cmd):
@@ -59,27 +76,6 @@ def test_commands_args_help(app_cli_cmd):
             if arg.help is None:
                 no_help.append(f"{name}:{arg.name}")
     assert len(no_help) == 0, f"{no_help} cli commands args do not have help!"
-
-
-@long
-def test_commands_docs_links(runner: Runner, app_cli_cmd):
-    no_link = []
-    link_broken = []
-    for name, _cmd in app_cli_cmd:
-        result = runner.invoke(name.split() + ["--help"])
-        if result.output is None or "Documentation: <" not in result.output:
-            no_link.append((name, result.output))
-        else:
-            link = result.output.split("Documentation: <")[1].split(">")[0]
-            response = requests.get(link, timeout=5)
-            if response.status_code != 200:
-                link_broken.append(name)
-    assert (
-        len(no_link) == 0
-    ), f"{no_link} cli commands do not have documentation link!"
-    assert (
-        len(link_broken) == 0
-    ), f"{link_broken} cli commands have broken documentation links!"
 
 
 @pytest.mark.parametrize("cmd", ["--help", "-h"])
