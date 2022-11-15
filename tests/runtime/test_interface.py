@@ -4,10 +4,15 @@ import pytest
 
 import mlem
 from mlem.core.data_type import DataType, DataWriter
-from mlem.core.model import Argument, Signature
 from mlem.core.requirements import Requirements
 from mlem.runtime import Interface
-from mlem.runtime.interface import SimpleInterface, expose
+from mlem.runtime.interface import (
+    InterfaceArgument,
+    InterfaceDataType,
+    InterfaceMethod,
+    SimpleInterface,
+    expose,
+)
 
 
 class Container(DataType):
@@ -47,17 +52,20 @@ def interface() -> Interface:
 
 def test_interface_descriptor__from_interface(interface: Interface):
     d = interface.get_descriptor()
-    sig = Signature(
+    sig = InterfaceMethod(
         name="method1",
         args=[
-            Argument(
-                name="arg1",
-                type_=Container(field=5),
+            (
+                "arg1",
+                InterfaceArgument(
+                    name="arg1",
+                    data_type=Container(field=5),
+                ),
             )
         ],
-        returns=Container(field=5),
+        returns=InterfaceDataType(data_type=Container(field=5)),
     )
-    assert d.methods == {"method1": sig}
+    assert d.__root__ == {"method1": sig}
 
 
 def test_interface_descriptor__to_dict(interface: Interface):

@@ -5,7 +5,7 @@ RabbitMQServer implementation
 """
 import json
 from time import time
-from typing import Callable, ClassVar, Optional
+from typing import Any, BinaryIO, Callable, ClassVar, Optional
 
 import pika
 from pika import BasicProperties
@@ -13,11 +13,11 @@ from pika.adapters.blocking_connection import BlockingChannel
 from pydantic import BaseModel, parse_obj_as
 
 from mlem.core.errors import MlemError
-from mlem.core.model import Signature
 from mlem.runtime import Interface
 from mlem.runtime.client import Client
 from mlem.runtime.interface import (
     InterfaceDescriptor,
+    InterfaceMethod,
     VersionedInterfaceDescriptor,
 )
 from mlem.runtime.server import Server
@@ -61,19 +61,16 @@ class RabbitMQServer(Server, RabbitMQMixin):
     type: ClassVar = "rmq"
 
     def _create_handler(
-        self, method_name: str, signature: Signature, executor: Callable
+        self, method_name: str, signature: InterfaceMethod, executor: Callable
     ):
-        serializers = {
-            arg.name: arg.type_.get_serializer() for arg in signature.args
-        }
-        response_serializer = signature.returns.get_serializer()
+        serializers, response_serializer = self._get_serializers(signature)
         echo(EMOJI_NAILS + f"Adding queue for {method_name}")
 
         def handler(ch, method, props, body):
             data = json.loads(body)
             kwargs = {}
-            for a in signature.args:
-                kwargs[a.name] = serializers[a.name].deserialize(data[a.name])
+            for name, _ in signature.args:
+                kwargs[name] = serializers[name].deserialize(data[name])
             result = executor(**kwargs)
             response = response_serializer.serialize(result)
             echo(data)
@@ -121,9 +118,11 @@ class RabbitMQClient(Client, RabbitMQMixin):
             self.queue_prefix + INTERFACE, auto_ack=False
         )
         self.channel.basic_nack(res.delivery_tag)
-        return parse_obj_as(VersionedInterfaceDescriptor, json.loads(payload))
+        return parse_obj_as(
+            VersionedInterfaceDescriptor, json.loads(payload)
+        ).methods
 
-    def _call_method(self, name, args):
+    def _call_method(self, name: str, args: Any, return_raw: bool):
         response = None
 
         def consume(ch, mt, pr, body):  # pylint: disable=unused-argument
@@ -143,3 +142,6 @@ class RabbitMQClient(Client, RabbitMQMixin):
             if 0 < self.timeout < time() - start:
                 raise MlemError("Request timed out")
         return json.loads(response)
+
+    def _call_method_binary(self, name: str, arg: BinaryIO, return_raw: bool):
+        raise NotImplementedError  # TODO

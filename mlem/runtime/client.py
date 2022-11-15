@@ -1,16 +1,16 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, ClassVar, Optional
+from typing import Any, BinaryIO, Callable, ClassVar, Optional
 
 import requests
 from pydantic import BaseModel, parse_obj_as
 
 from mlem.core.base import MlemABC
 from mlem.core.errors import MlemError, WrongMethodError
-from mlem.core.model import Signature
 from mlem.runtime.interface import (
     ExecutionError,
     InterfaceDescriptor,
+    InterfaceMethod,
     VersionedInterfaceDescriptor,
 )
 
@@ -30,20 +30,24 @@ class Client(MlemABC, ABC):
     abs_name: ClassVar[str] = "client"
 
     @property
-    def interface(self):
+    def interface(self) -> InterfaceDescriptor:
         return self._interface_factory()
 
     @property
     def methods(self):
-        return self.interface.methods
+        return self.interface.__root__
 
     @abstractmethod
     def _interface_factory(self) -> InterfaceDescriptor:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
-    def _call_method(self, name, args):
-        raise NotImplementedError()
+    def _call_method(self, name: str, args: Any, return_raw: bool):
+        raise NotImplementedError
+
+    @abstractmethod
+    def _call_method_binary(self, name: str, arg: BinaryIO, return_raw: bool):
+        raise NotImplementedError
 
     def __getattr__(self, name):
         if name not in self.methods:
@@ -52,6 +56,7 @@ class Client(MlemABC, ABC):
             method=self.methods[name],
             name=name,
             call_method=self._call_method,
+            call_method_binary=self._call_method_binary,
         )
 
     def __call__(self, *args, **kwargs):
@@ -61,13 +66,15 @@ class Client(MlemABC, ABC):
             method=self.methods["__call__"],
             name="__call__",
             call_method=self._call_method,
+            call_method_binary=self._call_method_binary,
         )(*args, **kwargs)
 
 
 class _MethodCall(BaseModel):
-    method: Signature
+    method: InterfaceMethod
     name: str
     call_method: Callable
+    call_method_binary: Callable
 
     def __call__(self, *args, **kwargs):
         if args and kwargs:
@@ -82,23 +89,36 @@ class _MethodCall(BaseModel):
             )
 
         data = {}
-        for i, arg in enumerate(self.method.args):
+        return_raw = self.method.returns.get_serializer().serializer.is_binary
+
+        for i, (name, arg) in enumerate(self.method.args):
             obj = None
             if len(args) > i:
                 obj = args[i]
-            if arg.name in kwargs:
-                obj = kwargs[arg.name]
+            if obj is None:
+                obj = kwargs.get(name, None)
             if obj is None:
                 raise ValueError(
-                    f'Parameter with name "{arg.name}" (position {i}) should be passed'
+                    f'Parameter with name "{name}" (position {i}) should be passed'
                 )
 
-            data[arg.name] = arg.type_.serialize(obj)
+            serializer = arg.get_serializer()
+            if serializer.serializer.is_binary:
+                if len(self.method.args) > 1:
+                    raise NotImplementedError(
+                        "Multiple file requests are not supported yet"
+                    )
+                with serializer.dump(obj) as f:
+                    return self.method.returns.get_serializer().deserialize(
+                        self.call_method_binary(self.name, f, return_raw)
+                    )
+
+            data[name] = serializer.serialize(obj)
 
         logger.debug(
             'Calling server method "%s", args: %s ...', self.method.name, data
         )
-        out = self.call_method(self.name, data)
+        out = self.call_method(self.name, data, return_raw)
         logger.debug("Server call returned %s", out)
         return self.method.returns.get_serializer().deserialize(out)
 
@@ -133,13 +153,30 @@ class HTTPClient(Client):
                 raise MlemError(
                     f"Cannot create client for {self.base_url}"
                 ) from e
-        return parse_obj_as(VersionedInterfaceDescriptor, resp.json())
+        return parse_obj_as(VersionedInterfaceDescriptor, resp.json()).methods
 
-    def _call_method(self, name, args):  # pylint: disable=R1710
+    def _call_method(
+        self, name: str, args: Any, return_raw: bool
+    ):  # pylint: disable=R1710
         ret = requests.post(f"{self.base_url}/{name}", json=args)
         if ret.status_code == 200:  # pylint: disable=R1705
+            if return_raw:
+                return ret.content
             return ret.json()
         elif ret.status_code == 400:
             raise ExecutionError(ret.json()["error"])
         else:
             ret.raise_for_status()
+        return None
+
+    def _call_method_binary(self, name: str, arg: Any, return_raw: bool):
+        ret = requests.post(f"{self.base_url}/{name}", files={"file": arg})
+        if ret.status_code == 200:  # pylint: disable=R1705
+            if return_raw:
+                return ret.content  # TODO: change to buffer
+            return ret.json()
+        elif ret.status_code == 400:
+            raise ExecutionError(ret.json()["error"])
+        else:
+            ret.raise_for_status()
+        return None

@@ -18,9 +18,12 @@ from pydantic.typing import get_args
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from mlem.core.data_type import DataTypeSerializer
-from mlem.core.model import Argument, Signature
 from mlem.core.requirements import LibRequirementsMixin
-from mlem.runtime.interface import Interface
+from mlem.runtime.interface import (
+    Interface,
+    InterfaceArgument,
+    InterfaceMethod,
+)
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 
@@ -39,7 +42,7 @@ def rename_recursively(model: Type, prefix: str):
 
 
 def _create_schema_route(app: FastAPI, interface: Interface):
-    schema = interface.get_descriptor().dict()
+    schema = interface.get_versioned_descriptor().dict()
     logger.debug("Creating /interface.json route with schema: %s", schema)
     app.add_api_route("/interface.json", lambda: schema, tags=["schema"])
 
@@ -59,20 +62,20 @@ class FastAPIServer(Server, LibRequirementsMixin):
     def _create_handler_executor(
         cls,
         method_name: str,
-        args: List[Argument],
+        args: Dict[str, InterfaceArgument],
         arg_serializers: Dict[str, DataTypeSerializer],
         executor: Callable,
         response_serializer: DataTypeSerializer,
     ):
         deserialized_model = create_model(
-            "Model", **{a.name: (Any, ...) for a in args}
+            "Model", **{a: (Any, ...) for a in args}
         )  # type: ignore[call-overload]
 
         def serializer_validator(_, values):
             field_values = {}
-            for a in args:
-                field_values[a.name] = arg_serializers[a.name].deserialize(
-                    values[a.name]
+            for name in args:
+                field_values[name] = arg_serializers[name].deserialize(
+                    values[name]
                 )
             return deserialized_model(**field_values)
 
@@ -91,7 +94,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         if response_serializer.serializer.is_binary:
 
             def bin_handler(model: schema_model):  # type: ignore[valid-type]
-                values = {a.name: getattr(model, a.name) for a in args}
+                values = {a: getattr(model, a) for a in args}
                 result = executor(**values)
                 with response_serializer.dump(result) as buffer:
                     return StreamingResponse(
@@ -105,7 +108,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             rename_recursively(response_model, method_name + "_response")
 
         def handler(model: schema_model):  # type: ignore[valid-type]
-            values = {a.name: getattr(model, a.name) for a in args}
+            values = {a: getattr(model, a) for a in args}
             result = executor(**values)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
@@ -147,18 +150,16 @@ class FastAPIServer(Server, LibRequirementsMixin):
         return handler, response_model, None
 
     def _create_handler(
-        self, method_name: str, signature: Signature, executor: Callable
+        self, method_name: str, signature: InterfaceMethod, executor: Callable
     ) -> Tuple[Optional[Callable], Optional[Type], Optional[Response]]:
-        serializers, response_serializer = self.get_serializers(
-            method_name, signature
-        )
+        serializers, response_serializer = self._get_serializers(signature)
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
         if any(s.serializer.is_binary for s in serializers.values()):
             if len(serializers) > 1:
                 raise NotImplementedError(
                     "Multiple file requests are not supported yet"
                 )
-            arg_name = signature.args[0].name
+            arg_name = signature.args[0][0]
             return self._create_handler_executor_binary(
                 method_name,
                 serializers[arg_name],
@@ -168,7 +169,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             )
         return self._create_handler_executor(
             method_name,
-            signature.args,
+            dict(signature.args),
             serializers,
             executor,
             response_serializer,

@@ -15,32 +15,86 @@ from pydantic import BaseModel
 
 import mlem
 import mlem.version
-from mlem.constants import (
-    PREDICT_ARG_NAME,
-    PREDICT_METHOD_NAME,
-    PREDICT_PROBA_METHOD_NAME,
-)
 from mlem.core.base import MlemABC
-from mlem.core.data_type import DataType
+from mlem.core.data_type import DataType, DataTypeSerializer, Serializer
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemModel
 
 if TYPE_CHECKING:
-    from mlem.runtime.server import Server
+    pass
 
 
 class ExecutionError(MlemError):
     pass
 
 
+class InterfaceDataType(BaseModel):
+    data_type: DataType
+    serializer: Optional[Serializer]
+
+    def get_serializer(self) -> DataTypeSerializer:
+        if self.serializer is None:
+            return self.data_type.get_serializer()
+
+        return DataTypeSerializer(
+            serializer=self.serializer, data_type=self.data_type
+        )
+
+
+class InterfaceArgument(InterfaceDataType):
+    name: str
+    required: bool = True
+    default: Any = None
+
+    @classmethod
+    def from_argument(cls, argument: Argument):
+        return cls(
+            name=argument.name,
+            data_type=argument.type_,
+            serializer=None,
+            required=argument.required,
+            default=argument.default,
+        )
+
+
+NamedInterfaceArgument = Tuple[str, InterfaceArgument]
+
+
+class InterfaceMethod(BaseModel):
+    name: str
+    args: List[NamedInterfaceArgument]
+    returns: InterfaceDataType
+
+    @classmethod
+    def from_signature(cls, signature: Signature) -> "InterfaceMethod":
+        return InterfaceMethod(
+            name=signature.name,
+            args=[
+                (
+                    a.name,
+                    InterfaceArgument(
+                        name=a.name,
+                        data_type=a.type_,
+                        serializer=None,
+                        required=a.required,
+                        default=a.default,
+                    ),
+                )
+                for a in signature.args
+            ],
+            returns=InterfaceDataType(data_type=signature.returns),
+        )
+
+
 class InterfaceDescriptor(BaseModel):
-    methods: Dict[str, Signature] = {}
+    __root__: Dict[str, InterfaceMethod] = {}
     """interface methods"""
 
 
-class VersionedInterfaceDescriptor(InterfaceDescriptor):
+class VersionedInterfaceDescriptor(BaseModel):
+    methods: InterfaceDescriptor
     version: str = mlem.version.__version__
     """mlem version"""
 
@@ -86,7 +140,7 @@ class Interface(ABC, MlemABC):
     def load(self, uri: str):
         raise NotImplementedError
 
-    def iter_methods(self) -> Iterator[Tuple[str, Signature]]:
+    def iter_methods(self) -> Iterator[Tuple[str, InterfaceMethod]]:
         for method in self.get_method_names():
             yield method, self.get_method_signature(method)
 
@@ -99,7 +153,7 @@ class Interface(ABC, MlemABC):
             )
 
     @abstractmethod
-    def get_method_signature(self, method_name: str) -> Signature:
+    def get_method_signature(self, method_name: str) -> InterfaceMethod:
         """
         Gets signature of given method
 
@@ -116,19 +170,18 @@ class Interface(ABC, MlemABC):
         """
         return getattr(self.get_method_executor(method_name), "__doc__", "")
 
-    def get_method_args(self, method_name: str) -> Dict[str, Argument]:
+    def get_method_args(
+        self, method_name: str
+    ) -> Dict[str, InterfaceArgument]:
         """
         Gets argument types of given method
 
         :param method_name: name of method to get argument types for
         :return: list of argument types
         """
-        return {
-            a.name: a.type_
-            for a in self.get_method_signature(method_name).args
-        }
+        return dict(self.get_method_signature(method_name).args)
 
-    def get_method_returns(self, method_name: str) -> DataType:
+    def get_method_returns(self, method_name: str) -> InterfaceDataType:
         """
         Gets return type of given method
 
@@ -139,12 +192,16 @@ class Interface(ABC, MlemABC):
         return self.get_method_signature(method_name).returns
 
     def get_descriptor(self) -> InterfaceDescriptor:
-        return VersionedInterfaceDescriptor(
-            version=mlem.__version__,
-            methods={
+        return InterfaceDescriptor(
+            __root__={
                 name: self.get_method_signature(name)
                 for name in self.get_method_names()
-            },
+            }
+        )
+
+    def get_versioned_descriptor(self) -> VersionedInterfaceDescriptor:
+        return VersionedInterfaceDescriptor(
+            version=mlem.__version__, methods=self.get_descriptor()
         )
 
 
@@ -166,28 +223,37 @@ class SimpleInterface(Interface):
         for name in dir(self):
             attr = getattr(self, name, None)
             if getattr(attr, "is_exposed", False):
-                methods[name] = Signature(
+                methods[name] = InterfaceMethod(
                     name=name,
                     args=[
-                        Argument(name=a, type_=attr.__annotations__[a])
+                        (
+                            a,
+                            InterfaceArgument(
+                                data_type=attr.__annotations__[a],
+                                serializer=None,
+                            ),
+                        )
                         for a in inspect.getfullargspec(attr).args[1:]
                     ],
-                    returns=attr.__annotations__.get("return"),
+                    returns=InterfaceArgument(
+                        data_type=attr.__annotations__.get("return"),
+                        serializer=None,
+                    ),
                 )
-        data["methods"] = InterfaceDescriptor(methods=methods)
+        data["methods"] = InterfaceDescriptor(__root__=methods)
         super().__init__(**data)
 
     def get_method_executor(self, method_name: str):
         return getattr(self, method_name)
 
     def get_method_names(self) -> List[str]:
-        return list(self.methods.methods.keys())
+        return list(self.methods.__root__.keys())
 
     def load(self, uri: str):
         pass
 
-    def get_method_signature(self, method_name: str) -> Signature:
-        return self.methods.methods[method_name]
+    def get_method_signature(self, method_name: str) -> InterfaceMethod:
+        return self.methods.__root__[method_name]
 
 
 class ModelInterface(Interface):
@@ -213,20 +279,21 @@ class ModelInterface(Interface):
     def from_model(cls, model: MlemModel):
         return cls(model_type=model.model_type)
 
-    def get_method_signature(self, method_name: str) -> Signature:
-        return self.model_type.methods[method_name]
+    def get_method_signature(self, method_name: str) -> InterfaceMethod:
+        signature = self.model_type.methods[method_name]
+        return InterfaceMethod.from_signature(signature)
 
     def get_method_executor(self, method_name: str):
         signature = self.get_method_signature(method_name)
 
         def executor(**kwargs):
-            args = [
-                kwargs[arg.name]
+            args = {
+                arg_name: kwargs[arg_name]
                 if arg.required
-                else kwargs.get(arg.name, arg.default)
-                for arg in signature.args
-            ]
-            return self.model_type.call_method(method_name, *args)
+                else kwargs.get(arg_name, arg.default)
+                for arg_name, arg in signature.args
+            }
+            return self.model_type.call_method(method_name, **args)
 
         return executor
 
@@ -238,162 +305,9 @@ class ModelInterface(Interface):
             self.model_type.model, self.model_type.methods[method_name].name
         ).__doc__
 
-    def get_method_args(self, method_name: str) -> Dict[str, Argument]:
+    def get_method_args(
+        self, method_name: str
+    ) -> Dict[str, InterfaceArgument]:
         return {
             a.name: a.type_ for a in self.model_type.methods[method_name].args
         }
-
-
-def prepare_model_interface(model: MlemModel, server: "Server"):
-    interface: Interface = ModelInterface(model_type=model.model_type)
-    if server.interface:
-        interface = conform_interface(
-            server.interface, interface, server.strict_interface
-        )
-    elif server.standardize:
-        interface = conform_interface(
-            standard_interface(model.model_type), interface, strict=False
-        )
-    return interface
-
-
-class ConformedInterface(Interface):
-    type: ClassVar = "_conformed"
-
-    interface: Interface
-    descriptor: InterfaceDescriptor
-    method_mapping: Dict[str, str]
-    args_mapping: Dict[str, Dict[str, str]]
-
-    def get_method_executor(self, method_name: str):
-        og_executor = self.interface.get_method_executor(
-            self.method_mapping[method_name]
-        )
-        args_map = self.args_mapping[method_name]
-
-        def map_args_executor(*args, **kwargs):
-            return og_executor(
-                *args, **{args_map[k]: v for k, v in kwargs.items()}
-            )
-
-        return map_args_executor
-
-    def get_method_names(self) -> List[str]:
-        return list(self.method_mapping.keys())
-
-    def load(self, uri: str):
-        raise NotImplementedError
-
-    def get_method_signature(self, method_name: str) -> Signature:
-        return self.descriptor.methods[method_name]
-
-    @classmethod
-    def from_interface(
-        cls,
-        interface: Interface,
-        descriptor: InterfaceDescriptor,
-        interface_descriptor: InterfaceDescriptor = None,
-    ):
-        interface_descriptor = (
-            interface_descriptor or interface.get_descriptor()
-        )
-        method_mapping = {}
-        args_mapping = {}
-        for name, method in descriptor.methods.items():
-            mapped = cls._find_conformed_method(interface_descriptor, method)
-            if mapped:
-                method_mapping[name] = mapped[0]
-                args_mapping[name] = mapped[1]
-        if len(method_mapping) == 0:
-            raise MlemError(
-                f"No methods in {interface} conformed to descriptor"
-            )
-        return cls(
-            interface=interface,
-            descriptor=descriptor,
-            method_mapping=method_mapping,
-            args_mapping=args_mapping,
-        )
-
-    @classmethod
-    def _find_conformed_method(
-        cls, interface_descriptor: InterfaceDescriptor, signature: Signature
-    ) -> Optional[Tuple[str, Dict[str, str]]]:
-        req_args = [arg for arg in signature.args if arg.required]
-        for name, method in interface_descriptor.methods.items():
-            if method.returns != signature.returns:
-                continue
-            arg_mapping = {
-                arg.name: newarg.name
-                for arg in req_args
-                for newarg in method.args
-                if newarg.required and arg.type_ == newarg.type_
-            }
-            if len(arg_mapping) == len(req_args):
-                return name, arg_mapping
-
-        return None
-
-
-def conform_interface(
-    descriptor: InterfaceDescriptor, interface: Interface, strict: bool
-) -> Interface:
-    interface_descriptor = interface.get_descriptor()
-    if strict:
-        if interface_descriptor.methods != descriptor.methods:
-            raise MlemError(
-                f"{interface} cannot be conformed to required descriptor"
-            )
-        return interface
-
-    return ConformedInterface.from_interface(
-        interface, descriptor, interface_descriptor
-    )
-
-
-def standard_interface(
-    model_type: ModelType,
-    predict_method: str = None,
-    predict_proba_method: str = None,
-) -> InterfaceDescriptor:
-    single_arg_methods = [
-        name
-        for name, method in model_type.methods.items()
-        if len([a for a in method.args if a.required]) == 1
-    ]
-    if len(single_arg_methods) == 0:
-        raise MlemError("Cannot create standard interface from model type")
-    if predict_proba_method is None:
-        if PREDICT_PROBA_METHOD_NAME in model_type.methods:
-            predict_proba_method_name = PREDICT_PROBA_METHOD_NAME
-        else:
-            if len(single_arg_methods) > 1:
-                predict_proba_method_name = single_arg_methods[1]
-            else:
-                predict_proba_method_name = None
-    else:
-        predict_proba_method_name = predict_proba_method
-    if predict_method is None:
-        if PREDICT_METHOD_NAME in model_type.methods:
-            predict_method_name = PREDICT_METHOD_NAME
-        else:
-            predict_method_name = [
-                a for a in single_arg_methods if a != predict_proba_method_name
-            ][0]
-    else:
-        predict_method_name = predict_method
-    predict = model_type.methods[predict_method_name].copy()
-    predict.args = [a.copy() for a in predict.args if a.required]
-    predict.args[0].name = PREDICT_ARG_NAME
-    predict.name = PREDICT_METHOD_NAME
-    methods = {PREDICT_METHOD_NAME: predict}
-
-    if predict_proba_method_name:
-        predict_proba = model_type.methods[predict_proba_method_name].copy()
-        predict_proba.args = [
-            a.copy() for a in predict_proba.args if a.required
-        ]
-        predict_proba.args[0].name = PREDICT_ARG_NAME
-        predict_proba.name = PREDICT_PROBA_METHOD_NAME
-        methods[PREDICT_PROBA_METHOD_NAME] = predict_proba
-    return InterfaceDescriptor(methods=methods)

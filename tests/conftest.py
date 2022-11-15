@@ -28,7 +28,8 @@ from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.client import HTTPClient
-from mlem.runtime.interface import prepare_model_interface
+from mlem.runtime.interface import ModelInterface
+from mlem.runtime.server import ServerInterface
 
 RESOURCES = "resources"
 
@@ -156,7 +157,9 @@ def server():
 @pytest.fixture
 def interface(model, train, server):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = prepare_model_interface(model, server)
+    interface = ServerInterface.create(
+        FastAPIServer(standardize=True), ModelInterface.from_model(model)
+    )
     return interface
 
 

@@ -15,11 +15,8 @@ from mlem.core.data_type import DataAnalyzer, FileSerializer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
 from mlem.runtime.client import Client
-from mlem.runtime.interface import (
-    Interface,
-    ModelInterface,
-    prepare_model_interface,
-)
+from mlem.runtime.interface import Interface, InterfaceMethod, ModelInterface
+from mlem.runtime.server import ServerInterface
 from tests.contrib.test_pandas import pandas_assert
 
 
@@ -51,7 +48,9 @@ def payload_model(f_signature):
 @pytest.fixture
 def f_interface(model, train):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = prepare_model_interface(model, FastAPIServer(standardize=True))
+    interface = ServerInterface.create(
+        FastAPIServer(standardize=True), ModelInterface.from_model(model)
+    )
     return interface
 
 
@@ -81,7 +80,9 @@ def test_rename_recursively(payload_model):
 def test_create_handler(f_signature, executor):
     server = FastAPIServer()
     _, response_model, _ = server._create_handler(
-        PREDICT_METHOD_NAME, f_signature, executor
+        PREDICT_METHOD_NAME,
+        InterfaceMethod.from_signature(f_signature),
+        executor,
     )
     assert (
         response_model.__name__
@@ -94,7 +95,9 @@ def test_create_handler_primitive():
     def f(data):
         return data
 
-    signature = Signature.from_method(f, auto_infer=True, data="value")
+    signature: InterfaceMethod = InterfaceMethod.from_signature(
+        Signature.from_method(f, auto_infer=True, data="value")
+    )
 
     server = FastAPIServer()
     handler, response_model, _ = server._create_handler(
@@ -106,15 +109,27 @@ def test_create_handler_primitive():
     assert handler(request_model(data="value")) == "value"
 
 
-def test_endpoint(f_client, f_interface: Interface, train):
+def test_endpoint(f_client, f_interface: Interface, create_mlem_client, train):
     docs = f_client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
-    payload = (
-        f_interface.get_method_signature(PREDICT_METHOD_NAME)
-        .args[0]
-        .type_.get_serializer()
+
+    mlem_client: Client = create_mlem_client(f_client)
+    remote_interface = mlem_client.interface
+    payload_1 = (
+        remote_interface.__root__[PREDICT_METHOD_NAME]
+        .args[0][1]
+        .get_serializer()
         .serialize(train)
     )
+
+    payload = (
+        f_interface.get_method_signature(PREDICT_METHOD_NAME)
+        .args[0][1]
+        .get_serializer()
+        .serialize(train)
+    )
+    assert payload == payload_1
+
     response = f_client.post(
         f"/{PREDICT_METHOD_NAME}",
         json={"data": payload},
@@ -179,13 +194,14 @@ def test_file_endpoint(
     create_mlem_client, create_client, data, eq_assert: Callable
 ):
     model = MlemModel.from_obj(lambda x: x, sample_data=data)
-    interface = ModelInterface.from_model(model)
+    model_interface = ModelInterface.from_model(model)
 
     server = FastAPIServer(
-        standardize=True,
+        standardize=False,
         request_serializer=FileSerializer(),
         response_serializer=FileSerializer(),
     )
+    interface = ServerInterface.create(server, model_interface)
     client = create_client(server, interface)
 
     docs = client.get("/openapi.json")
@@ -193,7 +209,7 @@ def test_file_endpoint(
 
     mlem_client: Client = create_mlem_client(client)
     remote_interface = mlem_client.interface
-    dt = remote_interface.methods["__call__"].args[0].type_
+    dt = remote_interface.__root__["__call__"].args[0][1].data_type
     ser = FileSerializer()
     with ser.dump(dt, data) as f:
         response = client.post("/__call__", files={"file": f})
