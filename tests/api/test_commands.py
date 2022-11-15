@@ -247,6 +247,6 @@ def test_serve_no_signature(model):
     meta = MlemModel.from_obj(model)
     with pytest.raises(
         MlemError,
-        match="Cannot create interface from model with uspecified signature. Please re-save it and provide sample_data argument",
+        match="Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument",
     ):
         serve(meta, "fastapi")
