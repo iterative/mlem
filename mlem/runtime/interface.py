@@ -201,7 +201,7 @@ class ModelInterface(Interface):
             for method in value.methods.values()
         ):
             raise MlemError(
-                "Cannot create interface from model with uspecified signature. Please re-save it and provide sample_data argument"
+                "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
             )
         return value
 
