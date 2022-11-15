@@ -28,12 +28,11 @@ from mlem.contrib.heroku.utils import (
 )
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import DeployStatus, MlemModel
-from tests.conftest import flaky, long, skip_matrix
+from tests.conftest import flaky, long
 
 heroku = pytest.mark.skipif(
     HEROKU_CONFIG.API_KEY is None, reason="No HEROKU_API_KEY env provided"
 )
-heroku_matrix = skip_matrix("ubuntu-latest", "3.7")
 HEROKU_TEST_APP_NAME_PREFIX = "mlem-test"
 CLEAR_APPS = False
 HEROKU_TEAM = os.environ.get("HEROKU_TEAM")
@@ -85,7 +84,6 @@ def test_heroku_api_request():
 
 @heroku
 @long
-@heroku_matrix
 def test_create_app(heroku_app_name, heroku_env, model):
     name = heroku_app_name("create-app")
     heroku_deploy = HerokuDeployment(
@@ -99,7 +97,6 @@ def test_create_app(heroku_app_name, heroku_env, model):
 
 
 @long
-@heroku_matrix
 def test_build_heroku_docker(model: MlemModel, uses_docker_build):
     image_meta = build_heroku_docker(model, "test_build", push=False)
     client = DockerClient.from_env()
@@ -163,7 +160,6 @@ def is_not_crash(err, *args):  # pylint: disable=unused-argument
 @flaky(rerun_filter=is_not_crash, max_runs=1)
 @heroku
 @long
-@heroku_matrix
 def test_env_deploy_full(
     tmp_path_factory,
     model: MlemModel,
