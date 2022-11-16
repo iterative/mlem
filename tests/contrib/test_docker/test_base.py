@@ -182,7 +182,7 @@ def test_docker_builder__delete(docker_env, helloworld_image, request):
     ],
 )
 def test_docker_container_port_mapping(ports, result):
-    dc = DockerContainer(port_mapping=ports)
+    dc = DockerContainer(ports=ports)
 
     assert dc.get_port_mapping() == result
 

@@ -346,7 +346,7 @@ class DockerContainer(
     """Name to use for container"""
     image_name: Optional[str] = None
     """Name to use for image"""
-    port_mapping: List[str] = []
+    ports: List[str] = []
     """Publish container ports. See https://docs.docker.com/config/containers/container-networking/#published-ports"""
     params: Dict[str, str] = {}
     """Additional params"""
@@ -362,7 +362,7 @@ class DockerContainer(
             Union[int, str], List[Union[int, str, None, Tuple[str, int]]]
         ] = defaultdict(list)
         cport: Union[int, str]
-        for str_port in self.port_mapping:
+        for str_port in self.ports:
             parts = str_port.split(":")
             if len(parts) == 1:
                 # 80 -> container:80 - host:random -> {80: None}
