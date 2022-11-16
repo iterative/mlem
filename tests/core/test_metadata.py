@@ -1,17 +1,20 @@
 import os
 import posixpath
+import shutil
 import tempfile
 from pathlib import Path
 from urllib.parse import quote_plus
 
 import pytest
 import yaml
+from git import Repo
 from pytest_lazyfixture import lazy_fixture
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
+from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta, save
 from mlem.core.objects import MlemModel
@@ -179,3 +182,34 @@ def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
     assert isinstance(loaded, DecisionTreeClassifier)
     train, _ = load_iris(return_X_y=True)
     loaded.predict(train)
+
+
+def test_load_local_rev(tmpdir):
+    path = str(tmpdir / "obj")
+
+    def model1(data):
+        return data + 1
+
+    def model2(data):
+        return data + 2
+
+    repo = Repo.init(tmpdir)
+    saved = save(model1, path)
+    repo.index.add([path, saved.loc.path])
+    first = repo.index.commit("init")
+
+    saved = save(model2, path)
+    repo.index.add([path, saved.loc.path])
+    second = repo.index.commit("second")
+
+    assert load(path, rev=first.hexsha)(1) == 2
+    assert load(path, rev=second.hexsha)(1) == 3
+    assert load(path)(1) == 3
+
+    shutil.rmtree(tmpdir / ".git")
+
+    with pytest.raises(
+        InvalidArgumentError,
+        match=f"Rev `{first.hexsha}` was provided, but FSSpecResolver does not support versioning",
+    ):
+        load(path, rev=first.hexsha)
