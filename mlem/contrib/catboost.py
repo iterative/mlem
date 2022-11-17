@@ -94,11 +94,6 @@ class CatBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
         model = CatBoostModel(model=obj, methods={})
         methods = {
             "predict": Signature.from_method(
-                model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "catboost_predict": Signature.from_method(
                 obj.predict,
                 auto_infer=sample_data is not None,
                 data=sample_data,
@@ -107,27 +102,12 @@ class CatBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
         if isinstance(obj, CatBoostClassifier):
             model.io.model_type = CBType.classifier
             methods["predict_proba"] = Signature.from_method(
-                model.predict_proba,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            )
-            methods["catboost_predict_proba"] = Signature.from_method(
                 obj.predict_proba,
                 auto_infer=sample_data is not None,
                 X=sample_data,
             )
         model.methods = methods
         return model
-
-    def predict(self, data):
-        return self.model.predict(data)
-
-    def predict_proba(self, data):
-        if not isinstance(self.model, CatBoostClassifier):
-            raise ValueError(
-                "Not valid type of model for predict_proba method"
-            )
-        return self.model.predict_proba(data)
 
     def get_requirements(self) -> Requirements:
         return super().get_requirements() + InstallableRequirement.from_module(

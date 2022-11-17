@@ -12,10 +12,15 @@ from typing import Any, ClassVar, Dict, List, Optional, Type
 import xgboost
 from pydantic import BaseModel
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
+from mlem.core.data_type import (
+    DataAnalyzer,
+    DataHook,
+    DataSerializer,
+    DataType,
+    DataWriter,
+)
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
@@ -163,24 +168,27 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        model = XGBoostModel(model=obj, methods={})
-        methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "xgboost_predict": Signature.from_method(
-                obj.predict, auto_infer=sample_data is None, data=sample_data
-            ),
-        }
-        model.methods = methods
-        return model
+        og_sample_data = sample_data
+        if sample_data is not None and not isinstance(
+            sample_data, xgboost.DMatrix
+        ):
+            sample_data = xgboost.DMatrix(sample_data)
+        signature = Signature.from_method(
+            obj.predict, auto_infer=sample_data is not None, data=sample_data
+        )
+        if og_sample_data is not None:
+            signature.args[0].type_ = DataAnalyzer.analyze(og_sample_data)
+        return XGBoostModel(
+            model=obj,
+            methods={
+                "predict": signature,
+            },
+        )
 
-    def predict(self, data):
+    def predict(self, data, **kwargs):
         if not isinstance(data, xgboost.DMatrix):
             data = xgboost.DMatrix(data)
-        return self.model.predict(data)
+        return self.model.predict(data, **kwargs)
 
     def get_requirements(self) -> Requirements:
         return (
