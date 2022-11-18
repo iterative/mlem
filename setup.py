@@ -53,6 +53,7 @@ tests = [
     "skl2onnx",
     "dvc[s3]",
     "importlib_metadata",
+    "httpx",
 ]
 
 extras = {
