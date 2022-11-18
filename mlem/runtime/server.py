@@ -14,7 +14,6 @@ from mlem.runtime.interface import (
     InterfaceDataType,
     InterfaceDescriptor,
     InterfaceMethod,
-    NamedInterfaceArgument,
 )
 
 MethodMapping = Dict[str, str]
@@ -43,12 +42,10 @@ class ServerArgument(ServerDataType):
     name: Optional[str] = None
     """If set, match only argument with this name"""
 
-    def find_match(
-        self, options: List[NamedInterfaceArgument]
-    ) -> Optional[str]:
-        for name, arg in options:
+    def find_match(self, options: List[InterfaceArgument]) -> Optional[str]:
+        for arg in options:
             if self.matches(arg):
-                return name
+                return arg.name
         return None
 
     def matches(self, expected: InterfaceArgument):
@@ -79,9 +76,9 @@ class ServerMethod(BaseModel):
         for name, arg in self.args.items():
             match = arg.find_match(
                 [
-                    (n, a)
-                    for n, a in expected.args
-                    if n not in arg_mapping.values()
+                    a
+                    for a in expected.args
+                    if a.name not in arg_mapping.values()
                 ]
             )
             if not match:
@@ -155,7 +152,7 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
         cls, signature: InterfaceMethod
     ) -> Tuple[Dict[str, DataTypeSerializer], DataTypeSerializer]:
         arg_serializers = {
-            name: arg.get_serializer() for name, arg in signature.args
+            arg.name: arg.get_serializer() for arg in signature.args
         }
         returns = signature.returns.get_serializer()
         return arg_serializers, returns
@@ -178,9 +175,9 @@ class ServerInterface(Interface):
         else:
             methods = {k: k for k in interface.get_method_names()}
             args = {
-                m: {k: k}
+                m: {arg.name: arg.name}
                 for m in methods
-                for k, _ in interface.get_method_signature(m).args
+                for arg in interface.get_method_signature(m).args
             }
 
         return cls(
@@ -276,10 +273,10 @@ class ServerInterface(Interface):
         self,
         method_name: str,
         arg_name: str,
-        interface_arguments: List[NamedInterfaceArgument],
+        interface_arguments: List[InterfaceArgument],
     ) -> InterfaceArgument:
         mapped_arg = self.args_mapping[method_name][arg_name]
-        signature = [s for n, s in interface_arguments if n == mapped_arg][0]
+        signature = [s for s in interface_arguments if s.name == mapped_arg][0]
         if self.options.methods is None:
             return InterfaceArgument(
                 name=arg_name,
@@ -307,7 +304,7 @@ class ServerInterface(Interface):
         return InterfaceMethod(
             name=method_name,
             args=[
-                (arg, self._get_request_arg(method_name, arg, signature.args))
+                self._get_request_arg(method_name, arg, signature.args)
                 for arg in self.args_mapping[method_name]
             ],
             returns=self._get_response(method_name, signature.returns),

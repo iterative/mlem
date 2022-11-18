@@ -117,14 +117,14 @@ def test_endpoint(f_client, f_interface: Interface, create_mlem_client, train):
     remote_interface = mlem_client.interface
     payload_1 = (
         remote_interface.__root__[PREDICT_METHOD_NAME]
-        .args[0][1]
+        .args[0]
         .get_serializer()
         .serialize(train)
     )
 
     payload = (
         f_interface.get_method_signature(PREDICT_METHOD_NAME)
-        .args[0][1]
+        .args[0]
         .get_serializer()
         .serialize(train)
     )
@@ -209,7 +209,7 @@ def test_file_endpoint(
 
     mlem_client: Client = create_mlem_client(client)
     remote_interface = mlem_client.interface
-    dt = remote_interface.__root__["__call__"].args[0][1].data_type
+    dt = remote_interface.__root__["__call__"].args[0].data_type
     ser = FileSerializer()
     with ser.dump(dt, data) as f:
         response = client.post("/__call__", files={"file": f})

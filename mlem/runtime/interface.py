@@ -59,12 +59,9 @@ class InterfaceArgument(InterfaceDataType):
         )
 
 
-NamedInterfaceArgument = Tuple[str, InterfaceArgument]
-
-
 class InterfaceMethod(BaseModel):
     name: str
-    args: List[NamedInterfaceArgument]
+    args: List[InterfaceArgument]
     returns: InterfaceDataType
 
     @classmethod
@@ -72,19 +69,19 @@ class InterfaceMethod(BaseModel):
         return InterfaceMethod(
             name=signature.name,
             args=[
-                (
-                    a.name,
-                    InterfaceArgument(
-                        name=a.name,
-                        data_type=a.type_,
-                        serializer=None,
-                        required=a.required,
-                        default=a.default,
-                    ),
+                InterfaceArgument(
+                    name=a.name,
+                    data_type=a.type_,
+                    serializer=a.type_.get_serializer().serializer,
+                    required=a.required,
+                    default=a.default,
                 )
                 for a in signature.args
             ],
-            returns=InterfaceDataType(data_type=signature.returns),
+            returns=InterfaceDataType(
+                data_type=signature.returns,
+                serializer=signature.returns.get_serializer().serializer,
+            ),
         )
 
 
@@ -179,7 +176,7 @@ class Interface(ABC, MlemABC):
         :param method_name: name of method to get argument types for
         :return: list of argument types
         """
-        return dict(self.get_method_signature(method_name).args)
+        return {a.name: a for a in self.get_method_signature(method_name).args}
 
     def get_method_returns(self, method_name: str) -> InterfaceDataType:
         """
@@ -226,16 +223,14 @@ class SimpleInterface(Interface):
                 methods[name] = InterfaceMethod(
                     name=name,
                     args=[
-                        (
-                            a,
-                            InterfaceArgument(
-                                data_type=attr.__annotations__[a],
-                                serializer=None,
-                            ),
+                        InterfaceArgument(
+                            name=a,
+                            data_type=attr.__annotations__[a],
+                            serializer=None,
                         )
                         for a in inspect.getfullargspec(attr).args[1:]
                     ],
-                    returns=InterfaceArgument(
+                    returns=InterfaceDataType(
                         data_type=attr.__annotations__.get("return"),
                         serializer=None,
                     ),
@@ -288,10 +283,10 @@ class ModelInterface(Interface):
 
         def executor(**kwargs):
             args = {
-                arg_name: kwargs[arg_name]
+                arg.name: kwargs[arg.name]
                 if arg.required
-                else kwargs.get(arg_name, arg.default)
-                for arg_name, arg in signature.args
+                else kwargs.get(arg.name, arg.default)
+                for arg in signature.args
             }
             return self.model_type.call_method(method_name, **args)
 

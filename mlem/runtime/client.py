@@ -91,15 +91,15 @@ class _MethodCall(BaseModel):
         data = {}
         return_raw = self.method.returns.get_serializer().serializer.is_binary
 
-        for i, (name, arg) in enumerate(self.method.args):
+        for i, arg in enumerate(self.method.args):
             obj = None
             if len(args) > i:
                 obj = args[i]
             if obj is None:
-                obj = kwargs.get(name, None)
+                obj = kwargs.get(arg.name, None)
             if obj is None:
                 raise ValueError(
-                    f'Parameter with name "{name}" (position {i}) should be passed'
+                    f'Parameter with name "{arg.name}" (position {i}) should be passed'
                 )
 
             serializer = arg.get_serializer()
@@ -113,7 +113,7 @@ class _MethodCall(BaseModel):
                         self.call_method_binary(self.name, f, return_raw)
                     )
 
-            data[name] = serializer.serialize(obj)
+            data[arg.name] = serializer.serialize(obj)
 
         logger.debug(
             'Calling server method "%s", args: %s ...', self.method.name, data

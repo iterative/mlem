@@ -159,7 +159,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 raise NotImplementedError(
                     "Multiple file requests are not supported yet"
                 )
-            arg_name = signature.args[0][0]
+            arg_name = signature.args[0].name
             return self._create_handler_executor_binary(
                 method_name,
                 serializers[arg_name],
@@ -169,7 +169,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             )
         return self._create_handler_executor(
             method_name,
-            dict(signature.args),
+            {a.name: a for a in signature.args},
             serializers,
             executor,
             response_serializer,

@@ -55,12 +55,9 @@ def test_interface_descriptor__from_interface(interface: Interface):
     sig = InterfaceMethod(
         name="method1",
         args=[
-            (
-                "arg1",
-                InterfaceArgument(
-                    name="arg1",
-                    data_type=Container(field=5),
-                ),
+            InterfaceArgument(
+                name="arg1",
+                data_type=Container(field=5),
             )
         ],
         returns=InterfaceDataType(data_type=Container(field=5)),
@@ -69,7 +66,7 @@ def test_interface_descriptor__from_interface(interface: Interface):
 
 
 def test_interface_descriptor__to_dict(interface: Interface):
-    d = interface.get_descriptor()
+    d = interface.get_versioned_descriptor()
 
     assert d.dict() == {
         "version": mlem.__version__,
@@ -78,16 +75,17 @@ def test_interface_descriptor__to_dict(interface: Interface):
                 "args": [
                     {
                         "default": None,
-                        "kw_only": False,
                         "name": "arg1",
                         "required": True,
-                        "type_": {"field": 5, "type": "test_container"},
+                        "data_type": {"field": 5, "type": "test_container"},
+                        "serializer": None,
                     }
                 ],
                 "name": "method1",
-                "returns": {"field": 5, "type": "test_container"},
-                "varargs": None,
-                "varkw": None,
+                "returns": {
+                    "data_type": {"field": 5, "type": "test_container"},
+                    "serializer": None,
+                },
             }
         },
     }
