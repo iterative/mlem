@@ -22,6 +22,7 @@ install_requires = [
     "python-gitlab",
     "flatdict",
     "iterative-telemetry",
+    "pygit2",
 ]
 
 tests = [
