@@ -44,6 +44,10 @@ def mlem_client(request_get_mock, request_post_mock):
             lazy_fixture("train"),
         ),
         (lazy_fixture("model_path"), lazy_fixture("data_path")),
+        (lazy_fixture("model"), lazy_fixture("train")),
+        (lazy_fixture("model"), lazy_fixture("data_path")),
+        (lazy_fixture("model"), lazy_fixture("data_meta")),
+        (lazy_fixture("model"), lazy_fixture("data_meta_saved")),
     ],
 )
 def test_apply(m, d):

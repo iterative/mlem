@@ -11,8 +11,7 @@ from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.onnx import ONNXModel
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer, ListType
-from mlem.core.model import ModelAnalyzer
-from tests.conftest import check_model_type_common_interface
+from mlem.core.model import Argument, ModelAnalyzer
 
 
 @pytest.fixture
@@ -79,11 +78,11 @@ def test_hook_classifier(model, expected_return_type_items, inp_data_nparray):
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data_nparray)
 
     assert isinstance(model_type, ONNXModel)
-    check_model_type_common_interface(
-        model_type,
-        data_type,
-        ListType(items=expected_return_type_items),
-    )
+    returns = ListType(items=expected_return_type_items)
+    signature = model_type.methods["predict"]
+    assert signature.name == "predict"
+    assert signature.args[0] == Argument(name="data", type_=data_type)
+    assert signature.returns == returns
 
 
 @pytest.mark.parametrize(

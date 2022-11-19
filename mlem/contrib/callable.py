@@ -208,19 +208,14 @@ class CallableModelType(ModelType, ModelHook):
         s = Signature.from_method(
             obj, sample_data, auto_infer=sample_data is not None
         )
-        predict = s.copy()
-        predict.name = "predict"
-        predict.args[0].name = "data"
+        s.name = "__call__"
         return CallableModelType(
-            io=PickleModelIO(), methods={"__call__": s, "predict": predict}
+            io=PickleModelIO(), methods={"__call__": s}
         ).bind(obj)
 
     @classmethod
     def is_object_valid(cls, obj: Any) -> bool:
         return callable(obj)
-
-    def predict(self, data):
-        return self.model(data)
 
 
 # Copyright 2019 Zyfra
