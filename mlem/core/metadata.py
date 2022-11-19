@@ -180,6 +180,8 @@ def load_meta(
         meta.load_value()
     if not isinstance(meta, cls):
         raise WrongMetaType(meta, force_type)
+
+    logger.debug("Loaded meta object %s", meta)
     return meta  # type: ignore[return-value]
 
 

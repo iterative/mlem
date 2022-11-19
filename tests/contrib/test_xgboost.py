@@ -8,9 +8,9 @@ from mlem.contrib.xgboost import DMatrixDataType, XGBoostModel
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.model import ModelAnalyzer, ModelType
+from mlem.core.model import Argument, ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import check_model_type_common_interface, long
+from tests.conftest import long
 
 
 @pytest.fixture
@@ -111,10 +111,12 @@ def test_hook(model, booster, np_payload):
     assert model.model == booster
 
     data_type = DataAnalyzer.analyze(np_payload)
-    assert "xgboost_predict" in model.methods
-    check_model_type_common_interface(
-        model, data_type, NumpyNdarrayType(shape=(None,), dtype="float32")
-    )
+    assert "predict" in model.methods
+    signature = model.methods["predict"]
+    assert signature.name == "predict"
+    assert signature.args[0] == Argument(name="data", type_=data_type)
+    returns = NumpyNdarrayType(shape=(None,), dtype="float32")
+    assert signature.returns == returns
 
 
 def test_model__predict(model, dmatrix_np):

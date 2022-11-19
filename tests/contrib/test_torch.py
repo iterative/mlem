@@ -141,7 +141,7 @@ def check_model(net, input_data, tmpdir):
     assert tmw.model is net
     assert set(tmw.get_requirements().modules) == {"torch"}
 
-    prediction = tmw.call_method("predict", input_data)
+    prediction = tmw.call_method("__call__", input_data)
 
     model_name = str(tmpdir / "torch-model")
     artifacts = tmw.dump(LOCAL_STORAGE, model_name)
@@ -154,7 +154,7 @@ def check_model(net, input_data, tmpdir):
     tmw.load(artifacts)
     assert tmw.model is not net
 
-    prediction2 = tmw.call_method("predict", input_data)
+    prediction2 = tmw.call_method("__call__", input_data)
     assert torch.equal(prediction, prediction2)
     assert set(tmw.get_requirements().modules) == {"torch"}
 
