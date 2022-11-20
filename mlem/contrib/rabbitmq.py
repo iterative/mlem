@@ -69,11 +69,12 @@ class RabbitMQServer(Server, RabbitMQMixin):
         def handler(ch, method, props, body):
             data = json.loads(body)
             kwargs = {}
-            for name, _ in signature.args:
-                kwargs[name] = serializers[name].deserialize(data[name])
+            for arg in signature.args:
+                kwargs[arg.name] = serializers[arg.name].deserialize(
+                    data[arg.name]
+                )
             result = executor(**kwargs)
             response = response_serializer.serialize(result)
-            echo(data)
             ch.basic_publish(
                 exchange="",
                 routing_key=props.reply_to,
@@ -88,7 +89,7 @@ class RabbitMQServer(Server, RabbitMQMixin):
 
     def serve(self, interface: Interface):
         self.channel.queue_declare(self.queue_prefix + INTERFACE)
-        schema = json.dumps(interface.get_descriptor().dict())
+        schema = json.dumps(interface.get_versioned_descriptor().dict())
         self.channel.basic_publish(
             self.exchange, self.queue_prefix + INTERFACE, schema.encode("utf8")
         )
