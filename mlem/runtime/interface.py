@@ -11,19 +11,21 @@ from typing import (
     Tuple,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 import mlem
 import mlem.version
 from mlem.core.base import MlemABC
-from mlem.core.data_type import DataType, DataTypeSerializer, Serializer
+from mlem.core.data_type import (
+    DataType,
+    DataTypeSerializer,
+    Serializer,
+    UnspecifiedDataType
+)
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemModel
-
-if TYPE_CHECKING:
-    pass
 
 
 class ExecutionError(MlemError):
@@ -269,6 +271,22 @@ class ModelInterface(Interface):
             raise ValueError("Cannot load not saved object")
         self.model_type = meta.model_type
         self.model_type.load(meta.artifacts)
+
+    @validator("model_type")
+    @classmethod
+    def ensure_signature(cls, value: ModelType):
+        if any(
+            isinstance(a, UnspecifiedDataType)
+            for method in value.methods.values()
+            for a in method.args
+        ) or any(
+            isinstance(method.returns, UnspecifiedDataType)
+            for method in value.methods.values()
+        ):
+            raise MlemError(
+                "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
+            )
+        return value
 
     @classmethod
     def from_model(cls, model: MlemModel):
