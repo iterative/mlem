@@ -1,15 +1,6 @@
 import inspect
 from abc import ABC, abstractmethod
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-)
+from typing import Any, ClassVar, Dict, Iterator, List, Optional, Tuple
 
 from pydantic import BaseModel, validator
 
@@ -20,7 +11,7 @@ from mlem.core.data_type import (
     DataType,
     DataTypeSerializer,
     Serializer,
-    UnspecifiedDataType
+    UnspecifiedDataType,
 )
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
