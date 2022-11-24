@@ -48,6 +48,9 @@ from mlem.ui import (
 
 PATH_METAVAR = "path"
 COMMITISH_METAVAR = "commitish"
+TRACEBACK_SUGGESTION_MESSAGE = (
+    "Use the --tb or --traceback option to include the traceback in the output"
+)
 
 
 class MlemFormatter(HelpFormatter):
@@ -368,7 +371,10 @@ def mlem_callback(
         logger = logging.getLogger("mlem")
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    ctx.obj = {"traceback": traceback or LOCAL_CONFIG.DEBUG, "quiet": quiet}
+    ctx.obj = {
+        "traceback": traceback or verbose or LOCAL_CONFIG.DEBUG,
+        "quiet": quiet,
+    }
 
 
 def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
@@ -473,6 +479,7 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
                             "Unexpected error: " + str(e), col=typer.colors.RED
                         )
                     )
+                    echo(TRACEBACK_SUGGESTION_MESSAGE)
                     echo(
                         "Please report it here: <https://github.com/iterative/mlem/issues>"
                     )

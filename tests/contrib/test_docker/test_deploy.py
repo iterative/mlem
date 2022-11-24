@@ -126,7 +126,7 @@ def _check_runner(img, env: DockerEnv, model):
     with tempfile.TemporaryDirectory() as tmpdir:
         instance = DockerContainer(
             container_name=CONTAINER_NAME,
-            port_mapping={80: 8008},
+            ports=["8008:80"],
             server=FastAPIServer(),
             env=env,
             rm=False,

@@ -95,7 +95,8 @@ jobs:
       run: |
         pip install --upgrade pip setuptools wheel
         pip install pre-commit .[tests]
-    - run: pre-commit run pylint -a -v --show-diff-on-failure
+    - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
+      run: pre-commit run pylint -a -v --show-diff-on-failure
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
@@ -153,12 +154,10 @@ jobs:
         echo ::set-output name=tag::${GITHUB_REF#refs/tags/}
         git log --pretty='format:%d%n- %s%n%b---' $(git tag --sort=v:refname | tail -n2 | head -n1)..HEAD > _CHANGES.md
     - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-      uses: softprops/action-gh-release@v1
+      name: Release
+      run: |
+        changelog=$(git log --pretty='format:%d%n- %s%n%b---' $(git tag --sort=v:refname | tail -n2 | head -n1)..HEAD)
+        tag="${GITHUB_REF#refs/tags/}"
+        gh release create --title "mlem $tag beta" --draft --notes "$changelog" "$tag" dist/${{ steps.dist.outputs.whl }} dist/${{ steps.dist.outputs.targz }}
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        name: tpi ${{ steps.meta.outputs.tag }} alpha
-        body_path: _CHANGES.md
-        draft: true
-        files: |
-          dist/${{ steps.dist.outputs.whl }}
