@@ -14,10 +14,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
+from mlem.contrib.heroku.meta import HerokuEnv
 from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import MLEM_EXT
-from mlem.core.metadata import load, load_meta, save
-from mlem.core.objects import MlemModel
+from mlem.core.metadata import list_objects, load, load_meta, save
+from mlem.core.objects import MlemData, MlemEnv, MlemLink, MlemModel
+from mlem.utils.path import make_posix
 from tests.conftest import (
     MLEM_TEST_REPO,
     MLEM_TEST_REPO_NAME,
@@ -182,6 +184,78 @@ def test_loading_from_s3(model, s3_storage_fs, s3_tmp_path):
     assert isinstance(loaded, DecisionTreeClassifier)
     train, _ = load_iris(return_X_y=True)
     loaded.predict(train)
+
+
+def test_ls_local(filled_mlem_project):
+    objects = list_objects(filled_mlem_project)
+
+    assert len(objects) == 1
+    assert MlemModel in objects
+    models = objects[MlemModel]
+    assert len(models) == 2
+    model, lnk = models
+    if isinstance(model, MlemLink):
+        model, lnk = lnk, model
+
+    assert isinstance(model, MlemModel)
+    assert isinstance(lnk, MlemLink)
+    assert (
+        posixpath.join(make_posix(filled_mlem_project), lnk.path)
+        == model.loc.fullpath
+    )
+
+
+@pytest.mark.parametrize("recursive,count", [[True, 3], [False, 1]])
+def test_ls_local_recursive(tmpdir, recursive, count):
+    path = str(tmpdir)
+    meta = HerokuEnv()
+    meta.dump(posixpath.join(path, "env"))
+    meta.dump(posixpath.join(path, "subdir", "env"))
+    meta.dump(posixpath.join(path, "subdir", "subsubdir", "env"))
+    objects = list_objects(path, recursive=recursive)
+    assert len(objects) == 1
+    assert MlemEnv in objects
+    assert len(objects[MlemEnv]) == count
+
+
+def test_ls_no_project(tmpdir):
+    assert not list_objects(str(tmpdir))
+
+
+@long
+@need_test_repo_auth
+def test_ls_remote(current_test_branch):
+    objects = list_objects(
+        os.path.join(MLEM_TEST_REPO, f"tree/{current_test_branch}/simple")
+    )
+    assert len(objects) == 2
+    assert MlemModel in objects
+    models = objects[MlemModel]
+    assert len(models) == 2
+    model, lnk = models
+    if isinstance(model, MlemLink):
+        model, lnk = lnk, model
+
+    assert isinstance(model, MlemModel)
+    assert isinstance(lnk, MlemLink)
+
+    assert MlemData in objects
+    assert len(objects[MlemData]) == 4
+
+
+@long
+def test_ls_remote_s3(s3_tmp_path):
+    path = s3_tmp_path("ls_remote_s3")
+    init(path)
+    meta = HerokuEnv()
+    meta.dump(posixpath.join(path, "env"))
+    meta.dump(posixpath.join(path, "subdir", "env"))
+    meta.dump(posixpath.join(path, "subdir", "subsubdir", "env"))
+    objects = list_objects(path)
+    assert MlemEnv in objects
+    envs = objects[MlemEnv]
+    assert len(envs) == 3
+    assert all(o == meta for o in envs)
 
 
 def test_load_local_rev(tmpdir):
