@@ -118,6 +118,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.kubernetes", ["kubernetes", "docker"], False),
         Extension("mlem.contrib.requirements", [], False),
         Extension("mlem.contrib.venv", [], False),
+        Extension("mlem.contrib.git", ["pygit2"], True),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}

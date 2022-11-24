@@ -22,7 +22,6 @@ install_requires = [
     "python-gitlab",
     "flatdict",
     "iterative-telemetry",
-    "pygit2",
 ]
 
 tests = [
@@ -86,6 +85,7 @@ extras = {
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
+    "git": ["pygit2"],
 }
 
 # add DVC extras
