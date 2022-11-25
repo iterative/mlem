@@ -108,7 +108,9 @@ def apply(
             )
         meta = load_meta(model, project, rev, force_type=MlemModel)
 
-        result = pass_api_log_params(apply)(
+        result = pass_api_log_params(
+            apply
+        )(  # pylint: disable=too-many-function-args
             meta,
             data,
             method=method,
@@ -257,7 +259,9 @@ def run_apply_remote(
         load_value=True,
         force_type=MlemData,
     )
-    result = pass_api_log_params(apply_remote)(
+    result = pass_api_log_params(
+        apply_remote
+    )(  # pylint: disable=too-many-function-args
         client,
         data,
         method=method,
