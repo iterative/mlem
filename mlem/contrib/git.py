@@ -1,10 +1,15 @@
+"""Local git repos support
+Extension type: uri
+
+Implementation of `LocalGitResolver`
+"""
 import os
 import posixpath
 from typing import ClassVar, Optional, Tuple
 
 from fsspec import AbstractFileSystem, get_fs_token_paths
 from fsspec.implementations.git import GitFileSystem
-from git import InvalidGitRepositoryError, Repo
+from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 
 from mlem.core.meta_io import UriResolver
 
@@ -56,5 +61,5 @@ class LocalGitResolver(UriResolver):
     def _find_local_git(cls, path: str) -> Optional[str]:
         try:
             return Repo(path, search_parent_directories=True).working_dir
-        except InvalidGitRepositoryError:
+        except (InvalidGitRepositoryError, NoSuchPathError):
             return None
