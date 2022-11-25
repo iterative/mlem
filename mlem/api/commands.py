@@ -34,7 +34,7 @@ from mlem.core.objects import (
     MlemObject,
 )
 from mlem.runtime.client import Client
-from mlem.runtime.interface import prepare_model_interface
+from mlem.runtime.interface import ModelInterface
 from mlem.runtime.server import Server
 from mlem.telemetry import api_telemetry, telemetry
 from mlem.ui import (
@@ -354,9 +354,8 @@ def serve(
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
     telemetry.log_param("server_type", server_obj.type)
     log_meta_params(model)
-    interface = prepare_model_interface(model, server_obj)
     echo(f"Starting {server_obj.type} server...")
-    server_obj.serve(interface)
+    server_obj.start(ModelInterface.from_model(model))
 
 
 @api_telemetry

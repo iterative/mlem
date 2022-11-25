@@ -6,6 +6,7 @@ from pydantic import parse_obj_as
 from pytest_lazyfixture import lazy_fixture
 
 from mlem.core.artifacts import Artifact
+from mlem.core.base import load_impl_ext
 from mlem.core.data_type import (
     ArrayReader,
     ArrayType,
@@ -20,9 +21,12 @@ from mlem.core.data_type import (
     PrimitiveReader,
     PrimitiveType,
     TupleType,
+    UnspecifiedDataType,
+    WithDefaultSerializer,
     _TupleLikeReader,
     _TupleLikeWriter,
 )
+from mlem.utils.entrypoints import list_implementations
 from tests.conftest import data_write_read_check
 
 
@@ -668,3 +672,12 @@ def test_empty_nested_dict():
     }
     assert list(artifacts.keys()) == ["a/data"]
     assert artifacts["a/data"].uri.endswith("data/a")
+
+
+@pytest.mark.parametrize("dtype_name", list_implementations(DataType))
+def test_data_types_have_serializer(dtype_name):
+    impl = load_impl_ext(DataType.abs_name, dtype_name)
+    if dtype_name == UnspecifiedDataType.type:
+        return
+    assert issubclass(impl, WithDefaultSerializer)
+    assert impl.serializer_class is not None

@@ -4,11 +4,23 @@ such as model binaries or .csv files
 """
 import contextlib
 import hashlib
+import io
 import os
 import posixpath
 import tempfile
 from abc import ABC, abstractmethod
-from typing import IO, ClassVar, Dict, Iterator, Optional, Tuple, overload
+from typing import (
+    IO,
+    Any,
+    BinaryIO,
+    ClassVar,
+    Dict,
+    Iterator,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 from urllib.parse import urlparse
 
 import fsspec
@@ -320,6 +332,77 @@ class LocalArtifact(FSSpecArtifact):
             size=self.size,
             hash=self.hash,
         )
+
+
+class InMemoryArtifact(Artifact):
+    """Virtual artifact representing in-memory bytes object"""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    type: ClassVar = "_in_memory"
+
+    payload: bytes = b""
+    """Payload in bytes"""
+
+    def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    def remove(self):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self) -> Iterator[IO]:
+        buffer = io.BytesIO(self.payload)
+        buffer.seek(0)
+        yield buffer
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
+        raise NotImplementedError
+
+
+class InMemoryFileobjArtifact(Artifact):
+    """Virtual artifact representing in-memory bytes buffer"""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    type: ClassVar = "_in_memory_buffer"
+
+    fileobj: Union[BinaryIO, Any]
+    """BinaryIO buffer"""
+
+    def _download(self, target_path: str) -> "LocalArtifact":
+        raise NotImplementedError
+
+    def remove(self):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self) -> Iterator[IO]:
+        yield self.fileobj
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Artifact":
+        raise NotImplementedError
+
+
+class InMemoryStorage(Storage):
+    """Virtual storage for in-memory artifacts"""
+
+    type: ClassVar = "_in_memory"
+
+    def relative(self, fs: AbstractFileSystem, path: str) -> "Storage":
+        raise NotImplementedError
+
+    def upload(self, local_path: str, target_path: str) -> Artifact:
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def open(self, path) -> Iterator[Tuple[IO, Artifact]]:
+        buffer = io.BytesIO()
+        art = InMemoryArtifact(uri="", size=-1, hash="")
+        yield buffer, art
+        art.payload = buffer.getvalue()
 
 
 def md5_fileobj(fobj):
