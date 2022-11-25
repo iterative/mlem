@@ -4,7 +4,7 @@ from typing import Optional
 import requests
 from requests import HTTPError
 
-from ...core.errors import DeploymentError, MlemError
+from ...core.errors import DeploymentError
 from ...ui import EMOJI_BASE, EMOJI_BUILD, EMOJI_STOP, echo
 from .config import HEROKU_CONFIG
 from .meta import HerokuAppMeta, HerokuDeployment
@@ -20,7 +20,9 @@ def get_api_key() -> str:
             .strip()
         )
     except subprocess.CalledProcessError as e:
-        raise MlemError("HEROKU_API_KEY env is not provided") from e
+        raise DeploymentError(
+            "Invalid credentials. Please run `heroku login` or set HEROKU_API_KEY env"
+        ) from e
 
 
 def heroku_api_request(
