@@ -34,7 +34,7 @@ from mlem.core.objects import (
     MlemObject,
 )
 from mlem.runtime.client import Client
-from mlem.runtime.interface import prepare_model_interface
+from mlem.runtime.interface import ModelInterface
 from mlem.runtime.server import Server
 from mlem.ui import (
     EMOJI_APPLY,
@@ -343,9 +343,8 @@ def serve(
     model = get_model_meta(model, load_value=True)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
-    interface = prepare_model_interface(model, server_obj)
     echo(f"Starting {server_obj.type} server...")
-    server_obj.serve(interface)
+    server_obj.start(ModelInterface.from_model(model))
 
 
 def import_object(

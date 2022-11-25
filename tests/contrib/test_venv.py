@@ -58,6 +58,7 @@ def test_build_conda(tmp_path, model_meta):
             assert pkgs_info[each_req.package_name] == each_req.channel_name
 
 
+@long
 def test_build_venv(tmp_path, model_meta):
     path = str(tmp_path / "venv")
     builder = VenvBuilder(target=path)

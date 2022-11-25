@@ -8,6 +8,7 @@ from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import WrongMethodError
 from mlem.core.model import Argument, Signature
+from mlem.runtime import InterfaceMethod
 from mlem.runtime.client import HTTPClient
 
 
@@ -42,7 +43,9 @@ def test_mlem_client_base_url(port):
 @pytest.mark.parametrize("use_keyword", [False, True])
 def test_interface_endpoint(mlem_client, train, signature, use_keyword):
     assert PREDICT_METHOD_NAME in mlem_client.methods
-    assert mlem_client.methods[PREDICT_METHOD_NAME] == signature
+    assert mlem_client.methods[
+        PREDICT_METHOD_NAME
+    ] == InterfaceMethod.from_signature(signature)
     if use_keyword:
         assert np.array_equal(
             getattr(mlem_client, PREDICT_METHOD_NAME)(data=train),

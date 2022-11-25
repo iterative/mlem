@@ -27,7 +27,9 @@ from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
-from mlem.runtime.interface import prepare_model_interface
+from mlem.runtime.client import HTTPClient
+from mlem.runtime.interface import ModelInterface
+from mlem.runtime.server import ServerInterface
 
 RESOURCES = "resources"
 
@@ -155,48 +157,83 @@ def server():
 @pytest.fixture
 def interface(model, train, server):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = prepare_model_interface(model, server)
+    interface = ServerInterface.create(
+        FastAPIServer(standardize=True), ModelInterface.from_model(model)
+    )
     return interface
 
 
 @pytest.fixture
-def client(interface, server):
-    app = server.app_init(interface)
-    return TestClient(app)
+def create_client():
+    def client(server, interface):
+        return TestClient(server.app_init(interface))
+
+    return client
 
 
 @pytest.fixture
-def request_get_mock(mocker, client):
+def client(interface, server, create_client):
+    return create_client(server, interface)
+
+
+@pytest.fixture
+def create_request_get_mock(mocker):
     """
     mocks requests.get method so as to use
     FastAPI's TestClient's get() method beneath
     """
 
-    def patched_get(url, params=None, **kwargs):
-        url = url[len("http://") :]
-        return client.get(url, params=params, **kwargs)
+    def _request_get_mock(_client):
+        def patched_get(url, params=None, **kwargs):
+            url = url[len("http://") :]
+            return _client.get(url, params=params, **kwargs)
 
-    return mocker.patch(
-        "mlem.runtime.client.requests.get",
-        side_effect=patched_get,
-    )
+        return mocker.patch(
+            "mlem.runtime.client.requests.get",
+            side_effect=patched_get,
+        )
+
+    return _request_get_mock
 
 
 @pytest.fixture
-def request_post_mock(mocker, client):
+def create_request_post_mock(mocker):
     """
     mocks requests.post method so as to use
     FastAPI's TestClient's post() method beneath
     """
 
-    def patched_post(url, data=None, json=None, **kwargs):
-        url = url[len("http://") :]
-        return client.post(url, data=data, json=json, **kwargs)
+    def _request_post_mock(_client):
+        def patched_post(url, data=None, json=None, **kwargs):
+            url = url[len("http://") :]
+            return _client.post(url, data=data, json=json, **kwargs)
 
-    return mocker.patch(
-        "mlem.runtime.client.requests.post",
-        side_effect=patched_post,
-    )
+        return mocker.patch(
+            "mlem.runtime.client.requests.post",
+            side_effect=patched_post,
+        )
+
+    return _request_post_mock
+
+
+@pytest.fixture
+def request_post_mock(client, create_request_post_mock):
+    return create_request_post_mock(client)
+
+
+@pytest.fixture
+def request_get_mock(client, create_request_get_mock):
+    return create_request_get_mock(client)
+
+
+@pytest.fixture
+def create_mlem_client(create_request_get_mock, create_request_post_mock):
+    def mlem_client(client):
+        create_request_get_mock(client)
+        create_request_post_mock(client)
+        return HTTPClient(host="", port=None)
+
+    return mlem_client
 
 
 @pytest.fixture
