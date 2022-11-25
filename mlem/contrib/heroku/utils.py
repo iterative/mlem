@@ -44,6 +44,10 @@ def heroku_api_request(
     try:
         r.raise_for_status()
     except HTTPError as e:
+        if e.response.reason == "Unauthorized":
+            raise DeploymentError(
+                "Invalid credentials. Please run `heroku login` or set HEROKU_API_KEY env"
+            ) from e
         raise DeploymentError(r.json()["message"]) from e
     return r.json()
 

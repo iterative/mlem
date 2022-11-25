@@ -89,7 +89,6 @@ def test_create_app(heroku_app_name, heroku_env, model):
     heroku_deploy = HerokuDeployment(
         app_name=name,
         env=heroku_env,
-        model=model.make_link(),
         team=HEROKU_TEAM,
     )
     create_app(heroku_deploy)
@@ -191,3 +190,23 @@ def test_env_deploy_full(
         )
         with pytest.raises(DeploymentError):
             delete_app(name)
+
+
+@pytest.fixture
+def no_heroku_env():
+    env_tmp = os.environ.pop("HEROKU_API_KEY")
+    conf_tmp = HEROKU_CONFIG.API_KEY
+    HEROKU_CONFIG.API_KEY = None
+    try:
+        yield
+    finally:
+        os.environ["HEROKU_API_KEY"] = env_tmp
+        HEROKU_CONFIG.API_KEY = conf_tmp
+
+
+def test_suggest_login(no_heroku_env, heroku_app_name, heroku_env):
+    with pytest.raises(
+        DeploymentError,
+        match="Invalid credentials. Please run `heroku login` or set HEROKU_API_KEY env",
+    ):
+        heroku_app_name("no-creds-app")
