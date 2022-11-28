@@ -19,7 +19,7 @@ def checkenv(
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
 ):
-    """Check that current environment satisfies object requrements"""
+    """Check that current Python environment satisfies object requirements."""
     meta = load_meta(path, project, rev, follow_links=True, load_value=False)
     if isinstance(meta, (MlemModel, MlemData)):
         meta.checkenv()
