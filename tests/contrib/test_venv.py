@@ -11,6 +11,7 @@ from mlem.contrib.venv import (
 )
 from mlem.core.errors import MlemError
 from mlem.core.requirements import InstallableRequirement
+from tests.conftest import long
 from tests.contrib.conftest import conda_test
 
 
@@ -57,6 +58,7 @@ def test_build_conda(tmp_path, model_meta):
             assert pkgs_info[each_req.package_name] == each_req.channel_name
 
 
+@long
 def test_build_venv(tmp_path, model_meta):
     path = str(tmp_path / "venv")
     builder = VenvBuilder(target=path)
@@ -75,6 +77,7 @@ def test_install_in_current_venv_not_active(tmp_path, model_meta):
         builder.build(model_meta)
 
 
+@long
 def test_install_in_current_active_venv(sys_prefix_path, model_meta):
     builder = VenvBuilder(target=sys_prefix_path)
     env_dir = os.path.abspath(sys_prefix_path)

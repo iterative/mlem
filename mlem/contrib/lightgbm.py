@@ -13,7 +13,6 @@ import flatdict
 import lightgbm as lgb
 from pydantic import BaseModel
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataAnalyzer,
@@ -22,6 +21,8 @@ from mlem.core.data_type import (
     DataSerializer,
     DataType,
     DataWriter,
+    JsonTypes,
+    WithDefaultSerializer,
 )
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
@@ -40,7 +41,7 @@ LIGHTGBM_LABEL = "label"
 
 
 class LightGBMDataType(
-    DataType, DataSerializer, DataHook, IsInstanceHookMixin
+    WithDefaultSerializer, DataType, DataHook, IsInstanceHookMixin
 ):
     """
     :class:`.DataType` implementation for `lightgbm.Dataset` type
@@ -55,35 +56,6 @@ class LightGBMDataType(
     """DataType of Inner"""
     labels: Optional[DataType]
     """DataType of Labels"""
-
-    def serialize(self, instance: Any) -> dict:
-        self.check_type(instance, lgb.Dataset, SerializationError)
-        if self.labels is not None:
-            return {
-                LIGHTGBM_DATA: self.inner.get_serializer().serialize(
-                    instance.data
-                ),
-                LIGHTGBM_LABEL: self.labels.get_serializer().serialize(
-                    instance.label
-                ),
-            }
-        return self.inner.get_serializer().serialize(instance.data)
-
-    def deserialize(self, obj: dict) -> Any:
-        if self.labels is not None:
-            data = self.inner.get_serializer().deserialize(obj[LIGHTGBM_DATA])
-            label = self.labels.get_serializer().deserialize(
-                obj[LIGHTGBM_LABEL]
-            )
-        else:
-            data = self.inner.get_serializer().deserialize(obj)
-            label = None
-        try:
-            return lgb.Dataset(data, label=label, free_raw_data=False)
-        except ValueError as e:
-            raise DeserializationError(
-                f"object: {obj} could not be converted to lightgbm dataset"
-            ) from e
 
     def get_requirements(self) -> Requirements:
         return (
@@ -106,8 +78,48 @@ class LightGBMDataType(
             else None,
         )
 
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
-        return self.inner.get_serializer().get_model(prefix)
+
+class LightGBMDataSerializer(DataSerializer[LightGBMDataType]):
+    """Serializer for lighgbm datasets"""
+
+    is_default: ClassVar = True
+    data_class: ClassVar = LightGBMDataType
+
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
+        return data_type.inner.get_serializer().get_model(prefix)
+
+    def serialize(self, data_type, instance: Any) -> JsonTypes:
+        data_type.check_type(instance, lgb.Dataset, SerializationError)
+        if data_type.labels is not None:
+            return {
+                LIGHTGBM_DATA: data_type.inner.get_serializer().serialize(
+                    instance.data
+                ),
+                LIGHTGBM_LABEL: data_type.labels.get_serializer().serialize(
+                    instance.label
+                ),
+            }
+        return data_type.inner.get_serializer().serialize(instance.data)
+
+    def deserialize(self, data_type, obj: JsonTypes) -> Any:
+        data_type.check_type(obj, dict, DeserializationError)
+        assert isinstance(obj, dict)
+        if data_type.labels is not None:
+            data = data_type.inner.get_serializer().deserialize(
+                obj[LIGHTGBM_DATA]
+            )
+            label = data_type.labels.get_serializer().deserialize(
+                obj[LIGHTGBM_LABEL]
+            )
+        else:
+            data = data_type.inner.get_serializer().deserialize(obj)
+            label = None
+        try:
+            return lgb.Dataset(data, label=label, free_raw_data=False)
+        except ValueError as e:
+            raise DeserializationError(
+                f"object: {obj} could not be converted to lightgbm dataset"
+            ) from e
 
 
 class LightGBMDataWriter(DataWriter):
@@ -243,23 +255,27 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        gbm_model = LightGBMModel(model=obj, methods={})
-        gbm_model.methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                gbm_model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "lightgbm_predict": Signature.from_method(
-                obj.predict, auto_infer=sample_data is None, data=sample_data
-            ),
-        }
-        return gbm_model
+        og_data = sample_data
+        if sample_data is not None and isinstance(sample_data, lgb.Dataset):
+            sample_data = sample_data.data
 
-    def predict(self, data):
+        signature = Signature.from_method(
+            obj.predict, auto_infer=sample_data is not None, data=sample_data
+        )
+        if og_data is not None:
+            signature.args[0].type_ = DataAnalyzer.analyze(og_data)
+
+        return LightGBMModel(
+            model=obj,
+            methods={
+                "predict": signature,
+            },
+        )
+
+    def predict(self, data, **kwargs):
         if isinstance(data, lgb.Dataset):
             data = data.data
-        return self.model.predict(data)
+        return self.model.predict(data, **kwargs)
 
     def get_requirements(self) -> Requirements:
         return (

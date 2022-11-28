@@ -21,13 +21,9 @@ from mlem.core.data_type import (
     PrimitiveType,
 )
 from mlem.core.errors import DeserializationError, SerializationError
-from mlem.core.model import ModelAnalyzer, ModelType
+from mlem.core.model import Argument, ModelAnalyzer, ModelType
 from mlem.core.requirements import UnixPackageRequirement
-from tests.conftest import (
-    check_model_type_common_interface,
-    data_write_read_check,
-    long,
-)
+from tests.conftest import data_write_read_check, long
 
 
 @pytest.fixture
@@ -83,8 +79,11 @@ def test_hook_np(dtype_np: DataType):
     assert isinstance(dtype_np, LightGBMDataType)
     assert isinstance(dtype_np.inner, NumpyNdarrayType)
     assert isinstance(dtype_np.labels, ArrayType)
-    assert dtype_np.labels.dtype == PrimitiveType(data=None, ptype="float")
-    assert dtype_np.get_model().__name__ == dtype_np.inner.get_model().__name__
+    assert dtype_np.labels.dtype == PrimitiveType(ptype="float")
+    assert (
+        dtype_np.get_serializer().get_model().__name__
+        == dtype_np.inner.get_serializer().get_model().__name__
+    )
     assert dtype_np.get_model().schema() == {
         "title": "NumpyNdarray",
         "type": "array",
@@ -102,7 +101,10 @@ def test_hook_df(dtype_df: DataType):
     assert isinstance(dtype_df, LightGBMDataType)
     assert isinstance(dtype_df.inner, DataFrameType)
     assert isinstance(dtype_df.labels, NumpyNdarrayType)
-    assert dtype_df.get_model().__name__ == dtype_df.inner.get_model().__name__
+    assert (
+        dtype_df.get_serializer().get_model().__name__
+        == dtype_df.inner.get_serializer().get_model().__name__
+    )
     assert dtype_df.get_model().schema() == {
         "title": "DataFrame",
         "type": "object",
@@ -258,12 +260,14 @@ def test_deserialize__df(dtype_df, df_payload):
 def test_hook(model, booster, data_np):
     assert isinstance(model, LightGBMModel)
     assert model.model == booster
-    assert "lightgbm_predict" in model.methods
+    assert "predict" in model.methods
     data_type = DataAnalyzer.analyze(data_np)
 
-    check_model_type_common_interface(
-        model, data_type, NumpyNdarrayType(shape=(None,), dtype="float64")
-    )
+    signature = model.methods["predict"]
+    assert signature.name == "predict"
+    assert signature.args[0] == Argument(name="data", type_=data_type)
+    returns = NumpyNdarrayType(shape=(None,), dtype="float64")
+    assert signature.returns == returns
 
 
 def test_model__predict(model, data_np):

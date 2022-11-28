@@ -355,10 +355,10 @@ def test_series_df_type(series_df_type_fx, request):
 def test_dataframe_type(df_type: DataFrameType, data):
     assert df_type.get_requirements().modules == ["pandas"]
 
-    obj = df_type.serialize(data)
+    obj = df_type.get_serializer().serialize(data)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data2 = df_type.deserialize(loaded)
+    data2 = df_type.get_serializer().deserialize(loaded)
 
     assert data.equals(data2)
 
@@ -366,10 +366,10 @@ def test_dataframe_type(df_type: DataFrameType, data):
 def test_series_type(series_df_type: SeriesType, series_data):
     assert series_df_type.get_requirements().modules == ["pandas"]
 
-    obj = series_df_type.serialize(series_data)
+    obj = series_df_type.get_serializer().serialize(series_data)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data2 = series_df_type.deserialize(loaded)
+    data2 = series_df_type.get_serializer().deserialize(loaded)
 
     assert series_data.equals(data2)
 
@@ -396,13 +396,13 @@ def test_dataframe_serialize_failure(df_type, obj):
 )
 def test_dataframe_deserialize_failure(df_type: DataFrameType, obj):
     with pytest.raises(DeserializationError):
-        df_type.deserialize(obj)
+        df_type.get_serializer().deserialize(obj)
 
 
 def test_unordered_columns(df_type: DataFrameType, data):
     data_rev = data[list(reversed(data.columns))]
-    obj = df_type.serialize(data_rev)
-    data2 = df_type.deserialize(obj)
+    obj = df_type.get_serializer().serialize(data_rev)
+    data2 = df_type.get_serializer().deserialize(obj)
 
     assert data.equals(data2), f"{data} \n!=\n{data2}"
     assert data2 is not data
@@ -415,10 +415,10 @@ def test_datetime():
     df_type = DataAnalyzer.analyze(data)
     assert isinstance(df_type, DataFrameType)
 
-    obj = df_type.serialize(data)
+    obj = df_type.get_serializer().serialize(data)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data2 = df_type.deserialize(loaded)
+    data2 = df_type.get_serializer().deserialize(loaded)
 
     assert data.equals(data2)
     assert data2 is not data
@@ -430,10 +430,10 @@ def test_datetime():
 def test_all(df):
     df_type: DataFrameType = DataAnalyzer.analyze(df)
 
-    obj = df_type.serialize(df)
+    obj = df_type.get_serializer().serialize(df)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data = df_type.deserialize(loaded)
+    data = df_type.get_serializer().deserialize(loaded)
 
     assert df is not data
     pandas_assert(data, df)
@@ -446,10 +446,10 @@ def test_all_filtered(df):
     df = df[~df["bool"]]
     df_type: DataFrameType = DataAnalyzer.analyze(df)
 
-    obj = df_type.serialize(df)
+    obj = df_type.get_serializer().serialize(df)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data = df_type.deserialize(loaded)
+    data = df_type.get_serializer().deserialize(loaded)
 
     assert df is not data
     pandas_assert(data, df)
@@ -543,8 +543,8 @@ def test_dataframe():
     assert dt.dict() == payload
     dt2 = parse_obj_as(DataType, payload)
     assert dt2 == dt
-    assert dt.get_model().__name__ == "DataFrame"
-    assert dt.get_model().schema() == {
+    assert dt.get_serializer().get_model().__name__ == "DataFrame"
+    assert dt.get_serializer().get_model().schema() == {
         "title": "DataFrame",
         "type": "object",
         "properties": {
@@ -579,10 +579,10 @@ def test_series(series_data2: pd.Series, series_df_type2, df_type2):
     assert isinstance(series_df_type2, SeriesType)
     assert all(df_type2.columns == series_data2.index)
 
-    obj = series_df_type2.serialize(series_data2)
+    obj = series_df_type2.get_serializer().serialize(series_data2)
     payload = json.dumps(obj)
     loaded = json.loads(payload)
-    data = series_df_type2.deserialize(loaded)
+    data = series_df_type2.get_serializer().deserialize(loaded)
 
     assert isinstance(data, pd.Series)
     assert data is not series_data2

@@ -1,21 +1,27 @@
 # pylint: disable=W0212
+from typing import Callable
 
+import numpy as np
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, create_model
-from pydantic.main import ModelMetaclass
+from pydantic import create_model
+from pydantic.main import BaseModel, ModelMetaclass
 
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer, rename_recursively
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.core.data_type import DataAnalyzer
+from mlem.core.data_type import DataAnalyzer, FileSerializer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
-from mlem.runtime.interface import ModelInterface
+from mlem.runtime.client import Client
+from mlem.runtime.interface import Interface, InterfaceMethod, ModelInterface
+from mlem.runtime.server import ServerInterface
+from tests.contrib.test_pandas import pandas_assert
 
 
 @pytest.fixture
-def signature(train):
+def f_signature(train):
     data_type = DataAnalyzer.analyze(train)
     returns_type = NumpyNdarrayType(shape=(None,), dtype="float64")
     kwargs = {"varkw": "kwargs"}
@@ -28,9 +34,9 @@ def signature(train):
 
 
 @pytest.fixture
-def payload_model(signature):
+def payload_model(f_signature):
     serializers = {
-        arg.name: arg.type_.get_serializer() for arg in signature.args
+        arg.name: arg.type_.get_serializer() for arg in f_signature.args
     }
     kwargs = {
         key: (serializer.get_model(), ...)
@@ -40,20 +46,22 @@ def payload_model(signature):
 
 
 @pytest.fixture
-def interface(model, train):
+def f_interface(model, train):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = ModelInterface.from_model(model)
+    interface = ServerInterface.create(
+        FastAPIServer(standardize=True), ModelInterface.from_model(model)
+    )
     return interface
 
 
 @pytest.fixture
-def executor(interface):
-    return interface.get_method_executor(PREDICT_METHOD_NAME)
+def executor(f_interface):
+    return f_interface.get_method_executor(PREDICT_METHOD_NAME)
 
 
 @pytest.fixture
-def client(interface):
-    app = FastAPIServer().app_init(interface)
+def f_client(f_interface):
+    app = FastAPIServer(standardize=True).app_init(f_interface)
     return TestClient(app)
 
 
@@ -69,14 +77,16 @@ def test_rename_recursively(payload_model):
     recursive_assert(payload_model)
 
 
-def test_create_handler(signature, executor):
+def test_create_handler(f_signature, executor):
     server = FastAPIServer()
-    _, response_model = server._create_handler(
-        PREDICT_METHOD_NAME, signature, executor
+    _, response_model, _ = server._create_handler(
+        PREDICT_METHOD_NAME,
+        InterfaceMethod.from_signature(f_signature),
+        executor,
     )
     assert (
         response_model.__name__
-        == f"{PREDICT_METHOD_NAME}_response_{signature.returns.get_serializer().get_model().__name__}"
+        == f"{PREDICT_METHOD_NAME}_response_{f_signature.returns.get_model().__name__}"
     )
     assert isinstance(response_model, ModelMetaclass)
 
@@ -85,10 +95,12 @@ def test_create_handler_primitive():
     def f(data):
         return data
 
-    signature = Signature.from_method(f, auto_infer=True, data="value")
+    signature: InterfaceMethod = InterfaceMethod.from_signature(
+        Signature.from_method(f, auto_infer=True, data="value")
+    )
 
     server = FastAPIServer()
-    handler, response_model = server._create_handler(
+    handler, response_model, _ = server._create_handler(
         PREDICT_METHOD_NAME, signature, f
     )
     request_model = handler.__annotations__["model"]
@@ -97,14 +109,28 @@ def test_create_handler_primitive():
     assert handler(request_model(data="value")) == "value"
 
 
-def test_endpoint(client, interface, train):
-    payload = (
-        interface.model_type.methods[PREDICT_METHOD_NAME]
+def test_endpoint(f_client, f_interface: Interface, create_mlem_client, train):
+    docs = f_client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+
+    mlem_client: Client = create_mlem_client(f_client)
+    remote_interface = mlem_client.interface
+    payload_1 = (
+        remote_interface.__root__[PREDICT_METHOD_NAME]
         .args[0]
-        .type_.get_serializer()
+        .get_serializer()
         .serialize(train)
     )
-    response = client.post(
+
+    payload = (
+        f_interface.get_method_signature(PREDICT_METHOD_NAME)
+        .args[0]
+        .get_serializer()
+        .serialize(train)
+    )
+    assert payload == payload_1
+
+    response = f_client.post(
         f"/{PREDICT_METHOD_NAME}",
         json={"data": payload},
     )
@@ -112,8 +138,29 @@ def test_endpoint(client, interface, train):
     assert response.json() == [0] * 50 + [1] * 50 + [2] * 50
 
 
-def test_endpoint_with_primitive():
-    model = MlemModel.from_obj(lambda x: x, sample_data=[-1, 0, 1])
+@pytest.mark.parametrize(
+    "data",
+    [
+        [-1, 0, 1],
+        [{"key": "value", "key2": 1}, {"key": "value", "key2": 1}],
+        [{"key": "value", "key2": 1}],
+        [{"key": "value"}],
+        {"key": [1]},
+        {"key": [1], "key2": [2]},
+        {"key": [1, 2]},
+        {"key": [1, 2], "key2": [3, 4]},
+        [[1]],
+        [[1, 1]],
+        [[1], [2]],
+        [[1, 1], [2, 2]],
+        {"key": {"key": 1}},
+        {"key": {"key": 1}, "key2": {"key": 1}},
+        {"key": {"key": 1, "key2": 1}},
+        {"key": {"key": 1, "key2": 1}, "key2": {"key": 1, "key2": 1}},
+    ],
+)
+def test_nested_objects_in_schema(data):
+    model = MlemModel.from_obj(lambda x: x, sample_data=data)
     interface = ModelInterface.from_model(model)
 
     app = FastAPIServer().app_init(interface)
@@ -122,14 +169,52 @@ def test_endpoint_with_primitive():
     docs = client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
     payload = (
-        interface.model_type.methods[PREDICT_METHOD_NAME]
+        interface.model_type.methods["__call__"]
         .args[0]
         .type_.get_serializer()
-        .serialize([1, 2, 3])
+        .serialize(data)
     )
+
     response = client.post(
-        f"/{PREDICT_METHOD_NAME}",
-        json={"data": payload},
+        "/__call__",
+        json={"x": payload},
     )
     assert response.status_code == 200, response.json()
-    assert response.json() == [1, 2, 3]
+    assert response.json() == data
+
+
+@pytest.mark.parametrize(
+    "data,eq_assert",
+    [
+        [np.array([1, 2]), np.testing.assert_allclose],
+        [pd.DataFrame([{"col": 1}]), pandas_assert],
+    ],
+)
+def test_file_endpoint(
+    create_mlem_client, create_client, data, eq_assert: Callable
+):
+    model = MlemModel.from_obj(lambda x: x, sample_data=data)
+    model_interface = ModelInterface.from_model(model)
+
+    server = FastAPIServer(
+        standardize=False,
+        request_serializer=FileSerializer(),
+        response_serializer=FileSerializer(),
+    )
+    interface = ServerInterface.create(server, model_interface)
+    client = create_client(server, interface)
+
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+
+    mlem_client: Client = create_mlem_client(client)
+    remote_interface = mlem_client.interface
+    dt = remote_interface.__root__["__call__"].args[0].data_type
+    ser = FileSerializer()
+    with ser.dump(dt, data) as f:
+        response = client.post("/__call__", files={"file": f})
+    assert response.status_code == 200
+    resp_array = ser.deserialize(dt, response.content)
+    eq_assert(resp_array, data)
+
+    eq_assert(mlem_client(data), data)

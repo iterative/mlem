@@ -1,13 +1,15 @@
 import logging
 from types import ModuleType
-from typing import ClassVar, Dict, List
+from typing import Any, BinaryIO, ClassVar, Dict, List
 
 import boto3
 import fastapi
 import sagemaker
 import uvicorn
+from fastapi.datastructures import Default
 from sagemaker.deserializers import JSONDeserializer
 from sagemaker.serializers import JSONSerializer
+from starlette.responses import JSONResponse
 
 from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.fastapi import FastAPIServer
@@ -56,7 +58,7 @@ class SageMakerServer(FastAPIServer):
     def app_init(self, interface: Interface):
         app = super().app_init(interface)
 
-        handler, response_model = self._create_handler(
+        handler, response_model, response_class = self._create_handler(
             "invocations",
             interface.get_method_signature(self.method),
             interface.get_method_executor(self.method),
@@ -66,6 +68,7 @@ class SageMakerServer(FastAPIServer):
             handler,
             methods=["POST"],
             response_model=response_model,
+            response_class=response_class or Default(JSONResponse),
         )
         app.add_api_route("/ping", ping, methods=["GET"])
         return app
@@ -87,7 +90,7 @@ class SagemakerClient(Client):
     """Signature of deployed method"""
 
     def _interface_factory(self) -> InterfaceDescriptor:
-        return InterfaceDescriptor(methods={"predict": self.signature})
+        return InterfaceDescriptor(__root__={"predict": self.signature})
 
     def get_predictor(self):
         sess = self.aws_vars.get_sagemaker_session()
@@ -99,5 +102,8 @@ class SagemakerClient(Client):
         )
         return predictor
 
-    def _call_method(self, name, args):
+    def _call_method(self, name: str, args: Any, return_raw: bool):
         return self.get_predictor().predict(args)
+
+    def _call_method_binary(self, name: str, arg: BinaryIO, return_raw: bool):
+        raise NotImplementedError  # TODO

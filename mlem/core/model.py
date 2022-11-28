@@ -198,8 +198,9 @@ class Signature(BaseModel, WithRequirements):
         method: Callable,
         *call_args,
         auto_infer: bool = False,
+        override_name: str = None,
         **call_kwargs,
-    ):
+    ) -> "Signature":
         # no support for positional-only args, but who uses them anyway
         argspec = inspect.getfullargspec(method)
         if "return" in argspec.annotations and isinstance(
@@ -212,7 +213,7 @@ class Signature(BaseModel, WithRequirements):
         else:
             returns = UnspecifiedDataType()
         return Signature(
-            name=method.__name__,
+            name=override_name or method.__name__,
             args=compose_args(
                 argspec,
                 skip_first=len(argspec.args) > 0 and argspec.args[0] == "self",
@@ -265,17 +266,19 @@ class ModelType(ABC, MlemABC, WithRequirements):
         self.model = model
         return self
 
-    def call_method(self, name, *input_data):
+    def call_method(self, name, *input_args, **input_kwargs):
         """
         Calls model method with given name on given input data
 
         :param name: name of the method to call
-        :param input_data: argument for the method
+        :param input_data: argument for the method TODO
         :return: call result
         """
         self._check_method(name)
         signature = self.methods[name]
-        output_data = self._call_method(signature.name, *input_data)
+        output_data = self._call_method(
+            signature.name, *input_args, **input_kwargs
+        )
         return output_data
 
     def _check_method(self, name):
@@ -286,11 +289,11 @@ class ModelType(ABC, MlemABC, WithRequirements):
                 f"Model '{self}' doesn't expose method '{name}'"
             )
 
-    def _call_method(self, wrapped: str, *input_data):
+    def _call_method(self, wrapped: str, *input_args, **input_kwargs):
         # with switch_curdir(self.curdir):
         if hasattr(self, wrapped):
-            return getattr(self, wrapped)(*input_data)
-        return getattr(self.model, wrapped)(*input_data)
+            return getattr(self, wrapped)(*input_args, **input_kwargs)
+        return getattr(self.model, wrapped)(*input_args, **input_kwargs)
 
     def resolve_method(self, method_name: str = None):
         """Checks if method with this name exists

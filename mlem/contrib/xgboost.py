@@ -12,10 +12,17 @@ from typing import Any, ClassVar, Dict, List, Optional, Type
 import xgboost
 from pydantic import BaseModel
 
-from mlem.constants import PREDICT_METHOD_NAME
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, Storage
-from mlem.core.data_type import DataHook, DataSerializer, DataType, DataWriter
+from mlem.core.data_type import (
+    DataAnalyzer,
+    DataHook,
+    DataSerializer,
+    DataType,
+    DataWriter,
+    JsonTypes,
+    WithDefaultSerializer,
+)
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
@@ -40,9 +47,9 @@ class XGBoostRequirement(WithRequirements):
 
 
 class DMatrixDataType(
+    WithDefaultSerializer,
     XGBoostRequirement,
     DataType,
-    DataSerializer,
     DataHook,
     IsInstanceHookMixin,
 ):
@@ -71,22 +78,6 @@ class DMatrixDataType(
             else ["float32" for _ in range(len(self.feature_names))]
         )
 
-    def serialize(self, instance: xgboost.DMatrix) -> Dict[Any, Any]:
-        """
-        Raises an error because there is no way to extract original data from DMatrix
-        """
-        raise SerializationError(
-            "xgboost matrix does not support serialization"
-        )
-
-    def deserialize(self, obj: Dict[Any, Any]) -> xgboost.DMatrix:
-        try:
-            return xgboost.DMatrix(obj)
-        except (ValueError, TypeError) as e:
-            raise DeserializationError(
-                f"given object: {obj} could not be converted to xgboost matrix"
-            ) from e
-
     @classmethod
     def from_dmatrix(cls, dmatrix: xgboost.DMatrix):
         """
@@ -111,10 +102,32 @@ class DMatrixDataType(
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
     ) -> DataWriter:
-        raise NotImplementedError()
-
-    def get_model(self, prefix: str = "") -> Type[BaseModel]:
         raise NotImplementedError
+
+
+class DMatrixSerializer(DataSerializer[DMatrixDataType]):
+    """Serialzier for XGBoost DMatrix"""
+
+    is_default: ClassVar = True
+    data_class: ClassVar = DMatrixDataType
+
+    def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
+        raise NotImplementedError
+
+    def serialize(
+        self, data_type, instance: xgboost.DMatrix
+    ) -> Dict[Any, Any]:
+        raise SerializationError(
+            "xgboost matrix does not support serialization"
+        )
+
+    def deserialize(self, data_type, obj: JsonTypes) -> xgboost.DMatrix:
+        try:
+            return xgboost.DMatrix(obj)
+        except (ValueError, TypeError) as e:
+            raise DeserializationError(
+                f"given object: {obj} could not be converted to xgboost matrix"
+            ) from e
 
 
 class XGBoostModelIO(ModelIO):
@@ -163,24 +176,27 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
     def process(
         cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
     ) -> ModelType:
-        model = XGBoostModel(model=obj, methods={})
-        methods = {
-            PREDICT_METHOD_NAME: Signature.from_method(
-                model.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
-            ),
-            "xgboost_predict": Signature.from_method(
-                obj.predict, auto_infer=sample_data is None, data=sample_data
-            ),
-        }
-        model.methods = methods
-        return model
+        og_sample_data = sample_data
+        if sample_data is not None and not isinstance(
+            sample_data, xgboost.DMatrix
+        ):
+            sample_data = xgboost.DMatrix(sample_data)
+        signature = Signature.from_method(
+            obj.predict, auto_infer=sample_data is not None, data=sample_data
+        )
+        if og_sample_data is not None:
+            signature.args[0].type_ = DataAnalyzer.analyze(og_sample_data)
+        return XGBoostModel(
+            model=obj,
+            methods={
+                "predict": signature,
+            },
+        )
 
-    def predict(self, data):
+    def predict(self, data, **kwargs):
         if not isinstance(data, xgboost.DMatrix):
             data = xgboost.DMatrix(data)
-        return self.model.predict(data)
+        return self.model.predict(data, **kwargs)
 
     def get_requirements(self) -> Requirements:
         return (

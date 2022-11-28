@@ -4,10 +4,15 @@ import pytest
 
 import mlem
 from mlem.core.data_type import DataType, DataWriter
-from mlem.core.model import Argument, Signature
 from mlem.core.requirements import Requirements
 from mlem.runtime import Interface
-from mlem.runtime.interface import SimpleInterface, expose
+from mlem.runtime.interface import (
+    InterfaceArgument,
+    InterfaceDataType,
+    InterfaceMethod,
+    SimpleInterface,
+    expose,
+)
 
 
 class Container(DataType):
@@ -47,22 +52,21 @@ def interface() -> Interface:
 
 def test_interface_descriptor__from_interface(interface: Interface):
     d = interface.get_descriptor()
-    assert d.version == mlem.__version__
-    sig = Signature(
+    sig = InterfaceMethod(
         name="method1",
         args=[
-            Argument(
+            InterfaceArgument(
                 name="arg1",
-                type_=Container(field=5),
+                data_type=Container(field=5),
             )
         ],
-        returns=Container(field=5),
+        returns=InterfaceDataType(data_type=Container(field=5)),
     )
-    assert d.methods == {"method1": sig}
+    assert d.__root__ == {"method1": sig}
 
 
 def test_interface_descriptor__to_dict(interface: Interface):
-    d = interface.get_descriptor()
+    d = interface.get_versioned_descriptor()
 
     assert d.dict() == {
         "version": mlem.__version__,
@@ -71,16 +75,17 @@ def test_interface_descriptor__to_dict(interface: Interface):
                 "args": [
                     {
                         "default": None,
-                        "kw_only": False,
                         "name": "arg1",
                         "required": True,
-                        "type_": {"field": 5, "type": "test_container"},
+                        "data_type": {"field": 5, "type": "test_container"},
+                        "serializer": None,
                     }
                 ],
                 "name": "method1",
-                "returns": {"field": 5, "type": "test_container"},
-                "varargs": None,
-                "varkw": None,
+                "returns": {
+                    "data_type": {"field": 5, "type": "test_container"},
+                    "serializer": None,
+                },
             }
         },
     }

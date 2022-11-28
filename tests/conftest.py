@@ -18,7 +18,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem import LOCAL_CONFIG
 from mlem.api import init, save
-from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.github import ls_github_branches
 from mlem.contrib.sklearn import SklearnModel
@@ -26,10 +25,11 @@ from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.data_type import DataReader, DataType, DataWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
-from mlem.core.model import Argument, ModelType, Signature
 from mlem.core.objects import MlemData, MlemModel
 from mlem.core.requirements import Requirements
+from mlem.runtime.client import HTTPClient
 from mlem.runtime.interface import ModelInterface
+from mlem.runtime.server import ServerInterface
 
 RESOURCES = "resources"
 
@@ -130,8 +130,6 @@ def model_train_target(request):
     elif request.param == "pandas":
         train, target = load_iris(return_X_y=True)
         train = pd.DataFrame(train)
-        # TODO: https://github.com/iterative/mlem/issues/148
-        train.columns = train.columns.astype(str)
     model = DecisionTreeClassifier().fit(train, target)
     return model, train, target
 
@@ -151,51 +149,91 @@ def model(model_train_target):
     return model_train_target[0]
 
 
+@pytest.fixture()
+def server():
+    return FastAPIServer(standardize=True)
+
+
 @pytest.fixture
-def interface(model, train):
+def interface(model, train, server):
     model = MlemModel.from_obj(model, sample_data=train)
-    interface = ModelInterface.from_model(model)
+    interface = ServerInterface.create(
+        FastAPIServer(standardize=True), ModelInterface.from_model(model)
+    )
     return interface
 
 
 @pytest.fixture
-def client(interface):
-    app = FastAPIServer().app_init(interface)
-    return TestClient(app)
+def create_client():
+    def client(server, interface):
+        return TestClient(server.app_init(interface))
+
+    return client
 
 
 @pytest.fixture
-def request_get_mock(mocker, client):
+def client(interface, server, create_client):
+    return create_client(server, interface)
+
+
+@pytest.fixture
+def create_request_get_mock(mocker):
     """
     mocks requests.get method so as to use
     FastAPI's TestClient's get() method beneath
     """
 
-    def patched_get(url, params=None, **kwargs):
-        url = url[len("http://") :]
-        return client.get(url, params=params, **kwargs)
+    def _request_get_mock(_client):
+        def patched_get(url, params=None, **kwargs):
+            url = url[len("http://") :]
+            return _client.get(url, params=params, **kwargs)
 
-    return mocker.patch(
-        "mlem.runtime.client.requests.get",
-        side_effect=patched_get,
-    )
+        return mocker.patch(
+            "mlem.runtime.client.requests.get",
+            side_effect=patched_get,
+        )
+
+    return _request_get_mock
 
 
 @pytest.fixture
-def request_post_mock(mocker, client):
+def create_request_post_mock(mocker):
     """
     mocks requests.post method so as to use
     FastAPI's TestClient's post() method beneath
     """
 
-    def patched_post(url, data=None, json=None, **kwargs):
-        url = url[len("http://") :]
-        return client.post(url, data=data, json=json, **kwargs)
+    def _request_post_mock(_client):
+        def patched_post(url, data=None, json=None, **kwargs):
+            url = url[len("http://") :]
+            return _client.post(url, data=data, json=json, **kwargs)
 
-    return mocker.patch(
-        "mlem.runtime.client.requests.post",
-        side_effect=patched_post,
-    )
+        return mocker.patch(
+            "mlem.runtime.client.requests.post",
+            side_effect=patched_post,
+        )
+
+    return _request_post_mock
+
+
+@pytest.fixture
+def request_post_mock(client, create_request_post_mock):
+    return create_request_post_mock(client)
+
+
+@pytest.fixture
+def request_get_mock(client, create_request_get_mock):
+    return create_request_get_mock(client)
+
+
+@pytest.fixture
+def create_mlem_client(create_request_get_mock, create_request_post_mock):
+    def mlem_client(client):
+        create_request_get_mock(client)
+        create_request_post_mock(client)
+        return HTTPClient(host="", port=None)
+
+    return mlem_client
 
 
 @pytest.fixture
@@ -343,21 +381,6 @@ def data_write_read_check(
                 assert new.data == data.data
 
         return artifacts
-
-
-def check_model_type_common_interface(
-    model_type: ModelType,
-    data_type: DataType,
-    returns_type: DataType,
-    **kwargs,
-):
-    assert PREDICT_METHOD_NAME in model_type.methods
-    assert model_type.methods[PREDICT_METHOD_NAME] == Signature(
-        name=PREDICT_METHOD_NAME,
-        args=[Argument(name=PREDICT_ARG_NAME, type_=data_type)],
-        returns=returns_type,
-        **kwargs,
-    )
 
 
 @pytest.fixture()

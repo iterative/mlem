@@ -5,7 +5,8 @@ searching for MLEM object by given path.
 import logging
 import os
 import posixpath
-from typing import Any, Dict, Optional, Type, TypeVar, Union, overload
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
@@ -16,8 +17,14 @@ from mlem.core.errors import (
     MlemProjectNotFound,
     WrongMetaType,
 )
-from mlem.core.meta_io import Location, get_meta_path
-from mlem.core.objects import MlemData, MlemModel, MlemObject, find_object
+from mlem.core.meta_io import MLEM_EXT, Location, get_meta_path
+from mlem.core.objects import (
+    MlemData,
+    MlemLink,
+    MlemModel,
+    MlemObject,
+    find_object,
+)
 from mlem.utils.path import make_posix
 
 logger = logging.getLogger(__name__)
@@ -181,6 +188,8 @@ def load_meta(
         meta.load_value()
     if not isinstance(meta, cls):
         raise WrongMetaType(meta, force_type)
+
+    logger.debug("Loaded meta object %s", meta)
     return meta  # type: ignore[return-value]
 
 
@@ -215,3 +224,28 @@ def find_meta_location(location: Location) -> Location:
         path = posixpath.relpath(path, location.project)
     location.update_path(path)
     return location
+
+
+def list_objects(
+    path: str = ".", fs: Optional[AbstractFileSystem] = None, recursive=True
+) -> Dict[Type[MlemObject], List[MlemObject]]:
+    loc = Location.resolve(path, fs=fs)
+    result = defaultdict(list)
+    postfix = f"/**{MLEM_EXT}" if recursive else f"/*{MLEM_EXT}"
+    for filepath in loc.fs.glob(loc.fullpath + postfix, detail=False):
+        meta = load_meta(
+            filepath, fs=loc.fs, load_value=False, follow_links=False
+        )
+        type_ = meta.__class__
+        if isinstance(meta, MlemLink):
+            type_ = meta.link_cls
+        else:
+            parent = meta.__parent__
+            if (
+                parent is not None
+                and parent != MlemObject
+                and issubclass(parent, MlemObject)
+            ):
+                type_ = parent
+        result[type_].append(meta)
+    return result
