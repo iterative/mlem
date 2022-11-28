@@ -1,6 +1,7 @@
 import os
 import posixpath
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -258,6 +259,10 @@ def test_ls_remote_s3(s3_tmp_path):
     assert all(o == meta for o in envs)
 
 
+@pytest.mark.xfail(
+    sys.platform == "win32",
+    reason="https://github.com/fsspec/filesystem_spec/issues/1125",
+)
 def test_load_local_rev(tmpdir):
     path = str(tmpdir / "obj")
 
