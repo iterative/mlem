@@ -55,7 +55,7 @@ class LocalGitResolver(UriResolver):
         fs: GitFileSystem,
     ):
         fullpath = posixpath.join(project or "", path)
-        return f"git://{fs.repo.workdir}:{rev or fs.ref}@{fullpath}"
+        return f"git://{os.path.relpath(fs.repo.workdir, '.')}:{rev or fs.ref}@{fullpath}"
 
     @classmethod
     def _find_local_git(cls, path: str) -> Optional[str]:

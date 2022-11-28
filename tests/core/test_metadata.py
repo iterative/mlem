@@ -259,7 +259,7 @@ def test_ls_remote_s3(s3_tmp_path):
 
 
 def test_load_local_rev(tmpdir):
-    path = make_posix(str(tmpdir / "obj"))
+    path = str(tmpdir / "obj")
 
     def model1(data):
         return data + 1
@@ -267,13 +267,13 @@ def test_load_local_rev(tmpdir):
     def model2(data):
         return data + 2
 
-    repo = Repo.init(make_posix(str(tmpdir)))
-    saved = save(model1, path)
-    repo.index.add([path, saved.loc.path])
+    repo = Repo.init(str(tmpdir))
+    save(model1, path)
+    repo.index.add(["obj", "obj.mlem"])
     first = repo.index.commit("init")
 
-    saved = save(model2, path)
-    repo.index.add([path, saved.loc.path])
+    save(model2, path)
+    repo.index.add(["obj", "obj.mlem"])
     second = repo.index.commit("second")
 
     assert load(path, rev=first.hexsha)(1) == 2
