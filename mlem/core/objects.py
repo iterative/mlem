@@ -1147,8 +1147,7 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
 def find_object(
     path: str, fs: AbstractFileSystem, project: str = None
 ) -> Tuple[str, str]:
-    """Extract object_type and path from path.
-    assumes .mlem/ content is valid"""
+    """Extract object_type and path from path."""
     if project is None:
         project = find_project_root(path, fs)
     if project is not None and path.startswith(project):
