@@ -23,7 +23,7 @@ from mlem.core.errors import (
 )
 from mlem.core.import_objects import ImportAnalyzer, ImportHook
 from mlem.core.meta_io import Location, get_fs
-from mlem.core.metadata import load_meta, save
+from mlem.core.metadata import load_meta, log_meta_params, save
 from mlem.core.objects import (
     MlemBuilder,
     MlemData,
@@ -36,6 +36,7 @@ from mlem.core.objects import (
 from mlem.runtime.client import Client
 from mlem.runtime.interface import ModelInterface
 from mlem.runtime.server import Server
+from mlem.telemetry import api_telemetry, telemetry
 from mlem.ui import (
     EMOJI_APPLY,
     EMOJI_COPY,
@@ -47,6 +48,7 @@ from mlem.ui import (
 )
 
 
+@api_telemetry
 def apply(
     model: Union[str, MlemModel, Any],
     *data: Union[str, MlemData, Any],
@@ -76,6 +78,7 @@ def apply(
         model = get_model_meta(model)
     else:
         model = MlemModel.from_obj(model)
+    log_meta_params(model, add_object_type=False)
     w = model.model_type
     try:
         resolved_method = w.resolve_method(method)
@@ -103,6 +106,7 @@ def apply(
     return save(res, output, project=target_project)
 
 
+@api_telemetry
 def apply_remote(
     client: Union[str, Client],
     *data: Union[str, MlemData, Any],
@@ -129,6 +133,7 @@ def apply_remote(
             Otherwise returns None.
     """
     client = ensure_mlem_object(Client, client, **client_kwargs)
+    telemetry.log_param("client_type", client.type)
     if method is not None:
         try:
             resolved_method = getattr(client, method)
@@ -148,6 +153,7 @@ def apply_remote(
     return save(res, output, project=target_project)
 
 
+@api_telemetry
 def clone(
     path: str,
     target: str,
@@ -195,6 +201,7 @@ def clone(
     )
 
 
+@api_telemetry
 def init(path: str = ".") -> None:
     """Creates MLEM config in `path`
 
@@ -211,8 +218,6 @@ def init(path: str = ".") -> None:
             f"{posixpath.abspath(path)} already exists, no need to run `mlem init` again"
         )
     else:
-        from mlem.telemetry import telemetry
-
         echo(
             color("███╗   ███╗", "#13ADC7")
             + color("██╗     ", "#945DD5")
@@ -261,6 +266,7 @@ def init(path: str = ".") -> None:
         )
 
 
+@api_telemetry
 def link(
     source: Union[str, MlemObject],
     source_project: Optional[str] = None,
@@ -304,6 +310,7 @@ def link(
     )
 
 
+@api_telemetry
 def build(
     builder: Union[str, MlemBuilder],
     model: Union[str, MlemModel],
@@ -320,11 +327,13 @@ def build(
         The result of the build, different for different builders.
     """
     model = get_model_meta(model, load_value=False)
-    return ensure_mlem_object(MlemBuilder, builder, **builder_kwargs).build(
-        model
-    )
+    builder = ensure_mlem_object(MlemBuilder, builder, **builder_kwargs)
+    log_meta_params(model, add_object_type=False)
+    log_meta_params(builder, add_object_type=False)
+    return builder.build(model)
 
 
+@api_telemetry
 def serve(
     model: Union[str, MlemModel],
     server: Union[Server, str],
@@ -343,10 +352,13 @@ def serve(
     model = get_model_meta(model, load_value=True)
 
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
+    telemetry.log_param("server_type", server_obj.type)
+    log_meta_params(model)
     echo(f"Starting {server_obj.type} server...")
     server_obj.start(ModelInterface.from_model(model))
 
 
+@api_telemetry
 def import_object(
     path: str,
     project: Optional[str] = None,
@@ -386,6 +398,7 @@ def import_object(
         )
     else:
         meta = ImportAnalyzer.analyze(loc, copy_data=copy_data)
+    log_meta_params(meta, add_object_type=True)
     if target is not None:
         meta.dump(
             target,
@@ -395,6 +408,7 @@ def import_object(
     return meta
 
 
+@api_telemetry
 def deploy(
     deploy_meta_or_path: Union[MlemDeployment, str],
     model: Union[MlemModel, str],
@@ -459,8 +473,10 @@ def deploy(
     if update:
         pass  # todo update from deploy_args and env_args
     # ensuring links are working
+    log_meta_params(deploy_meta)
     deploy_meta.get_env()
     model_meta = get_model_meta(model)
+    log_meta_params(model_meta)
 
     deploy_meta.check_unchanged()
     deploy_meta.deploy(model_meta)

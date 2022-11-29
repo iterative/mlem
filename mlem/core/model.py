@@ -248,6 +248,7 @@ class ModelType(ABC, MlemABC, WithRequirements):
         exclude = {"model"}
 
     abs_name: ClassVar[str] = "model_type"
+    type: ClassVar[str]
 
     model: Any = None
 

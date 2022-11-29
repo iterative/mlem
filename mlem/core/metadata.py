@@ -5,19 +5,29 @@ searching for MLEM object by given path.
 import logging
 import os
 import posixpath
-from typing import Any, Dict, Optional, Type, TypeVar, Union, overload
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 
 from fsspec import AbstractFileSystem
 from typing_extensions import Literal
 
+from mlem.core.data_type import DataType
 from mlem.core.errors import (
     HookNotFound,
     MlemObjectNotFound,
     MlemProjectNotFound,
     WrongMetaType,
 )
-from mlem.core.meta_io import Location, get_meta_path
-from mlem.core.objects import MlemData, MlemModel, MlemObject, find_object
+from mlem.core.meta_io import MLEM_EXT, Location, get_meta_path
+from mlem.core.model import ModelType
+from mlem.core.objects import (
+    MlemData,
+    MlemLink,
+    MlemModel,
+    MlemObject,
+    find_object,
+)
+from mlem.telemetry import api_telemetry, telemetry
 from mlem.utils.path import make_posix
 
 logger = logging.getLogger(__name__)
@@ -42,6 +52,28 @@ def get_object_metadata(
         )
 
 
+def log_meta_params(meta: MlemObject, add_object_type: bool = False):
+    if add_object_type:
+        telemetry.log_param("object_type", meta.object_type)
+    if isinstance(meta, MlemModel):
+        telemetry.log_param(
+            "model_type", meta.model_type_raw[ModelType.__config__.type_field]
+        )
+    elif isinstance(meta, MlemData):
+        data_type = None
+        if meta.data_type is not None:
+            data_type = meta.data_type.type
+        if data_type is None and meta.reader is not None:
+            data_type = meta.reader_raw["data_type"][
+                DataType.__config__.type_field
+            ]
+        if data_type is not None:
+            telemetry.log_param("data_type", data_type)
+    elif meta.__parent__ is not MlemObject:
+        telemetry.log_param(f"{meta.object_type}_type", meta.__get_alias__())
+
+
+@api_telemetry
 def save(
     obj: Any,
     path: Union[str, os.PathLike],
@@ -71,6 +103,7 @@ def save(
         sample_data,
         params=params,
     )
+    log_meta_params(meta, add_object_type=True)
     path = os.fspath(path)
     meta.dump(path, fs=fs, project=project)
     return meta
@@ -139,6 +172,7 @@ def load_meta(
     ...
 
 
+@api_telemetry
 def load_meta(
     path: Union[str, os.PathLike],
     project: Optional[str] = None,
@@ -176,6 +210,7 @@ def load_meta(
         location=find_meta_location(location),
         follow_links=follow_links,
     )
+    log_meta_params(meta, add_object_type=True)
     if load_value:
         meta.load_value()
     if not isinstance(meta, cls):
@@ -196,14 +231,11 @@ def find_meta_location(location: Location) -> Location:
     """
     location = location.copy()
     try:
-        # first, assume `location` points to an external mlem object
-        # this allows to find the object not listed in .mlem/
         path = get_meta_path(uri=location.fullpath, fs=location.fs)
     except FileNotFoundError:
         path = None
 
     if path is None:
-        # now search for objects in .mlem
         try:
             _, path = find_object(
                 location.path, fs=location.fs, project=location.project
@@ -216,3 +248,28 @@ def find_meta_location(location: Location) -> Location:
         path = posixpath.relpath(path, location.project)
     location.update_path(path)
     return location
+
+
+def list_objects(
+    path: str = ".", fs: Optional[AbstractFileSystem] = None, recursive=True
+) -> Dict[Type[MlemObject], List[MlemObject]]:
+    loc = Location.resolve(path, fs=fs)
+    result = defaultdict(list)
+    postfix = f"/**{MLEM_EXT}" if recursive else f"/*{MLEM_EXT}"
+    for filepath in loc.fs.glob(loc.fullpath + postfix, detail=False):
+        meta = load_meta(
+            filepath, fs=loc.fs, load_value=False, follow_links=False
+        )
+        type_ = meta.__class__
+        if isinstance(meta, MlemLink):
+            type_ = meta.link_cls
+        else:
+            parent = meta.__parent__
+            if (
+                parent is not None
+                and parent != MlemObject
+                and issubclass(parent, MlemObject)
+            ):
+                type_ = parent
+        result[type_].append(meta)
+    return result
