@@ -15,6 +15,7 @@ from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.model import ModelIO, ModelType
 from mlem.core.objects import (
+    MAIN_PROCESSOR_NAME,
     DeployState,
     DeployStatus,
     MlemDeployment,
@@ -313,17 +314,24 @@ def test_link_dump_in_mlem(model_path_mlem_project):
     assert isinstance(model, MlemModel)
 
 
+#  pylint: disable=protected-access
 def test_model_model_type_laziness():
     payload = {
-        "model_type": {"type": "sklearn", "methods": {}},
+        "processors": {
+            MAIN_PROCESSOR_NAME: {"type": "sklearn", "methods": {}}
+        },
         "object_type": "model",
         "requirements": [],
     }
     model = parse_obj_as(MlemModel, payload)
-    assert model.model_type_cache == {"type": "sklearn", "methods": {}}
-    assert isinstance(model.model_type_cache, dict)
+    assert model.processors[MAIN_PROCESSOR_NAME] == {
+        "type": "sklearn",
+        "methods": {},
+    }
+    assert isinstance(model._processors_cache, dict)
+    assert len(model._processors_cache) == 0
     assert isinstance(model.model_type, ModelType)
-    assert isinstance(model.model_type_cache, ModelType)
+    assert len(model._processors_cache) == 1
 
 
 def test_mlem_project_root(filled_mlem_project):

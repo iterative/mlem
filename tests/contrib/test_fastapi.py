@@ -169,7 +169,7 @@ def test_nested_objects_in_schema(data):
     docs = client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
     payload = (
-        interface.model_type.methods["__call__"]
+        interface.model.model_type.methods["__call__"]
         .args[0]
         .type_.get_serializer()
         .serialize(data)

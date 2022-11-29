@@ -15,7 +15,7 @@ from mlem.core.errors import MlemError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load
 from mlem.core.model import ModelIO
-from mlem.core.objects import MlemLink, MlemModel
+from mlem.core.objects import MAIN_PROCESSOR_NAME, MlemLink, MlemModel
 from mlem.runtime.client import HTTPClient
 from tests.conftest import MLEM_TEST_REPO, long
 
@@ -240,8 +240,7 @@ def test_import_model_pickle_remote_in_project(
 
 def test_build_lazy(model_meta, tmp_path):
     model_meta.dump(str(tmp_path / "model"))
-    model_meta.model_type_cache = model_meta.model_type_raw
-    model_meta.model_type_cache["type"] = "__lol__"
+    model_meta.processors[MAIN_PROCESSOR_NAME]["type"] = "__lol__"
     build(
         "pip", model_meta, target=str(tmp_path / "build"), package_name="lol"
     )

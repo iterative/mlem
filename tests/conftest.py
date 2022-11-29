@@ -25,7 +25,7 @@ from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.data_type import DataReader, DataType, DataWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemData, MlemModel
+from mlem.core.objects import MAIN_PROCESSOR_NAME, MlemData, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.client import HTTPClient
 from mlem.runtime.interface import ModelInterface
@@ -334,7 +334,7 @@ def mlem_curdir_project(tmpdir_factory):
 def filled_mlem_project(mlem_project):
     model = MlemModel(
         requirements=Requirements.new("sklearn"),
-        model_type=SklearnModel(methods={}, model=""),
+        processors={MAIN_PROCESSOR_NAME: SklearnModel(methods={}, model="")},
     )
     model.dump("model1", project=mlem_project)
 

@@ -616,8 +616,10 @@ class MlemModel(_WithArtifacts):
     # preprocessor: Union["ModelLink", "MlemModel", None] = None
 
     processors: Dict[str, Any] = {}
+    """Serialized model types"""
     _processors_cache: Dict[str, ModelType] = {}
     call_orders: Dict[str, List[Tuple[str, str]]] = {}
+    """Order of calls for different inference methods"""
 
     def get_processor(self, name: str) -> ModelType:
         if name not in self._processors_cache:
@@ -703,13 +705,14 @@ class MlemModel(_WithArtifacts):
 
         mlem_model.add_processor(MAIN_PROCESSOR_NAME, mt)
 
-        for method in mt.methods:
-            methods_sample_data = {
-                k: mt.call_method(method, v)
-                for k, v in methods_sample_data.items()
-            }
-        if len(methods) == 1:
-            sample_data = methods_sample_data[list(methods)[0]]
+        if postprocess is not None:
+            for method in mt.methods:
+                methods_sample_data = {
+                    k: mt.call_method(method, v) if v is not None else None
+                    for k, v in methods_sample_data.items()
+                }
+            if len(methods) == 1:
+                sample_data = methods_sample_data[list(methods)[0]]
 
         if isinstance(postprocess, dict):
             for method, obj in postprocess.items():
