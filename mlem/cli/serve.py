@@ -19,6 +19,7 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
+    pass_api_log_params,
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
@@ -49,7 +50,7 @@ def serve_load(
 ):
     from mlem.api.commands import serve
 
-    serve(
+    pass_api_log_params(serve)(
         load_meta(model, project, rev, force_type=MlemModel),
         config_arg(
             Server,

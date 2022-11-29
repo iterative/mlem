@@ -8,6 +8,7 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
+from mlem.cli.utils import pass_api_log_params
 from mlem.core.import_objects import ImportHook
 from mlem.utils.entrypoints import list_implementations
 
@@ -28,7 +29,7 @@ def import_object(
     """Create a `.mlem` metafile for a model or data in any file or directory."""
     from mlem.api.commands import import_object
 
-    import_object(
+    pass_api_log_params(import_object)(
         uri,
         project=project,
         rev=rev,

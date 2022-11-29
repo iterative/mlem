@@ -8,6 +8,7 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
+from mlem.cli.utils import pass_api_log_params
 
 
 @mlem_command("link", section="object")
@@ -43,7 +44,7 @@ def link(
     """
     from mlem.api.commands import link
 
-    link(
+    pass_api_log_params(link)(
         source=source,
         source_project=source_project,
         rev=rev,

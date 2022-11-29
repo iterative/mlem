@@ -27,6 +27,7 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
+    pass_api_log_params,
     wrap_build_error,
 )
 from mlem.core.base import build_mlem_object
@@ -73,7 +74,7 @@ def deploy_run_callback(
     """
     from mlem.api.commands import deploy
 
-    deploy(
+    pass_api_log_params(deploy)(
         load,
         load_meta(
             model, project=model_project, rev=model_rev, force_type=MlemModel
@@ -125,7 +126,7 @@ def create_deploy_run_command(type_name):
                     file_conf=file_conf,
                     **__kwargs__,
                 ).dump(path, project=project)
-        deploy(
+        pass_api_log_params(deploy)(
             meta,
             load_meta(
                 model,
