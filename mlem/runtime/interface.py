@@ -7,15 +7,10 @@ from pydantic import BaseModel, validator
 import mlem
 import mlem.version
 from mlem.core.base import MlemABC
-from mlem.core.data_type import (
-    DataType,
-    DataTypeSerializer,
-    Serializer,
-    UnspecifiedDataType,
-)
+from mlem.core.data_type import DataType, DataTypeSerializer, Serializer
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
-from mlem.core.model import Argument, ModelType, Signature
+from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
 
 
@@ -247,11 +242,8 @@ class SimpleInterface(Interface):
 class ModelInterface(Interface):
     """Interface that descibes model methods"""
 
-    class Config:
-        exclude = {"model_type"}
-
     type: ClassVar[str] = "model"
-    model_type: ModelType
+    model: MlemModel
     """Model metadata"""
 
     def load(self, uri: str):
@@ -260,32 +252,52 @@ class ModelInterface(Interface):
             raise ValueError("Interface can be created only from models")
         if meta.artifacts is None:
             raise ValueError("Cannot load not saved object")
-        self.model_type = meta.model_type
-        self.model_type.load(meta.artifacts)
+        self.model = meta
+        self.model.load_value()
 
-    @validator("model_type")
+    @validator("model")
     @classmethod
-    def ensure_signature(cls, value: ModelType):
-        if any(
-            isinstance(a, UnspecifiedDataType)
-            for method in value.methods.values()
-            for a in method.args
-        ) or any(
-            isinstance(method.returns, UnspecifiedDataType)
-            for method in value.methods.values()
-        ):
-            raise MlemError(
-                "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
-            )
+    def ensure_signature(cls, value: MlemModel):
+        # TODO
+        # if any(
+        #     isinstance(a, UnspecifiedDataType)
+        #     for method in value.methods.values()
+        #     for a in method.args
+        # ) or any(
+        #     isinstance(method.returns, UnspecifiedDataType)
+        #     for method in value.methods.values()
+        # ):
+        #     raise MlemError(
+        #         "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
+        #     )
         return value
 
     @classmethod
     def from_model(cls, model: MlemModel):
-        return cls(model_type=model.model_type)
+        return cls(model=model)
+
+    @property
+    def is_simple_model(self):
+        return len(self.model.processors) == 1
 
     def get_method_signature(self, method_name: str) -> InterfaceMethod:
-        signature = self.model_type.methods[method_name]
-        return InterfaceMethod.from_signature(signature)
+        if self.is_simple_model:
+            signature = self.model.model_type.methods[method_name]
+            return InterfaceMethod.from_signature(signature)
+        call_order = self.model.call_orders[method_name]
+        input_signature = self.model.get_processor(call_order[0][0]).methods[
+            call_order[0][1]
+        ]
+        output_signature = self.model.get_processor(call_order[-1][0]).methods[
+            call_order[-1][1]
+        ]
+        return InterfaceMethod.from_signature(
+            Signature(
+                name=method_name,
+                args=input_signature.args,
+                returns=output_signature.returns,
+            )
+        )
 
     def get_method_executor(self, method_name: str):
         signature = self.get_method_signature(method_name)
@@ -297,21 +309,23 @@ class ModelInterface(Interface):
                 else kwargs.get(arg.name, arg.default)
                 for arg in signature.args
             }
-            return self.model_type.call_method(method_name, **args)
+            return getattr(self.model, method_name)(**args)
 
         return executor
 
     def get_method_names(self) -> List[str]:
-        return list(self.model_type.methods.keys())
+        return list(self.model.call_orders)
 
     def get_method_docs(self, method_name: str) -> str:
         return getattr(
-            self.model_type.model, self.model_type.methods[method_name].name
+            self.model.model_type.model,
+            self.model.model_type.methods[method_name].name,
         ).__doc__
 
     def get_method_args(
         self, method_name: str
     ) -> Dict[str, InterfaceArgument]:
         return {
-            a.name: a.type_ for a in self.model_type.methods[method_name].args
+            a.name: a.type_
+            for a in self.model.model_type.methods[method_name].args
         }

@@ -2,6 +2,7 @@
 Base classes for meta objects in MLEM
 """
 import contextlib
+import dataclasses
 import hashlib
 import itertools
 import os
@@ -9,7 +10,6 @@ import posixpath
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -597,8 +597,9 @@ class _WithArtifacts(ABC, MlemObject):
         self.requirements.check()
 
 
-MAIN_PROCESSOR_NAME = "__main__"
-TMP_PREPROCESSOR_NAME = "pre"
+MAIN_PROCESSOR_NAME = "model"
+PREPROCESS_NAME = "preprocess"
+POSTPROCESS_NAME = "postprocess"
 
 
 class MlemModel(_WithArtifacts):
@@ -616,7 +617,7 @@ class MlemModel(_WithArtifacts):
 
     processors: Dict[str, Any] = {}
     _processors_cache: Dict[str, ModelType] = {}
-    pipelines: Dict[str, List[Tuple[str, str]]] = {}
+    call_orders: Dict[str, List[Tuple[str, str]]] = {}
 
     def get_processor(self, name: str) -> ModelType:
         if name not in self._processors_cache:
@@ -629,30 +630,112 @@ class MlemModel(_WithArtifacts):
     def model_type(self) -> ModelType:
         return self.get_processor(MAIN_PROCESSOR_NAME)
 
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     @classmethod
-    def from_obj(
+    def from_obj(  # noqa: C901
         cls,
         model: Any,
         sample_data: Any = None,
+        methods_sample_data: Dict[str, Any] = None,
         params: Dict[str, str] = None,
-        preprocessor: Any = None,
+        preprocess: Union[Any, Dict[str, Any]] = None,
+        postprocess: Union[Any, Dict[str, Any]] = None,
     ) -> "MlemModel":
         mlem_model = MlemModel(
             params=params or {},
         )
-        if callable(preprocessor):
-            pre = ModelAnalyzer.analyze(
-                preprocessor, sample_data=sample_data
-            ).bind(preprocessor)
-            mlem_model.add_processor(TMP_PREPROCESSOR_NAME, pre)
-            if sample_data is not None:
-                sample_data = pre.call_method("predict", sample_data)
+        model_hook = ModelAnalyzer.find_hook(model)
+        model_type = model_hook.process(model)
+        methods = set(model_type.methods)
+        if (
+            methods_sample_data is not None
+            and set(methods_sample_data) != methods
+        ):
+            raise ValueError(
+                f"`methods_sample_data` does not have values for methods {methods.difference(methods_sample_data)} or have extra values"
+            )
+        if methods_sample_data is None:
+            methods_sample_data = {m: sample_data for m in methods}
 
-        mt = ModelAnalyzer.analyze(model, sample_data=sample_data)
+        call_order = {m: [(MAIN_PROCESSOR_NAME, m)] for m in methods}
+        if isinstance(preprocess, dict):
+            for method, obj in preprocess.items():
+                data = methods_sample_data[method]
+                pre = ModelAnalyzer.analyze(obj, sample_data=data).bind(obj)
+                if len(pre.methods) != 1:
+                    raise ValueError(
+                        "Preprocessors should have only one method"
+                    )
+                pre_method = next(iter(pre.methods))
+                pre_name = f"{PREPROCESS_NAME}_{method}"
+                mlem_model.add_processor(pre_name, pre)
+                call_order[method].insert(0, (pre_name, pre_method))
+                if data is not None:
+                    methods_sample_data[method] = pre.call_method(
+                        pre_method, data
+                    )
+        elif preprocess is not None:
+            data = next(iter(methods_sample_data.values()), sample_data)
+            pre = ModelAnalyzer.analyze(preprocess, sample_data=data).bind(
+                preprocess
+            )
+            if len(pre.methods) != 1:
+                raise ValueError("Preprocessors should have only one method")
+            pre_method = next(iter(pre.methods))
+            mlem_model.add_processor(PREPROCESS_NAME, pre)
+            for method in methods:
+                call_order[method].insert(0, (PREPROCESS_NAME, pre_method))
+                data = methods_sample_data[method]
+                if data is not None:
+                    methods_sample_data[method] = pre.call_method(
+                        pre_method, data
+                    )
+            if len(methods) == 1:
+                sample_data = methods_sample_data[list(methods)[0]]
+
+        mt = model_hook.process(
+            model,
+            sample_data=sample_data,
+            methods_sample_data=methods_sample_data,
+        )
         if mt.model is None:
             mt = mt.bind(model)
 
         mlem_model.add_processor(MAIN_PROCESSOR_NAME, mt)
+
+        for method in mt.methods:
+            methods_sample_data = {
+                k: mt.call_method(method, v)
+                for k, v in methods_sample_data.items()
+            }
+        if len(methods) == 1:
+            sample_data = methods_sample_data[list(methods)[0]]
+
+        if isinstance(postprocess, dict):
+            for method, obj in postprocess.items():
+                data = methods_sample_data[method]
+                post = ModelAnalyzer.analyze(obj, sample_data=data).bind(obj)
+                if len(post.methods) != 1:
+                    raise ValueError(
+                        "Postprocessors should have only one method"
+                    )
+                post_method = next(iter(post.methods))
+                post_name = f"{POSTPROCESS_NAME}_{method}"
+                mlem_model.add_processor(post_name, post)
+                call_order[method].append((post_name, post_method))
+        elif postprocess is not None:
+            data = next(iter(methods_sample_data.values()), sample_data)
+            post = ModelAnalyzer.analyze(postprocess, sample_data=data).bind(
+                postprocess
+            )
+            if len(post.methods) != 1:
+                raise ValueError("Preprocessors should have only one method")
+            post_method = next(iter(post.methods))
+            mlem_model.add_processor(POSTPROCESS_NAME, post)
+            for method in methods:
+                call_order[method].append((POSTPROCESS_NAME, post_method))
+
+        mlem_model.call_orders = call_order
         return mlem_model
 
     def add_processor(self, name: str, model_type: ModelType):
@@ -674,53 +757,73 @@ class MlemModel(_WithArtifacts):
         artifacts = {}
         for name, mt in self._processors_cache.items():  # TODO not only cache?
             artifacts.update(
-                mt.io.dump(
-                    self.storage,
-                    posixpath.join(posixpath.basename(self.name), name),
-                    mt.model,
-                )
+                {
+                    f"{name}/{k}": v
+                    for k, v in mt.io.dump(
+                        self.storage,
+                        posixpath.join(posixpath.basename(self.name), name),
+                        mt.model,
+                    ).items()
+                }
             )
         return artifacts
 
     def load_value(self):
-        with self.requirements.import_custom():
-            self.model_type.load(self.relative_artifacts)
+        if len(self.processors) == 1:
+            with self.requirements.import_custom():
+                self.model_type.load(self.relative_artifacts)
+        else:
+            with self.requirements.import_custom():
+                for name in self.processors:
+                    processor = self.get_processor(name)
+                    processor.load(self.relative_processor_artifacts(name))
+
+    def relative_processor_artifacts(self, name):
+        return {
+            posixpath.relpath(k, name): a.relative(
+                self.location.fs, self.dirname
+            )
+            for k, a in (self.artifacts or {}).items()
+            if k.startswith(name + "/")
+        }
 
     def get_value(self):
         return self.model_type.model
 
     def __getattr__(self, item):
-        if item not in self.model_type.methods:
-            raise AttributeError(
-                f"{self.model_type.__class__} does not have {item} attribute"
+        if item not in self.call_orders:
+            raise AttributeError(  # TODO better message
+                f"{self.model_type.__class__} does not have {item} method. Avaliable methods: {list(self.model_type.methods.keys())}"
             )
-        func = partial(self.model_type.call_method, item)
-        if self.get_preprocessor() is None:
-            return func
-        return lambda x: func(
-            self.get_preprocessor().call_method("predict", x)
+        return _ModelMethodCall(
+            name=item, order=self.call_orders[item], model=self
         )
 
-    def __call__(self, data):
-        if "__call__" not in self.model_type.methods:
+    def __call__(self, *args, **kwargs):
+        if "__call__" not in self.call_orders:
             raise TypeError("Model is not callable")
+        return _ModelMethodCall(
+            name="__call__", order=self.call_orders["__call__"], model=self
+        )(*args, **kwargs)
 
-        preproc = self.get_preprocessor()
-        if preproc:
-            data = preproc.call_method("predict", data)
-        return self.model_type.model(data)
 
-    def get_preprocessor(self):
-        try:
-            return self.get_processor(TMP_PREPROCESSOR_NAME)
-        except KeyError:
-            return None
-        # if isinstance(self.preprocessor, MlemLink):
-        #     link = self.preprocessor.load_link(force_type=MlemModel)
-        #     if load_value:
-        #         link.load_value()
-        #     return link
-        # return self.preprocessor
+@dataclasses.dataclass
+class _ModelMethodCall:
+    name: str
+    order: List[Tuple[str, str]]
+    model: MlemModel
+
+    def __call__(self, *args, **kwargs):
+        if len(self.model.processors) == 1:
+            return self.model.model_type.call_method(
+                self.name, *args, **kwargs
+            )
+        data = next(itertools.chain(args, kwargs.values()))
+        for proc_name, method in self.order:
+            data = self.model.get_processor(proc_name).call_method(
+                method, data
+            )
+        return data
 
 
 class MlemData(_WithArtifacts):

@@ -34,10 +34,11 @@ def get_object_metadata(
     obj: Any,
     sample_data=None,
     params: Dict[str, str] = None,
-    preprocessor: Any = None,
+    preprocess: Union[Any, Dict[str, Any]] = None,
+    postprocess: Union[Any, Dict[str, Any]] = None,
 ) -> Union[MlemData, MlemModel]:
     """Convert given object to appropriate MlemObject subclass"""
-    if preprocessor is None:
+    if preprocess is None and postprocess is None:
         try:
             return MlemData.from_data(
                 obj,
@@ -47,7 +48,11 @@ def get_object_metadata(
             pass
 
     return MlemModel.from_obj(
-        obj, sample_data=sample_data, params=params, preprocessor=preprocessor
+        obj,
+        sample_data=sample_data,
+        params=params,
+        preprocess=preprocess,
+        postprocess=postprocess,
     )
 
 
@@ -58,7 +63,8 @@ def save(
     sample_data=None,
     fs: Optional[AbstractFileSystem] = None,
     params: Dict[str, str] = None,
-    preprocessor: Any = None,
+    preprocess: Union[Any, Dict[str, Any]] = None,
+    postprocess: Union[Any, Dict[str, Any]] = None,
 ) -> MlemObject:
     """Saves given object to a given path
 
@@ -77,7 +83,11 @@ def save(
         None
     """
     meta = get_object_metadata(
-        obj, sample_data, params=params, preprocessor=preprocessor
+        obj,
+        sample_data,
+        params=params,
+        preprocess=preprocess,
+        postprocess=postprocess,
     )
     path = os.fspath(path)
     meta.dump(path, fs=fs, project=project)
