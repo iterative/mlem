@@ -105,8 +105,12 @@ class _ServerOptions(BaseModel):
 
 def standard_methods() -> ServerMethods:
     return {
-        "predict": ServerMethod(args={"data": ServerArgument()}),
-        "predict_proba": ServerMethod(args={"data": ServerArgument()}),
+        "predict": ServerMethod(
+            name="predict", args={"data": ServerArgument()}
+        ),
+        "predict_proba": ServerMethod(
+            name="predict_proba", args={"data": ServerArgument()}
+        ),
     }
 
 

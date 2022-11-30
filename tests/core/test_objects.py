@@ -324,14 +324,12 @@ def test_model_model_type_laziness():
         "requirements": [],
     }
     model = parse_obj_as(MlemModel, payload)
-    assert model.processors[MAIN_PROCESSOR_NAME] == {
-        "type": "sklearn",
-        "methods": {},
+    assert model.processors_cache == {
+        MAIN_PROCESSOR_NAME: {"type": "sklearn", "methods": {}}
     }
-    assert isinstance(model._processors_cache, dict)
-    assert len(model._processors_cache) == 0
-    assert isinstance(model.model_type, ModelType)
-    assert len(model._processors_cache) == 1
+    assert isinstance(model.processors_cache[MAIN_PROCESSOR_NAME], dict)
+    assert isinstance(model.processors[MAIN_PROCESSOR_NAME], ModelType)
+    assert isinstance(model.processors_cache[MAIN_PROCESSOR_NAME], ModelType)
 
 
 def test_mlem_project_root(filled_mlem_project):

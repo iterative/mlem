@@ -273,7 +273,7 @@ class ModelInterface(Interface):
     @validator("model")
     @classmethod
     def ensure_signature(cls, value: MlemModel):
-        if not _check_no_signature(value.processors):
+        if not _check_no_signature(value.processors_raw):
             raise MlemError(
                 "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
             )

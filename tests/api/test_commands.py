@@ -240,7 +240,8 @@ def test_import_model_pickle_remote_in_project(
 
 def test_build_lazy(model_meta, tmp_path):
     model_meta.dump(str(tmp_path / "model"))
-    model_meta.processors[MAIN_PROCESSOR_NAME]["type"] = "__lol__"
+    model_meta.processors_cache = model_meta.processors_raw
+    model_meta.processors_cache[MAIN_PROCESSOR_NAME]["type"] = "__lol__"
     build(
         "pip", model_meta, target=str(tmp_path / "build"), package_name="lol"
     )

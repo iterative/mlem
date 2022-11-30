@@ -31,7 +31,7 @@ from typing import (
 import fsspec
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import ValidationError, parse_obj_as, validator
+from pydantic import Field, ValidationError, parse_obj_as, validator
 from typing_extensions import Literal, TypeAlias
 from yaml import safe_dump, safe_load
 
@@ -601,32 +601,46 @@ MAIN_PROCESSOR_NAME = "model"
 PREPROCESS_NAME = "preprocess"
 POSTPROCESS_NAME = "postprocess"
 
+Processors = Dict[str, ModelType]
+
 
 class MlemModel(_WithArtifacts):
     """MlemObject representing a ML model"""
 
     object_type: ClassVar = "model"
-    # model_type_cache: Any
-    # model_type: ModelType
-    # """Framework-specific metadata"""
-    # model_type, model_type_raw, model_type_cache = lazy_field(
-    #     ModelType, "model_type", "model_type_cache"
-    # )
+    processors: Processors
+    """Processors model types"""
+    processors_cache: Dict = Field({}, alias="processors")
+    """Processors model types"""
 
-    # preprocessor: Union["ModelLink", "MlemModel", None] = None
-
-    processors: Dict[str, Any] = {}
-    """Serialized model types"""
-    _processors_cache: Dict[str, ModelType] = {}
     call_orders: Dict[str, List[Tuple[str, str]]] = {}
     """Order of calls for different inference methods"""
 
-    def get_processor(self, name: str) -> ModelType:
-        if name not in self._processors_cache:
-            self._processors_cache[name] = parse_obj_as(
-                ModelType, self.processors[name]
+    @property  # type: ignore[no-redef]
+    def processors(self) -> Processors:
+        if any(isinstance(v, dict) for v in self.processors_cache.values()):
+            self.processors_cache = parse_obj_as(
+                Processors, self.processors_cache
             )
-        return self._processors_cache[name]
+        return self.processors_cache
+
+    @processors.setter
+    def processors(self, value):
+        self.processors_cache = value
+
+    @property
+    def processors_raw(self):
+        return {
+            k: v if isinstance(v, dict) else v.dict()
+            for k, v in self.processors_cache.items()
+        }
+
+    @processors_raw.setter
+    def processors_raw(self, value):
+        self.processors_cache = value
+
+    def get_processor(self, name: str) -> ModelType:
+        return self.processors[name]
 
     @property
     def model_type(self) -> ModelType:
@@ -744,8 +758,7 @@ class MlemModel(_WithArtifacts):
     def add_processor(self, name: str, model_type: ModelType):
         if name in self.processors:
             raise ValueError(f"Processor named {name} already exists in model")
-        self.processors[name] = model_type.dict()
-        self._processors_cache[name] = model_type
+        self.processors_cache[name] = model_type
         self.requirements += model_type.get_requirements().expanded
 
     def write_value(self) -> Artifacts:
@@ -758,7 +771,7 @@ class MlemModel(_WithArtifacts):
                 )
             raise ValueError("Meta is not binded to actual model")
         artifacts = {}
-        for name, mt in self._processors_cache.items():  # TODO not only cache?
+        for name, mt in self.processors_cache.items():  # TODO not only cache?
             artifacts.update(
                 {
                     f"{name}/{k}": v
