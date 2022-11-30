@@ -284,11 +284,11 @@ class ModelInterface(Interface):
         return cls(model=model)
 
     @property
-    def is_simple_model(self):
-        return len(self.model.processors) == 1
+    def is_single_model(self):
+        return self.model.is_single_model
 
     def get_method_signature(self, method_name: str) -> InterfaceMethod:
-        if self.is_simple_model:
+        if self.is_single_model:
             signature = self.model.model_type.methods[method_name]
             return InterfaceMethod.from_signature(signature)
         call_order = self.model.call_orders[method_name]

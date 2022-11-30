@@ -646,6 +646,10 @@ class MlemModel(_WithArtifacts):
     def model_type(self) -> ModelType:
         return self.get_processor(MAIN_PROCESSOR_NAME)
 
+    @property
+    def is_single_model(self):
+        return len(self.processors_cache) == 1
+
     # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     @classmethod
     def from_obj(  # noqa: C901
@@ -756,13 +760,13 @@ class MlemModel(_WithArtifacts):
         return mlem_model
 
     def add_processor(self, name: str, model_type: ModelType):
-        if name in self.processors:
+        if name in self.processors_cache:
             raise ValueError(f"Processor named {name} already exists in model")
         self.processors_cache[name] = model_type
         self.requirements += model_type.get_requirements().expanded
 
     def write_value(self) -> Artifacts:
-        if len(self.processors) == 1:
+        if self.is_single_model:
             if self.model_type.model is not None:
                 return self.model_type.io.dump(
                     self.storage,
@@ -785,13 +789,11 @@ class MlemModel(_WithArtifacts):
         return artifacts
 
     def load_value(self):
-        if len(self.processors) == 1:
-            with self.requirements.import_custom():
+        with self.requirements.import_custom():
+            if len(self.processors_cache) == 1:
                 self.model_type.load(self.relative_artifacts)
-        else:
-            with self.requirements.import_custom():
-                for name in self.processors:
-                    processor = self.get_processor(name)
+            else:
+                for name, processor in self.processors.items():
                     processor.load(self.relative_processor_artifacts(name))
 
     def relative_processor_artifacts(self, name):
@@ -830,7 +832,7 @@ class _ModelMethodCall:
     model: MlemModel
 
     def __call__(self, *args, **kwargs):
-        if len(self.model.processors) == 1:
+        if self.model.is_single_model:
             return self.model.model_type.call_method(
                 self.name, *args, **kwargs
             )
