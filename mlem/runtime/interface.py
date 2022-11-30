@@ -7,7 +7,12 @@ from pydantic import BaseModel, validator
 import mlem
 import mlem.version
 from mlem.core.base import MlemABC
-from mlem.core.data_type import DataType, DataTypeSerializer, Serializer
+from mlem.core.data_type import (
+    DataType,
+    DataTypeSerializer,
+    Serializer,
+    UnspecifiedDataType,
+)
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, Signature
@@ -239,6 +244,16 @@ class SimpleInterface(Interface):
         return self.methods.__root__[method_name]
 
 
+def _check_no_signature(data):
+    if isinstance(data, dict):
+        if "type" in data and data["type"] == UnspecifiedDataType.type:
+            return False
+        return all(_check_no_signature(v) for v in data.values())
+    if isinstance(data, list):
+        return all(_check_no_signature(v) for v in data)
+    return True
+
+
 class ModelInterface(Interface):
     """Interface that descibes model methods"""
 
@@ -258,18 +273,10 @@ class ModelInterface(Interface):
     @validator("model")
     @classmethod
     def ensure_signature(cls, value: MlemModel):
-        # TODO
-        # if any(
-        #     isinstance(a, UnspecifiedDataType)
-        #     for method in value.methods.values()
-        #     for a in method.args
-        # ) or any(
-        #     isinstance(method.returns, UnspecifiedDataType)
-        #     for method in value.methods.values()
-        # ):
-        #     raise MlemError(
-        #         "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
-        #     )
+        if not _check_no_signature(value.processors):
+            raise MlemError(
+                "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
+            )
         return value
 
     @classmethod

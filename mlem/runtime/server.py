@@ -216,6 +216,12 @@ class ServerInterface(Interface):
         expected: ServerMethod,
         used: Set[str],
     ) -> Optional[Tuple[str, ArgsMapping]]:
+        if expected.name in actual.__root__ and expected.name not in used:
+            match, arg_mapping = expected.matches(
+                actual.__root__[expected.name]
+            )
+            if match:
+                return expected.name, arg_mapping
         for name, method in actual.__root__.items():
             if name in used:
                 continue
