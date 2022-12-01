@@ -454,14 +454,18 @@ def test_create_processors_model_complex(model_meta_saved_single):
             ]
         )
 
+    def post_predict(x):
+        return x * 10
+
+    def post_predict_proba(x):
+        return str(x)
+
     model = MlemModel.from_obj(
         obj,
         preprocess=create_data,
         postprocess={
-            "predict": lambda x: x * 10,
-            "predict_proba": lambda x: str(  # pylint: disable=unnecessary-lambda
-                x
-            ),
+            "predict": post_predict,
+            "predict_proba": post_predict_proba,
         },
         sample_data=0,
     )
