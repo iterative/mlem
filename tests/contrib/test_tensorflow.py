@@ -155,7 +155,7 @@ def complex_net(np_data, labels):
             self.l1 = tf.keras.layers.Dense(50, activation="tanh")
             self.clf = tf.keras.layers.Dense(10, activation="relu")
 
-        def call(self, inputs):
+        def call(self, inputs, *a, **kw):  # pylint: disable=unused-argument
             return self.clf(self.l1(inputs))
 
     model = Net()
@@ -192,7 +192,7 @@ def test_model_wrapper(net, input_data, tmpdir, request):
     expected_requirements = {"keras", "tensorflow", "numpy"}
     assert set(tmw.get_requirements().modules) == expected_requirements
 
-    prediction = tmw.call_method("predict", input_data)
+    prediction = tmw.call_method("__call__", input_data)
 
     np.testing.assert_allclose(orig_pred, prediction)
 
@@ -212,7 +212,7 @@ def test_model_wrapper(net, input_data, tmpdir, request):
     tmw.load(artifacts)
     assert tmw.model is not net
 
-    prediction2 = tmw.call_method("predict", input_data)
+    prediction2 = tmw.call_method("__call__", input_data)
 
     np.testing.assert_allclose(prediction, prediction2)
 
