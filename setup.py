@@ -86,6 +86,7 @@ extras = {
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
+    "streamlit": ["streamlit", "watchdog"],
     "git": ["pygit2"],
 }
 
