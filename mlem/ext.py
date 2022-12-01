@@ -118,6 +118,11 @@ class ExtensionLoader:
         Extension("mlem.contrib.kubernetes", ["kubernetes", "docker"], False),
         Extension("mlem.contrib.requirements", [], False),
         Extension("mlem.contrib.venv", [], False),
+        Extension(
+            "mlem.contrib.streamlit",
+            ["streamlit", "watchdog", "uvicorn", "fastapi"],
+            False,
+        ),
         Extension("mlem.contrib.git", ["pygit2"], True),
     )
 
