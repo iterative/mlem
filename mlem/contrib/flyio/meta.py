@@ -21,7 +21,6 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client, HTTPClient
 
-# TODO: did not find refenrence for possible values
 FLYIO_STATE_MAPPING = {
     "running": DeployStatus.RUNNING,
     "deployed": DeployStatus.RUNNING,
@@ -40,31 +39,45 @@ class FlyioConfig(MlemConfigBase):
 
 class FlyioSettings(BaseModel):
     org: Optional[str] = None
+    """Organization name"""
     region: Optional[str] = None
+    """Region name"""
 
 
 class FlyioEnv(MlemEnv, FlyioSettings):
+    """fly.io organization/account"""
+
     type: ClassVar = "flyio"
 
     access_token: Optional[str] = None
+    """Access token for fly.io. Alternatively use `flyctl auth login`"""
 
 
 class FlyioAppState(DeployState):
+    """fly.io app state"""
+
     type: ClassVar = "flyio"
 
     fly_toml: Optional[str]
+    """Contents of fly.toml file for app"""
     app_name: Optional[str]
+    """Application name"""
     hostname: Optional[str]
+    """Application hostname"""
 
 
 class FlyioApp(MlemDeployment, FlyioSettings):
+    """fly.io deployment"""
+
     type: ClassVar = "flyio"
 
     state_type: ClassVar = FlyioAppState
     env_type: ClassVar = FlyioEnv
 
     image: Optional[str]
+    """Image name for docker image"""
     app_name: Optional[str]
+    """Application name. Leave empty for auto-generated one"""
 
     # server: Server = None # TODO
     def _get_client(self, state: FlyioAppState) -> Client:

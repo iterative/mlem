@@ -119,6 +119,9 @@ class ExtensionLoader:
         Extension("mlem.contrib.requirements", [], False),
         Extension("mlem.contrib.venv", [], False),
         Extension("mlem.contrib.git", ["pygit2"], True),
+        Extension(
+            "mlem.contrib.flyio", ["docker", "fastapi", "uvicorn"], False
+        ),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
