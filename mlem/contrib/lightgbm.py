@@ -7,7 +7,7 @@ LightGBMDataType with Reader and Writer for `lightgbm.Dataset`
 import os
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Iterator, Optional, Tuple, Type
+from typing import Any, ClassVar, Dict, Iterator, Optional, Tuple, Type
 
 import flatdict
 import lightgbm as lgb
@@ -253,8 +253,13 @@ class LightGBMModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
+        sample_data = (methods_sample_data or {}).get("predict", sample_data)
         og_data = sample_data
         if sample_data is not None and isinstance(sample_data, lgb.Dataset):
             sample_data = sample_data.data

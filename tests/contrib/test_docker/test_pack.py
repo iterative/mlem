@@ -59,3 +59,31 @@ def test_pack_image(
             json={"data": [[0, 0, 0, 0]]},
         )
         assert r.status_code == 200
+
+
+@docker_test
+def test_pack_image_with_processors(
+    processors_model, dockerenv_local, uses_docker_build
+):
+    built = build(
+        DockerImageBuilder(
+            server=FastAPIServer(),
+            image=DockerImage(name="pack_docker_test_image_proc"),
+            force_overwrite=True,
+        ),
+        processors_model,
+    )
+    assert isinstance(built, DockerImage)
+    assert dockerenv_local.image_exists(built)
+    with (
+        TestContainer(built.name)
+        .with_env("DOCKER_TLS_CERTDIR", "")
+        .with_exposed_ports(SERVER_PORT)
+    ) as service:
+        time.sleep(10)
+        r = requests.post(
+            f"http://localhost:{service.get_exposed_port(SERVER_PORT)}/predict",
+            json={"data": ["1", "2", "3"]},
+        )
+        assert r.status_code == 200
+        assert r.json() == 4

@@ -6,7 +6,7 @@ ImportHook for importing files saved with `torch.save`
 DataType, Reader and Writer implementations for `torch.Tensor`
 """
 import logging
-from typing import Any, ClassVar, Iterator, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, Iterator, List, Optional, Tuple
 
 import cloudpickle
 import torch
@@ -186,8 +186,13 @@ class TorchModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
+        sample_data = (methods_sample_data or {}).get("__call__", sample_data)
         signature = Signature.from_method(
             obj.__call__,
             sample_data,

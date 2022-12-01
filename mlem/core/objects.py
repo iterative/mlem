@@ -618,10 +618,11 @@ class MlemModel(_WithArtifacts):
 
     @property  # type: ignore[no-redef]
     def processors(self) -> Processors:
-        if any(isinstance(v, dict) for v in self.processors_cache.values()):
-            self.processors_cache = parse_obj_as(
-                Processors, self.processors_cache
-            )
+        for name, processor in list(self.processors_cache.items()):
+            if isinstance(processor, dict):
+                self.processors_cache[name] = parse_obj_as(
+                    ModelType, processor
+                )
         return self.processors_cache
 
     @processors.setter
@@ -725,10 +726,13 @@ class MlemModel(_WithArtifacts):
 
         if postprocess is not None:
             for method in mt.methods:
-                methods_sample_data = {
-                    k: mt.call_method(method, v) if v is not None else None
-                    for k, v in methods_sample_data.items()
-                }
+                value = methods_sample_data[method]
+                methods_sample_data[method] = (
+                    mt.call_method(method, value)
+                    if value is not None
+                    else None
+                )
+
             if len(methods) == 1:
                 sample_data = methods_sample_data[list(methods)[0]]
 

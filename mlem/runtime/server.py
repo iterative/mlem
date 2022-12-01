@@ -105,12 +105,8 @@ class _ServerOptions(BaseModel):
 
 def standard_methods() -> ServerMethods:
     return {
-        "predict": ServerMethod(
-            name="predict", args={"data": ServerArgument()}
-        ),
-        "predict_proba": ServerMethod(
-            name="predict_proba", args={"data": ServerArgument()}
-        ),
+        "predict": ServerMethod(args={"data": ServerArgument()}),
+        "predict_proba": ServerMethod(args={"data": ServerArgument()}),
     }
 
 
@@ -200,7 +196,7 @@ class ServerInterface(Interface):
         method_mapping = {}
         args_mapping = {}
         for name, method in methods.items():
-            match = cls._automatch_method(actual, method, used)
+            match = cls._automatch_method(name, actual, method, used)
             if match is None:
                 continue
             matched_method, arg_mapping = match
@@ -216,22 +212,21 @@ class ServerInterface(Interface):
     @classmethod
     def _automatch_method(
         cls,
+        name: str,
         actual: InterfaceDescriptor,
         expected: ServerMethod,
         used: Set[str],
     ) -> Optional[Tuple[str, ArgsMapping]]:
-        if expected.name in actual.__root__ and expected.name not in used:
-            match, arg_mapping = expected.matches(
-                actual.__root__[expected.name]
-            )
+        if name in actual.__root__ and name not in used:
+            match, arg_mapping = expected.matches(actual.__root__[name])
             if match:
-                return expected.name, arg_mapping
-        for name, method in actual.__root__.items():
-            if name in used:
+                return name, arg_mapping
+        for actual_name, method in actual.__root__.items():
+            if actual_name in used:
                 continue
             match, arg_mapping = expected.matches(method)
             if match:
-                return name, arg_mapping
+                return actual_name, arg_mapping
         return None
 
     def get_method_executor(self, method_name: str):

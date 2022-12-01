@@ -331,7 +331,11 @@ class ModelHook(Hook[ModelType], ABC):
     @classmethod
     @abstractmethod
     def process(  # pylint: disable=arguments-differ # so what
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
         raise NotImplementedError
 
@@ -344,6 +348,15 @@ class ModelAnalyzer(Analyzer[ModelType]):
 
     @classmethod
     def analyze(  # pylint: disable=arguments-differ # so what
-        cls, obj, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
-        return super().analyze(obj, sample_data=sample_data, **kwargs)
+        return super().analyze(
+            obj,
+            sample_data=sample_data,
+            methods_sample_data=methods_sample_data,
+            **kwargs,
+        )
