@@ -8,6 +8,7 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
+from mlem.telemetry import pass_telemetry_params
 
 
 @mlem_command("clone", section="object")
@@ -23,10 +24,11 @@ def clone(
     """
     from mlem.api.commands import clone
 
-    clone(
-        uri,
-        target,
-        project=project,
-        rev=rev,
-        target_project=target_project,
-    )
+    with pass_telemetry_params():
+        clone(
+            uri,
+            target,
+            project=project,
+            rev=rev,
+            target_project=target_project,
+        )
