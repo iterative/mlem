@@ -28,11 +28,6 @@ class ServerDataType(BaseModel):
     """Change serializer"""
 
     def matches_types(self, expected: InterfaceDataType):
-        if (
-            self.ser is not None
-            and self.ser != expected.get_serializer().serializer
-        ):
-            return False
         if self.data_type is not None and self.data_type != expected.data_type:
             return False
         return True

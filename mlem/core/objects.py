@@ -768,6 +768,11 @@ class MlemModel(_WithArtifacts):
             raise ValueError(f"Processor named {name} already exists in model")
         self.processors_cache[name] = model_type
         self.requirements += model_type.get_requirements().expanded
+        if self.is_saved and self.artifacts is not None:
+            self.artifacts.update(
+                self._write_processor_value(name, model_type)
+            )
+            self.update()
 
     def write_value(self) -> Artifacts:
         if self.is_single_model:
@@ -779,18 +784,21 @@ class MlemModel(_WithArtifacts):
                 )
             raise ValueError("Meta is not binded to actual model")
         artifacts = {}
-        for name, mt in self.processors_cache.items():  # TODO not only cache?
-            artifacts.update(
-                {
-                    f"{name}/{k}": v
-                    for k, v in mt.io.dump(
-                        self.storage,
-                        posixpath.join(posixpath.basename(self.name), name),
-                        mt.model,
-                    ).items()
-                }
-            )
+        for name, mt in self.processors.items():
+            artifacts.update(self._write_processor_value(name, mt))
         return artifacts
+
+    def _write_processor_value(self, name, model_type: ModelType) -> Artifacts:
+        if model_type.model is None:
+            raise ValueError(f"Processor {name} is not binded to actual model")
+        return {
+            f"{name}/{k}": v
+            for k, v in model_type.io.dump(
+                self.storage,
+                posixpath.join(posixpath.basename(self.name), name),
+                model_type.model,
+            ).items()
+        }
 
     def load_value(self):
         with self.requirements.import_custom():
