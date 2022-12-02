@@ -8,6 +8,7 @@ from mlem.cli.main import (
     option_rev,
     option_target_project,
 )
+from mlem.telemetry import pass_telemetry_params
 
 
 @mlem_command("link", section="object")
@@ -43,12 +44,13 @@ def link(
     """
     from mlem.api.commands import link
 
-    link(
-        source=source,
-        source_project=source_project,
-        rev=rev,
-        target=target,
-        target_project=target_project,
-        follow_links=follow_links,
-        absolute=absolute,
-    )
+    with pass_telemetry_params():
+        link(
+            source=source,
+            source_project=source_project,
+            rev=rev,
+            target=target,
+            target_project=target_project,
+            follow_links=follow_links,
+            absolute=absolute,
+        )

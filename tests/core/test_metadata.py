@@ -1,11 +1,14 @@
 import os
 import posixpath
+import shutil
+import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import quote_plus
 
 import pytest
 import yaml
+from git import Repo
 from pytest_lazyfixture import lazy_fixture
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
@@ -13,6 +16,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
 from mlem.contrib.heroku.meta import HerokuEnv
+from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import list_objects, load, load_meta, save
 from mlem.core.objects import MlemData, MlemEnv, MlemLink, MlemModel
@@ -253,3 +257,38 @@ def test_ls_remote_s3(s3_tmp_path):
     envs = objects[MlemEnv]
     assert len(envs) == 3
     assert all(o == meta for o in envs)
+
+
+@pytest.mark.xfail(
+    sys.platform == "win32",
+    reason="https://github.com/fsspec/filesystem_spec/issues/1125",
+)
+def test_load_local_rev(tmpdir):
+    path = str(tmpdir / "obj")
+
+    def model1(data):
+        return data + 1
+
+    def model2(data):
+        return data + 2
+
+    repo = Repo.init(str(tmpdir))
+    save(model1, path)
+    repo.index.add(["obj", "obj.mlem"])
+    first = repo.index.commit("init")
+
+    save(model2, path)
+    repo.index.add(["obj", "obj.mlem"])
+    second = repo.index.commit("second")
+
+    assert load(path, rev=first.hexsha)(1) == 2
+    assert load(path, rev=second.hexsha)(1) == 3
+    assert load(path)(1) == 3
+
+    shutil.rmtree(tmpdir / ".git")
+
+    with pytest.raises(
+        InvalidArgumentError,
+        match=f"Rev `{first.hexsha}` was provided, but FSSpecResolver does not support versioning",
+    ):
+        load(path, rev=first.hexsha)

@@ -30,6 +30,7 @@ from mlem.cli.utils import (
     CallContext,
     _format_validation_error,
     get_extra_keys,
+    mark_as_cli,
 )
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
@@ -63,12 +64,14 @@ class MlemMixin(Command):
         *args,
         section: str = "other",
         aliases: List[str] = None,
+        is_generated_from_ext: bool = False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.section = section
         self.aliases = aliases
         self.rich_help_panel = section.capitalize()
+        self.is_generated_from_ext = is_generated_from_ext
 
     def collect_usage_pieces(self, ctx: Context) -> List[str]:
         return [p.lower() for p in super().collect_usage_pieces(ctx)]
@@ -300,10 +303,20 @@ class MlemGroup(MlemMixin, TyperGroup):
         self._help = value
 
 
-def mlem_group(section, aliases: Optional[List[str]] = None):
+def mlem_group(
+    section,
+    aliases: Optional[List[str]] = None,
+    is_generated_from_ext: bool = False,
+):
     class MlemGroupSection(MlemGroup):
         def __init__(self, *args, **kwargs):
-            super().__init__(*args, section=section, aliases=aliases, **kwargs)
+            super().__init__(
+                *args,
+                section=section,
+                aliases=aliases,
+                is_generated_from_ext=is_generated_from_ext,
+                **kwargs,
+            )
 
     return MlemGroupSection
 
@@ -362,6 +375,7 @@ def mlem_callback(
     \b
     Documentation: <https://mlem.ai/doc>
     """
+    mark_as_cli()
     if ctx.invoked_subcommand is None and show_version:
         with cli_echo():
             echo(EMOJI_MLEM + f"MLEM Version: {version.__version__}")
@@ -375,9 +389,18 @@ def mlem_callback(
     }
 
 
-def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
+def get_cmd_name(
+    ctx: Context, no_aliases=False, sep=" ", include_dynamic: bool = True
+):
     pieces = []
     while ctx.parent is not None:
+        if (
+            not include_dynamic
+            and isinstance(ctx.command, MlemMixin)
+            and ctx.command.is_generated_from_ext
+        ):
+            ctx = ctx.parent
+            continue
         pieces.append(ctx.command.name if no_aliases else ctx.info_name)
         ctx = ctx.parent
     return sep.join(reversed(pieces))
@@ -395,6 +418,7 @@ def mlem_command(
     lazy_help=None,
     pass_from_parent: Optional[List[str]] = None,
     no_pass_from_parent: Optional[List[str]] = None,
+    is_generated_from_ext: bool = False,
     **kwargs,
 ):
     def decorator(f):
@@ -423,6 +447,7 @@ def mlem_command(
                 dynamic_metavar=dynamic_metavar,
                 lazy_help=lazy_help,
                 pass_from_parent=pass_from_parent,
+                is_generated_from_ext=is_generated_from_ext,
             ),
         )(call)
 
@@ -432,60 +457,64 @@ def mlem_command(
 def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
     @wraps(f)
     def inner(*iargs, **ikwargs):
-        res = {}
         error = None
         ctx = click.get_current_context()
-        cmd_name = get_cmd_name(ctx)
-        try:
-            if pass_from_parent is not None:
-                ikwargs.update(
-                    {
-                        o: ctx.parent.params[o]
-                        for o in pass_from_parent
-                        if o in ctx.parent.params
-                        and (o not in ikwargs or ikwargs[o] is None)
-                    }
-                )
-            with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
-                res = f(*iargs, **ikwargs) or {}
-            res = {f"cmd_{cmd_name}_{k}": v for k, v in res.items()}
-        except (ClickException, Exit, Abort) as e:
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            raise
-        except MlemError as e:
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            if ctx.obj["traceback"]:
-                raise
-            with stderr_echo():
-                echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
-            raise typer.Exit(1)
-        except ValidationError as e:
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            if ctx.obj["traceback"]:
-                raise
-            msgs = "\n".join(_format_validation_error(e))
-            with stderr_echo():
-                echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
-            raise typer.Exit(1)
-        except Exception as e:  # pylint: disable=broad-except
-            error = f"{e.__class__.__module__}.{e.__class__.__name__}"
-            if ctx.obj["traceback"]:
-                raise
-            with stderr_echo():
-                echo(
-                    EMOJI_FAIL
-                    + color(
-                        "Unexpected error: " + str(e), col=typer.colors.RED
+        cmd_name = get_cmd_name(ctx, include_dynamic=False)
+        with telemetry.event_scope("cli", cmd_name) as event:
+            try:
+                if pass_from_parent is not None:
+                    ikwargs.update(
+                        {
+                            o: ctx.parent.params[o]
+                            for o in pass_from_parent
+                            if o in ctx.parent.params
+                            and (o not in ikwargs or ikwargs[o] is None)
+                        }
                     )
-                )
-                echo(TRACEBACK_SUGGESTION_MESSAGE)
-                echo(
-                    "Please report it here: <https://github.com/iterative/mlem/issues>"
-                )
-            raise typer.Exit(1)
-        finally:
-            if error is not None or ctx.invoked_subcommand is None:
-                telemetry.send_cli_call(cmd_name, error=error, **res)
+                with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
+                    f(*iargs, **ikwargs)
+            except (ClickException, Exit, Abort) as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                raise
+            except MlemError as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                with stderr_echo():
+                    echo(EMOJI_FAIL + color(str(e), col=typer.colors.RED))
+                raise typer.Exit(1)
+            except ValidationError as e:
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                msgs = "\n".join(_format_validation_error(e))
+                with stderr_echo():
+                    echo(EMOJI_FAIL + color("Error:\n", "red") + msgs)
+                raise typer.Exit(1)
+            except Exception as e:  # pylint: disable=broad-except
+                error = f"{e.__class__.__module__}.{e.__class__.__name__}"
+                if ctx.obj["traceback"]:
+                    raise
+                with stderr_echo():
+                    echo(
+                        EMOJI_FAIL
+                        + color(
+                            "Unexpected error: " + str(e), col=typer.colors.RED
+                        )
+                    )
+                    echo(TRACEBACK_SUGGESTION_MESSAGE)
+                    echo(
+                        "Please report it here: <https://github.com/iterative/mlem/issues>"
+                    )
+                raise typer.Exit(1)
+            finally:
+                if error is not None or ctx.invoked_subcommand is None:
+                    telemetry.send_event(
+                        event.interface,
+                        event.action,
+                        error,
+                        **event.kwargs,
+                    )
 
     return inner
 

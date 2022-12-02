@@ -23,6 +23,7 @@ from mlem.cli.utils import (
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemModel
 from mlem.runtime.server import Server
+from mlem.telemetry import pass_telemetry_params
 
 serve = Typer(
     name="serve",
@@ -49,17 +50,18 @@ def serve_load(
 ):
     from mlem.api.commands import serve
 
-    serve(
-        load_meta(model, project, rev, force_type=MlemModel),
-        config_arg(
-            Server,
-            load,
-            None,
-            conf=None,
-            file_conf=None,
-        ),
-        standardize=standartize,
-    )
+    with pass_telemetry_params():
+        serve(
+            load_meta(model, project, rev, force_type=MlemModel),
+            config_arg(
+                Server,
+                load,
+                None,
+                conf=None,
+                file_conf=None,
+            ),
+            standardize=standartize,
+        )
 
 
 @for_each_impl(Server)
@@ -73,6 +75,7 @@ def create_serve_command(type_name):
         hidden=type_name.startswith("_"),
         lazy_help=lazy_class_docstring(Server.abs_name, type_name),
         no_pass_from_parent=["file_conf"],
+        is_generated_from_ext=True,
     )
     def serve_command(
         model: str = option_model,
@@ -84,15 +87,17 @@ def create_serve_command(type_name):
     ):
         from mlem.api.commands import serve
 
-        serve(
-            load_meta(model, project, rev, force_type=MlemModel),
-            config_arg(
-                Server,
-                None,
-                type_name,
-                conf=None,
-                file_conf=file_conf,
-                **__kwargs__
-            ),
-            standardize=standartize,
-        )
+        mlem_model = load_meta(model, project, rev, force_type=MlemModel)
+        with pass_telemetry_params():
+            serve(
+                mlem_model,
+                config_arg(
+                    Server,
+                    None,
+                    type_name,
+                    conf=None,
+                    file_conf=file_conf,
+                    **__kwargs__
+                ),
+                standardize=standartize,
+            )

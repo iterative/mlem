@@ -21,7 +21,7 @@ install_requires = [
     "gitpython",
     "python-gitlab",
     "flatdict",
-    "iterative-telemetry",
+    "iterative-telemetry>=0.0.6",
     "python-multipart",
 ]
 
@@ -86,6 +86,7 @@ extras = {
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
+    "git": ["pygit2"],
 }
 
 # add DVC extras
@@ -160,6 +161,7 @@ setup_args = dict(  # noqa: C408
             "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
+            "resolver.local_git = mlem.contrib.git:LocalGitResolver",
             "resolver.github = mlem.contrib.github:GithubResolver",
             "resolver.gitlab = mlem.contrib.gitlabfs:GitlabResolver",
             "docker_registry.heroku = mlem.contrib.heroku.build:HerokuRemoteRegistry",

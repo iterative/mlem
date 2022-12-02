@@ -9,6 +9,7 @@ from mlem.cli.main import (
     option_target_project,
 )
 from mlem.core.import_objects import ImportHook
+from mlem.telemetry import pass_telemetry_params
 from mlem.utils.entrypoints import list_implementations
 
 
@@ -28,12 +29,13 @@ def import_object(
     """Create a `.mlem` metafile for a model or data in any file or directory."""
     from mlem.api.commands import import_object
 
-    import_object(
-        uri,
-        project=project,
-        rev=rev,
-        target=target,
-        target_project=target_project,
-        copy_data=copy,
-        type_=type_,
-    )
+    with pass_telemetry_params():
+        import_object(
+            uri,
+            project=project,
+            rev=rev,
+            target=target,
+            target_project=target_project,
+            copy_data=copy,
+            type_=type_,
+        )
