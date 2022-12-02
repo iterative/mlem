@@ -19,10 +19,10 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
-    pass_api_log_params,
 )
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemBuilder, MlemModel
+from mlem.telemetry import pass_telemetry_params
 
 build = Typer(
     name="build",
@@ -45,16 +45,18 @@ def build_load(
 ):
     from mlem.api.commands import build
 
-    pass_api_log_params(build)(
-        config_arg(
-            MlemBuilder,
-            load,
-            None,
-            conf=None,
-            file_conf=None,
-        ),
-        load_meta(model, project, rev, force_type=MlemModel),
-    )
+    mlem_model = load_meta(model, project, rev, force_type=MlemModel)
+    with pass_telemetry_params():
+        build(
+            config_arg(
+                MlemBuilder,
+                load,
+                None,
+                conf=None,
+                file_conf=None,
+            ),
+            mlem_model,
+        )
 
 
 @for_each_impl(MlemBuilder)
@@ -70,6 +72,7 @@ def create_build_command(type_name):
         hidden=type_name.startswith("_"),
         lazy_help=lazy_class_docstring(MlemBuilder.abs_name, type_name),
         no_pass_from_parent=["file_conf"],
+        is_generated_from_ext=True,
     )
     def build_type(
         model: str = option_model,
@@ -80,14 +83,16 @@ def create_build_command(type_name):
     ):
         from mlem.api.commands import build
 
-        pass_api_log_params(build)(
-            config_arg(
-                MlemBuilder,
-                None,
-                type_name,
-                conf=None,
-                file_conf=file_conf,
-                **__kwargs__
-            ),
-            load_meta(model, project, rev, force_type=MlemModel),
-        )
+        mlem_model = load_meta(model, project, rev, force_type=MlemModel)
+        with pass_telemetry_params():
+            build(
+                config_arg(
+                    MlemBuilder,
+                    None,
+                    type_name,
+                    conf=None,
+                    file_conf=file_conf,
+                    **__kwargs__
+                ),
+                mlem_model,
+            )

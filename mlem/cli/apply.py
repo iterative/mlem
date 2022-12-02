@@ -27,7 +27,6 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
-    pass_api_log_params,
 )
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.errors import UnsupportedDataBatchLoading
@@ -35,6 +34,7 @@ from mlem.core.import_objects import ImportHook
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MlemData, MlemModel
 from mlem.runtime.client import Client
+from mlem.telemetry import pass_telemetry_params
 from mlem.ui import set_echo
 from mlem.utils.entrypoints import list_implementations
 
@@ -108,15 +108,14 @@ def apply(
             )
         meta = load_meta(model, project, rev, force_type=MlemModel)
 
-        result = pass_api_log_params(
-            apply
-        )(  # pylint: disable=too-many-function-args
-            meta,
-            data,
-            method=method,
-            output=output,
-            batch_size=batch_size,
-        )
+        with pass_telemetry_params():
+            result = apply(
+                meta,
+                data,
+                method=method,
+                output=output,
+                batch_size=batch_size,
+            )
     if output is None:
         print(
             dumps(
@@ -214,6 +213,7 @@ def create_apply_remote(type_name):
         hidden=type_name.startswith("_"),
         lazy_help=lazy_class_docstring(Client.abs_name, type_name),
         no_pass_from_parent=["file_conf"],
+        is_generated_from_ext=True,
     )
     def apply_remote_func(
         data: str = option_data,
@@ -259,13 +259,11 @@ def run_apply_remote(
         load_value=True,
         force_type=MlemData,
     )
-    result = pass_api_log_params(
-        apply_remote
-    )(  # pylint: disable=too-many-function-args
-        client,
-        data,
-        method=method,
-        output=output,
-        target_project=target_project,
-    )
-    return result
+    with pass_telemetry_params():
+        return apply_remote(
+            client,
+            data,
+            method=method,
+            output=output,
+            target_project=target_project,
+        )
