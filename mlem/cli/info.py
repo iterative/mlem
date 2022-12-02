@@ -7,6 +7,7 @@ from typer import Argument, Option
 from mlem.cli.main import mlem_command, option_json, option_project, option_rev
 from mlem.core.metadata import load_meta
 from mlem.core.objects import MLEM_EXT, MlemLink, MlemObject
+from mlem.telemetry import pass_telemetry_params
 from mlem.ui import echo, set_echo
 
 OBJECT_TYPE_NAMES = {"data": "Data"}
@@ -49,7 +50,7 @@ def pretty_print(
     """Display all details about a specific MLEM Object from an existing MLEM
     project.
     """
-    with set_echo(None if json else ...):
+    with set_echo(None if json else ...), pass_telemetry_params():
         meta = load_meta(
             path, project, rev, follow_links=follow_links, load_value=False
         ).dict()

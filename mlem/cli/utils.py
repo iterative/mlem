@@ -61,10 +61,6 @@ def is_cli():
     return _is_cli
 
 
-def pass_api_log_params(f):
-    return getattr(f, "__wrapped__", f)
-
-
 def mark_as_cli():
     global _is_cli  # pylint: disable=global-statement
     _is_cli = True
