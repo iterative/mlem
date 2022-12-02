@@ -6,6 +6,7 @@ from yaml import safe_dump
 from ..core.base import MlemABC, build_mlem_object, load_impl_ext
 from ..core.meta_io import Location
 from ..core.objects import EnvLink, MlemDeployment, MlemObject
+from ..telemetry import telemetry
 from ..utils.entrypoints import list_abstractions, list_implementations
 from .main import app, mlem_command, mlem_group, option_project
 from .utils import (
@@ -32,7 +33,9 @@ app.add_typer(declare)
 def create_declare_mlem_object(type_name, cls: Type[MlemObject]):
     if cls.__is_root__:
         typer = Typer(
-            name=type_name, help=cls.__doc__, cls=mlem_group("Mlem Objects")
+            name=type_name,
+            help=cls.__doc__,
+            cls=mlem_group("Mlem Objects", is_generated_from_ext=True),
         )
         declare.add_typer(typer)
 
@@ -112,6 +115,7 @@ def create_declare_mlem_object_subcommand(
         dynamic_options_generator=add_fields(subtype, parent_cls),
         hidden=subtype.startswith("_"),
         lazy_help=lazy_class_docstring(type_name, subtype),
+        is_generated_from_ext=True,
     )
     def subtype_command(
         path: str = Argument(
@@ -120,6 +124,8 @@ def create_declare_mlem_object_subcommand(
         project: str = option_project,
         **__kwargs__,
     ):
+        telemetry.log_param("object_type", type_name)
+        telemetry.log_param(f"{type_name}_type", subtype)
         __kwargs__ = process_fields(subtype, parent_cls, __kwargs__)
         subtype_cls = load_impl_ext(type_name, subtype)
         cls = subtype_cls.__type_map__[subtype]
@@ -145,7 +151,7 @@ def create_declare_mlem_abc(abs_name: str):
         help=root_cls.__doc__
         if root_cls
         else f"Create `{abs_name}` configuration",
-        cls=mlem_group("Subtypes"),
+        cls=mlem_group("Subtypes", is_generated_from_ext=True),
     )
     declare.add_typer(typer)
 
@@ -172,12 +178,15 @@ def create_declare_mlem_abc_subcommand(
         else None,
         hidden=subtype.startswith("_"),
         lazy_help=lazy_class_docstring(abs_name, subtype),
+        is_generated_from_ext=True,
     )
     def subtype_command(
         path: str = Argument(..., help="Where to save object"),
         project: str = option_project,
         **__kwargs__,
     ):
+        telemetry.log_param("object_type", abs_name)
+        telemetry.log_param(f"{abs_name}_type", subtype)
         with wrap_build_error(subtype, root_cls):
             obj = build_mlem_object(
                 root_cls, subtype, str_conf=None, file_conf=[], **__kwargs__

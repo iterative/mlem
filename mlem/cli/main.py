@@ -64,12 +64,14 @@ class MlemMixin(Command):
         *args,
         section: str = "other",
         aliases: List[str] = None,
+        is_generated_from_ext: bool = False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.section = section
         self.aliases = aliases
         self.rich_help_panel = section.capitalize()
+        self.is_generated_from_ext = is_generated_from_ext
 
     def collect_usage_pieces(self, ctx: Context) -> List[str]:
         return [p.lower() for p in super().collect_usage_pieces(ctx)]
@@ -301,10 +303,20 @@ class MlemGroup(MlemMixin, TyperGroup):
         self._help = value
 
 
-def mlem_group(section, aliases: Optional[List[str]] = None):
+def mlem_group(
+    section,
+    aliases: Optional[List[str]] = None,
+    is_generated_from_ext: bool = False,
+):
     class MlemGroupSection(MlemGroup):
         def __init__(self, *args, **kwargs):
-            super().__init__(*args, section=section, aliases=aliases, **kwargs)
+            super().__init__(
+                *args,
+                section=section,
+                aliases=aliases,
+                is_generated_from_ext=is_generated_from_ext,
+                **kwargs,
+            )
 
     return MlemGroupSection
 
@@ -377,9 +389,18 @@ def mlem_callback(
     }
 
 
-def get_cmd_name(ctx: Context, no_aliases=False, sep=" "):
+def get_cmd_name(
+    ctx: Context, no_aliases=False, sep=" ", include_dynamic: bool = True
+):
     pieces = []
     while ctx.parent is not None:
+        if (
+            not include_dynamic
+            and isinstance(ctx.command, MlemMixin)
+            and ctx.command.is_generated_from_ext
+        ):
+            ctx = ctx.parent
+            continue
         pieces.append(ctx.command.name if no_aliases else ctx.info_name)
         ctx = ctx.parent
     return sep.join(reversed(pieces))
@@ -397,6 +418,7 @@ def mlem_command(
     lazy_help=None,
     pass_from_parent: Optional[List[str]] = None,
     no_pass_from_parent: Optional[List[str]] = None,
+    is_generated_from_ext: bool = False,
     **kwargs,
 ):
     def decorator(f):
@@ -425,6 +447,7 @@ def mlem_command(
                 dynamic_metavar=dynamic_metavar,
                 lazy_help=lazy_help,
                 pass_from_parent=pass_from_parent,
+                is_generated_from_ext=is_generated_from_ext,
             ),
         )(call)
 
@@ -436,7 +459,7 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
     def inner(*iargs, **ikwargs):
         error = None
         ctx = click.get_current_context()
-        cmd_name = get_cmd_name(ctx)
+        cmd_name = get_cmd_name(ctx, include_dynamic=False)
         with telemetry.event_scope("cli", cmd_name) as event:
             try:
                 if pass_from_parent is not None:

@@ -27,7 +27,6 @@ from mlem.cli.utils import (
     for_each_impl,
     lazy_class_docstring,
     make_not_required,
-    pass_api_log_params,
     wrap_build_error,
 )
 from mlem.core.base import build_mlem_object
@@ -40,6 +39,7 @@ from mlem.core.objects import (
     MlemDeployment,
     MlemModel,
 )
+from mlem.telemetry import pass_telemetry_params
 from mlem.ui import echo, no_echo, set_echo
 
 deployment = Typer(
@@ -74,14 +74,16 @@ def deploy_run_callback(
     """
     from mlem.api.commands import deploy
 
-    pass_api_log_params(deploy)(
-        load,
-        load_meta(
-            model, project=model_project, rev=model_rev, force_type=MlemModel
-        ),
-        project=project,
-        rev=rev,
+    mlem_model = load_meta(
+        model, project=model_project, rev=model_rev, force_type=MlemModel
     )
+    with pass_telemetry_params():
+        deploy(
+            load,
+            mlem_model,
+            project=project,
+            rev=rev,
+        )
 
 
 @for_each_impl(MlemDeployment)
@@ -97,6 +99,7 @@ def create_deploy_run_command(type_name):
         hidden=type_name.startswith("_"),
         lazy_help=lazy_class_docstring(MlemDeployment.object_type, type_name),
         no_pass_from_parent=["file_conf"],
+        is_generated_from_ext=True,
     )
     def deploy_run_command(
         path: str = Argument(
@@ -126,16 +129,18 @@ def create_deploy_run_command(type_name):
                     file_conf=file_conf,
                     **__kwargs__,
                 ).dump(path, project=project)
-        pass_api_log_params(deploy)(
-            meta,
-            load_meta(
-                model,
-                project=model_project,
-                rev=model_rev,
-                force_type=MlemModel,
-            ),
-            project=project,
+        mlem_model = load_meta(
+            model,
+            project=model_project,
+            rev=model_rev,
+            force_type=MlemModel,
         )
+        with pass_telemetry_params():
+            deploy(
+                meta,
+                mlem_model,
+                project=project,
+            )
 
 
 @mlem_command("remove", parent=deployment)
