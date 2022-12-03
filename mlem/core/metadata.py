@@ -63,14 +63,24 @@ def log_meta_params(meta: MlemObject, add_object_type: bool = False):
     if add_object_type:
         telemetry.log_param("object_type", meta.object_type)
     if isinstance(meta, MlemModel):
-        telemetry.log_param(
-            "model_type", meta.model_type_raw[ModelType.__config__.type_field]
-        )
+        model_types = {
+            mt[ModelType.__config__.type_field]
+            if isinstance(mt, dict)
+            else mt.type
+            for mt in meta.processors_cache.values()
+        }
+        no_callable = model_types.difference(["callable"])
+        if no_callable:
+            model_type = next(iter(no_callable))
+        else:
+            model_type = next(iter(model_types), None)
+        if model_type is not None:
+            telemetry.log_param("model_type", model_type)
     elif isinstance(meta, MlemData):
         data_type = None
         if meta.data_type is not None:
             data_type = meta.data_type.type
-        if data_type is None and meta.reader is not None:
+        if data_type is None:
             data_type = meta.reader_raw["data_type"][
                 DataType.__config__.type_field
             ]
