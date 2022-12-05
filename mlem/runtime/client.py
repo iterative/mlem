@@ -1,4 +1,5 @@
 import logging
+import os
 from abc import ABC, abstractmethod
 from typing import Any, BinaryIO, Callable, ClassVar, Optional
 
@@ -108,10 +109,27 @@ class _MethodCall(BaseModel):
                     raise NotImplementedError(
                         "Multiple file requests are not supported yet"
                     )
-                with serializer.dump(obj) as f:
-                    return self.method.returns.get_serializer().deserialize(
-                        self.call_method_binary(self.name, f, return_raw)
-                    )
+                if (
+                    isinstance(obj, (str, os.PathLike))
+                    and serializer.support_files
+                ):
+                    with open(obj, "rb") as f:
+                        return (
+                            self.method.returns.get_serializer().deserialize(
+                                self.call_method_binary(
+                                    self.name, f, return_raw
+                                )
+                            )
+                        )
+                else:
+                    with serializer.dump(obj) as f:
+                        return (
+                            self.method.returns.get_serializer().deserialize(
+                                self.call_method_binary(
+                                    self.name, f, return_raw
+                                )
+                            )
+                        )
 
             data[arg.name] = serializer.serialize(obj)
 
