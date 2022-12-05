@@ -18,7 +18,7 @@ from pydantic.typing import get_args
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from mlem.core.data_type import DataTypeSerializer
-from mlem.core.requirements import LibRequirementsMixin
+from mlem.core.requirements import LibRequirementsMixin, Requirements
 from mlem.runtime.interface import (
     Interface,
     InterfaceArgument,
@@ -26,6 +26,7 @@ from mlem.runtime.interface import (
 )
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
+from mlem.utils.module import get_object_requirements
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,11 @@ class FastAPIServer(Server, LibRequirementsMixin):
         app = self.app_init(interface)
         echo(f"Checkout openapi docs at <http://{self.host}:{self.port}/docs>")
         uvicorn.run(app, host=self.host, port=self.port)
+
+    def get_requirements(self) -> Requirements:
+        return super().get_requirements() + get_object_requirements(
+            [self.request_serializer, self.response_serializer, self.methods]
+        )
 
 
 class _SpooledFileIOWrapper:

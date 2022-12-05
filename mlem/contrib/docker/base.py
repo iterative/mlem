@@ -495,6 +495,9 @@ class DockerContainer(
                                 "The container died unexpectedly.", log
                             )
                     else:
+                        state.container_id = None
+                        state.container_name = None
+                        self.update_state(state)
                         # Can't get logs from removed container
                         raise DeploymentError(
                             "The container died unexpectedly. Try to run the container "
