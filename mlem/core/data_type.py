@@ -182,6 +182,10 @@ class DataTypeSerializer(BaseModel):
             raise NotImplementedError
         return self.serializer.data.get_model(self.data_type, prefix)
 
+    @property
+    def support_files(self):
+        return self.serializer.binary.support_files
+
 
 class DefaultDataTypeSerializer(DataTypeSerializer):
     @validator("data_type")
@@ -216,6 +220,8 @@ class DataSerializer(Serializer[DT], Generic[DT], ABC):
 
 class BinarySerializer(Serializer[DT], Generic[DT], ABC):
     """Base class for serializers from/to raw binary data"""
+
+    support_files: ClassVar[bool] = False
 
     @abstractmethod
     def serialize(self, data_type: DT, instance: Any) -> bytes:
@@ -1080,6 +1086,7 @@ class FileSerializer(BinarySerializer):
     """BinarySerialzier for arbitrary data using reader and writer"""
 
     type: ClassVar = "file"
+    support_files: ClassVar = True
 
     @staticmethod
     def _get_artifact(data_type: DataType, instance: Any) -> InMemoryArtifact:

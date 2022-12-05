@@ -191,10 +191,11 @@ def test_nested_objects_in_schema(data):
     ],
 )
 def test_file_endpoint(
-    create_mlem_client, create_client, data, eq_assert: Callable
+    create_mlem_client, create_client, data, eq_assert: Callable, tmp_path
 ):
-    model = MlemModel.from_obj(lambda x: x, sample_data=data)
-    model_interface = ModelInterface.from_model(model)
+    model_interface = ModelInterface.from_model(
+        MlemModel.from_obj(lambda x: x, sample_data=data)
+    )
 
     server = FastAPIServer(
         standardize=False,
@@ -218,3 +219,10 @@ def test_file_endpoint(
     eq_assert(resp_array, data)
 
     eq_assert(mlem_client(data), data)
+
+    path = tmp_path / "data"
+    with open(path, "wb") as fout, ser.dump(dt, data) as fin:
+        fout.write(fin.read())
+
+    eq_assert(mlem_client(str(path)), data)
+    eq_assert(mlem_client(path), data)
