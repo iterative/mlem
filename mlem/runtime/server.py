@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from mlem.core.base import MlemABC
 from mlem.core.data_type import DataType, DataTypeSerializer, Serializer
 from mlem.core.errors import MlemError
-from mlem.core.requirements import WithRequirements
+from mlem.core.requirements import Requirements, WithRequirements
 from mlem.runtime.interface import (
     Interface,
     InterfaceArgument,
@@ -15,6 +15,7 @@ from mlem.runtime.interface import (
     InterfaceDescriptor,
     InterfaceMethod,
 )
+from mlem.utils.module import get_object_requirements
 
 MethodMapping = Dict[str, str]
 ArgsMapping = Dict[str, str]
@@ -156,6 +157,11 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
         }
         returns = signature.returns.get_serializer()
         return arg_serializers, returns
+
+    def get_requirements(self) -> Requirements:
+        return super().get_requirements() + get_object_requirements(
+            [self.request_serializer, self.response_serializer, self.methods]
+        )
 
 
 class ServerInterface(Interface):

@@ -1,3 +1,4 @@
+import io
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -30,6 +31,8 @@ class Client(MlemABC, ABC):
     type: ClassVar[str]
     abs_name: ClassVar[str] = "client"
 
+    raw: bool = False
+
     @property
     def interface(self) -> InterfaceDescriptor:
         return self._interface_factory()
@@ -58,6 +61,7 @@ class Client(MlemABC, ABC):
             name=name,
             call_method=self._call_method,
             call_method_binary=self._call_method_binary,
+            raw=self.raw,
         )
 
     def __call__(self, *args, **kwargs):
@@ -68,6 +72,7 @@ class Client(MlemABC, ABC):
             name="__call__",
             call_method=self._call_method,
             call_method_binary=self._call_method_binary,
+            raw=self.raw,
         )(*args, **kwargs)
 
 
@@ -76,7 +81,9 @@ class _MethodCall(BaseModel):
     name: str
     call_method: Callable
     call_method_binary: Callable
+    raw: bool
 
+    # pylint: disable=too-many-branches
     def __call__(self, *args, **kwargs):
         if args and kwargs:
             raise ValueError(
@@ -121,6 +128,10 @@ class _MethodCall(BaseModel):
                                 )
                             )
                         )
+                elif isinstance(obj, io.BytesIO):
+                    return self.method.returns.get_serializer().deserialize(
+                        self.call_method_binary(self.name, obj, return_raw)
+                    )
                 else:
                     with serializer.dump(obj) as f:
                         return (
@@ -130,8 +141,10 @@ class _MethodCall(BaseModel):
                                 )
                             )
                         )
-
-            data[arg.name] = serializer.serialize(obj)
+            if self.raw:
+                data[arg.name] = obj
+            else:
+                data[arg.name] = serializer.serialize(obj)
 
         logger.debug(
             'Calling server method "%s", args: %s ...', self.method.name, data
