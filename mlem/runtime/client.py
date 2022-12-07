@@ -32,6 +32,7 @@ class Client(MlemABC, ABC):
     abs_name: ClassVar[str] = "client"
 
     raw: bool = False
+    """Pass values as-is without serializers"""
 
     @property
     def interface(self) -> InterfaceDescriptor:
