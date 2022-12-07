@@ -7,11 +7,9 @@ from typing import Callable, ClassVar, Optional, Tuple, Type
 
 import streamlit
 import streamlit_pydantic
-import watchdog
 from pydantic import BaseModel
 
 from mlem.cli.utils import LIST_LIKE_SHAPES
-from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.requirements import LibRequirementsMixin, Requirements
 from mlem.runtime import Interface
 from mlem.runtime.server import Server
@@ -49,17 +47,29 @@ def augment_model(
 
 
 class StreamlitServer(Server, LibRequirementsMixin):
+    """Streamlit UI server"""
+
     type: ClassVar = "streamlit"
-    libraries: ClassVar = (streamlit, watchdog, streamlit_pydantic)
+    libraries: ClassVar = (streamlit, streamlit_pydantic)
+
     server_host: str = "0.0.0.0"
+    """Hostname for running FastAPI backend"""
     server_port: int = 8080
+    """Port for running FastAPI backend"""
     run_server: bool = True
+    """Whether to run backend server or use existing one"""
     ui_host: str = "0.0.0.0"
+    """Hostname for running Streamlit UI"""
     ui_port: int = 80
+    """Port for running Streamlit UI"""
+    use_watchdog: bool = True
+    """Install watchdog for better performance"""
 
     def serve(self, interface: Interface):
         with self.prepare_streamlit_script(interface):
             if self.run_server:
+                from mlem.contrib.fastapi import FastAPIServer
+
                 FastAPIServer().serve(interface)
             else:
                 while True:
@@ -100,5 +110,9 @@ class StreamlitServer(Server, LibRequirementsMixin):
     def get_requirements(self) -> Requirements:
         reqs = super().get_requirements()
         if self.run_server:
+            from mlem.contrib.fastapi import FastAPIServer
+
             reqs += FastAPIServer().get_requirements()
+        if self.use_watchdog:
+            reqs += Requirements.new("watchdog")
         return reqs
