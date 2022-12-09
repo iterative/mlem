@@ -28,8 +28,10 @@ class StreamlitScript(TemplateModel):
 
 
 def augment_model(
-    model: Type[BaseModel],
+    model: Type,
 ) -> Tuple[Callable, Optional[Type]]:
+    if not issubclass(model, BaseModel):
+        return lambda x: x, model
     list_model = [
         (name, f)
         for name, f in model.__fields__.items()
