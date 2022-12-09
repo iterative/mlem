@@ -60,12 +60,22 @@ for method_name, tab in zip(methods, tabs):
 
             submit_button = streamlit.form_submit_button(label="Submit")
 
-        if submit_button:
-            response = getattr(client, method_name)(
-                **{
-                    k: v.dict() if isinstance(v, BaseModel) else v
-                    for k, v in arg_values.items()
-                }
+            if submit_button:
+                response = getattr(client, method_name)(
+                    **{
+                        k: v.dict() if isinstance(v, BaseModel) else v
+                        for k, v in arg_values.items()
+                    }
+                )
+                if method.returns.get_serializer().serializer.is_binary:
+                    pass
+                else:
+                    streamlit.write("Response:")
+                    streamlit.write(response)
+        if (
+            submit_button
+            and method.returns.get_serializer().serializer.is_binary
+        ):
+            download_button = streamlit.download_button(
+                label="Download", data=response
             )
-            streamlit.write("Response:")
-            streamlit.write(response)
