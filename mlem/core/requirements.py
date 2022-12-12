@@ -35,13 +35,6 @@ from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
 from mlem.utils.path import make_posix
 
-MODULE_PACKAGE_MAPPING = {
-    "sklearn": "scikit-learn",
-    "skimage": "scikit-image",
-    "yaml": "PyYAML",
-}
-PACKAGE_MODULE_MAPPING = {v: k for k, v in MODULE_PACKAGE_MAPPING.items()}
-
 
 class Requirement(MlemABC):
     """
@@ -92,14 +85,19 @@ class InstallableRequirement(PythonRequirement):
     package_name: Optional[str] = None
     """Pip package name for this module, if it is different from module name"""
 
+    def __init__(self, **kwargs):
+        from mlem.utils.module import get_package_name
+        # Q: is this ok or I should specify args explicitly?
+        super().__init__(**kwargs)
+        if not self.package_name and get_package_name(self.module) != self.module:
+            self.package_name = get_package_name(self.module)
+
     @property
     def package(self):
         """
         Pip package name
-        """
-        return self.package_name or MODULE_PACKAGE_MAPPING.get(
-            self.module, self.module
-        )
+        """        
+        return self.package_name or self.module
 
     def get_repr(self):
         """

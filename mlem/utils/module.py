@@ -12,6 +12,7 @@ from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
 from typing import Dict, List, Optional, Set, Tuple, Union
+from importlib_metadata import packages_distributions
 
 import dill
 import requests
@@ -22,7 +23,6 @@ from pydantic.main import ModelMetaclass
 
 import mlem
 from mlem.core.requirements import (
-    MODULE_PACKAGE_MAPPING,
     CustomRequirement,
     InstallableRequirement,
     Requirements,
@@ -257,7 +257,7 @@ def get_python_version():
     return f"{major}.{minor}.{micro}"
 
 
-def get_package_name(mod: ModuleType) -> str:
+def get_package_name(mod: Union[ModuleType, str]) -> str:
     """
     Determines PyPi package name for given module object
 
@@ -266,8 +266,10 @@ def get_package_name(mod: ModuleType) -> str:
     """
     if mod is None:
         raise ValueError("mod must not be None")
-    name = mod.__name__
-    return MODULE_PACKAGE_MAPPING.get(name, name)
+    if isinstance(mod, str):
+        mod = importing.import_module(mod)
+    # QUESTION: should we issue a warning if this list have > 1 item?
+    return packages_distributions()[mod.__name__][0] or mod.__name__
 
 
 def get_module_repr(mod: ModuleType, validate_pypi=False) -> str:

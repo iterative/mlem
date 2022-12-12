@@ -15,6 +15,7 @@ from mlem.utils.importing import (
     module_importable,
     module_imported,
 )
+from mlem.utils.module import get_package_name
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +60,8 @@ class Extension:
 
     @property
     def reqs_packages(self):
-        from mlem.core.requirements import MODULE_PACKAGE_MAPPING
-
-        return [MODULE_PACKAGE_MAPPING.get(r, r) for r in self.reqs]
+        # Q: now this requires for packages to be installed. Can it break for some reason?
+        return [get_package_name(r) for r in self.reqs]
 
 
 class ExtensionDict(dict):
