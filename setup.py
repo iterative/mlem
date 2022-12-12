@@ -86,6 +86,7 @@ extras = {
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
+    "streamlit": ["streamlit", "streamlit_pydantic"],
     "git": ["pygit2"],
 }
 
@@ -213,6 +214,7 @@ setup_args = dict(  # noqa: C408
             "client.sagemaker = mlem.contrib.sagemaker.runtime:SagemakerClient",
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.sklearn_pipeline = mlem.contrib.sklearn:SklearnPipelineType",
+            "server.streamlit = mlem.contrib.streamlit.server:StreamlitServer",
             "model_type.tf_keras = mlem.contrib.tensorflow:TFKerasModel",
             "model_io.tf_keras = mlem.contrib.tensorflow:TFKerasModelIO",
             "data_type.tf_tensor = mlem.contrib.tensorflow:TFTensorDataType",

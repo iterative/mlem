@@ -89,20 +89,6 @@ if __name__ == "__main__":
     main()
 ```
 
-### Productionization
-
-We'll show how to deploy your model with MLEM below, but let's briefly mention all the
-scenarios that MLEM enables with a couple lines of code:
-
-- **[Apply model](https://mlem.ai/doc/get-started/applying)** - load model in Python or get
-  prediction in command line.
-- **[Serve model](https://mlem.ai/doc/get-started/serving)** - create a service from your model
-  for online serving.
-- **[Build model](https://mlem.ai/doc/get-started/building)** - export model into Python
-  packages, Docker images, etc.
-- **[Deploy model](https://mlem.ai/doc/get-started/deploying)** - deploy your model to Heroku,
-  Sagemaker, Kubernetes, etc.
-
 ### Codification
 
 Check out what we have:

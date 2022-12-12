@@ -384,19 +384,6 @@ class PrimitiveSerializer(DataSerializer[PrimitiveType]):
         return instance
 
 
-class PrimitiveWriter(DataWriter[PrimitiveType]):
-    """Writer for primitive types"""
-
-    type: ClassVar[str] = "primitive"
-
-    def write(
-        self, data: PrimitiveType, storage: Storage, path: str
-    ) -> Tuple[DataReader, Artifacts]:
-        with storage.open(path) as (f, art):
-            f.write(str(data.data).encode("utf-8"))
-        return PrimitiveReader(data_type=data), {self.art_name: art}
-
-
 class PrimitiveReader(DataReader[PrimitiveType]):
     """Reader for primitive types"""
 
@@ -422,6 +409,20 @@ class PrimitiveReader(DataReader[PrimitiveType]):
         self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[PrimitiveType]:
         raise NotImplementedError
+
+
+class PrimitiveWriter(DataWriter[PrimitiveType]):
+    """Writer for primitive types"""
+
+    type: ClassVar[str] = "primitive"
+    reader_class: ClassVar = PrimitiveReader
+
+    def write(
+        self, data: PrimitiveType, storage: Storage, path: str
+    ) -> Tuple[DataReader, Artifacts]:
+        with storage.open(path) as (f, art):
+            f.write(str(data.data).encode("utf-8"))
+        return PrimitiveReader(data_type=data), {self.art_name: art}
 
 
 class ArrayType(WithDefaultSerializer, DataType):
