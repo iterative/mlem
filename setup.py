@@ -228,6 +228,7 @@ setup_args = dict(  # noqa: C408
             "data_reader.torch = mlem.contrib.torch:TorchTensorReader",
             "serializer.torch = mlem.contrib.torch:TorchTensorSerializer",
             "data_writer.torch = mlem.contrib.torch:TorchTensorWriter",
+            "serializer.torch_image = mlem.contrib.torchvision:TorchImageSerializer",
             "builder.conda = mlem.contrib.venv:CondaBuilder",
             "requirement.conda = mlem.contrib.venv:CondaPackageRequirement",
             "builder.venv = mlem.contrib.venv:VenvBuilder",

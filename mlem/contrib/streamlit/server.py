@@ -72,7 +72,9 @@ class StreamlitServer(Server, LibRequirementsMixin):
             if self.run_server:
                 from mlem.contrib.fastapi import FastAPIServer
 
-                FastAPIServer().serve(interface)
+                FastAPIServer(
+                    host=self.server_host, port=self.server_port
+                ).serve(interface)
             else:
                 while True:
                     sleep(100)

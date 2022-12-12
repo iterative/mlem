@@ -12,6 +12,7 @@ import cloudpickle
 import torch
 from pydantic import conlist, create_model
 
+from mlem.config import MlemConfigBase
 from mlem.contrib.numpy import python_type_from_np_string_repr
 from mlem.core.artifacts import Artifacts, FSSpecArtifact, Storage
 from mlem.core.data_type import (
@@ -28,7 +29,20 @@ from mlem.core.import_objects import LoadAndAnalyzeImportHook
 from mlem.core.meta_io import Location
 from mlem.core.model import ModelHook, ModelIO, ModelType, Signature
 from mlem.core.objects import MlemModel
-from mlem.core.requirements import InstallableRequirement, Requirements
+from mlem.core.requirements import (
+    InstallableRequirement,
+    Requirement,
+    Requirements,
+    RequirementsHook,
+)
+
+
+class TorchConfig(MlemConfigBase):
+    GPU: bool = False
+
+    class Config:
+        section = "torch"
+        env_prefix = "mlem_torch"
 
 
 def python_type_from_torch_string_repr(dtype: str):
@@ -239,6 +253,29 @@ class TorchModelImport(LoadAndAnalyzeImportHook):
         )
         logger.debug("Loaded dataframe object\n %s", torch_obj)
         return torch_obj
+
+
+class FixTorchVersionHook(RequirementsHook):
+    @classmethod
+    def process(cls, obj: Requirement, **kwargs) -> Requirements:
+        if (
+            isinstance(obj, InstallableRequirement)
+            and obj.version is not None
+            and "+" in obj.version
+        ):
+            obj.version = obj.version.split("+")[0]
+        if (
+            isinstance(obj, InstallableRequirement)
+            and not TorchConfig.local().GPU
+        ):
+            obj.extra_index = "https://download.pytorch.org/whl/cpu"
+        return Requirements.new(obj)
+
+    @classmethod
+    def is_object_valid(cls, obj: Requirement) -> bool:
+        return isinstance(obj, InstallableRequirement) and (
+            obj.module in ("torch", "torchvision")
+        )
 
 
 # Copyright 2019 Zyfra
