@@ -12,11 +12,11 @@ from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
 from typing import Dict, List, Optional, Set, Tuple, Union
-from importlib_metadata import packages_distributions
 
 import dill
 import requests
 from dill._dill import TypeType, save_type
+from importlib_metadata import packages_distributions
 from isort.deprecated.finders import FindersManager
 from isort.settings import Config
 from pydantic.main import ModelMetaclass

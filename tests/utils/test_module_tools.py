@@ -11,6 +11,7 @@ from mlem.utils.module import (
     get_module_version,
     get_object_module,
     get_object_requirements,
+    get_package_name,
     is_builtin_module,
     is_extension_module,
     is_installable_module,
@@ -18,7 +19,6 @@ from mlem.utils.module import (
     is_mlem_module,
     is_private_module,
     is_pseudo_module,
-    get_package_name,
 )
 from tests.conftest import long
 

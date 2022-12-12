@@ -87,16 +87,20 @@ class InstallableRequirement(PythonRequirement):
 
     def __init__(self, **kwargs):
         from mlem.utils.module import get_package_name
+
         # Q: is this ok or I should specify args explicitly?
         super().__init__(**kwargs)
-        if not self.package_name and get_package_name(self.module) != self.module:
+        if (
+            not self.package_name
+            and get_package_name(self.module) != self.module
+        ):
             self.package_name = get_package_name(self.module)
 
     @property
     def package(self):
         """
         Pip package name
-        """        
+        """
         return self.package_name or self.module
 
     def get_repr(self):
