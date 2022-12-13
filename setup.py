@@ -86,9 +86,9 @@ extras = {
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
-    "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
     "git": ["pygit2"],
 }
+extras["streamlit"] = extras["fastapi"] + ["streamlit", "streamlit_pydantic"],
 
 # add DVC extras
 for e in [
