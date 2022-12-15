@@ -70,6 +70,7 @@ extras = {
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
     "fastapi": ["uvicorn", "fastapi"],
+    "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
     "sagemaker": ["boto3", "sagemaker"],
     "torch": ["torch"],
     "tensorflow": ["tensorflow"],
@@ -88,7 +89,6 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
 }
-extras["streamlit"] = extras["fastapi"] + ["streamlit", "streamlit_pydantic"],
 
 # add DVC extras
 for e in [

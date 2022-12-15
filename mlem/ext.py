@@ -120,7 +120,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.venv", [], False),
         Extension(
             "mlem.contrib.streamlit",
-            ["streamlit", "streamlit_pydantic"],
+            ["fastapi", "uvicorn", "streamlit", "streamlit_pydantic"],
             False,
         ),
         Extension("mlem.contrib.git", ["pygit2"], True),
