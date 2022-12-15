@@ -15,7 +15,6 @@ from mlem.utils.importing import (
     module_importable,
     module_imported,
 )
-from mlem.utils.module import get_package_name
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +59,12 @@ class Extension:
 
     @property
     def reqs_packages(self):
-        # Q: now this requires for packages to be installed. Can it break for some reason?
-        return [get_package_name(r) for r in self.reqs]
+        # since this must work without these packages installed,
+        # we use mapping for cases when module_name != package_name
+        module_package = {
+            "sklearn": "scikit-learn",
+        }
+        return [module_package.get(r, r) for r in self.reqs]
 
 
 class ExtensionDict(dict):

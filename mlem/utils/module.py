@@ -266,10 +266,25 @@ def get_package_name(mod: Union[ModuleType, str]) -> str:
     """
     if mod is None:
         raise ValueError("mod must not be None")
-    if isinstance(mod, str):
-        mod = importing.import_module(mod)
-    # QUESTION: should we issue a warning if this list have > 1 item?
-    return packages_distributions()[mod.__name__][0] or mod.__name__
+    if not isinstance(mod, str):
+        mod = mod.__name__
+    packages = packages_distributions()
+    fix_suggestion = "If that's incorrect, fix metadata manually, either in `.mlem` file or in your MLEM Python object."
+    if mod not in packages or len(packages[mod]) == 0:
+        logger.warning(
+            "Fail to determine package name for module '%s', using module name instead. %s",
+            mod,
+            fix_suggestion,
+        )
+        return mod
+    if len(packages) > 1:
+        logger.warning(
+            "Found multiple packages for '%s' module, using '%s'. %s",
+            mod,
+            packages[mod][0],
+            fix_suggestion,
+        )
+    return packages[mod][0]
 
 
 def get_module_repr(mod: ModuleType, validate_pypi=False) -> str:

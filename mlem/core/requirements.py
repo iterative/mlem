@@ -25,7 +25,7 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from mlem.core.base import MlemABC
 
@@ -85,16 +85,17 @@ class InstallableRequirement(PythonRequirement):
     package_name: Optional[str] = None
     """Pip package name for this module, if it is different from module name"""
 
-    def __init__(self, **kwargs):
-        from mlem.utils.module import get_package_name
+    @root_validator
+    def set_package_name(cls, values):  # pylint: disable=no-self-argument
+        package_name = values.get("package_name")
+        if not package_name:
+            from mlem.utils.module import get_package_name
 
-        # Q: is this ok or I should specify args explicitly?
-        super().__init__(**kwargs)
-        if (
-            not self.package_name
-            and get_package_name(self.module) != self.module
-        ):
-            self.package_name = get_package_name(self.module)
+            module = values.get("module")
+            package_name = get_package_name(module)
+            if package_name != module:
+                values["package_name"] = package_name
+        return values
 
     @property
     def package(self):
