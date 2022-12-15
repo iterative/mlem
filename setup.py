@@ -71,7 +71,7 @@ extras = {
     "lightgbm": ["lightgbm"],
     "fastapi": ["uvicorn", "fastapi"],
     "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
-    "sagemaker": ["boto3", "sagemaker"],
+    "sagemaker": ["docker", "boto3", "sagemaker"],
     "torch": ["torch"],
     "tensorflow": ["tensorflow"],
     "azure": ["adlfs>=2021.10.0", "azure-identity>=1.4.0", "knack"],
