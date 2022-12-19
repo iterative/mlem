@@ -70,7 +70,8 @@ extras = {
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
     "fastapi": ["uvicorn", "fastapi"],
-    "sagemaker": ["boto3", "sagemaker"],
+    "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
+    "sagemaker": ["docker", "boto3", "sagemaker"],
     "torch": ["torch"],
     "tensorflow": ["tensorflow"],
     "azure": ["adlfs>=2021.10.0", "azure-identity>=1.4.0", "knack"],
@@ -86,7 +87,6 @@ extras = {
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
-    "streamlit": ["streamlit", "streamlit_pydantic"],
     "git": ["pygit2"],
 }
 
