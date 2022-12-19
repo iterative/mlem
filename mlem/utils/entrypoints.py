@@ -114,6 +114,8 @@ def find_implementations(
 
     impls: Dict[Type[IT], str] = {}
     for pyfile in glob.glob(os.path.join(path, "**", "*.py"), recursive=True):
+        if os.path.basename(pyfile).startswith("_"):
+            continue
         module_name = (
             root_module_name
             + "."
