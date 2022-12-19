@@ -10,7 +10,11 @@ from mlem.core.model import ModelHook, ModelType, SimplePickleIO
 class TestModelType(ModelType, ModelHook):
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[typing.Dict[str, Any]] = None,
+        **kwargs
     ) -> ModelType:
         return TestModelType(io=SimplePickleIO(), methods={})
 

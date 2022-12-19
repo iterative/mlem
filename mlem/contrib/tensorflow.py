@@ -6,7 +6,7 @@ DataType, Reader and Writer implementations for `tf.Tensor`
 """
 import posixpath
 import tempfile
-from typing import Any, ClassVar, Iterator, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, Iterator, List, Optional, Tuple
 
 import h5py
 import numpy as np
@@ -219,11 +219,16 @@ class TFKerasModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
+        sample_data = (methods_sample_data or {}).get("predict", sample_data)
         model = TFKerasModel(model=obj, methods={})
         model.methods = {
-            "predict": Signature.from_method(
+            "__call__": Signature.from_method(
                 obj.__call__,
                 sample_data,
                 auto_infer=sample_data is not None,

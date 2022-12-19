@@ -174,8 +174,13 @@ class XGBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
+        sample_data = (methods_sample_data or {}).get("predict", sample_data)
         og_sample_data = sample_data
         if sample_data is not None and not isinstance(
             sample_data, xgboost.DMatrix

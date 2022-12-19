@@ -76,3 +76,16 @@ def test_set_get_validation(runner: Runner, mlem_project):
     )
 
     assert result.exit_code == 0
+
+
+def test_double_set(runner: Runner, mlem_project):
+    result = runner.invoke(
+        f"config set pandas.default_format json --project {mlem_project}".split()
+    )
+
+    assert result.exit_code == 0, result.exception
+
+    runner.invoke(
+        f"config set pandas.default_format json --project {mlem_project}".split(),
+        raise_on_error=True,
+    )

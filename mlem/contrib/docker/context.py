@@ -325,7 +325,8 @@ class DockerModelDirectory(BaseModel):
                 self.model.clone(path)
             else:
                 copy = self.model.copy()
-                copy.model_type.bind(self.model.model_type.model)
+                for name, proc in self.model.processors.items():
+                    copy.processors[name].bind(proc.model)
                 copy.dump(path)
 
     def write_dockerfile(self, requirements: Requirements):

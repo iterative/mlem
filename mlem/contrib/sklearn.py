@@ -3,7 +3,7 @@ Extension type: model
 
 ModelType implementations for any sklearn-compatible classes as well as `Pipeline`
 """
-from typing import Any, ClassVar, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
@@ -32,18 +32,31 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ModelType:
+
+        predict_sample_data = (methods_sample_data or {}).get(
+            "predict", sample_data
+        )
         methods = {
             "predict": Signature.from_method(
-                obj.predict, auto_infer=sample_data is not None, X=sample_data
+                obj.predict,
+                auto_infer=predict_sample_data is not None,
+                X=predict_sample_data,
             ),
         }
         if hasattr(obj, "predict_proba"):
+            proba_sample_data = (methods_sample_data or {}).get(
+                "predict_proba", sample_data
+            )
             methods["predict_proba"] = Signature.from_method(
                 obj.predict_proba,
-                auto_infer=sample_data is not None,
-                X=sample_data,
+                auto_infer=proba_sample_data is not None,
+                X=proba_sample_data,
             )
 
         return SklearnModel(io=SimplePickleIO(), methods=methods).bind(obj)
@@ -82,27 +95,40 @@ class SklearnPipelineType(SklearnModel):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ModelType:
+        methods_sample_data = methods_sample_data or {}
         mt = SklearnPipelineType(io=SimplePickleIO(), methods={}).bind(obj)
         predict = obj.predict
-        predict_args = {"X": sample_data}
+        predict_args = {"X": methods_sample_data.get("predict", sample_data)}
         if hasattr(predict, "__wrapped__"):
             predict = predict.__wrapped__
             predict_args["self"] = obj
         mt.methods["predict"] = Signature.from_method(
-            predict, auto_infer=sample_data is not None, **predict_args
+            predict,
+            auto_infer=methods_sample_data.get("predict", sample_data)
+            is not None,
+            **predict_args
         )
 
         if hasattr(obj, "predict_proba"):
             predict_proba = obj.predict_proba
-            predict_proba_args = {"X": sample_data}
+            predict_proba_args = {
+                "X": methods_sample_data.get("predict_proba", sample_data)
+            }
             if hasattr(predict_proba, "__wrapped__"):
                 predict_proba = predict_proba.__wrapped__
                 predict_proba_args["self"] = obj
             mt.methods["predict_proba"] = Signature.from_method(
                 predict_proba,
-                auto_infer=sample_data is not None,
+                auto_infer=methods_sample_data.get(
+                    "predict_proba", sample_data
+                )
+                is not None,
                 **predict_proba_args
             )
         return mt

@@ -169,7 +169,7 @@ def test_nested_objects_in_schema(data):
     docs = client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
     payload = (
-        interface.model_type.methods["__call__"]
+        interface.model.model_type.methods["__call__"]
         .args[0]
         .type_.get_serializer()
         .serialize(data)
@@ -226,3 +226,30 @@ def test_file_endpoint(
 
     eq_assert(mlem_client(str(path)), data)
     eq_assert(mlem_client(path), data)
+
+
+def test_serve_processors_model(
+    processors_model, create_mlem_client, create_client
+):
+    model_interface = ModelInterface.from_model(processors_model)
+
+    server = FastAPIServer(
+        standardize=True,
+    )
+    interface = ServerInterface.create(server, model_interface)
+    client = create_client(server, interface)
+
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+
+    mlem_client: Client = create_mlem_client(client)
+    remote_interface = mlem_client.interface
+    dt = remote_interface.__root__["predict"].args[0].data_type
+    response = client.post(
+        "/predict", json={"data": dt.serialize(["1", "2", "3"])}
+    )
+    assert response.status_code == 200
+    resp = remote_interface.__root__["predict"].returns.data_type.deserialize(
+        response.json()
+    )
+    assert resp == 4

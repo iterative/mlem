@@ -243,7 +243,7 @@ TypeHints = Dict[Keys, Type]
 class SmartSplitDict(dict):
     def __init__(
         self,
-        value=None,
+        value: dict = None,
         sep=".",
         type_field="type",
         model: Type[BaseModel] = None,
@@ -253,7 +253,9 @@ class SmartSplitDict(dict):
         self.type_hints: TypeHints = (
             {} if model is None else self._prepare_type_hints(model)
         )
-        super().__init__(value or ())
+        super().__init__()
+        if value:
+            self.update(value)
 
     @classmethod
     def _prepare_type_hints(cls, model: Type[BaseModel]) -> TypeHints:

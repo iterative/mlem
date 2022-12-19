@@ -18,8 +18,15 @@ from mlem.api import init
 from mlem.contrib.heroku.meta import HerokuEnv
 from mlem.core.errors import InvalidArgumentError
 from mlem.core.meta_io import MLEM_EXT
-from mlem.core.metadata import list_objects, load, load_meta, save
+from mlem.core.metadata import (
+    list_objects,
+    load,
+    load_meta,
+    log_meta_params,
+    save,
+)
 from mlem.core.objects import MlemData, MlemEnv, MlemLink, MlemModel
+from mlem.telemetry import pass_telemetry_params, telemetry
 from mlem.utils.path import make_posix
 from tests.conftest import (
     MLEM_TEST_REPO,
@@ -292,3 +299,33 @@ def test_load_local_rev(tmpdir):
         match=f"Rev `{first.hexsha}` was provided, but FSSpecResolver does not support versioning",
     ):
         load(path, rev=first.hexsha)
+
+
+_data = MlemData(reader=None)
+_data.reader_raw = {"data_type": {"type": "kek"}}
+
+
+@pytest.mark.parametrize(
+    "obj,params",
+    [
+        (MlemModel(), {}),
+        (MlemModel(processors={"a": {"type": "kek"}}), {"model_type": "kek"}),
+        (
+            MlemModel(
+                processors={"a": {"type": "kek"}, "b": {"type": "callable"}}
+            ),
+            {"model_type": "kek"},
+        ),
+        (
+            MlemModel(processors={"a": {"type": "callable"}}),
+            {"model_type": "callable"},
+        ),
+        (_data, {"data_type": "kek"}),
+    ],
+)
+def test_log_meta_params(obj, params):
+    with telemetry.event_scope(
+        "test", "log_meta_params"
+    ) as event, pass_telemetry_params():
+        log_meta_params(obj)
+        assert event.kwargs == params

@@ -203,8 +203,13 @@ class CallableModelType(ModelType, ModelHook):
 
     @classmethod
     def process(
-        cls, obj: Callable, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Callable,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
+        sample_data = (methods_sample_data or {}).get("__call__", sample_data)
         s = Signature.from_method(
             obj, sample_data, auto_infer=sample_data is not None
         )
