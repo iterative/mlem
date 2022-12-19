@@ -21,15 +21,17 @@ model_03 = (
 
 @pytest.mark.parametrize("old_data", [model_03])
 def test_single(tmpdir, old_data):
-    path = tmpdir / "model.mlem"
 
-    path.write_text(safe_dump(old_data), encoding="utf8")
+    path = tmpdir / "model.mlem"
+    old_payload, new_object = old_data
+    path.write_text(safe_dump(old_payload), encoding="utf8")
 
     migrate(str(path))
 
     meta = load_meta(path)
 
     assert isinstance(meta, MlemObject)
+    assert meta == new_object
 
 
 @pytest.mark.parametrize("old_data,new_data", [model_03])
