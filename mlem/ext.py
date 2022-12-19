@@ -109,7 +109,9 @@ class ExtensionLoader:
         Extension("mlem.contrib.github", [], True),
         Extension("mlem.contrib.gitlabfs", [], True),
         Extension("mlem.contrib.bitbucketfs", [], True),
-        Extension("mlem.contrib.sagemaker", ["sagemaker", "boto3"], False),
+        Extension(
+            "mlem.contrib.sagemaker", ["docker", "sagemaker", "boto3"], False
+        ),
         Extension("mlem.contrib.dvc", ["dvc"], False),
         Extension(
             "mlem.contrib.heroku", ["fastapi", "uvicorn", "docker"], False
@@ -120,7 +122,7 @@ class ExtensionLoader:
         Extension("mlem.contrib.venv", [], False),
         Extension(
             "mlem.contrib.streamlit",
-            ["streamlit", "streamlit_pydantic"],
+            ["fastapi", "uvicorn", "streamlit", "streamlit_pydantic"],
             False,
         ),
         Extension("mlem.contrib.git", ["pygit2"], True),
