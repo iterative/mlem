@@ -59,9 +59,12 @@ class Extension:
 
     @property
     def reqs_packages(self):
-        from mlem.core.requirements import MODULE_PACKAGE_MAPPING
-
-        return [MODULE_PACKAGE_MAPPING.get(r, r) for r in self.reqs]
+        # since this must work without these packages installed,
+        # we use mapping for cases when module_name != package_name
+        module_package = {
+            "sklearn": "scikit-learn",
+        }
+        return [module_package.get(r, r) for r in self.reqs]
 
 
 class ExtensionDict(dict):
