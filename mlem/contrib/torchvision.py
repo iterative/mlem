@@ -1,3 +1,8 @@
+"""Torch Image Serializer
+Extension type: serving
+
+TorchImageSerializer implementation
+"""
 import contextlib
 from io import BytesIO
 from typing import Any, BinaryIO, ClassVar, Iterator, Union

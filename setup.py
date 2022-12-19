@@ -88,6 +88,7 @@ extras = {
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
+    "torchvision": ["torchvision"],
 }
 
 # add DVC extras
