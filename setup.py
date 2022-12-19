@@ -245,6 +245,7 @@ setup_args = dict(  # noqa: C408
             "pandas = mlem.contrib.pandas:PandasConfig",
             "aws = mlem.contrib.sagemaker.config:AWSConfig",
             "sagemaker = mlem.contrib.sagemaker.runtime:SageMakerServerConfig",
+            "torch = mlem.contrib.torch:TorchConfig",
         ],
     },
     zip_safe=False,

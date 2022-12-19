@@ -22,11 +22,11 @@ def test_dockerfile_generator_custom_python_version():
         f"""FROM python:AAAA-slim
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt && pip cache purge
 COPY mlem_requirements.txt .
-RUN pip install -r mlem_requirements.txt
+RUN pip install -r mlem_requirements.txt && pip cache purge
 COPY {MLEM_LOCAL_WHL} .
-RUN pip install {MLEM_LOCAL_WHL}
+RUN pip install {MLEM_LOCAL_WHL} && pip cache purge
 COPY . ./
 CMD sh run.sh
 """
@@ -42,8 +42,8 @@ def test_dockerfile_generator_unix_packages():
 WORKDIR /app
 RUN kek aaa bbb lol
 COPY requirements.txt .
-RUN pip install -r requirements.txt
-RUN pip install mlem=={mlem.__version__}
+RUN pip install -r requirements.txt && pip cache purge
+RUN pip install mlem=={mlem.__version__} && pip cache purge
 COPY . ./
 CMD sh run.sh
 """
@@ -73,8 +73,8 @@ def test_dockerfile_generator_super_custom():
 WORKDIR /app
 RUN echo "pre_install"
 COPY requirements.txt .
-RUN pip install -r requirements.txt
-RUN pip install mlem=={mlem.__version__}
+RUN pip install -r requirements.txt && pip cache purge
+RUN pip install mlem=={mlem.__version__} && pip cache purge
 RUN echo "post_install"
 COPY . ./
 RUN echo "post_copy"

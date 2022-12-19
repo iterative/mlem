@@ -135,7 +135,7 @@ class PipSource(MlemSource):
         pass
 
     def get_install_command(self, args: "DockerBuildArgs"):
-        return f"RUN pip install mlem=={LOCAL_DOCKER_CONFIG.pip_version}"
+        return f"RUN pip install mlem=={LOCAL_DOCKER_CONFIG.pip_version} && pip cache purge"
 
 
 class GitSource(MlemSource):

@@ -200,7 +200,11 @@ def test_version_fix():
     print(RequirementsAnalyzer.hooks)
     reqs = Requirements.new("torch==1+cuda117")
     assert reqs.expanded.__root__ == [
-        InstallableRequirement(module="torch", version="1")
+        InstallableRequirement(
+            module="torch",
+            version="1",
+            extra_index="https://download.pytorch.org/whl/cpu",
+        )
     ]
 
 

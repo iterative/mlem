@@ -18,6 +18,8 @@ def _to_buffer(instance):
 
 
 class TorchImageSerializer(BinarySerializer):
+    """Serializes torch tensors to/from images"""
+
     type: ClassVar = "torch_image"
     support_files: ClassVar = True
 
