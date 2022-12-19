@@ -185,9 +185,9 @@ def test_module_version():
 
 
 def test_module_name():
+    assert get_package_name(import_module("pandas")) == "pandas"
     assert get_package_name(import_module("numpy")) == "numpy"
     assert get_package_name(import_module("sklearn")) == "scikit-learn"
-    assert get_package_name(import_module("skimage")) == "scikit-image"
     assert get_package_name(import_module("yaml")) == "PyYAML"
 
 
