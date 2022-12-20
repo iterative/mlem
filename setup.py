@@ -23,7 +23,7 @@ install_requires = [
     "flatdict",
     "iterative-telemetry>=0.0.6",
     "python-multipart",
-    "importlib_metadata",
+    "importlib-metadata",
 ]
 
 tests = [
