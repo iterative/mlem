@@ -14,6 +14,7 @@ from mlem.cli.info import pretty_print
 from mlem.cli.init import init
 from mlem.cli.link import link
 from mlem.cli.main import app
+from mlem.cli.migrate import migrate
 from mlem.cli.serve import serve
 from mlem.cli.types import list_types
 
@@ -33,6 +34,7 @@ __all__ = [
     "list_types",
     "dev",
     "checkenv",
+    "migrate",
 ]
 
 
