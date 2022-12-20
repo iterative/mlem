@@ -84,6 +84,8 @@ class InstallableRequirement(PythonRequirement):
     """Version of python package"""
     package_name: Optional[str] = None
     """Pip package name for this module, if it is different from module name"""
+    extra_index: Optional[str] = None
+    """Extra index to use for this package"""
 
     @root_validator
     def set_package_name(cls, values):  # pylint: disable=no-self-argument

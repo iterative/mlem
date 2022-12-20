@@ -17,6 +17,11 @@ from mlem.core.data_type import DataAnalyzer, DataType
 from mlem.core.errors import DeserializationError, SerializationError
 from mlem.core.model import ModelAnalyzer
 from mlem.core.objects import MlemModel
+from mlem.core.requirements import (
+    InstallableRequirement,
+    Requirements,
+    RequirementsAnalyzer,
+)
 from mlem.utils.path import make_posix
 from tests.conftest import data_write_read_check
 
@@ -189,6 +194,18 @@ def test_torch_import_in_separate_shell(tmp_path):
         check=True,
     )
     assert x.returncode == 0
+
+
+def test_version_fix():
+    print(RequirementsAnalyzer.hooks)
+    reqs = Requirements.new("torch==1+cuda117")
+    assert reqs.expanded.__root__ == [
+        InstallableRequirement(
+            module="torch",
+            version="1",
+            extra_index="https://download.pytorch.org/whl/cpu",
+        )
+    ]
 
 
 # Copyright 2019 Zyfra

@@ -52,11 +52,21 @@ for method_name, tab in zip(methods, tabs):
                                 )
                             )
                         else:
-                            arg_values[arg.name] = augment(
-                                streamlit.number_input(
+                            if arg_model in (int, float):
+                                arg_input = streamlit.number_input(
                                     key=key, label=arg.name, value=0
                                 )
-                            )
+                            elif arg_model in (str, complex):
+                                arg_input = streamlit.text_input(
+                                    key=key, label=arg.name
+                                )
+                            elif arg_model is bool:
+                                arg_input = streamlit.checkbox(
+                                    key=key, label=arg.name
+                                )
+                            else:
+                                arg_input = None
+                            arg_values[arg.name] = augment(arg_input)
 
             submit_button = streamlit.form_submit_button(label="Submit")
 
