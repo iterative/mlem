@@ -23,6 +23,7 @@ install_requires = [
     "flatdict",
     "iterative-telemetry>=0.0.6",
     "python-multipart",
+    "importlib-metadata",
 ]
 
 tests = [
@@ -52,7 +53,6 @@ tests = [
     "pyarrow",
     "skl2onnx",
     "dvc[s3]",
-    "importlib_metadata",
     "httpx",
 ]
 

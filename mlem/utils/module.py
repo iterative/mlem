@@ -277,11 +277,11 @@ def get_package_name(mod: Union[ModuleType, str]) -> str:
             fix_suggestion,
         )
         return mod
-    if len(packages) > 1:
+    if len(packages[mod]) > 1:
         logger.warning(
-            "Found multiple packages for '%s' module, using '%s'. %s",
+            "Found multiple packages for '%s' module: %s. Using first one. %s",
             mod,
-            packages[mod][0],
+            packages[mod],
             fix_suggestion,
         )
     return packages[mod][0]
