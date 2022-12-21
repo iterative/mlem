@@ -453,10 +453,15 @@ def add_closure_inspection(f):
                 inspect.getfile(obj),
                 exc_info=True,
             )
-        except Exception as e:
-            raise Exception(
-                f"Cannot parse code for {obj} from {inspect.getfile(obj)}"
-            ) from e
+        except Exception as e:  # pylint: disable=broad-except
+            if (
+                not callable(obj)
+                or not hasattr(obj, "__name__")
+                or obj.__name__ != (lambda: 0).__name__
+            ):
+                raise Exception(
+                    f"Cannot parse code for {obj} from {inspect.getfile(obj)}"
+                ) from e
 
         return f(pickler, obj)
 

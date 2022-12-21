@@ -59,18 +59,30 @@ class InterfaceMethod(BaseModel):
 
     @classmethod
     def from_signature(cls, signature: Signature) -> "InterfaceMethod":
+        args = [
+            InterfaceArgument(
+                name=a.name,
+                data_type=a.type_,
+                serializer=a.type_.get_serializer().serializer,
+                required=a.required,
+                default=a.default,
+            )
+            for a in signature.args
+        ]
+        if not args and signature.varargs and signature.varargs_type:
+            args = [
+                InterfaceArgument(
+                    name=signature.varargs,
+                    data_type=signature.varargs_type,
+                    serializer=signature.varargs_type.get_serializer().serializer,
+                    required=False,
+                    default=None,
+                )
+            ]
+        # no varkw support yet
         return InterfaceMethod(
             name=signature.name,
-            args=[
-                InterfaceArgument(
-                    name=a.name,
-                    data_type=a.type_,
-                    serializer=a.type_.get_serializer().serializer,
-                    required=a.required,
-                    default=a.default,
-                )
-                for a in signature.args
-            ],
+            args=args,
             returns=InterfaceDataType(
                 data_type=signature.returns,
                 serializer=signature.returns.get_serializer().serializer,
@@ -302,6 +314,10 @@ class ModelInterface(Interface):
             Signature(
                 name=method_name,
                 args=input_signature.args,
+                varkw=input_signature.varkw,
+                varargs=input_signature.varargs,
+                varkw_type=input_signature.varkw_type,
+                varargs_type=input_signature.varargs_type,
                 returns=output_signature.returns,
             )
         )
