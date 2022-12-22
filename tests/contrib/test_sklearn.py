@@ -3,14 +3,16 @@ import posixpath
 import lightgbm as lgb
 import numpy as np
 import pytest
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
-from mlem.constants import PREDICT_METHOD_NAME
+from mlem.constants import PREDICT_METHOD_NAME, TRANSFORM_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.contrib.sklearn import SklearnModel
+from mlem.contrib.scipy import ScipySparceMatrix
+from mlem.contrib.sklearn import SklearnModel, SklearnTransformer
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import Argument, ModelAnalyzer
@@ -22,6 +24,11 @@ from tests.conftest import long
 @pytest.fixture
 def inp_data():
     return [[1, 2, 3], [3, 2, 1]]
+
+
+@pytest.fixture
+def inp_data_text():
+    return ["Is that peanut butter on my nose? Mlem!"]
 
 
 @pytest.fixture
@@ -41,6 +48,13 @@ def regressor(inp_data, out_data):
     lr = LinearRegression()
     lr.fit(inp_data, out_data)
     return lr
+
+
+@pytest.fixture
+def transformer(inp_data_text):
+    tf_idf = TfidfVectorizer()
+    tf_idf.fit(inp_data_text)
+    return tf_idf
 
 
 @pytest.fixture()
@@ -74,6 +88,27 @@ def test_hook(model_fixture, inp_data, request):
     assert signature.name == PREDICT_METHOD_NAME
     assert signature.args[0] == Argument(name="X", type_=data_type)
     assert signature.returns == returns
+
+
+def test_hook_transformer(transformer, inp_data_text):
+    data_type = DataAnalyzer.analyze(inp_data_text)
+    model_type = ModelAnalyzer.analyze(transformer, sample_data=inp_data_text)
+    assert isinstance(model_type, SklearnTransformer)
+    assert TRANSFORM_METHOD_NAME in model_type.methods
+    signature = model_type.methods[TRANSFORM_METHOD_NAME]
+    returns = ScipySparceMatrix(dtype="float64")
+    assert signature.name == TRANSFORM_METHOD_NAME
+    assert signature.args[0] == Argument(name="raw_documents", type_=data_type)
+    assert signature.returns == returns
+
+
+def test_model_type__transform(transformer, inp_data_text):
+    model_type = ModelAnalyzer.analyze(transformer, sample_data=inp_data_text)
+
+    np.testing.assert_array_almost_equal(
+        transformer.transform(inp_data_text).todense(),
+        model_type.call_method("transform", inp_data_text).todense(),
+    )
 
 
 def test_hook_lgb(lgbm_model, inp_data):

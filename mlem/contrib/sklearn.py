@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Union
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
+from sklearn.feature_extraction.text import TransformerMixin, _VectorizerMixin
 from sklearn.pipeline import Pipeline
 
 from mlem.core.hooks import IsInstanceHookMixin
@@ -132,3 +133,27 @@ class SklearnPipelineType(SklearnModel):
                 **predict_proba_args
             )
         return mt
+
+
+class SklearnTransformer(SklearnModel):
+    valid_types: ClassVar = (
+        TransformerMixin,
+        _VectorizerMixin,
+    )
+    type: ClassVar = "sklearn_transformer"
+
+    @classmethod
+    def process(
+        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+    ) -> ModelType:
+        methods = {
+            "transform": Signature.from_method(
+                obj.transform,
+                auto_infer=sample_data is not None,
+                raw_documents=sample_data,
+            ),
+        }
+
+        return SklearnTransformer(io=SimplePickleIO(), methods=methods).bind(
+            obj
+        )
