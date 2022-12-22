@@ -213,7 +213,7 @@ class Signature(BaseModel, WithRequirements):
             returns = argspec.annotations["return"]
         elif auto_infer:
             result = method(*call_args, **call_kwargs)
-            returns = DataAnalyzer.analyze(result, is_dynamic=True)
+            returns = DataAnalyzer.analyze(result)
         else:
             returns = UnspecifiedDataType()
         args = compose_args(
