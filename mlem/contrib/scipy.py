@@ -6,7 +6,6 @@ from scipy.sparse import csr_matrix
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
-    DT,
     DataHook,
     DataReader,
     DataType,
@@ -39,8 +38,8 @@ class ScipySparceMatrix(
 
 class ScipyWriter(DataWriter):
     def write(
-        self, data: DT, storage: Storage, path: str
-    ) -> Tuple[DataReader[DT], Artifacts]:
+        self, data: DataType, storage: Storage, path: str
+    ) -> Tuple[DataReader[DataType], Artifacts]:
         with storage.open(path) as (f, art):
             sparse.save_npz(f, art)
         return ScipyReader(data_type=data), {self.art_name: art}
@@ -51,7 +50,7 @@ class ScipyReader(DataReader):
 
     def read_batch(
         self, artifacts: Artifacts, batch_size: int
-    ) -> Iterator[DT]:
+    ) -> Iterator[DataType]:
         raise NotImplementedError
 
     def read(self, artifacts: Artifacts) -> Iterator[DataType]:
