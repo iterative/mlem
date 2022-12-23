@@ -6,8 +6,9 @@ from mlem.contrib.streamlit.server import augment_model
 from mlem.runtime import InterfaceMethod
 from mlem.runtime.client import HTTPClient
 
-streamlit.title(
-    "MLEM Streamlit UI for server at {{server_host}}:{{server_port}}"
+streamlit.title("MLEM Streamlit UI")
+streamlit.write(
+    "For server at http://{{server_host}}:{{server_port}}. Check out the docs at https://mlem.ai/doc"
 )
 
 
