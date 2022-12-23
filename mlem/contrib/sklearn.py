@@ -10,6 +10,7 @@ from sklearn.base import ClassifierMixin, RegressorMixin
 from sklearn.feature_extraction.text import TransformerMixin, _VectorizerMixin
 from sklearn.pipeline import Pipeline
 
+from mlem.constants import TRANSFORM_METHOD_NAME
 from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.model import (
     ModelHook,
@@ -144,10 +145,18 @@ class SklearnTransformer(SklearnModel):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ModelType:
+        methods_sample_data = methods_sample_data or {}
+        sample_data = methods_sample_data.get(
+            TRANSFORM_METHOD_NAME, sample_data
+        )
         methods = {
-            "transform": Signature.from_method(
+            TRANSFORM_METHOD_NAME: Signature.from_method(
                 obj.transform,
                 auto_infer=sample_data is not None,
                 raw_documents=sample_data,

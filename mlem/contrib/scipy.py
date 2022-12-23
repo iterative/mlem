@@ -36,7 +36,7 @@ class ScipySparceMatrix(
         return ScipyWriter(**kwargs)
 
 
-class ScipyWriter(DataWriter):
+class ScipyWriter(DataWriter[[ScipySparceMatrix]]):
     def write(
         self, data: DataType, storage: Storage, path: str
     ) -> Tuple[DataReader[DataType], Artifacts]:
