@@ -89,7 +89,7 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
     "torchvision": ["torchvision"],
-    "pil": ["pil", "numpy"],
+    "pil": ["Pillow", "numpy"],
 }
 
 # add DVC extras
