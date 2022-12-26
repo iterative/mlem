@@ -12,7 +12,7 @@ FLY_TOML = "fly.toml"
 
 def check_flyctl_exec():
     try:
-        run_flyctl("version")
+        run_flyctl("version", wrap_error=False)
     except subprocess.SubprocessError as e:
         raise DeploymentError(
             "flyctl executable is not available. Please install it using <https://fly.io/docs/hands-on/install-flyctl/>"
@@ -20,7 +20,10 @@ def check_flyctl_exec():
 
 
 def run_flyctl(
-    command: str, workdir: str = None, kwargs: Dict[str, Any] = None
+    command: str,
+    workdir: str = None,
+    kwargs: Dict[str, Any] = None,
+    wrap_error=True,
 ):
     kwargs = kwargs or {}
     cmd = (
@@ -33,7 +36,12 @@ def run_flyctl(
             ]
         ).split()
     )
-    return subprocess.check_output(cmd, cwd=workdir)
+    try:
+        return subprocess.check_output(cmd, cwd=workdir)
+    except subprocess.SubprocessError as e:
+        if wrap_error:
+            raise DeploymentError(e) from e
+        raise
 
 
 def read_fly_toml(workdir: str):
@@ -58,3 +66,23 @@ def get_status(workdir: str = None, app_name: str = None) -> FlyioStatusModel:
         args["app"] = app_name
     status = run_flyctl("status", kwargs=args, workdir=workdir)
     return parse_obj_as(FlyioStatusModel, json.loads(status))
+
+
+class FlyioScaleModel(BaseModel):
+    Name: str
+    CPUCores: int
+    CPUClass: str
+    MemoryGB: float
+    MemoryMB: int
+    PriceMonth: float
+    PriceSecond: float
+    Count: str
+    MaxPerRegion: str
+
+
+def get_scale(workdir: str = None, app_name: str = None) -> FlyioScaleModel:
+    args: Dict[str, Any] = {"json": True}
+    if app_name is not None:
+        args["app"] = app_name
+    status = run_flyctl("scale show", kwargs=args, workdir=workdir)
+    return parse_obj_as(FlyioScaleModel, json.loads(status))

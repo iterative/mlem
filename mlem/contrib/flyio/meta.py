@@ -3,12 +3,15 @@ from typing import ClassVar, Optional
 
 from pydantic import BaseModel
 
+from mlem import ui
 from mlem.api import build
 from mlem.config import MlemConfigBase, project_config
 from mlem.contrib.docker import DockerDirBuilder
 from mlem.contrib.flyio.utils import (
     check_flyctl_exec,
+    get_scale,
     get_status,
+    place_fly_toml,
     read_fly_toml,
     run_flyctl,
 )
@@ -20,6 +23,7 @@ from mlem.core.objects import (
     MlemModel,
 )
 from mlem.runtime.client import Client, HTTPClient
+from mlem.runtime.server import Server
 
 FLYIO_STATE_MAPPING = {
     "running": DeployStatus.RUNNING,
@@ -74,27 +78,28 @@ class FlyioApp(MlemDeployment, FlyioSettings):
     state_type: ClassVar = FlyioAppState
     env_type: ClassVar = FlyioEnv
 
-    image: Optional[str]
+    image: Optional[str] = None
     """Image name for docker image"""
-    app_name: Optional[str]
+    app_name: Optional[str] = None
     """Application name. Leave empty for auto-generated one"""
+    scale_memory: Optional[int] = None
+    """Set VM memory to a number of megabytes (256/512/1024 etc)"""
+    # TODO other scale params
 
-    # server: Server = None # TODO
+    server: Optional[Server] = None
+
     def _get_client(self, state: FlyioAppState) -> Client:
         return HTTPClient(host=f"https://{state.hostname}", port=443)
 
-    def _build_in_dir(self, model: MlemModel, state: FlyioAppState):
+    def _create_app(self, state: FlyioAppState):
         with tempfile.TemporaryDirectory(
             prefix="mlem_flyio_build_"
         ) as tempdir:
-            build(DockerDirBuilder(target=tempdir), model)
-
             args = {
                 "auto-confirm": True,
                 "region": self.region
                 or self.get_env().region
                 or project_config("", section=FlyioConfig).region,
-                "now": True,
             }
             if self.app_name:
                 args["name"] = self.app_name
@@ -104,11 +109,39 @@ class FlyioApp(MlemDeployment, FlyioSettings):
                 args["access-token"] = self.get_env().access_token
             run_flyctl("launch", workdir=tempdir, kwargs=args)
             state.fly_toml = read_fly_toml(tempdir)
-            state.update_model(model)
 
             status = get_status(workdir=tempdir)
             state.app_name = status.Name
             state.hostname = status.Hostname
+            self.update_state(state)
+
+    def _scale_app(self, state: FlyioAppState):
+        if self.scale_memory is None:
+            return
+        current_scale = get_scale(app_name=state.app_name)
+
+        if current_scale.MemoryMB != self.scale_memory:
+            run_flyctl(
+                f"scale memory {self.scale_memory}",
+                kwargs={"app": state.app_name},
+            )
+            ui.echo(f"Scaled {state.app_name} memory to {self.scale_memory}MB")
+
+    def _build_in_dir(self, model: MlemModel, state: FlyioAppState):
+        with tempfile.TemporaryDirectory(
+            prefix="mlem_flyio_build_"
+        ) as tempdir:
+            assert state.fly_toml is not None
+            place_fly_toml(tempdir, state.fly_toml)
+            build(DockerDirBuilder(target=tempdir, server=self.server), model)
+
+            args = {}
+            if self.get_env().access_token:
+                args["access-token"] = self.get_env().access_token
+
+            run_flyctl("deploy", workdir=tempdir, kwargs=args)
+            state.fly_toml = read_fly_toml(tempdir)
+            state.update_model(model)
             self.update_state(state)
 
     def deploy(self, model: MlemModel):
@@ -117,9 +150,12 @@ class FlyioApp(MlemDeployment, FlyioSettings):
             state: FlyioAppState = self.get_state()
 
             if state.fly_toml is None:
+                self._create_app(state)
+
+            self._scale_app(state)
+
+            if self.model_changed(model, state):
                 self._build_in_dir(model, state)
-            else:
-                raise NotImplementedError("No flyio redeploy yet")
 
     def remove(self):
         check_flyctl_exec()
