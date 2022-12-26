@@ -89,6 +89,7 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
     "torchvision": ["torchvision"],
+    "pil": ["pil", "numpy"],
 }
 
 # add DVC extras
@@ -202,6 +203,7 @@ setup_args = dict(  # noqa: C408
             "data_writer.pandas = mlem.contrib.pandas:PandasWriter",
             "serializer.series = mlem.contrib.pandas:SeriesSerializer",
             "data_type.series = mlem.contrib.pandas:SeriesType",
+            "serializer.pil_numpy = mlem.contrib.pil:PILImageSerializer",
             "builder.pip = mlem.contrib.pip.base:PipBuilder",
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
             "client.rmq = mlem.contrib.rabbitmq:RabbitMQClient",

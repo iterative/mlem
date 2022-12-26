@@ -130,6 +130,7 @@ class ExtensionLoader:
         ),
         Extension("mlem.contrib.git", ["pygit2"], True),
         Extension("mlem.contrib.torchvision", ["torchvision"], False),
+        Extension("mlem.contrib.pil", ["pil", "numpy"], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
