@@ -189,8 +189,12 @@ class Signature(BaseModel, WithRequirements):
     """returning data type"""
     varargs: Optional[str] = None
     """name of var arg"""
+    varargs_type: Optional[DataType] = None
+    """DataType for vararg items"""
     varkw: Optional[str] = None
     """name of varkw arg"""
+    varkw_type: Optional[DataType] = None
+    """DataType for varkw items"""
 
     @classmethod
     def from_method(
@@ -212,18 +216,30 @@ class Signature(BaseModel, WithRequirements):
             returns = DataAnalyzer.analyze(result)
         else:
             returns = UnspecifiedDataType()
+        args = compose_args(
+            argspec,
+            skip_first=len(argspec.args) > 0 and argspec.args[0] == "self",
+            auto_infer=auto_infer,
+            call_args=call_args,
+            call_kwargs=call_kwargs,
+        )
+        varargs_type = None
+        if argspec.varargs is not None and len(args) < len(call_args):
+            item, *_ = call_args[len(args) :]
+            varargs_type = DataAnalyzer.analyze(item)
+        varkw_type = None
+        kw_only = set(call_kwargs).difference(argspec.args)
+        if argspec.varkw is not None and len(kw_only) > 0:
+            item = call_kwargs[next(iter(kw_only))]
+            varkw_type = DataAnalyzer.analyze(item)
         return Signature(
             name=override_name or method.__name__,
-            args=compose_args(
-                argspec,
-                skip_first=len(argspec.args) > 0 and argspec.args[0] == "self",
-                auto_infer=auto_infer,
-                call_args=call_args,
-                call_kwargs=call_kwargs,
-            ),
+            args=args,
             returns=returns,
             varkw=argspec.varkw,
+            varkw_type=varkw_type,
             varargs=argspec.varargs,
+            varargs_type=varargs_type,
         )
 
     def has_unspecified_args(self):
