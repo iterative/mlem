@@ -16,13 +16,13 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 import dill
 import requests
 from dill._dill import TypeType, save_type
+from importlib_metadata import packages_distributions
 from isort.deprecated.finders import FindersManager
 from isort.settings import Config
 from pydantic.main import ModelMetaclass
 
 import mlem
 from mlem.core.requirements import (
-    MODULE_PACKAGE_MAPPING,
     CustomRequirement,
     InstallableRequirement,
     Requirements,
@@ -257,7 +257,7 @@ def get_python_version():
     return f"{major}.{minor}.{micro}"
 
 
-def get_package_name(mod: ModuleType) -> str:
+def get_package_name(mod: Union[ModuleType, str]) -> str:
     """
     Determines PyPi package name for given module object
 
@@ -266,8 +266,25 @@ def get_package_name(mod: ModuleType) -> str:
     """
     if mod is None:
         raise ValueError("mod must not be None")
-    name = mod.__name__
-    return MODULE_PACKAGE_MAPPING.get(name, name)
+    if not isinstance(mod, str):
+        mod = mod.__name__
+    packages = packages_distributions()
+    fix_suggestion = "If that's incorrect, fix metadata manually, either in `.mlem` file or in your MLEM Python object."
+    if mod not in packages or len(packages[mod]) == 0:
+        logger.warning(
+            "Fail to determine package name for module '%s', using module name instead. %s",
+            mod,
+            fix_suggestion,
+        )
+        return mod
+    if len(packages[mod]) > 1:
+        logger.warning(
+            "Found multiple packages for '%s' module: %s. Using first one. %s",
+            mod,
+            packages[mod],
+            fix_suggestion,
+        )
+    return packages[mod][0]
 
 
 def get_module_repr(mod: ModuleType, validate_pypi=False) -> str:
@@ -436,10 +453,15 @@ def add_closure_inspection(f):
                 inspect.getfile(obj),
                 exc_info=True,
             )
-        except Exception as e:
-            raise Exception(
-                f"Cannot parse code for {obj} from {inspect.getfile(obj)}"
-            ) from e
+        except Exception as e:  # pylint: disable=broad-except
+            if (
+                not callable(obj)
+                or not hasattr(obj, "__name__")
+                or obj.__name__ != (lambda: 0).__name__
+            ):
+                raise Exception(
+                    f"Cannot parse code for {obj} from {inspect.getfile(obj)}"
+                ) from e
 
         return f(pickler, obj)
 

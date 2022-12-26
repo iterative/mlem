@@ -100,7 +100,11 @@ class ComplexModelType(ModelType, ModelHook):
 
     @classmethod
     def process(
-        cls, obj: ComplexModel, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: ComplexModel,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ModelType:
         return ComplexModelType().bind(obj)
 

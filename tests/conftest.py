@@ -25,7 +25,7 @@ from mlem.core.artifacts import LOCAL_STORAGE, FSSpecStorage, LocalArtifact
 from mlem.core.data_type import DataReader, DataType, DataWriter
 from mlem.core.meta_io import MLEM_EXT, get_fs
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemData, MlemModel
+from mlem.core.objects import MAIN_PROCESSOR_NAME, MlemData, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.client import HTTPClient
 from mlem.runtime.interface import ModelInterface
@@ -303,7 +303,7 @@ def complex_model_meta_saved_single(tmp_path_factory):
                 uri=posixpath.join(name, "file2"), size=1, hash=""
             ),
         },
-        model_type=SklearnModel(methods={}),
+        processors={MAIN_PROCESSOR_NAME: SklearnModel(methods={})},
     )
     return model.dump(path)
 
@@ -311,6 +311,16 @@ def complex_model_meta_saved_single(tmp_path_factory):
 @pytest.fixture
 def complex_model_single_path(complex_model_meta_saved_single):
     return complex_model_meta_saved_single.loc.uri
+
+
+@pytest.fixture
+def processors_model():
+    return MlemModel.from_obj(
+        lambda x: [i + 1 for i in x],
+        preprocess=lambda x: [int(i) for i in x],
+        postprocess=lambda x: max(x),  # pylint: disable=unnecessary-lambda
+        sample_data=["3", "2", "1"],
+    )
 
 
 @pytest.fixture
@@ -334,7 +344,7 @@ def mlem_curdir_project(tmpdir_factory):
 def filled_mlem_project(mlem_project):
     model = MlemModel(
         requirements=Requirements.new("sklearn"),
-        model_type=SklearnModel(methods={}, model=""),
+        processors={MAIN_PROCESSOR_NAME: SklearnModel(methods={}, model="")},
     )
     model.dump("model1", project=mlem_project)
 

@@ -122,9 +122,9 @@ class WhlSource(MlemSource):
         name = WhlSource._whl_name()
         return (
             f"COPY {MLEM_REQUIREMENTS} .\n"
-            f"RUN pip install -r {MLEM_REQUIREMENTS}\n"
+            f"RUN pip install -r {MLEM_REQUIREMENTS} && pip cache purge\n"
             f"COPY {name} .\n"
-            f"RUN pip install {name}\n"
+            f"RUN pip install {name} && pip cache purge\n"
         )
 
 
@@ -135,7 +135,7 @@ class PipSource(MlemSource):
         pass
 
     def get_install_command(self, args: "DockerBuildArgs"):
-        return f"RUN pip install mlem=={LOCAL_DOCKER_CONFIG.pip_version}"
+        return f"RUN pip install mlem=={LOCAL_DOCKER_CONFIG.pip_version} && pip cache purge"
 
 
 class GitSource(MlemSource):
@@ -315,6 +315,18 @@ class DockerModelDirectory(BaseModel):
                 "Auto-determined requirements for model: %s.",
                 requirements.to_pip(),
             )
+            extra_indexes = {
+                r.extra_index
+                for r in requirements.installable
+                if r.extra_index is not None
+            }
+            if extra_indexes:
+                req.write(
+                    "\n".join(
+                        f"--extra-index-url {ei}" for ei in extra_indexes
+                    )
+                    + "\n"
+                )
             req.write("\n".join(requirements.to_pip()))
 
     def write_model(self):
@@ -325,7 +337,8 @@ class DockerModelDirectory(BaseModel):
                 self.model.clone(path)
             else:
                 copy = self.model.copy()
-                copy.model_type.bind(self.model.model_type.model)
+                for name, proc in self.model.processors.items():
+                    copy.processors[name].bind(proc.model)
                 copy.dump(path)
 
     def write_dockerfile(self, requirements: Requirements):

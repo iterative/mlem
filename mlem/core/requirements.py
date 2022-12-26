@@ -25,7 +25,7 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from mlem.core.base import MlemABC
 
@@ -34,13 +34,6 @@ from mlem.core.errors import HookNotFound, WrongRequirementsError
 from mlem.core.hooks import Analyzer, Hook
 from mlem.utils.importing import import_module
 from mlem.utils.path import make_posix
-
-MODULE_PACKAGE_MAPPING = {
-    "sklearn": "scikit-learn",
-    "skimage": "scikit-image",
-    "yaml": "PyYAML",
-}
-PACKAGE_MODULE_MAPPING = {v: k for k, v in MODULE_PACKAGE_MAPPING.items()}
 
 
 class Requirement(MlemABC):
@@ -91,15 +84,27 @@ class InstallableRequirement(PythonRequirement):
     """Version of python package"""
     package_name: Optional[str] = None
     """Pip package name for this module, if it is different from module name"""
+    extra_index: Optional[str] = None
+    """Extra index to use for this package"""
+
+    @root_validator
+    def set_package_name(cls, values):  # pylint: disable=no-self-argument
+        package_name = values.get("package_name")
+        if not package_name:
+            from mlem.utils.module import get_package_name
+
+            module = values.get("module")
+            package_name = get_package_name(module)
+            if package_name != module:
+                values["package_name"] = package_name
+        return values
 
     @property
     def package(self):
         """
         Pip package name
         """
-        return self.package_name or MODULE_PACKAGE_MAPPING.get(
-            self.module, self.module
-        )
+        return self.package_name or self.module
 
     def get_repr(self):
         """

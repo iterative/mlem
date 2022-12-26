@@ -11,6 +11,7 @@ from mlem.utils.module import (
     get_module_version,
     get_object_module,
     get_object_requirements,
+    get_package_name,
     is_builtin_module,
     is_extension_module,
     is_installable_module,
@@ -181,6 +182,13 @@ def test_module_version():
     assert get_module_version(import_module("dill")) is not None
     # typing_extensions doesn't have __version__ attr, thus heuristics should be applied here
     assert get_module_version(import_module("typing_extensions")) is not None
+
+
+def test_module_name():
+    assert get_package_name(import_module("pandas")) == "pandas"
+    assert get_package_name(import_module("numpy")) == "numpy"
+    assert get_package_name(import_module("sklearn")) == "scikit-learn"
+    assert get_package_name(import_module("yaml")) == "PyYAML"
 
 
 class Clazz:

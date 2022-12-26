@@ -15,7 +15,7 @@ from mlem.core.data_type import (
 )
 from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
-from mlem.core.model import Argument, ModelType, Signature
+from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
 
 
@@ -59,18 +59,30 @@ class InterfaceMethod(BaseModel):
 
     @classmethod
     def from_signature(cls, signature: Signature) -> "InterfaceMethod":
+        args = [
+            InterfaceArgument(
+                name=a.name,
+                data_type=a.type_,
+                serializer=a.type_.get_serializer().serializer,
+                required=a.required,
+                default=a.default,
+            )
+            for a in signature.args
+        ]
+        if not args and signature.varargs and signature.varargs_type:
+            args = [
+                InterfaceArgument(
+                    name=signature.varargs,
+                    data_type=signature.varargs_type,
+                    serializer=signature.varargs_type.get_serializer().serializer,
+                    required=False,
+                    default=None,
+                )
+            ]
+        # no varkw support yet
         return InterfaceMethod(
             name=signature.name,
-            args=[
-                InterfaceArgument(
-                    name=a.name,
-                    data_type=a.type_,
-                    serializer=a.type_.get_serializer().serializer,
-                    required=a.required,
-                    default=a.default,
-                )
-                for a in signature.args
-            ],
+            args=args,
             returns=InterfaceDataType(
                 data_type=signature.returns,
                 serializer=signature.returns.get_serializer().serializer,
@@ -244,14 +256,21 @@ class SimpleInterface(Interface):
         return self.methods.__root__[method_name]
 
 
+def _check_no_signature(data):
+    if isinstance(data, dict):
+        if "type" in data and data["type"] == UnspecifiedDataType.type:
+            return False
+        return all(_check_no_signature(v) for v in data.values())
+    if isinstance(data, list):
+        return all(_check_no_signature(v) for v in data)
+    return True
+
+
 class ModelInterface(Interface):
     """Interface that descibes model methods"""
 
-    class Config:
-        exclude = {"model_type"}
-
     type: ClassVar[str] = "model"
-    model_type: ModelType
+    model: MlemModel
     """Model metadata"""
 
     def load(self, uri: str):
@@ -260,20 +279,13 @@ class ModelInterface(Interface):
             raise ValueError("Interface can be created only from models")
         if meta.artifacts is None:
             raise ValueError("Cannot load not saved object")
-        self.model_type = meta.model_type
-        self.model_type.load(meta.artifacts)
+        self.model = meta
+        self.model.load_value()
 
-    @validator("model_type")
+    @validator("model")
     @classmethod
-    def ensure_signature(cls, value: ModelType):
-        if any(
-            isinstance(a, UnspecifiedDataType)
-            for method in value.methods.values()
-            for a in method.args
-        ) or any(
-            isinstance(method.returns, UnspecifiedDataType)
-            for method in value.methods.values()
-        ):
+    def ensure_signature(cls, value: MlemModel):
+        if not _check_no_signature(value.processors_raw):
             raise MlemError(
                 "Cannot create interface from model with unspecified signature. Please re-save it and provide `sample_data` argument"
             )
@@ -281,11 +293,34 @@ class ModelInterface(Interface):
 
     @classmethod
     def from_model(cls, model: MlemModel):
-        return cls(model_type=model.model_type)
+        return cls(model=model)
+
+    @property
+    def is_single_model(self):
+        return self.model.is_single_model
 
     def get_method_signature(self, method_name: str) -> InterfaceMethod:
-        signature = self.model_type.methods[method_name]
-        return InterfaceMethod.from_signature(signature)
+        if self.is_single_model:
+            signature = self.model.model_type.methods[method_name]
+            return InterfaceMethod.from_signature(signature)
+        call_order = self.model.call_orders[method_name]
+        input_signature = self.model.get_processor(call_order[0][0]).methods[
+            call_order[0][1]
+        ]
+        output_signature = self.model.get_processor(call_order[-1][0]).methods[
+            call_order[-1][1]
+        ]
+        return InterfaceMethod.from_signature(
+            Signature(
+                name=method_name,
+                args=input_signature.args,
+                varkw=input_signature.varkw,
+                varargs=input_signature.varargs,
+                varkw_type=input_signature.varkw_type,
+                varargs_type=input_signature.varargs_type,
+                returns=output_signature.returns,
+            )
+        )
 
     def get_method_executor(self, method_name: str):
         signature = self.get_method_signature(method_name)
@@ -297,21 +332,23 @@ class ModelInterface(Interface):
                 else kwargs.get(arg.name, arg.default)
                 for arg in signature.args
             }
-            return self.model_type.call_method(method_name, **args)
+            return getattr(self.model, method_name)(**args)
 
         return executor
 
     def get_method_names(self) -> List[str]:
-        return list(self.model_type.methods.keys())
+        return list(self.model.call_orders)
 
     def get_method_docs(self, method_name: str) -> str:
         return getattr(
-            self.model_type.model, self.model_type.methods[method_name].name
+            self.model.model_type.model,
+            self.model.model_type.methods[method_name].name,
         ).__doc__
 
     def get_method_args(
         self, method_name: str
     ) -> Dict[str, InterfaceArgument]:
         return {
-            a.name: a.type_ for a in self.model_type.methods[method_name].args
+            a.name: a.type_
+            for a in self.model.model_type.methods[method_name].args
         }

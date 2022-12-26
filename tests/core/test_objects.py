@@ -4,6 +4,7 @@ import posixpath
 import tempfile
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
@@ -15,6 +16,7 @@ from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import load, load_meta
 from mlem.core.model import ModelIO, ModelType
 from mlem.core.objects import (
+    MAIN_PROCESSOR_NAME,
     DeployState,
     DeployStatus,
     MlemDeployment,
@@ -313,17 +315,22 @@ def test_link_dump_in_mlem(model_path_mlem_project):
     assert isinstance(model, MlemModel)
 
 
+#  pylint: disable=protected-access
 def test_model_model_type_laziness():
     payload = {
-        "model_type": {"type": "sklearn", "methods": {}},
+        "processors": {
+            MAIN_PROCESSOR_NAME: {"type": "sklearn", "methods": {}}
+        },
         "object_type": "model",
         "requirements": [],
     }
     model = parse_obj_as(MlemModel, payload)
-    assert model.model_type_cache == {"type": "sklearn", "methods": {}}
-    assert isinstance(model.model_type_cache, dict)
-    assert isinstance(model.model_type, ModelType)
-    assert isinstance(model.model_type_cache, ModelType)
+    assert model.processors_cache == {
+        MAIN_PROCESSOR_NAME: {"type": "sklearn", "methods": {}}
+    }
+    assert isinstance(model.processors_cache[MAIN_PROCESSOR_NAME], dict)
+    assert isinstance(model.processors[MAIN_PROCESSOR_NAME], ModelType)
+    assert isinstance(model.processors_cache[MAIN_PROCESSOR_NAME], ModelType)
 
 
 def test_mlem_project_root(filled_mlem_project):
@@ -377,7 +384,7 @@ def test_checkenv():
         requirements=Requirements.new(
             InstallableRequirement(module="pytest", version=pytest.__version__)
         ),
-        model_type=MockModelType(methods={}),
+        processors={MAIN_PROCESSOR_NAME: MockModelType(methods={})},
     )
 
     model.checkenv()
@@ -386,3 +393,84 @@ def test_checkenv():
 
     with pytest.raises(WrongRequirementsError):
         model.checkenv()
+
+
+def test_processors_model(processors_model, tmpdir):
+    assert processors_model(["3", "2", "1"]) == 4
+
+    path = str(tmpdir / "model")
+
+    processors_model.dump(path)
+
+    loaded = load_meta(path)
+
+    loaded.load_value()
+
+    assert loaded(["3", "2", "1"]) == 4
+
+
+def test_create_processors_model():
+    proc = lambda x: x + 1  # noqa: E731
+    model = MlemModel.from_obj(proc, preprocess=proc, sample_data=0)
+    assert model(0) == 2
+
+    model = MlemModel.from_obj(
+        proc, preprocess=proc, postprocess=proc, sample_data=0
+    )
+    assert model(0) == 3
+
+    model = MlemModel.from_obj(
+        proc, preprocess={"__call__": proc}, sample_data=0
+    )
+    assert model(0) == 2
+
+    model = MlemModel.from_obj(
+        proc,
+        preprocess={"__call__": proc},
+        postprocess={"__call__": proc},
+        sample_data=0,
+    )
+    assert model(0) == 3
+
+    model.call_orders["kek"] = [
+        ("preprocess___call__", "__call__") for _ in range(10)
+    ]
+
+    assert model.kek(0) == 10
+
+
+def test_create_processors_model_complex(model_meta_saved_single):
+    obj = model_meta_saved_single.model_type.model
+
+    def create_data(value):
+        return pd.DataFrame(
+            [
+                {
+                    "sepal length (cm)": value,
+                    "sepal width (cm)": value,
+                    "petal length (cm)": value,
+                    "petal width (cm)": value,
+                }
+            ]
+        )
+
+    def post_predict(x):
+        return x * 10
+
+    def post_predict_proba(x):
+        return str(x)
+
+    model = MlemModel.from_obj(
+        obj,
+        preprocess=create_data,
+        postprocess={
+            "predict": post_predict,
+            "predict_proba": post_predict_proba,
+        },
+        sample_data=0,
+    )
+
+    assert model.predict(0) == 0
+    assert model.predict(10) == 20  # I just know that class for all 10 is 2
+
+    assert model.predict_proba(0) == "[[1. 0. 0.]]"

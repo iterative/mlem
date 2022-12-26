@@ -1,4 +1,5 @@
 import shlex
+import sys
 from collections import defaultdict
 from inspect import isabstract
 from typing import (
@@ -43,6 +44,7 @@ def load_impl_ext(
     ...
 
 
+# pylint: disable=too-many-branches
 def load_impl_ext(
     abs_name: str, type_name: Optional[str], raise_on_missing: bool = True
 ) -> Optional[Type["MlemABC"]]:
@@ -62,12 +64,18 @@ def load_impl_ext(
 
     if type_name is not None and "." in type_name:
         try:
+            # this is needed because if run from cli curdir is not checked for
+            # modules to import
+            sys.path.append(".")
+
             obj = import_string(type_name)
             if not issubclass(obj, MlemABC):
                 raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj
         except ImportError:
             pass
+        finally:
+            sys.path.remove(".")
 
     eps = load_entrypoints()
     for ep in eps.values():
@@ -235,7 +243,7 @@ TypeHints = Dict[Keys, Type]
 class SmartSplitDict(dict):
     def __init__(
         self,
-        value=None,
+        value: dict = None,
         sep=".",
         type_field="type",
         model: Type[BaseModel] = None,
@@ -245,7 +253,9 @@ class SmartSplitDict(dict):
         self.type_hints: TypeHints = (
             {} if model is None else self._prepare_type_hints(model)
         )
-        super().__init__(value or ())
+        super().__init__()
+        if value:
+            self.update(value)
 
     @classmethod
     def _prepare_type_hints(cls, model: Type[BaseModel]) -> TypeHints:

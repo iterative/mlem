@@ -7,7 +7,7 @@ import os
 import posixpath
 import tempfile
 from enum import Enum
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 import catboost
 from catboost import CatBoost, CatBoostClassifier, CatBoostRegressor
@@ -89,22 +89,31 @@ class CatBoostModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
+        methods_sample_data = methods_sample_data or {}
         model = CatBoostModel(model=obj, methods={})
         methods = {
             "predict": Signature.from_method(
                 obj.predict,
-                auto_infer=sample_data is not None,
-                data=sample_data,
+                auto_infer=methods_sample_data.get("predict", sample_data)
+                is not None,
+                data=methods_sample_data.get("predict", sample_data),
             ),
         }
         if isinstance(obj, CatBoostClassifier):
             model.io.model_type = CBType.classifier
             methods["predict_proba"] = Signature.from_method(
                 obj.predict_proba,
-                auto_infer=sample_data is not None,
-                X=sample_data,
+                auto_infer=methods_sample_data.get(
+                    "predict_proba", sample_data
+                )
+                is not None,
+                X=methods_sample_data.get("predict_proba", sample_data),
             )
         model.methods = methods
         return model

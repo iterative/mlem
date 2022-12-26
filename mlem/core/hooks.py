@@ -104,10 +104,10 @@ class Analyzer(Generic[T]):
         :param kwargs: additional information to be used for analysis
         :return: Result of processing obj with base_hook_class subtype
         """
-        return cls._find_hook(obj).process(obj, **kwargs)
+        return cls.find_hook(obj).process(obj, **kwargs)
 
     @classmethod
-    def _find_hook(cls, obj) -> Type[Hook[T]]:
+    def find_hook(cls, obj) -> Type[Hook[T]]:
         hooks = []
         lp_hooks = []
         for hook in cls.hooks:

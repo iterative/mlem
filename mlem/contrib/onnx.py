@@ -3,7 +3,7 @@ Extension type: model
 
 ModelType and ModelIO implementations for `onnx.ModelProto`
 """
-from typing import Any, ClassVar, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 
 import numpy as np
 import onnx
@@ -79,9 +79,13 @@ class ONNXModel(ModelType, ModelHook, IsInstanceHookMixin):
 
     @classmethod
     def process(
-        cls, obj: Any, sample_data: Optional[Any] = None, **kwargs
+        cls,
+        obj: Any,
+        sample_data: Optional[Any] = None,
+        methods_sample_data: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> ModelType:
-
+        sample_data = (methods_sample_data or {}).get("predict", sample_data)
         model = ONNXModel(io=ModelProtoIO(), methods={}).bind(obj)
         # TODO - use ONNX infer shapes.
         onnxrt_predict = Signature.from_method(

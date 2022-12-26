@@ -59,9 +59,12 @@ class Extension:
 
     @property
     def reqs_packages(self):
-        from mlem.core.requirements import MODULE_PACKAGE_MAPPING
-
-        return [MODULE_PACKAGE_MAPPING.get(r, r) for r in self.reqs]
+        # since this must work without these packages installed,
+        # we use mapping for cases when module_name != package_name
+        module_package = {
+            "sklearn": "scikit-learn",
+        }
+        return [module_package.get(r, r) for r in self.reqs]
 
 
 class ExtensionDict(dict):
@@ -109,7 +112,9 @@ class ExtensionLoader:
         Extension("mlem.contrib.github", [], True),
         Extension("mlem.contrib.gitlabfs", [], True),
         Extension("mlem.contrib.bitbucketfs", [], True),
-        Extension("mlem.contrib.sagemaker", ["sagemaker", "boto3"], False),
+        Extension(
+            "mlem.contrib.sagemaker", ["docker", "sagemaker", "boto3"], False
+        ),
         Extension("mlem.contrib.dvc", ["dvc"], False),
         Extension(
             "mlem.contrib.heroku", ["fastapi", "uvicorn", "docker"], False
@@ -118,10 +123,16 @@ class ExtensionLoader:
         Extension("mlem.contrib.kubernetes", ["kubernetes", "docker"], False),
         Extension("mlem.contrib.requirements", [], False),
         Extension("mlem.contrib.venv", [], False),
+        Extension(
+            "mlem.contrib.streamlit",
+            ["fastapi", "uvicorn", "streamlit", "streamlit_pydantic"],
+            False,
+        ),
         Extension("mlem.contrib.git", ["pygit2"], True),
         Extension(
             "mlem.contrib.flyio", ["docker", "fastapi", "uvicorn"], False
         ),
+        Extension("mlem.contrib.torchvision", ["torchvision"], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}

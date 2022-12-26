@@ -37,33 +37,50 @@ def get_object_metadata(
     obj: Any,
     sample_data=None,
     params: Dict[str, str] = None,
+    preprocess: Union[Any, Dict[str, Any]] = None,
+    postprocess: Union[Any, Dict[str, Any]] = None,
 ) -> Union[MlemData, MlemModel]:
     """Convert given object to appropriate MlemObject subclass"""
-    try:
-        return MlemData.from_data(
-            obj,
-            params=params,
-        )
-    except HookNotFound:
-        return MlemModel.from_obj(
-            obj,
-            sample_data=sample_data,
-            params=params,
-        )
+    if preprocess is None and postprocess is None:
+        try:
+            return MlemData.from_data(
+                obj,
+                params=params,
+            )
+        except HookNotFound:
+            pass
+
+    return MlemModel.from_obj(
+        obj,
+        sample_data=sample_data,
+        params=params,
+        preprocess=preprocess,
+        postprocess=postprocess,
+    )
 
 
 def log_meta_params(meta: MlemObject, add_object_type: bool = False):
     if add_object_type:
         telemetry.log_param("object_type", meta.object_type)
     if isinstance(meta, MlemModel):
-        telemetry.log_param(
-            "model_type", meta.model_type_raw[ModelType.__config__.type_field]
-        )
+        model_types = {
+            mt[ModelType.__config__.type_field]
+            if isinstance(mt, dict)
+            else mt.type
+            for mt in meta.processors_cache.values()
+        }
+        no_callable = model_types.difference(["callable"])
+        if no_callable:
+            model_type = next(iter(no_callable))
+        else:
+            model_type = next(iter(model_types), None)
+        if model_type is not None:
+            telemetry.log_param("model_type", model_type)
     elif isinstance(meta, MlemData):
         data_type = None
         if meta.data_type is not None:
             data_type = meta.data_type.type
-        if data_type is None and meta.reader is not None:
+        if data_type is None:
             data_type = meta.reader_raw["data_type"][
                 DataType.__config__.type_field
             ]
@@ -81,6 +98,8 @@ def save(
     sample_data=None,
     fs: Optional[AbstractFileSystem] = None,
     params: Dict[str, str] = None,
+    preprocess: Union[Any, Dict[str, Any]] = None,
+    postprocess: Union[Any, Dict[str, Any]] = None,
 ) -> MlemObject:
     """Saves given object to a given path
 
@@ -94,6 +113,8 @@ def save(
             in the model's metadata
         fs: FileSystem for the `path` argument
         params: arbitrary params for object
+        preprocess: applies before the model
+        postprocess: applies after the model
 
     Returns:
         None
@@ -102,6 +123,8 @@ def save(
         obj,
         sample_data,
         params=params,
+        preprocess=preprocess,
+        postprocess=postprocess,
     )
     log_meta_params(meta, add_object_type=True)
     path = os.fspath(path)

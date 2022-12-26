@@ -23,6 +23,7 @@ install_requires = [
     "flatdict",
     "iterative-telemetry>=0.0.6",
     "python-multipart",
+    "importlib-metadata",
 ]
 
 tests = [
@@ -52,7 +53,6 @@ tests = [
     "pyarrow",
     "skl2onnx",
     "dvc[s3]",
-    "importlib_metadata",
     "httpx",
 ]
 
@@ -70,7 +70,8 @@ extras = {
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
     "fastapi": ["uvicorn", "fastapi"],
-    "sagemaker": ["boto3", "sagemaker"],
+    "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
+    "sagemaker": ["docker", "boto3", "sagemaker"],
     "torch": ["torch"],
     "tensorflow": ["tensorflow"],
     "azure": ["adlfs>=2021.10.0", "azure-identity>=1.4.0", "knack"],
@@ -88,6 +89,7 @@ extras = {
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
     "flyio": ["docker", "fastapi", "uvicorn"],
+    "torchvision": ["torchvision"],
 }
 
 # add DVC extras
@@ -217,6 +219,7 @@ setup_args = dict(  # noqa: C408
             "client.sagemaker = mlem.contrib.sagemaker.runtime:SagemakerClient",
             "model_type.sklearn = mlem.contrib.sklearn:SklearnModel",
             "model_type.sklearn_pipeline = mlem.contrib.sklearn:SklearnPipelineType",
+            "server.streamlit = mlem.contrib.streamlit.server:StreamlitServer",
             "model_type.tf_keras = mlem.contrib.tensorflow:TFKerasModel",
             "model_io.tf_keras = mlem.contrib.tensorflow:TFKerasModelIO",
             "data_type.tf_tensor = mlem.contrib.tensorflow:TFTensorDataType",
@@ -230,6 +233,7 @@ setup_args = dict(  # noqa: C408
             "data_reader.torch = mlem.contrib.torch:TorchTensorReader",
             "serializer.torch = mlem.contrib.torch:TorchTensorSerializer",
             "data_writer.torch = mlem.contrib.torch:TorchTensorWriter",
+            "serializer.torch_image = mlem.contrib.torchvision:TorchImageSerializer",
             "builder.conda = mlem.contrib.venv:CondaBuilder",
             "requirement.conda = mlem.contrib.venv:CondaPackageRequirement",
             "builder.venv = mlem.contrib.venv:VenvBuilder",
@@ -247,6 +251,7 @@ setup_args = dict(  # noqa: C408
             "pandas = mlem.contrib.pandas:PandasConfig",
             "aws = mlem.contrib.sagemaker.config:AWSConfig",
             "sagemaker = mlem.contrib.sagemaker.runtime:SageMakerServerConfig",
+            "torch = mlem.contrib.torch:TorchConfig",
         ],
     },
     zip_safe=False,

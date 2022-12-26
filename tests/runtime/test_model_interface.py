@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from mlem.contrib.sklearn import SklearnModel
-from mlem.core.objects import MlemModel
+from mlem.core.objects import MAIN_PROCESSOR_NAME, MlemModel
 from mlem.core.requirements import Requirements
 from mlem.runtime.interface import ModelInterface
 
@@ -30,9 +30,12 @@ def prediction(data):
 @pytest.fixture
 def pd_model(data, prediction):
     return MlemModel(
-        model_type=SklearnModel.process(
-            PandasModel(prediction), sample_data=data
-        ),
+        processors={
+            MAIN_PROCESSOR_NAME: SklearnModel.process(
+                PandasModel(prediction), sample_data=data
+            )
+        },
+        call_orders={"predict": [(MAIN_PROCESSOR_NAME, "predict")]},
         requirements=Requirements.new(),
     )
 

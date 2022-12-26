@@ -169,7 +169,7 @@ def test_nested_objects_in_schema(data):
     docs = client.get("/openapi.json")
     assert docs.status_code == 200, docs.json()
     payload = (
-        interface.model_type.methods["__call__"]
+        interface.model.model_type.methods["__call__"]
         .args[0]
         .type_.get_serializer()
         .serialize(data)
@@ -191,10 +191,11 @@ def test_nested_objects_in_schema(data):
     ],
 )
 def test_file_endpoint(
-    create_mlem_client, create_client, data, eq_assert: Callable
+    create_mlem_client, create_client, data, eq_assert: Callable, tmp_path
 ):
-    model = MlemModel.from_obj(lambda x: x, sample_data=data)
-    model_interface = ModelInterface.from_model(model)
+    model_interface = ModelInterface.from_model(
+        MlemModel.from_obj(lambda x: x, sample_data=data)
+    )
 
     server = FastAPIServer(
         standardize=False,
@@ -218,3 +219,37 @@ def test_file_endpoint(
     eq_assert(resp_array, data)
 
     eq_assert(mlem_client(data), data)
+
+    path = tmp_path / "data"
+    with open(path, "wb") as fout, ser.dump(dt, data) as fin:
+        fout.write(fin.read())
+
+    eq_assert(mlem_client(str(path)), data)
+    eq_assert(mlem_client(path), data)
+
+
+def test_serve_processors_model(
+    processors_model, create_mlem_client, create_client
+):
+    model_interface = ModelInterface.from_model(processors_model)
+
+    server = FastAPIServer(
+        standardize=True,
+    )
+    interface = ServerInterface.create(server, model_interface)
+    client = create_client(server, interface)
+
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+
+    mlem_client: Client = create_mlem_client(client)
+    remote_interface = mlem_client.interface
+    dt = remote_interface.__root__["predict"].args[0].data_type
+    response = client.post(
+        "/predict", json={"data": dt.serialize(["1", "2", "3"])}
+    )
+    assert response.status_code == 200
+    resp = remote_interface.__root__["predict"].returns.data_type.deserialize(
+        response.json()
+    )
+    assert resp == 4
