@@ -90,5 +90,5 @@ for method_name, tab in zip(methods, tabs):
 
 
 streamlit.write(
-    "Built for FastAPI server at http://{{server_host}}:{{server_port}}. Check out the docs at https://mlem.ai/doc"
+    "Built for FastAPI server at `{{server_host}}:{{server_port}}`. Docs: https://mlem.ai/doc"
 )
