@@ -732,12 +732,13 @@ class MlemModel(_WithArtifacts):
         params: Dict[str, str] = None,
         preprocess: Union[Any, Dict[str, Any]] = None,
         postprocess: Union[Any, Dict[str, Any]] = None,
+        **kwargs,
     ) -> "MlemModel":
         mlem_model = MlemModel(
             params=params or {},
         )
         model_hook = ModelAnalyzer.find_hook(model)
-        model_type = model_hook.process(model)
+        model_type = model_hook.process(model, **kwargs)
         methods = set(model_type.methods)
         if (
             methods_sample_data is not None
@@ -763,6 +764,7 @@ class MlemModel(_WithArtifacts):
             model,
             sample_data=sample_data,
             methods_sample_data=_methods_sample_data,
+            **kwargs,
         )
         if mt.model is None:
             mt = mt.bind(model)
@@ -905,13 +907,9 @@ class MlemData(_WithArtifacts):
 
     @classmethod
     def from_data(
-        cls,
-        data: Any,
-        params: Dict[str, str] = None,
+        cls, data: Any, params: Dict[str, str] = None, **kwargs
     ) -> "MlemData":
-        data_type = DataType.create(
-            data,
-        )
+        data_type = DataType.create(data, **kwargs)
         meta = MlemData(
             requirements=data_type.get_requirements().expanded,
             params=params or {},

@@ -99,6 +99,11 @@ class ExtensionLoader:
         Extension("mlem.contrib.onnx", ["onnx"], False),
         Extension("mlem.contrib.tensorflow", ["tensorflow"], False),
         Extension("mlem.contrib.torch", ["torch"], False),
+        Extension(
+            "mlem.contrib.transformers",
+            ["transformers", "sentencepiece"],
+            False,
+        ),
         Extension("mlem.contrib.catboost", ["catboost"], False),
         # Extension('mlem.contrib.aiohttp', ['aiohttp', 'aiohttp_swagger']),
         # Extension('mlem.contrib.flask', ['flask', 'flasgger'], False),
