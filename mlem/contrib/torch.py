@@ -66,7 +66,11 @@ class TorchTensorDataType(
     """Type name of `torch.Tensor` elements"""
 
     def check_shape(self, tensor, exc_type):
-        if tuple(tensor.shape)[1:] != self.shape[1:]:
+        shape = tuple(
+            s if s is not None else tensor.shape[i]
+            for i, s in enumerate(self.shape)
+        )
+        if tuple(tensor.shape) != shape:
             raise exc_type(
                 f"given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}"
             )
@@ -91,7 +95,9 @@ class TorchTensorDataType(
     @classmethod
     def process(cls, obj: torch.Tensor, **kwargs) -> DataType:
         return TorchTensorDataType(
-            shape=(None,) + obj.shape[1:],
+            shape=(None,) + obj.shape[1:]
+            if not kwargs["is_dynamic"]
+            else tuple(None for _ in obj.shape),
             dtype=str(obj.dtype)[len("torch") + 1 :],
         )
 

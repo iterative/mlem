@@ -85,7 +85,9 @@ class TFTensorDataType(
     @classmethod
     def process(cls, obj: tf.Tensor, **kwargs) -> DataType:
         return TFTensorDataType(
-            shape=(None,) + tuple(obj.shape)[1:],
+            shape=(None,) + tuple(obj.shape)[1:]
+            if not kwargs["is_dynamic"]
+            else tuple(None for _ in obj.shape),
             dtype=obj.dtype.name,
         )
 
