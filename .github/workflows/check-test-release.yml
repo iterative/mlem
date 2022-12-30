@@ -90,10 +90,27 @@ jobs:
         brew install hdf5 wget c-blosc
         wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
         brew install ./libomp.rb
-    - name: Install
-      if: steps.cache.pip-cache-dir.cache-hit != 'true'
+    - name: Install MLEM
+      if: steps.cache.pip-cache.cache-hit != 'true'
       run: |
         pip install --upgrade pip setuptools wheel
+        pip install .
+    - name: Run Heroku tests
+      if: |
+        matrix.os == 'ubuntu-latest' &&
+        matrix.python == '3.8' &&
+        (
+          github.event_name == 'schedule' ||
+          contains(github.event.pull_request.title, 'heroku')
+        )
+      timeout-minutes: 40
+      run: pytest -k 'heroku'
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        HEROKU_TEAM: iterative-sandbox
+    - name: Install extra dependencies
+      if: steps.cache.pip-cache.cache-hit != 'true'
+      run: |
         pip install pre-commit .[tests]
     - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
       run: pre-commit run pylint -a -v --show-diff-on-failure
@@ -112,19 +129,6 @@ jobs:
         GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
         BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
         BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
-    - name: Run Heroku tests
-      if: |
-        matrix.os == 'ubuntu-latest' &&
-        matrix.python == '3.8' &&
-        (
-          github.event_name == 'schedule' ||
-          contains(github.event.pull_request.title, 'heroku')
-        )
-      timeout-minutes: 40
-      run: pytest -k 'heroku'
-      env:
-        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        HEROKU_TEAM: iterative-sandbox
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v3
       with:
