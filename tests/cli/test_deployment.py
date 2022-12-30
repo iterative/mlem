@@ -189,6 +189,9 @@ def test_deploy_create_new(
     runner: Runner, model_meta_saved_single, mock_env_path, tmp_path
 ):
     path = os.path.join(tmp_path, "deployname")
+    # rewrite pickled model to check it's not loaded
+    with open(model_meta_saved_single.loc.path[: -len(MLEM_EXT)], "wb") as f:
+        f.write(b"")
     result = runner.invoke(
         f"deploy run {MlemDeploymentMock.type} {path} -m {model_meta_saved_single.loc.uri} --env {mock_env_path} --param aaa".split()
     )
