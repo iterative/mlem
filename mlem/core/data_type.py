@@ -816,7 +816,7 @@ class DictWriter(DataWriter):
 
     def write(
         self, data: DataType, storage: Storage, path: str
-    ) -> Tuple[DataReader, Artifacts]:
+    ) -> Tuple["DictReader", Artifacts]:
         if not isinstance(data, DictType):
             raise ValueError(
                 f"expected data to be of DictType, got {type(data)} instead"

@@ -261,3 +261,11 @@ class NumpyArrayReader(DataReader):
         self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DataType]:
         raise NotImplementedError
+
+
+def apply_shape_pattern(
+    abs_shape: Tuple[Optional[int], ...], shape: Tuple[int, ...]
+):
+    return tuple(
+        s if s is not None else shape[i] for i, s in enumerate(abs_shape)
+    )
