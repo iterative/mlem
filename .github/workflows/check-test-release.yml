@@ -39,10 +39,12 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: '3.x'
+    - name: set PYSHA
+      run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
     - uses: actions/cache@v3
       with:
         path: ~/.cache/pre-commit
-        key: pre-commit
+        key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
     - run: pip install -U pre-commit tox
     - run: SKIP=pylint pre-commit run -a --show-diff-on-failure
   test:
@@ -85,12 +87,15 @@ jobs:
       uses: actions/cache@v3.0.11
       with:
         path: ${{ steps.cache-dir.outputs.dir }}
-        key: ${{ runner.os }}-pip
-    - name: Install MLEM without dependencies
+        # setup.py is used here to sometimes start using new cache, getting rid of old useless packages
+        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Install MLEM
       run: |
         pip install --upgrade pip setuptools wheel
         pip install .
-    - name: Run Heroku tests # add all build/deploy tests here?
+    - name: Run Heroku tests
       if: |
         matrix.os == 'ubuntu-latest' &&
         matrix.python == '3.8' &&
