@@ -108,7 +108,7 @@ class NumpyNdarrayType(
     def process(cls, obj, **kwargs) -> DataType:
         return NumpyNdarrayType(
             shape=cls._abstract_shape(obj.shape)
-            if not kwargs["is_dynamic"]
+            if not kwargs.get("is_dynamic")
             else tuple(None for _ in obj.shape),
             dtype=obj.dtype.name,
         )

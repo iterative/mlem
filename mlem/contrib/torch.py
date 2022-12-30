@@ -97,7 +97,7 @@ class TorchTensorDataType(
     def process(cls, obj: torch.Tensor, **kwargs) -> DataType:
         return TorchTensorDataType(
             shape=(None,) + obj.shape[1:]
-            if not kwargs["is_dynamic"]
+            if not kwargs.get("is_dynamic")
             else tuple(None for _ in obj.shape),
             dtype=str(obj.dtype)[len("torch") + 1 :],
         )
