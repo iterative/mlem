@@ -72,12 +72,6 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
         activate-environment: true
-    - name: Install Mac-specific dependencies
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install hdf5 wget c-blosc
-        wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
-        brew install ./libomp.rb
     - name: get pip cache dir
       id: cache-dir
       run: |
@@ -91,12 +85,18 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    - name: Install MLEM only to run tests that must not require extra dependencies
+    - name: Install Mac-specific dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install hdf5 wget c-blosc
+        wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
+        brew install ./libomp.rb
+    - name: Install
       run: |
         pip install --upgrade pip setuptools wheel
-        pip install .
-    - name: Run Docker and K8s tests
-      run: pytest -k 'docker or kubernetes'
+        pip install pre-commit .[tests]
+    - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
+      run: pre-commit run pylint -a -v --show-diff-on-failure
     - name: Run Heroku tests
       if: |
         matrix.os == 'ubuntu-latest' &&
@@ -110,16 +110,12 @@ jobs:
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         HEROKU_TEAM: iterative-sandbox
-    - name: Install extra dependencies to run all tests that left
-      run: pip install pre-commit .[tests]
-    - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
-      run: pre-commit run pylint -a -v --show-diff-on-failure
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
-    - name: Run all other tests
+    - name: Run tests
       timeout-minutes: 40
-      run: pytest -k 'not heroku and not docker and not kubernetes'
+      run: pytest -k 'not heroku'
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
