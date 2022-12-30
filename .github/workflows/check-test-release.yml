@@ -91,10 +91,12 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    - name: Install MLEM
+    - name: Install MLEM only to run tests that must not require extra dependencies
       run: |
         pip install --upgrade pip setuptools wheel
         pip install .
+    - name: Run Docker and K8s tests
+      run: pytest -k 'docker or kubernetes'
     - name: Run Heroku tests
       if: |
         matrix.os == 'ubuntu-latest' &&
@@ -108,17 +110,16 @@ jobs:
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         HEROKU_TEAM: iterative-sandbox
-    - name: Install extra dependencies
-      run: |
-        pip install pre-commit .[tests]
+    - name: Install extra dependencies to run all tests that left
+      run: pip install pre-commit .[tests]
     - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
       run: pre-commit run pylint -a -v --show-diff-on-failure
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
-    - name: Run tests
+    - name: Run all other tests
       timeout-minutes: 40
-      run: pytest -k 'not heroku'
+      run: pytest -k 'not heroku and not docker and not kubernetes'
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
