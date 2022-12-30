@@ -124,7 +124,7 @@ class WhlSource(MlemSource):
             f"COPY {MLEM_REQUIREMENTS} .\n"
             f"RUN pip install -r {MLEM_REQUIREMENTS} && pip cache purge\n"
             f"COPY {name} .\n"
-            f"RUN pip install {name} && pip cache purge || true\n"
+            f"RUN pip install {name} && (pip cache purge || true)\n"
         )
 
 
