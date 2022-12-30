@@ -73,14 +73,14 @@ jobs:
         python-version: ${{ matrix.python }}
         activate-environment: true
     - name: get pip cache dir
-      id: pip-cache-dir
+      id: cache-dir
       run: |
         echo "::set-output name=dir::$(pip cache dir)"
     - name: set pip cache
-      id: pip-cache
+      id: cache
       uses: actions/cache@v3.0.11
       with:
-        path: ${{ steps.pip-cache-dir.outputs.dir }}
+        path: ${{ steps.cache-dir.outputs.dir }}
         key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
           ${{ runner.os }}-pip-
@@ -91,7 +91,7 @@ jobs:
         wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
         brew install ./libomp.rb
     - name: Install MLEM
-      if: steps.cache.pip-cache.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         pip install --upgrade pip setuptools wheel
         pip install .
@@ -109,7 +109,7 @@ jobs:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         HEROKU_TEAM: iterative-sandbox
     - name: Install extra dependencies
-      if: steps.cache.pip-cache.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         pip install pre-commit .[tests]
     - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
