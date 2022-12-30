@@ -26,7 +26,7 @@ RUN pip install -r requirements.txt && pip cache purge
 COPY mlem_requirements.txt .
 RUN pip install -r mlem_requirements.txt && pip cache purge
 COPY {MLEM_LOCAL_WHL} .
-RUN pip install {MLEM_LOCAL_WHL} && pip cache purge
+RUN pip install {MLEM_LOCAL_WHL} && pip cache purge || true
 COPY . ./
 CMD sh run.sh
 """
