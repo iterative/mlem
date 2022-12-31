@@ -9,10 +9,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
 
+from mlem.api import apply, load, save
 from mlem.constants import PREDICT_METHOD_NAME, TRANSFORM_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
-
-# from mlem.contrib.scipy import ScipySparceMatrix
 from mlem.contrib.scipy import ScipySparseMatrix
 from mlem.contrib.sklearn import SklearnModel, SklearnTransformer
 from mlem.core.artifacts import LOCAL_STORAGE
@@ -26,11 +25,6 @@ from tests.conftest import long
 @pytest.fixture
 def inp_data():
     return [[1, 2, 3], [3, 2, 1]]
-
-
-# @pytest.fixture
-# def inp_data_text():
-#     return ["Is that peanut butter on my nose? Mlem!"]
 
 
 @pytest.fixture
@@ -126,6 +120,26 @@ def test_model_type__transform(transformer_fixture, inp_data, request):
         transformer.transform(inp_data).todense(),
         model_type.call_method("transform", inp_data).todense(),
     )
+
+
+@pytest.mark.parametrize("transformer_fixture", ["transformer"])
+def test_preprocess_transformer(
+    classifier, transformer_fixture, inp_data, tmpdir, out_data, request
+):
+    transformer = request.getfixturevalue(transformer_fixture)
+    model_file = "clf"
+    clf = LogisticRegression()
+    train_data = transformer.transform(inp_data)
+    clf.fit(train_data, out_data)
+    save(
+        clf,
+        str(tmpdir / model_file),
+        sample_data=inp_data,
+        preprocess=transformer.transform,
+    )
+    clf = load(str(tmpdir / model_file))
+    output = apply(clf, inp_data)
+    assert np.array_equal(output, out_data)
 
 
 def test_hook_lgb(lgbm_model, inp_data):
