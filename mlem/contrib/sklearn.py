@@ -7,8 +7,9 @@ from typing import Any, ClassVar, Dict, List, Optional, Union
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
-from sklearn.feature_extraction.text import TransformerMixin, _VectorizerMixin
+from sklearn.feature_extraction.text import TransformerMixin
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing._encoders import _BaseEncoder
 
 from mlem.constants import TRANSFORM_METHOD_NAME
 from mlem.core.hooks import IsInstanceHookMixin
@@ -137,10 +138,7 @@ class SklearnPipelineType(SklearnModel):
 
 
 class SklearnTransformer(SklearnModel):
-    valid_types: ClassVar = (
-        TransformerMixin,
-        _VectorizerMixin,
-    )
+    valid_types: ClassVar = (TransformerMixin, _BaseEncoder)
     type: ClassVar = "sklearn_transformer"
 
     @classmethod
@@ -159,7 +157,7 @@ class SklearnTransformer(SklearnModel):
             TRANSFORM_METHOD_NAME: Signature.from_method(
                 obj.transform,
                 auto_infer=sample_data is not None,
-                raw_documents=sample_data,
+                X=sample_data,
             ),
         }
 

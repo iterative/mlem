@@ -16,11 +16,11 @@ from mlem.core.hooks import IsInstanceHookMixin
 from mlem.core.requirements import InstallableRequirement, Requirements
 
 
-class ScipySparceMatrix(
+class ScipySparseMatrix(
     WithDefaultSerializer, DataType, DataHook, IsInstanceHookMixin
 ):
     type: ClassVar[str] = "csr_matrix"
-    valid_types: ClassVar = csr_matrix
+    valid_types: ClassVar = (csr_matrix,)
     dtype: str
 
     def get_requirements(self) -> Requirements:
@@ -28,7 +28,7 @@ class ScipySparceMatrix(
 
     @classmethod
     def process(cls, obj: Any, **kwargs) -> DataType:
-        return ScipySparceMatrix(dtype=obj.dtype.name)
+        return ScipySparseMatrix(dtype=obj.dtype.name)
 
     def get_writer(
         self, project: str = None, filename: str = None, **kwargs
@@ -36,12 +36,12 @@ class ScipySparceMatrix(
         return ScipyWriter(**kwargs)
 
 
-class ScipyWriter(DataWriter[[ScipySparceMatrix]]):
+class ScipyWriter(DataWriter[ScipySparseMatrix]):
     def write(
         self, data: DataType, storage: Storage, path: str
-    ) -> Tuple[DataReader[DataType], Artifacts]:
+    ) -> Tuple[DataReader, Artifacts]:
         with storage.open(path) as (f, art):
-            sparse.save_npz(f, art)
+            sparse.save_npz(f, data.data)
         return ScipyReader(data_type=data), {self.art_name: art}
 
 
