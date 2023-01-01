@@ -2,7 +2,7 @@ from typing import Any, ClassVar, Iterator, Tuple
 
 import scipy
 from scipy import sparse
-from scipy.sparse import csr_matrix
+from scipy.sparse import spmatrix
 
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
@@ -20,7 +20,7 @@ class ScipySparseMatrix(
     WithDefaultSerializer, DataType, DataHook, IsInstanceHookMixin
 ):
     type: ClassVar[str] = "csr_matrix"
-    valid_types: ClassVar = (csr_matrix,)
+    valid_types: ClassVar = (spmatrix,)
     dtype: str
 
     def get_requirements(self) -> Requirements:
