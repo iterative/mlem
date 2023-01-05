@@ -54,6 +54,7 @@ tests = [
     "skl2onnx",
     "dvc[s3]",
     "httpx",
+    "jupyter",
 ]
 
 extras = {
