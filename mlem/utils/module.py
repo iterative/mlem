@@ -174,7 +174,7 @@ def is_extension_module(mod: ModuleType):
     if getattr(mod, "__name__", None) == "__main__":
         return False
     try:
-        path = getattr(mod, "__file__", None) or ""
+        path = mod.__file__ or ""
         return any(path.endswith(ext) for ext in (".so", ".pyd"))
     except AttributeError:
         return True
