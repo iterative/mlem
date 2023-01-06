@@ -26,7 +26,7 @@ from mlem.utils.module import (
 )
 from tests.conftest import long
 
-TEST_NOTEBOOK_NAME = "test_save.ipynb"
+TEST_NOTEBOOK_NAME = os.path.join(os.path.dirname(__file__), "test_save.ipynb")
 
 
 class Obj:
