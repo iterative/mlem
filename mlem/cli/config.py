@@ -1,6 +1,7 @@
 import posixpath
 from typing import Optional
 
+from pydantic import parse_obj_as
 from typer import Argument, Option, Typer
 from yaml import safe_dump, safe_load
 
@@ -73,8 +74,17 @@ def config_get(
     """
     fs, path = get_fs(project or "")
     project = find_project_root(path, fs=fs)
+    section, name = name.split(".", maxsplit=1)
+    config_cls = get_config_cls(section)
     with fs.open(posixpath.join(project, MLEM_CONFIG_FILE_NAME)) as f:
         try:
-            echo(get_recursively(safe_load(f), smart_split(name, ".")))
+            payload = safe_load(f) or {}
+            config_obj = parse_obj_as(config_cls, payload.get(section, {}))
+            config_dict = config_obj.dict(skip_defaults=False)
+            echo(
+                get_recursively(
+                    config_dict, smart_split(name, "."), ignore_case=True
+                )
+            )
         except KeyError as e:
             raise MlemError(f"No such option `{name}`") from e
