@@ -85,6 +85,10 @@ def test_double_set(runner: Runner, mlem_project):
     )
 
     assert result.exit_code == 0, result.exception
+    assert (
+        project_config(mlem_project, section=PandasConfig).default_format
+        == "json"
+    )
 
     runner.invoke(
         f"config set pandas.default_format json --project {mlem_project}".split(),
@@ -94,13 +98,14 @@ def test_double_set(runner: Runner, mlem_project):
 
 def test_get_on_empty(runner: Runner, mlem_project):
     result = runner.invoke(
-        f"config get core.debug --project {mlem_project}", raise_on_error=True
+        f"config get core.debug --project {mlem_project}".split(),
+        raise_on_error=True,
     )
     assert result.exit_code == 0
     assert result.output.strip() == "True"
 
     result = runner.invoke(
-        f"config get pandas.default_format --project {mlem_project}",
+        f"config get pandas.default_format --project {mlem_project}".split(),
         raise_on_error=True,
     )
     assert result.exit_code == 0
@@ -108,6 +113,6 @@ def test_get_on_empty(runner: Runner, mlem_project):
 
     with pytest.raises(UnknownConfigSection):
         runner.invoke(
-            f"config get non_existent.kek --project {mlem_project}",
+            f"config get non_existent.kek --project {mlem_project}".split(),
             raise_on_error=True,
         )
