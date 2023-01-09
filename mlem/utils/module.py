@@ -1,4 +1,5 @@
 import ast
+import builtins
 import inspect
 import io
 import logging
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 PYTHON_BASE = os.path.dirname(threading.__file__)
 #  pylint: disable=no-member,protected-access
 IGNORE_TYPES_REQ = (type(Requirements._abc_impl),)  # type: ignore
+DEEP_INSPECTION = False
 
 
 def check_pypi_module(
@@ -84,6 +86,14 @@ def get_object_base_module(obj: object) -> Optional[ModuleType]:
     :return: Python module object for base module
     """
     mod = inspect.getmodule(obj)
+    if mod is None:
+        if not isinstance(obj, type):
+            obj_type = type(obj)
+        else:
+            obj_type = obj
+        if obj_type in builtins.__dict__.values():
+            return builtins
+        return None
     return get_base_module(mod)
 
 
@@ -161,6 +171,8 @@ def is_extension_module(mod: ModuleType):
     :param mod: module object to use
     :return: boolean flag
     """
+    if getattr(mod, "__name__", None) == "__main__":
+        return False
     try:
         path = mod.__file__ or ""
         return any(path.endswith(ext) for ext in (".so", ".pyd"))
@@ -326,7 +338,7 @@ def get_local_module_reqs(mod) -> List[ModuleType]:
     """Parses module AST to find all import statements"""
     try:
         tree = ast.parse(inspect.getsource(mod))
-    except OSError:
+    except (OSError, TypeError):
         logger.debug("Failed to get source of %s", str(mod))
         return []
     imports: List[Tuple[str, Optional[str]]] = []
@@ -446,7 +458,7 @@ def add_closure_inspection(f):
                 source = inspect.getsource(obj)
             tree = ast.parse(lstrip_lines(source))
             ImportFromVisitor(pickler, obj).visit(tree)
-        except OSError:
+        except (TypeError, OSError):
             logger.debug(
                 "Cannot parse code for %s from %s",
                 obj,
@@ -544,6 +556,8 @@ class RequirementAnalyzer(dill.Pickler):
             or is_pseudo_module(mod)
             or is_builtin_module(mod)
             or mod in self._modules
+            or mod.__name__ == "__main__"
+            and not hasattr(mod, "__file__")  # jupyter
         )
 
     def add_requirement(self, obj_or_module):
@@ -588,7 +602,10 @@ class RequirementAnalyzer(dill.Pickler):
         if id(obj) in self.seen or isinstance(obj, IGNORE_TYPES_REQ):
             return None
         self.seen.add(id(obj))
-        if get_object_base_module(obj) in self._modules:
+        if (
+            get_object_base_module(obj) in self._modules
+            and not DEEP_INSPECTION
+        ):
             return None
         self.add_requirement(obj)
         try:
