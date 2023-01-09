@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
 
-from mlem.api import apply, load, save
+from mlem.api import apply, load_meta, save
 from mlem.constants import PREDICT_METHOD_NAME, TRANSFORM_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.contrib.scipy import ScipySparseMatrix
@@ -122,7 +122,9 @@ def test_model_type__transform(transformer_fixture, inp_data, request):
     )
 
 
-@pytest.mark.parametrize("transformer_fixture", ["transformer"])
+@pytest.mark.parametrize(
+    "transformer_fixture", ["transformer", "onehotencoder"]
+)
 def test_preprocess_transformer(
     classifier, transformer_fixture, inp_data, tmpdir, out_data, request
 ):
@@ -135,9 +137,9 @@ def test_preprocess_transformer(
         clf,
         str(tmpdir / model_file),
         sample_data=inp_data,
-        preprocess=transformer.transform,
+        preprocess=transformer,
     )
-    clf = load(str(tmpdir / model_file))
+    clf = load_meta(str(tmpdir / model_file))
     output = apply(clf, inp_data)
     assert np.array_equal(output, out_data)
 
