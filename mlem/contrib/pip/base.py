@@ -116,8 +116,15 @@ class WhlBuilder(MlemBuilder, PipMixin):
         logger.debug("Building whl from %s...", path)
         with tempfile.TemporaryDirectory() as whl_dir:
             subprocess.check_output(
-                f"pip wheel . --no-deps -w {whl_dir}",
-                shell=True,  # nosec: B602
+                [
+                    "pip",
+                    "wheel",
+                    ".",
+                    "--no-deps",
+                    "-w",
+                    whl_dir,
+                    "--ignore-requires-python",
+                ],
                 cwd=path,
             )
             whl_path = glob.glob(os.path.join(whl_dir, "*.whl"))[0]
