@@ -75,12 +75,12 @@ jobs:
     - name: get pip cache dir
       id: pip-cache-dir
       run: |
-        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+        echo "PIP_CACHE_DIR=$(pip cache dir)" >> $GITHUB_ENV
     - name: set pip cache
       id: pip-cache
       uses: actions/cache@v3.0.11
       with:
-        path: ${{ steps.pip-cache-dir.outputs.dir }}
+        path: ${{ env.PIP_CACHE_DIR }}
         key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
           ${{ runner.os }}-pip-
@@ -91,7 +91,7 @@ jobs:
         wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
         brew install ./libomp.rb
     - name: Install
-      if: steps.cache.pip-cache-dir.cache-hit != 'true'
+      if: steps.pip-cache.outputs.cache-hit != 'true'
       run: |
         pip install --upgrade pip setuptools wheel
         pip install pre-commit .[tests]
