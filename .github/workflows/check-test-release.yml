@@ -68,23 +68,12 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
+        cache: 'pip'
+        cache-dependency-path: 'setup.py'
     - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python }}
         activate-environment: true
-    - name: get pip cache dir
-      id: cache-dir
-      run: |
-        echo "::set-output name=dir::$(pip cache dir)"
-    - name: set pip cache
-      id: cache
-      uses: actions/cache@v3.0.11
-      with:
-        path: ${{ steps.cache-dir.outputs.dir }}
-        # setup.py is used here to sometimes start using new cache, getting rid of old useless packages
-        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
     - name: Install Mac-specific dependencies
       if: matrix.os == 'macos-latest'
       run: |
