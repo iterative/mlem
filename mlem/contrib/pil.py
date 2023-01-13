@@ -14,7 +14,9 @@ class PILImageSerializer(BinarySerializer):
 
     type: ClassVar = "pil_numpy"
     support_files: ClassVar = True
+
     format: str = "jpeg"
+    "Image format to use"
 
     def serialize(self, data_type: NumpyNdarrayType, instance: Any) -> bytes:
         with self.dump(data_type, instance) as b:
