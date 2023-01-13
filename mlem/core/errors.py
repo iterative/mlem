@@ -22,7 +22,7 @@ class SerializationError(MlemError):
 
 
 class MlemProjectNotFound(MlemError):
-    _message = "{MLEM_CONFIG_FILE_NAME} folder wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
+    _message = "{MLEM_CONFIG_FILE_NAME} file wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
 
     def __init__(self, path, fs=None, rev=None) -> None:
 

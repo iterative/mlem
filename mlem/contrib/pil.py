@@ -14,17 +14,18 @@ class PILImageSerializer(BinarySerializer):
 
     type: ClassVar = "pil_numpy"
     support_files: ClassVar = True
+    format: str = "jpeg"
 
     def serialize(self, data_type: NumpyNdarrayType, instance: Any) -> bytes:
-        im = Image.fromarray(instance)
-        return im.tobytes()
+        with self.dump(data_type, instance) as b:
+            return b.getvalue()
 
     @contextlib.contextmanager
     def dump(
         self, data_type: NumpyNdarrayType, instance: Any
-    ) -> Iterator[BinaryIO]:
+    ) -> Iterator[BytesIO]:
         buffer = BytesIO()
-        Image.fromarray(instance).save(buffer)
+        Image.fromarray(instance).save(buffer, format=self.format)
         buffer.seek(0)
         yield buffer
 
