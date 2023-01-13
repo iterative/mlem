@@ -138,6 +138,10 @@ class SklearnPipelineType(SklearnModel):
 
 
 class SklearnTransformer(SklearnModel):
+    """
+    Model Type implementation for sklearn transformers
+    """
+
     valid_types: ClassVar = (TransformerMixin, _BaseEncoder)
     type: ClassVar = "sklearn_transformer"
 

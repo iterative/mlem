@@ -103,7 +103,9 @@ def test_hook_transformer(transformer_fixture, inp_data, request):
     assert isinstance(model_type, SklearnTransformer)
     assert TRANSFORM_METHOD_NAME in model_type.methods
     signature = model_type.methods[TRANSFORM_METHOD_NAME]
-    returns = ScipySparseMatrix(dtype="float64")
+    cols = len(transformer.get_feature_names_out())
+    rows = len(inp_data)
+    returns = ScipySparseMatrix(dtype="float64", shape=(rows, cols))
     assert signature.name == TRANSFORM_METHOD_NAME
     assert signature.args[0] == Argument(name="X", type_=data_type)
     assert signature.returns == returns
