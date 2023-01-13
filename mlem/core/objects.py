@@ -649,7 +649,10 @@ class MlemModel(_WithArtifacts):
 
     @property
     def is_single_model(self):
-        return len(self.processors_cache) == 1
+        return (
+            len(self.processors_cache) == 1
+            and MAIN_PROCESSOR_NAME in self.processors
+        )
 
     def _create_processor(self, obj: Any, sample_data: Any, name: str):
         model_type = ModelAnalyzer.analyze(obj, sample_data=sample_data).bind(
@@ -824,13 +827,15 @@ class MlemModel(_WithArtifacts):
             ).items()
         }
 
-    def load_value(self):
+    def load_value(self, skip_loaded=True):
         with self.requirements.import_custom():
-            if len(self.processors_cache) == 1:
-                self.model_type.load(self.relative_artifacts)
+            if self.is_single_model:
+                if not skip_loaded or self.model_type.model is None:
+                    self.model_type.load(self.relative_artifacts)
             else:
                 for name, processor in self.processors.items():
-                    processor.load(self.relative_processor_artifacts(name))
+                    if not skip_loaded or processor.model is None:
+                        processor.load(self.relative_processor_artifacts(name))
 
     def relative_processor_artifacts(self, name):
         return {

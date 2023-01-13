@@ -31,8 +31,8 @@ def get_model_meta(
     model: Union[str, MlemModel], load_value: bool = True
 ) -> MlemModel:
     if isinstance(model, MlemModel):
-        if load_value and model.get_value() is None:
-            model.load_value()
+        if load_value:
+            model.load_value(skip_loaded=True)
         return model
     if isinstance(model, str):
         model = load_meta(model, force_type=MlemModel)
