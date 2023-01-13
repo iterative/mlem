@@ -475,7 +475,7 @@ def deploy(
     # ensuring links are working
     log_meta_params(deploy_meta)
     deploy_meta.get_env()
-    model_meta = get_model_meta(model)
+    model_meta = get_model_meta(model, load_value=False)
     log_meta_params(model_meta)
 
     deploy_meta.check_unchanged()

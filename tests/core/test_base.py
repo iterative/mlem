@@ -1,5 +1,6 @@
 from typing import ClassVar, List, Optional
 
+import pytest
 from pydantic import BaseModel
 
 from mlem.contrib.docker import DockerImageBuilder
@@ -8,6 +9,7 @@ from mlem.core.base import (
     MlemABC,
     SmartSplitDict,
     build_mlem_object,
+    get_recursively,
     parse_links,
     smart_split,
 )
@@ -227,3 +229,17 @@ def test_smart_split_dict_dict_with_type():
             "b": {"type": "fastapi", "port": 8080},
         }
     }
+
+
+def test_get_recursively():
+    d = {"a": {"b": {"c": 1}}}
+
+    assert get_recursively(d, ["a", "b", "c"], ignore_case=False) == 1
+
+    with pytest.raises(KeyError):
+        get_recursively(d, ["a", "b", "d"], ignore_case=False)
+
+    with pytest.raises(KeyError):
+        get_recursively(d, ["a", "b", "C"], ignore_case=False)
+
+    assert get_recursively(d, ["a", "b", "C"], ignore_case=True) == 1
