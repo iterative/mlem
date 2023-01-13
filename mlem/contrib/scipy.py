@@ -40,9 +40,9 @@ class ScipySparseMatrix(
     type: ClassVar[str] = "csr_matrix"
     valid_types: ClassVar = (spmatrix,)
     shape: Optional[Tuple]
-    """shape of `sparse.csr_matrix` object in data"""
+    """Shape of `sparse.csr_matrix` object in data"""
     dtype: str
-    """dtype of `sparse.csr_matrix` object in data"""
+    """Dtype of `sparse.csr_matrix` object in data"""
 
     def get_requirements(self) -> Requirements:
         return Requirements.new([InstallableRequirement.from_module(scipy)])
@@ -68,7 +68,7 @@ class ScipySparseMatrix(
 
 class ScipyWriter(DataWriter[ScipySparseMatrix]):
     """
-    write scipy matrix to npz format
+    Write scipy matrix to npz format
     """
 
     def write(
@@ -81,7 +81,7 @@ class ScipyWriter(DataWriter[ScipySparseMatrix]):
 
 class ScipyReader(DataReader):
     """
-    read scipy matrix from npz format
+    Read scipy matrix from npz format
     """
 
     type: ClassVar[str] = "csr_matrix"
@@ -103,7 +103,7 @@ class ScipyReader(DataReader):
 
 class ScipySparseMatrixSerializer(DataSerializer[ScipySparseMatrix]):
     """
-    serializer for scipy sparse matrices
+    Serializer for scipy sparse matrices
     """
 
     is_default: ClassVar = True

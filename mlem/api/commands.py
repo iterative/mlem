@@ -32,6 +32,7 @@ from mlem.core.objects import (
     MlemLink,
     MlemModel,
     MlemObject,
+    _ModelMethodCall,
 )
 from mlem.runtime.client import Client
 from mlem.runtime.interface import ModelInterface
@@ -85,18 +86,20 @@ def apply(
     except WrongMethodError:
         resolved_method = PREDICT_METHOD_NAME
     echo(EMOJI_APPLY + f"Applying `{resolved_method}` method...")
+    method_call = _ModelMethodCall(
+        name=resolved_method,
+        order=model.call_orders[resolved_method],
+        model=model,
+    )
     if batch_size:
         res: Any = []
         for part in data:
             batch_data = get_data_value(part, batch_size)
             for batch in batch_data:
-                preds = w.call_method(resolved_method, batch.data)
+                preds = method_call(batch.data)
                 res += [*preds]  # TODO: merge results
     else:
-        res = [
-            w.call_method(resolved_method, get_data_value(part))
-            for part in data
-        ]
+        res = [method_call(get_data_value(part)) for part in data]
     if output is None:
         if len(res) == 1:
             return res[0]
