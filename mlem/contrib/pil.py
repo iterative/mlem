@@ -1,3 +1,8 @@
+"""PIL Image support
+Extension type: data
+
+Serializer for PIL Images to/from numpy arrays
+"""
 import contextlib
 from io import BytesIO
 from typing import Any, BinaryIO, ClassVar, Iterator, Union
