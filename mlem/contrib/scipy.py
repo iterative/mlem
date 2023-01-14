@@ -71,6 +71,8 @@ class ScipyWriter(DataWriter[ScipySparseMatrix]):
     Write scipy matrix to npz format
     """
 
+    type: ClassVar[str] = "csr_matrix"
+
     def write(
         self, data: DataType, storage: Storage, path: str
     ) -> Tuple[DataReader, Artifacts]:
