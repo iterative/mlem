@@ -241,6 +241,8 @@ setup_args = dict(  # noqa: C408
             "data_type.csr_matrix = mlem.contrib.scipy:ScipySparseMatrix",
             "data_writer.csr_matrix = mlem.contrib.scipy:ScipyWriter",
             "data_reader.csr_matrix = mlem.contrib.scipy:ScipyReader",
+            "model_type.sklearn_transformer = mlem.contrib.sklearn:SklearnTransformer",
+            "serializer.csr_matrix = mlem.contrib.scipy:ScipySparseMatrixSerializer",
         ],
         "mlem.config": [
             "core = mlem.config:MlemConfig",
