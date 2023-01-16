@@ -145,6 +145,3 @@ class ScipySparseMatrixSerializer(DataSerializer[ScipySparseMatrix]):
                 f"to sparse matrix of type: {data_type.type}"
             ) from e
         return mat
-
-    # def get_model(self, data_type: DT, prefix: str = "") -> Union[Type[BaseModel], type]:
-    #     pass
