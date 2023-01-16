@@ -61,6 +61,7 @@ extras = {
     "pandas": ["pandas"],
     "numpy": ["numpy"],
     "sklearn": ["scikit-learn"],
+    "scipy": ["scipy"],
     "onnx": ["onnx"],
     "onnxruntime": [
         "protobuf==3.20.1",
