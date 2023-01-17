@@ -87,6 +87,7 @@ class FlyioApp(MlemDeployment, FlyioSettings):
     # TODO other scale params
 
     server: Optional[Server] = None
+    """Server to use"""
 
     def _get_client(self, state: FlyioAppState) -> Client:
         return HTTPClient(host=f"https://{state.hostname}", port=443)
