@@ -54,6 +54,9 @@ tests = [
     "skl2onnx",
     "dvc[s3]",
     "httpx",
+    "jupyter",
+    "nbconvert",
+    "nbloader",
 ]
 
 extras = {

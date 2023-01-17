@@ -159,11 +159,23 @@ class MlemABC(PolyModel):
 _not_set = object()
 
 
-def get_recursively(obj: dict, keys: List[str]):
+def _get_ignore_case(obj: dict, key: str, ignore_case: bool):
+    if not ignore_case or key in obj:
+        return obj[key]
+    key_lower = key.lower()
+    key_mapping = {k.lower(): k for k in obj}
+    if key_lower in key_mapping:
+        return obj[key_mapping[key_lower]]
+    return obj[key]  # raise KeyError
+
+
+def get_recursively(obj: dict, keys: List[str], ignore_case: bool = False):
     if len(keys) == 1:
-        return obj[keys[0]]
+        return _get_ignore_case(obj, keys[0], ignore_case)
     key, keys = keys[0], keys[1:]
-    return get_recursively(obj[key], keys)
+    return get_recursively(
+        _get_ignore_case(obj, key, ignore_case), keys, ignore_case=ignore_case
+    )
 
 
 def smart_split(value: str, char: str, maxsplit: int = None):

@@ -189,6 +189,9 @@ def test_deploy_create_new(
     runner: Runner, model_meta_saved_single, mock_env_path, tmp_path
 ):
     path = os.path.join(tmp_path, "deployname")
+    # rewrite pickled model to check it's not loaded
+    with open(model_meta_saved_single.loc.path[: -len(MLEM_EXT)], "wb") as f:
+        f.write(b"")
     result = runner.invoke(
         f"deploy run {MlemDeploymentMock.type} {path} -m {model_meta_saved_single.loc.uri} --env {mock_env_path} --param aaa".split()
     )
@@ -202,6 +205,24 @@ def test_deploy_create_new(
     assert isinstance(meta, MlemDeploymentMock)
     assert meta.param == "aaa"
     assert meta.get_status() == DeployStatus.RUNNING
+    # test you can run the same command without error
+    result = runner.invoke(
+        f"deploy run {MlemDeploymentMock.type} {path} -m {model_meta_saved_single.loc.uri} --env {mock_env_path} --param aaa".split()
+    )
+    assert result.exit_code == 0, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
+    # but if you change deployment params, you'll have an error
+    result = runner.invoke(
+        f"deploy run {MlemDeploymentMock.type} {path} -m {model_meta_saved_single.loc.uri} --env {mock_env_path} --param bbb".split()
+    )
+    assert result.exit_code == 1, (
+        result.stdout,
+        result.stderr,
+        result.exception,
+    )
 
 
 def test_deploy_create_existing(
