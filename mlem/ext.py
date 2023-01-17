@@ -129,6 +129,9 @@ class ExtensionLoader:
             False,
         ),
         Extension("mlem.contrib.git", ["pygit2"], True),
+        Extension(
+            "mlem.contrib.flyio", ["docker", "fastapi", "uvicorn"], False
+        ),
         Extension("mlem.contrib.torchvision", ["torchvision"], False),
     )
 
