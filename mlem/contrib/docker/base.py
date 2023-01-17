@@ -546,7 +546,7 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
     """Image parameters"""
     env: DockerEnv = DockerEnv()
     """Where to build and push image. Defaults to local docker daemon"""
-    force_overwrite: bool = False
+    force_overwrite: bool = True
     """Ignore existing image with same name"""
     push: bool = True
     """Push image to registry after it is built"""
@@ -571,10 +571,7 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
         with self.env.daemon.client() as client:
             if self.push:
                 self.image.registry.login(client)
-
-            if self.force_overwrite:
-                self.image.delete(client)  # to avoid spawning dangling images
-            elif self.image.exists(client):
+            if not self.force_overwrite and self.image.exists(client):
                 raise ValueError(
                     f"Image {tag} already exists at {self.image.registry}. "
                     f"Change name or set force_overwrite=True."
