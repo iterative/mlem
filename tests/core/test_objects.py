@@ -3,6 +3,7 @@ import pickle
 import posixpath
 import tempfile
 from pathlib import Path
+from typing import ClassVar
 
 import pandas as pd
 import pytest
@@ -20,6 +21,7 @@ from mlem.core.objects import (
     DeployState,
     DeployStatus,
     MlemDeployment,
+    MlemEnv,
     MlemLink,
     MlemModel,
     MlemObject,
@@ -49,6 +51,9 @@ class MyDeployState(DeployState):
 
 
 class MyMlemDeployment(MlemDeployment):
+    type: ClassVar = "_mydepl"
+    env_type: ClassVar = MlemEnv
+
     def deploy(self, model: MlemModel):
         pass
 
@@ -371,6 +376,26 @@ def test_remove_old_artifacts(model, tmpdir, train):
     assert os.path.isfile(tmpdir / "model.mlem")
     assert os.path.isdir(tmpdir / "model")
     assert os.path.isfile(tmpdir / "model" / "second.pkl")
+    assert not os.path.exists(tmpdir / "model" / "first.pkl")
+    load(path).predict(train)
+
+
+def test_remove_old_artifacts_with_dir(model, tmpdir, train):
+    model1 = MlemModel.from_obj(model)
+    model1.model_type.io = MockModelIO(filename="somedir/first.pkl")
+    path = str(tmpdir / "model")
+    model1.dump(path)
+    assert os.path.isfile(tmpdir / "model.mlem")
+    assert os.path.isdir(tmpdir / "model")
+    assert os.path.isdir(tmpdir / "model" / "somedir")
+    assert os.path.isfile(tmpdir / "model" / "somedir" / "first.pkl")
+    load(path).predict(train)
+    model2 = MlemModel.from_obj(model)
+    model2.model_type.io = MockModelIO(filename="somedir")
+    model2.dump(path)
+    assert os.path.isfile(tmpdir / "model.mlem")
+    assert os.path.isdir(tmpdir / "model")
+    assert os.path.isfile(tmpdir / "model" / "somedir")
     assert not os.path.exists(tmpdir / "model" / "first.pkl")
     load(path).predict(train)
 
