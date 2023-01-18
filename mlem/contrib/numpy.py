@@ -44,6 +44,23 @@ def np_type_from_string(string_repr) -> np.dtype:
         raise ValueError(f"Unknown numpy type {string_repr}") from e
 
 
+def check_shape(shape, array, exc_type):
+    if shape is not None:
+        if len(array.shape) != len(shape):
+            raise exc_type(
+                f"given array is of rank: {len(array.shape)}, expected: {len(shape)}"
+            )
+
+        array_shape = tuple(
+            None if expected_dim is None else array_dim
+            for array_dim, expected_dim in zip(array.shape, shape)
+        )
+        if tuple(array_shape) != shape:
+            raise exc_type(
+                f"given array is of shape: {array_shape}, expected: {shape}"
+            )
+
+
 class NumpyNumberType(
     WithDefaultSerializer, LibRequirementsMixin, DataType, DataHook
 ):
@@ -123,22 +140,6 @@ class NumpyNdarrayType(
             max_items=subshape[0],
         )
 
-    def check_shape(self, array, exc_type):
-        if self.shape is not None:
-            if len(array.shape) != len(self.shape):
-                raise exc_type(
-                    f"given array is of rank: {len(array.shape)}, expected: {len(self.shape)}"
-                )
-
-            array_shape = tuple(
-                None if expected_dim is None else array_dim
-                for array_dim, expected_dim in zip(array.shape, self.shape)
-            )
-            if tuple(array_shape) != self.shape:
-                raise exc_type(
-                    f"given array is of shape: {array_shape}, expected: {self.shape}"
-                )
-
     def get_writer(self, project: str = None, filename: str = None, **kwargs):
         return NumpyArrayWriter()
 
@@ -171,7 +172,7 @@ class NumpyNdarraySerializer(DataSerializer[NumpyNdarrayType]):
                 f"given object: {obj} could not be converted to array "
                 f"of type: {np_type_from_string(data_type.dtype)}"
             ) from e
-        data_type.check_shape(ret, DeserializationError)
+        check_shape(data_type.shape, ret, DeserializationError)
         return ret
 
     def serialize(self, data_type, instance: np.ndarray):
@@ -181,7 +182,7 @@ class NumpyNdarraySerializer(DataSerializer[NumpyNdarrayType]):
             raise SerializationError(
                 f"given array is of type: {instance.dtype}, expected: {exp_type}"
             )
-        data_type.check_shape(instance, SerializationError)
+        check_shape(data_type.shape, instance, SerializationError)
         return instance.tolist()
 
 

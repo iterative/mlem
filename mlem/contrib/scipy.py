@@ -13,6 +13,7 @@ from scipy import sparse
 from scipy.sparse import spmatrix
 
 from mlem.contrib.numpy import (
+    check_shape,
     np_type_from_string,
     python_type_from_np_string_repr,
 )
@@ -64,22 +65,6 @@ class ScipySparseMatrix(
             min_items=subshape[0],
             max_items=subshape[0],
         )
-
-    def check_shape(self, array, exc_type):
-        if self.shape is not None:
-            if len(array.shape) != len(self.shape):
-                raise exc_type(
-                    f"given array is of rank: {len(array.shape)}, expected: {len(self.shape)}"
-                )
-
-            array_shape = tuple(
-                None if expected_dim is None else array_dim
-                for array_dim, expected_dim in zip(array.shape, self.shape)
-            )
-            if tuple(array_shape) != self.shape:
-                raise exc_type(
-                    f"given array is of shape: {array_shape}, expected: {self.shape}"
-                )
 
 
 class ScipyWriter(DataWriter[ScipySparseMatrix]):
@@ -143,7 +128,7 @@ class ScipySparseMatrixSerializer(DataSerializer[ScipySparseMatrix]):
                 f"given matrix is of dtype: {instance.dtype}, "
                 f"expected: {data_type.dtype}"
             )
-        data_type.check_shape(instance, SerializationError)
+        check_shape(data_type.shape, instance, SerializationError)
         coordinate_matrix = instance.tocoo()
         data = coordinate_matrix.data
         row = coordinate_matrix.row
@@ -161,5 +146,5 @@ class ScipySparseMatrixSerializer(DataSerializer[ScipySparseMatrix]):
                 f"Given object {obj} could not be converted"
                 f"to sparse matrix of type: {data_type.type}"
             ) from e
-        data_type.check_shape(mat, DeserializationError)
+        check_shape(data_type.shape, mat, DeserializationError)
         return mat
