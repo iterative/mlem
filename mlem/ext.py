@@ -133,6 +133,7 @@ class ExtensionLoader:
             "mlem.contrib.flyio", ["docker", "fastapi", "uvicorn"], False
         ),
         Extension("mlem.contrib.torchvision", ["torchvision"], False),
+        Extension("mlem.contrib.pil", ["Pillow", "numpy"], False),
     )
 
     _loaded_extensions: Dict[Extension, ModuleType] = {}
