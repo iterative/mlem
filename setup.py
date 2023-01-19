@@ -54,6 +54,9 @@ tests = [
     "skl2onnx",
     "dvc[s3]",
     "httpx",
+    "jupyter",
+    "nbconvert",
+    "nbloader",
 ]
 
 extras = {
@@ -89,7 +92,9 @@ extras = {
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
+    "flyio": ["docker", "fastapi", "uvicorn"],
     "torchvision": ["torchvision"],
+    "pil": ["Pillow", "numpy"],
 }
 
 # add DVC extras
@@ -164,6 +169,9 @@ setup_args = dict(  # noqa: C408
             "artifact.dvc = mlem.contrib.dvc:DVCArtifact",
             "storage.dvc = mlem.contrib.dvc:DVCStorage",
             "server.fastapi = mlem.contrib.fastapi:FastAPIServer",
+            "deployment.flyio = mlem.contrib.flyio.meta:FlyioApp",
+            "deploy_state.flyio = mlem.contrib.flyio.meta:FlyioAppState",
+            "env.flyio = mlem.contrib.flyio.meta:FlyioEnv",
             "resolver.local_git = mlem.contrib.git:LocalGitResolver",
             "resolver.github = mlem.contrib.github:GithubResolver",
             "resolver.gitlab = mlem.contrib.gitlabfs:GitlabResolver",
@@ -203,6 +211,7 @@ setup_args = dict(  # noqa: C408
             "data_writer.pandas = mlem.contrib.pandas:PandasWriter",
             "serializer.series = mlem.contrib.pandas:SeriesSerializer",
             "data_type.series = mlem.contrib.pandas:SeriesType",
+            "serializer.pil_numpy = mlem.contrib.pil:PILImageSerializer",
             "builder.pip = mlem.contrib.pip.base:PipBuilder",
             "builder.whl = mlem.contrib.pip.base:WhlBuilder",
             "client.rmq = mlem.contrib.rabbitmq:RabbitMQClient",
@@ -248,6 +257,7 @@ setup_args = dict(  # noqa: C408
             "core = mlem.config:MlemConfig",
             "bitbucket = mlem.contrib.bitbucketfs:BitbucketConfig",
             "docker = mlem.contrib.docker.context:DockerConfig",
+            "flyio = mlem.contrib.flyio.meta:FlyioConfig",
             "heroku = mlem.contrib.heroku.config:HerokuConfig",
             "pandas = mlem.contrib.pandas:PandasConfig",
             "aws = mlem.contrib.sagemaker.config:AWSConfig",

@@ -12,7 +12,7 @@ def build_model_image(
     env: DockerEnv = None,
     tag: str = "latest",
     repository: str = None,
-    force_overwrite: bool = False,
+    force_overwrite: bool = True,
     push: bool = True,
     **build_args
 ) -> DockerImage:

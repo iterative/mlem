@@ -1,9 +1,13 @@
+import os
+import subprocess
 from typing import ClassVar
 
+import nbformat
 import numpy
 import pytest
 from pydantic import BaseModel
 
+from mlem.core.requirements import Requirements
 from mlem.utils.importing import import_from_path, import_module
 from mlem.utils.module import (
     check_pypi_module,
@@ -21,6 +25,8 @@ from mlem.utils.module import (
     is_pseudo_module,
 )
 from tests.conftest import long
+
+TEST_NOTEBOOK_NAME = os.path.join(os.path.dirname(__file__), "test_save.ipynb")
 
 
 class Obj:
@@ -207,6 +213,44 @@ def test_get_object_requirements__classvar():
 def test_get_object_requirements__classvar_in_model():
     assert get_object_requirements(ModelClazz).modules == ["numpy"]
     assert get_object_requirements(ModelClazz()).modules == ["numpy"]
+
+
+def test_get_requirements_notebook():
+
+    from nbloader import Notebook
+
+    loaded_notebook = Notebook(TEST_NOTEBOOK_NAME)
+
+    kek = loaded_notebook.run_all()
+    res = kek.ns["res"]
+
+    assert isinstance(res, Requirements)
+    assert res.modules == ["numpy"]
+
+
+def _run_jup(command):
+    env = os.environ.copy()
+    env["MLEM_DEBUG"] = "0"
+    subprocess.check_call(command.split(), env=env)
+
+
+def test_get_requirements_notebook_run():
+    _run_jup(
+        f"jupyter nbconvert --clear-output --inplace {TEST_NOTEBOOK_NAME}"
+    )
+    with open(TEST_NOTEBOOK_NAME, encoding="utf8") as f:
+        nb = nbformat.read(f, as_version=4)
+
+    assert len(nb["cells"][1]["outputs"]) == 0
+
+    _run_jup(
+        f"jupyter nbconvert --to notebook --inplace --execute {TEST_NOTEBOOK_NAME}"
+    )
+
+    with open(TEST_NOTEBOOK_NAME, encoding="utf8") as f:
+        nb = nbformat.read(f, as_version=4)
+
+    assert nb["cells"][1]["outputs"][0].text.strip() == get_module_repr(numpy)
 
 
 # Copyright 2019 Zyfra

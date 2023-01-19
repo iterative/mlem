@@ -68,22 +68,12 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
+        cache: 'pip'
+        cache-dependency-path: 'setup.py'
     - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python }}
         activate-environment: true
-    - name: get pip cache dir
-      id: pip-cache-dir
-      run: |
-        echo "::set-output name=dir::$(pip cache dir)"
-    - name: set pip cache
-      id: pip-cache
-      uses: actions/cache@v3.0.11
-      with:
-        path: ${{ steps.pip-cache-dir.outputs.dir }}
-        key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
     - name: Install Mac-specific dependencies
       if: matrix.os == 'macos-latest'
       run: |
@@ -91,12 +81,24 @@ jobs:
         wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
         brew install ./libomp.rb
     - name: Install
-      if: steps.cache.pip-cache-dir.cache-hit != 'true'
       run: |
         pip install --upgrade pip setuptools wheel
         pip install pre-commit .[tests]
     - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
       run: pre-commit run pylint -a -v --show-diff-on-failure
+    - name: Run Heroku tests
+      if: |
+        matrix.os == 'ubuntu-latest' &&
+        matrix.python == '3.8' &&
+        (
+          github.event_name == 'schedule' ||
+          contains(github.event.pull_request.title, 'heroku')
+        )
+      timeout-minutes: 40
+      run: pytest -k 'heroku'
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        HEROKU_TEAM: iterative-sandbox
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
@@ -112,19 +114,6 @@ jobs:
         GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
         BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
         BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
-    - name: Run Heroku tests
-      if: |
-        matrix.os == 'ubuntu-latest' &&
-        matrix.python == '3.8' &&
-        (
-          github.event_name == 'schedule' ||
-          contains(github.event.pull_request.title, 'heroku')
-        )
-      timeout-minutes: 40
-      run: pytest -k 'heroku'
-      env:
-        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        HEROKU_TEAM: iterative-sandbox
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v3
       with:

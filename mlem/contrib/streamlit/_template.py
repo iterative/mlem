@@ -6,9 +6,7 @@ from mlem.contrib.streamlit.server import augment_model
 from mlem.runtime import InterfaceMethod
 from mlem.runtime.client import HTTPClient
 
-streamlit.title(
-    "MLEM Streamlit UI for server at {{server_host}}:{{server_port}}"
-)
+streamlit.title("MLEM Streamlit UI")
 
 
 @streamlit.cache(hash_funcs={HTTPClient: lambda x: 0})
@@ -89,3 +87,8 @@ for method_name, tab in zip(methods, tabs):
             download_button = streamlit.download_button(
                 label="Download", data=response
             )
+
+
+streamlit.write(
+    "Built for FastAPI server at `{{server_host}}:{{server_port}}`. Docs: https://mlem.ai/doc"
+)

@@ -62,3 +62,19 @@ def test_infer_signatire(model, train):
             dtypes=["float64", "float64", "float64", "float64"],
             index_cols=[],
         )
+
+
+def test_infer_signature_var():
+    def func(*inputs):
+        return inputs[0]
+
+    signature = Signature.from_method(func, "aaa", auto_infer=True)
+    assert signature.varargs == "inputs"
+    assert signature.varargs_type == signature.returns
+
+    def func_kw(**inputs):
+        return inputs[next(iter(inputs))]
+
+    signature = Signature.from_method(func_kw, key="aaa", auto_infer=True)
+    assert signature.varkw == "inputs"
+    assert signature.varkw_type == signature.returns

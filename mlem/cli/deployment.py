@@ -1,7 +1,11 @@
+import logging
 from json import dumps
 from typing import List, Optional
 
+import click
 from typer import Argument, Option, Typer
+from typer.main import get_click_param
+from typer.models import ParamMeta
 
 from mlem.cli.apply import run_apply_remote
 from mlem.cli.declare import add_env_params_deployment, process_fields
@@ -41,6 +45,8 @@ from mlem.core.objects import (
 )
 from mlem.telemetry import pass_telemetry_params
 from mlem.ui import echo, no_echo, set_echo
+
+logger = logging.getLogger(__name__)
 
 deployment = Typer(
     name="deployment",
@@ -114,21 +120,31 @@ def create_deploy_run_command(type_name):
     ):
         from mlem.api.commands import deploy
 
+        if model is None:
+            raise click.MissingParameter(
+                param=get_click_param(
+                    ParamMeta(
+                        name="model", default=option_model, annotation=str
+                    )
+                )[0]
+            )
         __kwargs__ = process_fields(type_name, MlemDeployment, __kwargs__)
+        _meta = build_mlem_object(
+            MlemDeployment,
+            type_name,
+            str_conf=None,
+            file_conf=file_conf,
+            **__kwargs__,
+        )
         try:
             meta = load_meta(path, project=project, force_type=MlemDeployment)
-            raise DeploymentError(
-                f"Deployment meta already exists at {meta.loc}. Please use `mlem deployment run --load <path> ...`"
-            )
+            if meta != _meta:
+                raise DeploymentError(
+                    f"Different deployment meta already exists at {meta.loc}. Please use `mlem deployment run --load <path> ...`"
+                )
         except MlemObjectNotFound:
             with wrap_build_error(type_name, MlemDeployment):
-                meta = build_mlem_object(
-                    MlemDeployment,
-                    type_name,
-                    str_conf=None,
-                    file_conf=file_conf,
-                    **__kwargs__,
-                ).dump(path, project=project)
+                meta = _meta.dump(path, project=project)
         mlem_model = load_meta(
             model,
             project=model_project,

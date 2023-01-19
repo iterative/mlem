@@ -113,6 +113,8 @@ def save(
             in the model's metadata
         fs: FileSystem for the `path` argument
         params: arbitrary params for object
+        preprocess: applies before the model
+        postprocess: applies after the model
 
     Returns:
         None
