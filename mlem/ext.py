@@ -129,6 +129,7 @@ class ExtensionLoader:
             False,
         ),
         Extension("mlem.contrib.git", ["pygit2"], True),
+        Extension("mlem.contrib.scipy", ["scipy"], False),
         Extension(
             "mlem.contrib.flyio", ["docker", "fastapi", "uvicorn"], False
         ),

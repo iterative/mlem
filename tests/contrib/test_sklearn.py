@@ -3,14 +3,17 @@ import posixpath
 import lightgbm as lgb
 import numpy as np
 import pytest
+from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
 
-from mlem.constants import PREDICT_METHOD_NAME
+from mlem.api import apply, load_meta, save
+from mlem.constants import PREDICT_METHOD_NAME, TRANSFORM_METHOD_NAME
 from mlem.contrib.numpy import NumpyNdarrayType
-from mlem.contrib.sklearn import SklearnModel
+from mlem.contrib.scipy import ScipySparseMatrix
+from mlem.contrib.sklearn import SklearnModel, SklearnTransformer
 from mlem.core.artifacts import LOCAL_STORAGE
 from mlem.core.data_type import DataAnalyzer
 from mlem.core.model import Argument, ModelAnalyzer
@@ -41,6 +44,20 @@ def regressor(inp_data, out_data):
     lr = LinearRegression()
     lr.fit(inp_data, out_data)
     return lr
+
+
+@pytest.fixture
+def transformer(inp_data):
+    tf_idf = TfidfTransformer()
+    tf_idf.fit(inp_data)
+    return tf_idf
+
+
+@pytest.fixture
+def onehotencoder(inp_data):
+    encoder = OneHotEncoder()
+    encoder.fit(inp_data)
+    return encoder
 
 
 @pytest.fixture()
@@ -74,6 +91,59 @@ def test_hook(model_fixture, inp_data, request):
     assert signature.name == PREDICT_METHOD_NAME
     assert signature.args[0] == Argument(name="X", type_=data_type)
     assert signature.returns == returns
+
+
+@pytest.mark.parametrize(
+    "transformer_fixture", ["transformer", "onehotencoder"]
+)
+def test_hook_transformer(transformer_fixture, inp_data, request):
+    transformer = request.getfixturevalue(transformer_fixture)
+    data_type = DataAnalyzer.analyze(inp_data)
+    model_type = ModelAnalyzer.analyze(transformer, sample_data=inp_data)
+    assert isinstance(model_type, SklearnTransformer)
+    assert TRANSFORM_METHOD_NAME in model_type.methods
+    signature = model_type.methods[TRANSFORM_METHOD_NAME]
+    cols = len(transformer.get_feature_names_out())
+    rows = len(inp_data)
+    returns = ScipySparseMatrix(dtype="float64", shape=(rows, cols))
+    assert signature.name == TRANSFORM_METHOD_NAME
+    assert signature.args[0] == Argument(name="X", type_=data_type)
+    assert signature.returns == returns
+
+
+@pytest.mark.parametrize(
+    "transformer_fixture", ["transformer", "onehotencoder"]
+)
+def test_model_type__transform(transformer_fixture, inp_data, request):
+    transformer = request.getfixturevalue(transformer_fixture)
+    model_type = ModelAnalyzer.analyze(transformer, sample_data=inp_data)
+
+    np.testing.assert_array_almost_equal(
+        transformer.transform(inp_data).todense(),
+        model_type.call_method("transform", inp_data).todense(),
+    )
+
+
+@pytest.mark.parametrize(
+    "transformer_fixture", ["transformer", "onehotencoder"]
+)
+def test_preprocess_transformer(
+    classifier, transformer_fixture, inp_data, tmpdir, out_data, request
+):
+    transformer = request.getfixturevalue(transformer_fixture)
+    model_file = "clf"
+    clf = LogisticRegression()
+    train_data = transformer.transform(inp_data)
+    clf.fit(train_data, out_data)
+    save(
+        clf,
+        str(tmpdir / model_file),
+        sample_data=inp_data,
+        preprocess=transformer,
+    )
+    clf = load_meta(str(tmpdir / model_file))
+    output = apply(clf, inp_data)
+    assert np.array_equal(output, out_data)
 
 
 def test_hook_lgb(lgbm_model, inp_data):
