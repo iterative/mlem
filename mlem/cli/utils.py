@@ -534,7 +534,7 @@ def lazy_class_docstring(abs_name: str, type_name: str):
         try:
             return load_impl_ext(abs_name, type_name).__doc__
         except ExtensionRequirementError as e:
-            return f"Help unavailbale: {e}"
+            return f"Help unavailable: {e}"
 
     return load_docstring
 
