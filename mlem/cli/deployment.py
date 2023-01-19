@@ -2,7 +2,10 @@ import logging
 from json import dumps
 from typing import List, Optional
 
+import click
 from typer import Argument, Option, Typer
+from typer.main import get_click_param
+from typer.models import ParamMeta
 
 from mlem.cli.apply import run_apply_remote
 from mlem.cli.declare import add_env_params_deployment, process_fields
@@ -117,6 +120,14 @@ def create_deploy_run_command(type_name):
     ):
         from mlem.api.commands import deploy
 
+        if model is None:
+            raise click.MissingParameter(
+                param=get_click_param(
+                    ParamMeta(
+                        name="model", default=option_model, annotation=str
+                    )
+                )[0]
+            )
         __kwargs__ = process_fields(type_name, MlemDeployment, __kwargs__)
         _meta = build_mlem_object(
             MlemDeployment,
