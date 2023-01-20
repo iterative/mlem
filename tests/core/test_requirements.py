@@ -6,7 +6,7 @@ from pydantic import parse_obj_as
 
 from mlem.contrib.sklearn import SklearnModel
 from mlem.core.metadata import load_meta
-from mlem.core.objects import MlemModel
+from mlem.core.objects import MAIN_PROCESSOR_NAME, MlemModel
 from mlem.core.requirements import (
     CustomRequirement,
     InstallableRequirement,
@@ -120,9 +120,9 @@ def test_resolve_unique_req():
 
 def test_serialize_empty():
     mt = SklearnModel(methods={}, model="")
-    obj = MlemModel(model_type=mt)
+    obj = MlemModel(processors={MAIN_PROCESSOR_NAME: mt})
     payload = obj.dict()
-    obj2 = MlemModel(model_type=mt)
+    obj2 = MlemModel(processors={MAIN_PROCESSOR_NAME: mt})
     obj2.requirements.__root__.append(InstallableRequirement(module="sklearn"))
     assert obj.requirements.__root__ == []
     new_obj = parse_obj_as(MlemModel, payload)

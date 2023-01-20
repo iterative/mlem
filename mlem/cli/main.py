@@ -31,6 +31,7 @@ from mlem.cli.utils import (
     _format_validation_error,
     get_extra_keys,
     mark_as_cli,
+    remove_metavar_kwarg,
 )
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
@@ -433,7 +434,9 @@ def mlem_command(
             ]
         else:
             _pass_from_parent = pass_from_parent
-        call = wrap_mlem_cli_call(f, _pass_from_parent)
+        call = remove_metavar_kwarg(
+            wrap_mlem_cli_call(f, _pass_from_parent), dynamic_metavar
+        )
         return parent.command(
             *args,
             options_metavar=options_metavar,
