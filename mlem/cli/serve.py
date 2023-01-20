@@ -41,6 +41,7 @@ option_standardize = Option(
     help="Whether to conform model interface to standard ('predict' method with single arg 'data')",
 )
 
+
 @mlem_group_callback(serve, required=["model", "load"])
 def serve_load(
     model: str = make_not_required(option_model),
