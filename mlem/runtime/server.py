@@ -93,7 +93,7 @@ class _ServerOptions(BaseModel):
     response_serializer: Optional[Serializer] = None
     """Serializer to use for all responses"""
 
-    standardize: bool = True
+    standardize: bool = False
     """Use standard model interface"""
     methods: Optional[ServerMethods] = None
     """Optional augmented interface"""
