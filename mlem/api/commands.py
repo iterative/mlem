@@ -353,6 +353,7 @@ def serve(
         None
     """
     model = get_model_meta(model, load_value=True)
+
     server_obj = ensure_mlem_object(Server, server, **server_kwargs)
     telemetry.log_param("server_type", server_obj.type)
     log_meta_params(model)
