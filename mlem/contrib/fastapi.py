@@ -13,6 +13,7 @@ import uvicorn
 from fastapi import FastAPI, UploadFile
 from fastapi.datastructures import Default
 from fastapi.responses import RedirectResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, create_model, parse_obj_as
 from pydantic.typing import get_args
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -58,6 +59,8 @@ class FastAPIServer(Server, LibRequirementsMixin):
     """Network interface to use"""
     port: int = 8080
     """Port to use"""
+    metrics: bool = False
+    """Generate /metrics endpoint to be scraped by Prometheus"""
 
     @classmethod
     def _create_handler_executor(
@@ -196,6 +199,12 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 response_model=response_model,
                 response_class=response_class or Default(JSONResponse),
             )
+
+        if self.metrics:
+
+            @app.on_event("startup")
+            async def startup():
+                Instrumentator().instrument(app).expose(app)
 
         return app
 

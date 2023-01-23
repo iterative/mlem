@@ -73,7 +73,7 @@ extras = {
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
     "lightgbm": ["lightgbm"],
-    "fastapi": ["uvicorn", "fastapi"],
+    "fastapi": ["uvicorn", "fastapi", "prometheus-fastapi-instrumentator"],
     "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
     "sagemaker": ["docker", "boto3", "sagemaker"],
     "torch": ["torch"],
