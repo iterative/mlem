@@ -3,13 +3,11 @@ import os
 import subprocess
 import tempfile
 from time import sleep
-from typing import Callable, ClassVar, Optional, Tuple, Type
+from typing import ClassVar
 
 import streamlit
 import streamlit_pydantic
-from pydantic import BaseModel
 
-from mlem.cli.utils import LIST_LIKE_SHAPES
 from mlem.core.requirements import LibRequirementsMixin, Requirements
 from mlem.runtime import Interface
 from mlem.runtime.server import Server
@@ -25,27 +23,6 @@ class StreamlitScript(TemplateModel):
     method_name: str
     server_host: str = "0.0.0.0"
     server_port: str = "8080"
-
-
-def augment_model(
-    model: Type,
-) -> Tuple[Callable, Optional[Type]]:
-    if not issubclass(model, BaseModel):
-        return lambda x: x, model
-    list_model = [
-        (name, f)
-        for name, f in model.__fields__.items()
-        if f.shape in LIST_LIKE_SHAPES
-    ]
-
-    if len(list_model) == 0:
-        return lambda x: x, model
-
-    if len(list_model) > 1:
-        return lambda x: x, None
-    name, field = list_model[0]
-
-    return lambda x: model(**{name: [x]}), field.type_
 
 
 class StreamlitServer(Server, LibRequirementsMixin):
