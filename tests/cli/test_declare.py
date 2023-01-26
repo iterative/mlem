@@ -573,3 +573,11 @@ def test_declare_unknown_option_raises(runner: Runner):
             f"--tb declare deployment {MlemDeploymentMock.type} nowhere --nonexistent_option value",
             raise_on_error=True,
         )
+
+
+def test_declare_missing_arg_raises(runner: Runner):
+    with pytest.raises(RuntimeError, match=".*Missing argument.*"):
+        runner.invoke(
+            f"--tb declare deployment {MlemDeploymentMock.type}  --param value",
+            raise_on_error=True,
+        )
