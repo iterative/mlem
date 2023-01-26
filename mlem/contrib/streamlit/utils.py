@@ -37,18 +37,18 @@ def method_form(method_name: str, method: InterfaceMethod, client: HTTPClient):
         submit_button = streamlit.form_submit_button(label="Submit")
 
     if submit_button:
-        with streamlit.spinner("Processing..."):
-            response = getattr(client, method_name)(
-                **{
-                    k: v.dict() if isinstance(v, BaseModel) else v
-                    for k, v in arg_values.items()
-                }
-            )
-        if method.returns.get_serializer().serializer.is_binary:
-            streamlit.download_button(label="Download", data=response)
-        else:
-            streamlit.write("Response:")
-            streamlit.write(response)
+        with streamlit.tabs(["Response:"])[0]:
+            with streamlit.spinner("Processing..."):
+                response = getattr(client, method_name)(
+                    **{
+                        k: v.dict() if isinstance(v, BaseModel) else v
+                        for k, v in arg_values.items()
+                    }
+                )
+            if method.returns.get_serializer().serializer.is_binary:
+                streamlit.download_button(label="Download", data=response)
+            else:
+                streamlit.write(response)
 
 
 def method_args(method_name: str, method: InterfaceMethod):
@@ -76,11 +76,17 @@ def method_arg(arg: InterfaceArgument, arg_model: Type, key: str):
     if issubclass(arg_model, BaseModel):
         return streamlit_pydantic.pydantic_input(key=key, model=arg_model)
     if arg_model in (int, float):
-        arg_input = streamlit.number_input(key=key, label=arg.name, value=0)
+        arg_input = streamlit.number_input(
+            key=key, label=arg.name, value=arg.default or 0
+        )
     elif arg_model in (str, complex):
-        arg_input = streamlit.text_input(key=key, label=arg.name)
+        arg_input = streamlit.text_input(
+            key=key, label=arg.name, value=arg.default or ""
+        )
     elif arg_model is bool:
-        arg_input = streamlit.checkbox(key=key, label=arg.name)
+        arg_input = streamlit.checkbox(
+            key=key, label=arg.name, value=arg.default
+        )
     else:
         arg_input = None
     return arg_input

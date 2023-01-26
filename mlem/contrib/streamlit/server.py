@@ -47,6 +47,9 @@ class StreamlitServer(Server, LibRequirementsMixin):
     use_watchdog: bool = True
     """Install watchdog for better performance"""
     template: Optional[str] = None
+    """Path to alternative template for streamlit app"""
+    standardize: bool = False  # changing default for streamlit
+    """Use standard model interface"""
 
     def serve(self, interface: Interface):
         with self.prepare_streamlit_script():
@@ -54,7 +57,9 @@ class StreamlitServer(Server, LibRequirementsMixin):
                 from mlem.contrib.fastapi import FastAPIServer
 
                 FastAPIServer(
-                    host=self.server_host, port=self.server_port
+                    host=self.server_host,
+                    port=self.server_port,
+                    standardize=self.standardize,
                 ).serve(interface)
             else:
                 while True:
