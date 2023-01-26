@@ -452,7 +452,9 @@ class MlemLink(MlemObject):
     @property
     def typed(self) -> "TypedLink":
         type_ = MlemLink.__link_type_map__[self.link_type]
-        return type_(**self.dict())
+        self_dict = self.dict()
+        self_dict.pop("object_type")
+        return type_(**self_dict)
 
 
 class TypedLink(MlemLink, ABC):

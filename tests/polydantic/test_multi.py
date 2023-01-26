@@ -1,7 +1,7 @@
 from typing import ClassVar
 
 import pytest
-from pydantic import parse_obj_as
+from pydantic import Extra, parse_obj_as
 
 from mlem.polydantic import PolyModel
 
@@ -120,3 +120,69 @@ def test_serde_subchilds(cls):
     }
     assert parse_obj_as(CommonParent, payload) == obj
     assert parse_obj_as(InnerParent, payload) == obj
+
+
+def test_serde_no_extra():
+    class NEParent(PolyModel):
+        class Config:
+            extra = Extra.forbid
+            type_root = True
+
+        p: str
+
+    class NEChild(NEParent):
+        type: ClassVar = "child"
+
+        c: str
+
+    c = NEChild(p="a", c="b")
+    payload = c.dict()
+    assert payload == {"p": "a", "c": "b", "type": "child"}
+    c2 = parse_obj_as(NEParent, payload)
+    assert isinstance(c2, NEChild)
+    assert c2 == c
+
+
+def test_serde_no_extra_nested():
+    class NEGrandParent(PolyModel):
+        class Config:
+            extra = Extra.forbid
+            type_root = True
+
+        g: str
+
+    class NEParent(NEGrandParent):
+        type: ClassVar = "parent"
+
+        class Config:
+            type_root = True
+            type_field = "object_type"
+
+        p: str
+
+    class NEChild(NEParent):
+        object_type: ClassVar = "child"
+
+        c: str
+
+    c = NEChild(p="a", c="b", g="0")
+    payload = c.dict()
+    assert payload == {
+        "p": "a",
+        "c": "b",
+        "type": "parent",
+        "object_type": "child",
+        "g": "0",
+    }
+
+    c2 = parse_obj_as(NEGrandParent, payload)
+    assert isinstance(c2, NEChild)
+    assert c2 == c
+
+    c3 = parse_obj_as(NEParent, payload)
+    assert isinstance(c3, NEChild)
+    assert c3 == c
+
+    c4 = parse_obj_as(NEChild, payload)
+    assert isinstance(c4, NEChild)
+    assert c4 == c

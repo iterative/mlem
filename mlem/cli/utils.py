@@ -4,8 +4,18 @@ import copy
 import inspect
 from dataclasses import dataclass
 from enum import Enum, EnumMeta
-from functools import lru_cache
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Type
+from functools import lru_cache, wraps
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+)
 
 import typer
 from click import Context, MissingParameter
@@ -639,3 +649,13 @@ def config_arg(
         )
     with wrap_build_error(subtype, model):
         return build_mlem_object(model, subtype, conf, file_conf, kwargs)
+
+
+def remove_metavar_kwarg(f: Callable, metavar: Optional[str]):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        if metavar is not None:
+            kwargs.pop(metavar)
+        return f(*args, **kwargs)
+
+    return inner

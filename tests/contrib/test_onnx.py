@@ -59,13 +59,13 @@ test_hook_classifier_data = [
     (
         lazy_fixture("onnx_classifier"),
         [
-            NumpyNdarrayType(data=None, shape=(None,), dtype="int64"),
-            NumpyNdarrayType(data=None, shape=(None, 2), dtype="float64"),
+            NumpyNdarrayType(shape=(None,), dtype="int64"),
+            NumpyNdarrayType(shape=(None, 2), dtype="float64"),
         ],
     ),
     (
         lazy_fixture("onnx_regressor"),
-        [NumpyNdarrayType(data=None, shape=(None, 1), dtype="float32")],
+        [NumpyNdarrayType(shape=(None, 1), dtype="float32")],
     ),
 ]
 
