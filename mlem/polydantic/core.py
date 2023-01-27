@@ -67,23 +67,33 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
         """Polymorphic magic goes here"""
         if isinstance(value, cls):
             return value
-        if not cls.__is_root__ and cls.__config__.type_field not in value:
-            return super().validate(value)
         if isinstance(value, str):
             value = {cls.__config__.type_field: value}
         if not isinstance(value, dict):
-            raise ValueError(f"{value} is neither dict nor {cls}")
+            try:
+                value = dict(value)
+            except (TypeError, ValueError) as e:
+                raise ValueError(
+                    f"{value} is not {cls} and cannot be turned into dict"
+                ) from e
+        if not cls.__is_root__ and cls.__config__.type_field not in value:
+            return super().validate(value)
         value = value.copy()
         type_name = value.pop(
             cls.__config__.type_field, cls.__config__.default_type
         )
+
+        # remove all upper type_fields
+        for parent in cls.__iter_parents__(include_top=False):
+            value.pop(parent.__type_field__(), None)
 
         if type_name is None:
             raise ValueError(
                 f"Type field was not provided and no default type specified in {cls.__parent__.__name__}"
             )
         child_cls = cls.__resolve_subtype__(type_name)
-        if child_cls is cls:
+        if child_cls is cls or not issubclass(child_cls, cls):
+            # if cls is already child_cls or even a subclass
             return super().validate(value)
         return parse_obj_as(child_cls, value)
 

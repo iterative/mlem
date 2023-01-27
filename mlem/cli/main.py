@@ -16,7 +16,14 @@ from typing import (
 
 import click
 import typer
-from click import Abort, ClickException, Command, HelpFormatter, Parameter
+from click import (
+    Abort,
+    Argument,
+    ClickException,
+    Command,
+    HelpFormatter,
+    Parameter,
+)
 from click.exceptions import Exit, MissingParameter, NoSuchOption
 from pydantic import ValidationError
 from typer import Context, Option, Typer
@@ -31,6 +38,7 @@ from mlem.cli.utils import (
     _format_validation_error,
     get_extra_keys,
     mark_as_cli,
+    remove_metavar_kwarg,
 )
 from mlem.constants import PREDICT_METHOD_NAME
 from mlem.core.errors import MlemError
@@ -144,20 +152,41 @@ class MlemCommand(
         ctx = super().make_context(info_name, args, parent, **extra)
         if not self.dynamic_options_generator:
             return ctx
-        extra_args = ctx.args
+        argument_params = {
+            a.name for a in self.get_params(ctx) if isinstance(a, Argument)
+        }
         params = ctx.params.copy()
+        extra_args = get_extra_keys(
+            ctx.args
+            + [
+                v
+                for k, v in params.items()
+                if k in argument_params and v.startswith("--")
+            ]
+        )
         while extra_args:
+            params = {
+                k: v for k, v in params.items() if k not in argument_params
+            }
             ctx.params = params
             ctx.args = args_copy[:]
             with ctx.scope(cleanup=False):
                 self.parse_args(ctx, args_copy[:])
                 params.update(ctx.params)
 
-            if ctx.args == extra_args:
+            new_extra_args = get_extra_keys(
+                ctx.args
+                + [
+                    v
+                    for k, v in params.items()
+                    if k in argument_params and v.startswith("--")
+                ]
+            )
+            if new_extra_args == extra_args:
                 if not self.ignore_unknown_options:
                     from difflib import get_close_matches
 
-                    opt = "--" + get_extra_keys(extra_args)[0]
+                    opt = "--" + new_extra_args[0]
                     possibilities = get_close_matches(
                         opt, {f"--{o}" for o in params}
                     )
@@ -165,7 +194,8 @@ class MlemCommand(
                         opt, possibilities=possibilities, ctx=ctx
                     )
                 break
-            extra_args = ctx.args
+
+            extra_args = new_extra_args
 
         return ctx
 
@@ -433,7 +463,9 @@ def mlem_command(
             ]
         else:
             _pass_from_parent = pass_from_parent
-        call = wrap_mlem_cli_call(f, _pass_from_parent)
+        call = remove_metavar_kwarg(
+            wrap_mlem_cli_call(f, _pass_from_parent), dynamic_metavar
+        )
         return parent.command(
             *args,
             options_metavar=options_metavar,

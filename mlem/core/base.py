@@ -15,7 +15,7 @@ from typing import (
     overload,
 )
 
-from pydantic import BaseModel, parse_obj_as
+from pydantic import BaseModel, Extra, parse_obj_as
 from pydantic.typing import get_args, is_union
 from typing_extensions import Literal, get_origin
 from yaml import safe_load
@@ -116,6 +116,9 @@ class MlemABC(PolyModel):
     Base class for all MLEM Python objects
     that should be serializable and polymorphic
     """
+
+    class Config:
+        extra = Extra.forbid
 
     abs_types: ClassVar[Dict[str, Type["MlemABC"]]] = {}
     abs_name: ClassVar[str]

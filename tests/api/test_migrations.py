@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 from yaml import safe_dump
 
 from mlem.api.migrations import migrate
@@ -57,4 +58,7 @@ def test_directory(tmpdir, old_data, new_data, recursive):
         assert isinstance(meta, MlemObject)
         assert meta == new_data
     else:
-        assert load_meta(subdir_path) != new_data
+        try:
+            assert load_meta(subdir_path) != new_data
+        except ValidationError:
+            pass
