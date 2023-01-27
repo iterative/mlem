@@ -96,7 +96,7 @@ class DVCArtifact(LocalArtifact):
         if isinstance(fs, GithubFileSystem):
             with open(
                 path,
-                f"https://github.com/{fs.org}/{fs.repo}",
+                f"git@github.com:{fs.org}/{fs.repo}.git",
                 unquote_plus(fs.root),
                 mode="rb",
             ) as f:
