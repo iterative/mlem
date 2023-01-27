@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from mlem.cli.utils import LIST_LIKE_SHAPES
 from mlem.runtime import InterfaceMethod
 from mlem.runtime.client import HTTPClient
-from mlem.runtime.interface import InterfaceArgument
+from mlem.runtime.interface import ExecutionError, InterfaceArgument
 
 
 def augment_model(
@@ -39,12 +39,16 @@ def method_form(method_name: str, method: InterfaceMethod, client: HTTPClient):
     if submit_button:
         with streamlit.tabs(["Response:"])[0]:
             with streamlit.spinner("Processing..."):
-                response = getattr(client, method_name)(
-                    **{
-                        k: v.dict() if isinstance(v, BaseModel) else v
-                        for k, v in arg_values.items()
-                    }
-                )
+                try:
+                    response = getattr(client, method_name)(
+                        **{
+                            k: v.dict() if isinstance(v, BaseModel) else v
+                            for k, v in arg_values.items()
+                        }
+                    )
+                except ExecutionError as e:
+                    streamlit.error(e)
+                    return
             if method.returns.get_serializer().serializer.is_binary:
                 streamlit.download_button(label="Download", data=response)
             else:
