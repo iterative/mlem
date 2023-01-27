@@ -107,6 +107,7 @@ class VenvBuilder(EnvBuilder):
                 or sys.prefix == sys.base_prefix
             ):
                 raise MlemError("No virtual environment detected.")
+            self.target = os.getenv("VIRTUAL_ENV") or sys.prefix
             echo(EMOJI_PACK + f"Detected the virtual env {sys.prefix}")
             env_dir = sys.prefix
         else:
@@ -117,21 +118,21 @@ class VenvBuilder(EnvBuilder):
             os.environ["VIRTUAL_ENV"] = env_dir
 
         env_exe = get_python_exe_in_virtual_env(env_dir)
-        echo(EMOJI_PACK + "Installing the required packages...")
-        # Based on recommendation given in https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
-        install_cmd = [env_exe, "-m", "pip", "install"]
-        if self.no_cache:
-            install_cmd.append("--no-cache-dir")
-        install_cmd.extend(obj.requirements.to_pip())
-        run_in_subprocess(install_cmd, error_msg="Error running pip")
+        if obj.requirements.to_pip():
+            echo(EMOJI_PACK + "Installing the required packages...")
+            # Based on recommendation given in https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
+            install_cmd = [env_exe, "-m", "pip", "install"]
+            if self.no_cache:
+                install_cmd.append("--no-cache-dir")
+            install_cmd.extend(obj.requirements.to_pip())
+            run_in_subprocess(install_cmd, error_msg="Error running pip")
+        else:
+            echo(EMOJI_PACK + "Nothing to install with pip...")
         if platform.system() == "Windows":
             activate_cmd = f"`{self.target}\\Scripts\\activate`"
         else:
             activate_cmd = f"`source {self.target}/bin/activate`"
-        echo(
-            EMOJI_OK
-            + f"virtual environment `{self.target}` is ready, activate with {activate_cmd}"
-        )
+        echo(EMOJI_OK + f"Venv is ready, activate it with {activate_cmd}")
         return env_dir
 
 
