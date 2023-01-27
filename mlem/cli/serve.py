@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from typer import Option, Typer
+from typer import Typer
 
 from mlem.cli.main import (
     app,
@@ -33,14 +33,6 @@ serve = Typer(
 )
 app.add_typer(serve)
 
-# Include "--standartize" for historical compatability
-option_standardize = Option(
-    True,
-    "--standardize/--no-standardize",
-    "--standartize/--no-standartize",
-    help="Whether to conform model interface to standard ('predict' method with single arg 'data')",
-)
-
 
 @mlem_group_callback(serve, required=["model", "load"])
 def serve_load(
@@ -48,7 +40,6 @@ def serve_load(
     project: Optional[str] = option_project,
     rev: Optional[str] = option_rev,
     load: Optional[str] = option_load("server"),
-    standardize: bool = option_standardize,
 ):
     from mlem.api.commands import serve
 
@@ -62,7 +53,6 @@ def serve_load(
                 conf=None,
                 file_conf=None,
             ),
-            standardize=standardize,
         )
 
 
@@ -84,7 +74,6 @@ def create_serve_command(type_name):
         project: Optional[str] = option_project,
         rev: Optional[str] = option_rev,
         file_conf: List[str] = option_file_conf("server"),
-        standardize: bool = option_standardize,
         **__kwargs__
     ):
         from mlem.api.commands import serve
@@ -101,5 +90,4 @@ def create_serve_command(type_name):
                     file_conf=file_conf,
                     **__kwargs__
                 ),
-                standardize=standardize,
             )
