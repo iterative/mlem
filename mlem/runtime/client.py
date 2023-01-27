@@ -27,16 +27,19 @@ class Client(MlemABC, ABC):
     class Config:
         type_root = True
         type_field = "type"
+        exclude = {"interface_cache"}
 
     type: ClassVar[str]
     abs_name: ClassVar[str] = "client"
-
+    interface_cache: Optional[InterfaceDescriptor] = None
     raw: bool = False
     """Pass values as-is without serializers"""
 
     @property
     def interface(self) -> InterfaceDescriptor:
-        return self._interface_factory()
+        if self.interface_cache is None:
+            self.interface_cache = self._interface_factory()
+        return self.interface_cache
 
     @property
     def methods(self):

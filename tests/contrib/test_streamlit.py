@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from mlem.contrib.streamlit.server import augment_model
+from mlem.contrib.streamlit.utils import augment_model
 
 
 def test_augment_model():

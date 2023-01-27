@@ -176,9 +176,11 @@ class ServerInterface(Interface):
         else:
             methods = {k: k for k in interface.get_method_names()}
             args = {
-                m: {arg.name: arg.name}
+                m: {
+                    arg.name: arg.name
+                    for arg in interface.get_method_signature(m).args
+                }
                 for m in methods
-                for arg in interface.get_method_signature(m).args
             }
 
         return cls(

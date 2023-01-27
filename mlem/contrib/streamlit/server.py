@@ -1,51 +1,31 @@
 import contextlib
 import os
+import shutil
 import subprocess
 import tempfile
 from time import sleep
-from typing import Callable, ClassVar, Optional, Tuple, Type
+from typing import ClassVar, Dict, Optional
 
 import streamlit
 import streamlit_pydantic
-from pydantic import BaseModel
 
-from mlem.cli.utils import LIST_LIKE_SHAPES
+from mlem.core.errors import MlemError
 from mlem.core.requirements import LibRequirementsMixin, Requirements
 from mlem.runtime import Interface
 from mlem.runtime.server import Server
+from mlem.utils.path import make_posix
 from mlem.utils.templates import TemplateModel
 
+TEMPLATE_PY = "_template.py"
 SCRIPT_PY = "script.py"
 
 
 class StreamlitScript(TemplateModel):
-    TEMPLATE_FILE: ClassVar = "_template.py"
+    TEMPLATE_FILE: ClassVar = TEMPLATE_PY
     TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
-    method_name: str
     server_host: str = "0.0.0.0"
     server_port: str = "8080"
-
-
-def augment_model(
-    model: Type,
-) -> Tuple[Callable, Optional[Type]]:
-    if not issubclass(model, BaseModel):
-        return lambda x: x, model
-    list_model = [
-        (name, f)
-        for name, f in model.__fields__.items()
-        if f.shape in LIST_LIKE_SHAPES
-    ]
-
-    if len(list_model) == 0:
-        return lambda x: x, model
-
-    if len(list_model) > 1:
-        return lambda x: x, None
-    name, field = list_model[0]
-
-    return lambda x: model(**{name: [x]}), field.type_
 
 
 class StreamlitServer(Server, LibRequirementsMixin):
@@ -66,29 +46,39 @@ class StreamlitServer(Server, LibRequirementsMixin):
     """Port for running Streamlit UI"""
     use_watchdog: bool = True
     """Install watchdog for better performance"""
+    template: Optional[str] = None
+    """Path to alternative template for streamlit app"""
+    standardize: bool = False  # changing default for streamlit
+    """Use standard model interface"""
 
     def serve(self, interface: Interface):
-        with self.prepare_streamlit_script(interface):
+        with self.prepare_streamlit_script():
             if self.run_server:
                 from mlem.contrib.fastapi import FastAPIServer
 
                 FastAPIServer(
-                    host=self.server_host, port=self.server_port
+                    host=self.server_host,
+                    port=self.server_port,
+                    standardize=self.standardize,
                 ).serve(interface)
             else:
                 while True:
                     sleep(100)
 
     @contextlib.contextmanager
-    def prepare_streamlit_script(self, interface: Interface):
+    def prepare_streamlit_script(self):
         with tempfile.TemporaryDirectory(
             prefix="mlem_streamlit_script_"
         ) as tempdir:
             path = os.path.join(tempdir, SCRIPT_PY)
+            templates_dir = []
+            if self.template is not None:
+                shutil.copy(self.template, os.path.join(tempdir, TEMPLATE_PY))
+                templates_dir = [tempdir]
             StreamlitScript(
                 server_host=self.server_host,
                 server_port=str(self.server_port),
-                method_name=interface.get_method_names()[0],
+                templates_dir=templates_dir,
             ).write(path)
             with self.run_streamlit_daemon(path):
                 yield
@@ -120,3 +110,21 @@ class StreamlitServer(Server, LibRequirementsMixin):
         if self.use_watchdog:
             reqs += Requirements.new("watchdog")
         return reqs
+
+    def get_sources(self) -> Dict[str, bytes]:
+        sources = super().get_sources()
+        if self.template is not None:
+            if not os.path.abspath(self.template).startswith(
+                os.path.abspath(".")
+            ):
+                # TODO: issue#...
+                raise MlemError(
+                    f"Template file {self.template} is not in a subtree of cwd"
+                )
+            template = make_posix(
+                os.path.relpath(os.path.abspath(self.template), ".")
+            )
+            with open(template, "rb") as f:
+                sources[template] = f.read()
+            self.template = template
+        return sources

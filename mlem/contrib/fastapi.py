@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
 
 import fastapi
 import uvicorn
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.datastructures import Default
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, create_model, parse_obj_as
@@ -58,6 +58,8 @@ class FastAPIServer(Server, LibRequirementsMixin):
     """Network interface to use"""
     port: int = 8080
     """Port to use"""
+    debug: bool = False
+    """If true will not wrap exceptions"""
 
     @classmethod
     def _create_handler_executor(
@@ -196,6 +198,15 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 response_model=response_model,
                 response_class=response_class or Default(JSONResponse),
             )
+
+        if not self.debug:
+            # pylint: disable=unused-argument
+            @app.exception_handler(Exception)
+            def exception_handler(request: Request, exc: Exception):
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": f"{exc.__class__.__name__}: {exc}"},
+                )
 
         return app
 
