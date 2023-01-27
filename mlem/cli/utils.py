@@ -517,6 +517,7 @@ def _option_from_field(
         else NOT_SET,
         help=field.help,
         show_default=not field.required,
+        is_flag=type_ is bool,
     )
     option.name = path
     return option
@@ -526,6 +527,7 @@ def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
     """Create a dynamic options generator that adds implementation fields"""
 
     def generator(ctx: CallContext):
+        # breakpoint()
         try:
             cls = load_impl_ext(mlem_abc.abs_name, type_name=type_name)
         except ImportError:
