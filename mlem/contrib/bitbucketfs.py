@@ -190,7 +190,6 @@ class BitBucketFileSystem(
         return {
             "path": path,
             "sha": sha,
-            "protocol": protocol,
             "repo": repo,
         }
 

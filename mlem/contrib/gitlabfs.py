@@ -110,7 +110,6 @@ class GitlabFileSystem(AbstractFileSystem):  # pylint: disable=abstract-method
             "project_id": project_id,
             "path": path,
             "sha": sha,
-            "protocol": protocol,
         }
 
     def _open(
