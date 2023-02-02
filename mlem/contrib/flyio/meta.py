@@ -101,6 +101,7 @@ class FlyioApp(MlemDeployment, FlyioSettings):
                 "region": self.region
                 or self.get_env().region
                 or project_config("", section=FlyioConfig).region,
+                "no-deploy": True,
             }
             if self.app_name:
                 args["name"] = self.app_name
