@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from threading import Thread
 from time import sleep
 from typing import ClassVar, Dict, Optional
 
@@ -50,20 +51,45 @@ class StreamlitServer(Server, LibRequirementsMixin):
     """Path to alternative template for streamlit app"""
     standardize: bool = False  # changing default for streamlit
     """Use standard model interface"""
+    debug: bool = False
+    """Update app on template change"""
 
     def serve(self, interface: Interface):
-        with self.prepare_streamlit_script():
+        with self.prepare_streamlit_script() as path:
             if self.run_server:
                 from mlem.contrib.fastapi import FastAPIServer
 
+                if self.debug:
+                    Thread(
+                        target=lambda: self._idle(path), daemon=True
+                    ).start()
                 FastAPIServer(
                     host=self.server_host,
                     port=self.server_port,
                     standardize=self.standardize,
+                    debug=self.debug,
                 ).serve(interface)
             else:
                 while True:
-                    sleep(100)
+                    self._idle(path)
+
+    def _idle(self, path):
+        while True:
+            sleep(1)
+            if self.debug:
+                self._write_streamlit_script(path)
+
+    def _write_streamlit_script(self, path):
+        templates_dir = []
+        dirname = os.path.dirname(path)
+        if self.template is not None:
+            shutil.copy(self.template, os.path.join(dirname, TEMPLATE_PY))
+            templates_dir = [dirname]
+        StreamlitScript(
+            server_host=self.server_host,
+            server_port=str(self.server_port),
+            templates_dir=templates_dir,
+        ).write(path)
 
     @contextlib.contextmanager
     def prepare_streamlit_script(self):
@@ -71,17 +97,9 @@ class StreamlitServer(Server, LibRequirementsMixin):
             prefix="mlem_streamlit_script_"
         ) as tempdir:
             path = os.path.join(tempdir, SCRIPT_PY)
-            templates_dir = []
-            if self.template is not None:
-                shutil.copy(self.template, os.path.join(tempdir, TEMPLATE_PY))
-                templates_dir = [tempdir]
-            StreamlitScript(
-                server_host=self.server_host,
-                server_port=str(self.server_port),
-                templates_dir=templates_dir,
-            ).write(path)
+            self._write_streamlit_script(path)
             with self.run_streamlit_daemon(path):
-                yield
+                yield path
 
     @contextlib.contextmanager
     def run_streamlit_daemon(self, path):
