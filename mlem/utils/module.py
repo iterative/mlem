@@ -283,14 +283,14 @@ def get_package_name(mod: Union[ModuleType, str]) -> str:
     packages = packages_distributions()
     fix_suggestion = "If that's incorrect, fix metadata manually, either in `.mlem` file or in your MLEM Python object."
     if mod not in packages or len(packages[mod]) == 0:
-        logger.warning(
+        logger.debug(
             "Fail to determine package name for module '%s', using module name instead. %s",
             mod,
             fix_suggestion,
         )
         return mod
     if len(set(packages[mod])) > 1:
-        logger.warning(
+        logger.debug(
             "Found multiple packages for '%s' module: %s. Using first one. %s",
             mod,
             packages[mod],
