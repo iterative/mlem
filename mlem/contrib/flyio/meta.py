@@ -145,6 +145,7 @@ class FlyioApp(MlemDeployment, FlyioSettings):
             state.fly_toml = read_fly_toml(tempdir)
             state.update_model(model)
             self.update_state(state)
+            ui.echo(f"Model deployed to https://{state.hostname}")
 
     def deploy(self, model: MlemModel):
         check_flyctl_exec()
