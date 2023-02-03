@@ -40,12 +40,7 @@ def method_form(method_name: str, method: InterfaceMethod, client: HTTPClient):
         with streamlit.tabs(["Response:"])[0]:
             with streamlit.spinner("Processing..."):
                 try:
-                    response = getattr(client, method_name)(
-                        **{
-                            k: v.dict() if isinstance(v, BaseModel) else v
-                            for k, v in arg_values.items()
-                        }
-                    )
+                    response = call_method(client, method_name, arg_values)
                 except ExecutionError as e:
                     streamlit.error(e)
                     return
@@ -53,6 +48,15 @@ def method_form(method_name: str, method: InterfaceMethod, client: HTTPClient):
                 streamlit.download_button(label="Download", data=response)
             else:
                 streamlit.write(response)
+
+
+def call_method(client: HTTPClient, method_name: str, arg_values: dict):
+    return getattr(client, method_name)(
+        **{
+            k: v.dict() if isinstance(v, BaseModel) else v
+            for k, v in arg_values.items()
+        }
+    )
 
 
 def method_args(method_name: str, method: InterfaceMethod):

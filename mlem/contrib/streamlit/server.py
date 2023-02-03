@@ -27,6 +27,9 @@ class StreamlitScript(TemplateModel):
 
     server_host: str = "0.0.0.0"
     server_port: str = "8080"
+    page_title: str = "MLEM Streamlit UI"
+    title: str = "MLEM Streamlit UI"
+    description: str = ""
 
 
 class StreamlitServer(Server, LibRequirementsMixin):

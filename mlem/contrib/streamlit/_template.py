@@ -3,6 +3,10 @@ import streamlit
 from mlem.contrib.streamlit.utils import model_form
 from mlem.runtime.client import HTTPClient
 
+streamlit.set_page_config(
+    page_title="{{page_title}}",
+)
+
 
 @streamlit.cache(hash_funcs={HTTPClient: lambda x: 0})
 def get_client():
@@ -11,7 +15,8 @@ def get_client():
     )
 
 
-streamlit.title("MLEM Streamlit UI")
+streamlit.title("{{title}}")
+streamlit.write("""{{description}}""")
 model_form(get_client())
 streamlit.markdown("---")
 streamlit.write(
