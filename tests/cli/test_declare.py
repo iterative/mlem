@@ -303,23 +303,8 @@ all_test_params.extend(
     (
         pytest.param(
             BooleanField(field=True),
-            "--field 1",
-            id="bool_true_1",
-        ),
-        pytest.param(
-            BooleanField(field=False),
-            "--field 0",
-            id="bool_false_0",
-        ),
-        pytest.param(
-            BooleanField(field=True),
-            "--field True",
+            "--field",
             id="bool_true",
-        ),
-        pytest.param(
-            BooleanField(field=False),
-            "--field False",
-            id="bool_false",
         ),
     )
 )

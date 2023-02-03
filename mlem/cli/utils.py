@@ -508,6 +508,7 @@ def _option_from_field(
         type_ = anything(type_)
     elif field.allow_none:
         type_ = optional(type_)
+    # breakpoint()
     option = SetViaFileTyperOption(
         param_decls=[f"--{path}", path.replace(".", "_")],
         type=type_ if not force_not_set else anything(type_),
