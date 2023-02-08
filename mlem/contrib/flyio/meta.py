@@ -101,6 +101,7 @@ class FlyioApp(MlemDeployment, FlyioSettings):
                 "region": self.region
                 or self.get_env().region
                 or project_config("", section=FlyioConfig).region,
+                "no-deploy": True,
             }
             if self.app_name:
                 args["name"] = self.app_name
@@ -144,6 +145,7 @@ class FlyioApp(MlemDeployment, FlyioSettings):
             state.fly_toml = read_fly_toml(tempdir)
             state.update_model(model)
             self.update_state(state)
+            ui.echo(f"Model deployed to https://{state.hostname}")
 
     def deploy(self, model: MlemModel):
         check_flyctl_exec()

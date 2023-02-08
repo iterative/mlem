@@ -1,4 +1,5 @@
 import glob
+import json
 import logging
 import os
 import posixpath
@@ -7,11 +8,13 @@ import subprocess
 import tempfile
 from abc import abstractmethod
 from contextlib import contextmanager
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
+from importlib_metadata import Distribution, PackageNotFoundError
 from pydantic import BaseModel
 from yaml import safe_dump
 
@@ -141,6 +144,9 @@ class PipSource(MlemSource):
 class GitSource(MlemSource):
     type = "git"
 
+    def __init__(self, rev: str = ""):
+        self.rev = rev
+
     def build(self, path):
         pass
 
@@ -148,6 +154,8 @@ class GitSource(MlemSource):
         rev = ""
         if LOCAL_DOCKER_CONFIG.git_rev is not None:
             rev = f"@{LOCAL_DOCKER_CONFIG.git_rev}"
+        if self.rev:
+            rev = f"@{self.rev}"
         return (
             f"RUN {args.package_install_cmd} git {args.package_clean_cmd}\n"
             f"RUN pip install git+https://github.com/iterative/mlem{rev}#egg=mlem"
@@ -175,7 +183,18 @@ def get_mlem_source() -> MlemSource:
         raise ValueError(f"unknown mlem source '{source}'")
     # if source is not specified
     if "dev" in mlem.__version__:
-        return WhlSource()
+        mlem_src_path = os.path.dirname(os.path.dirname(mlem.__file__))
+        if os.path.exists(os.path.join(mlem_src_path, "setup.py")):  # dev env
+            return WhlSource()
+        # installed from git branch (probably)
+        rev = ""
+        try:
+            rev = json.loads(
+                Distribution.from_name("mlem").read_text("direct_url.json")
+            )["vcs_info"]["commit_id"]
+        except (PackageNotFoundError, JSONDecodeError, TypeError, KeyError):
+            pass
+        return GitSource(rev=rev)
     return PipSource()
 
 
