@@ -151,7 +151,6 @@ class UriResolver(MlemABC):
         rev: Optional[str],
         fs: Optional[AbstractFileSystem],
     ) -> Type["UriResolver"]:
-
         for i in cls.impls:
             if i.check(path, project, rev, fs):
                 return i
@@ -290,7 +289,9 @@ class CloudGitResolver(UriResolver, ABC):
             fs, _, (path,) = get_fs_token_paths(
                 path, protocol=cls.PROTOCOL, storage_options=options
             )
-        except FileNotFoundError as e:  # TODO catch HTTPError for wrong orgrepo
+        except (
+            FileNotFoundError
+        ) as e:  # TODO catch HTTPError for wrong orgrepo
             if options["sha"] is not None and not cls.check_rev(options):
                 raise RevisionNotFound(options["sha"], uri) from e
             raise LocationNotFound(f"Could not resolve location {uri}") from e
@@ -378,7 +379,8 @@ def get_path_by_fs_path(fs: AbstractFileSystem, path: str):
     """Restore full uri from fs and path
 
     Not ideal, but alternative to this is to save uri on MlemObject level and pass it everywhere
-    Another alternative is to support this on fsspec level, but we need to contribute it ourselves"""
+    Another alternative is to support this on fsspec level, but we need to contribute it ourselves
+    """
     return UriResolver.find_resolver(path, None, None, fs=fs).get_uri(
         path, None, None, fs=fs
     )

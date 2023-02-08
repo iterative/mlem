@@ -22,7 +22,6 @@ model_03 = (
 
 @pytest.mark.parametrize("old_data", [model_03])
 def test_single(tmpdir, old_data):
-
     path = tmpdir / "model.mlem"
     old_payload, new_object = old_data
     path.write_text(safe_dump(old_payload), encoding="utf8")
