@@ -40,7 +40,7 @@ class ScipySparseMatrix(
 
     type: ClassVar[str] = "csr_matrix"
     valid_types: ClassVar = (spmatrix,)
-    shape: Optional[Tuple]
+    shape: Tuple[int, ...]
     """Shape of `sparse.csr_matrix` object in data"""
     dtype: str
     """Dtype of `sparse.csr_matrix` object in data"""
@@ -115,7 +115,8 @@ class ScipySparseMatrixSerializer(DataSerializer[ScipySparseMatrix]):
     def get_model(
         self, data_type: ScipySparseMatrix, prefix: str = ""
     ) -> Union[Type[BaseModel], type]:
-        item_type = List[data_type.subtype(data_type.shape[1:])]  # type: ignore[index]
+        subtype = data_type.subtype(data_type.shape[1:])
+        item_type = List[subtype]  # type: ignore[valid-type,index]
         return create_model(
             prefix + "ScipySparse",
             __root__=(item_type, ...),
@@ -136,7 +137,6 @@ class ScipySparseMatrixSerializer(DataSerializer[ScipySparseMatrix]):
         return data, (row, col)
 
     def deserialize(self, data_type, obj) -> sparse.csr_matrix:
-
         try:
             mat = sparse.csr_matrix(
                 obj, dtype=data_type.dtype, shape=data_type.shape

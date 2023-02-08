@@ -97,7 +97,8 @@ class TFTensorSerializer(DataSerializer[TFTensorDataType]):
     data_class: ClassVar = TFTensorDataType
 
     def get_model(self, data_type, prefix: str = ""):
-        item_type = List[data_type.subtype(data_type.shape[1:])]  # type: ignore[index]
+        subtype = data_type.subtype(data_type.shape[1:])
+        item_type = List[subtype]  # type: ignore[valid-type]
         return create_model(
             prefix + "TFTensor",
             __root__=(item_type, ...),

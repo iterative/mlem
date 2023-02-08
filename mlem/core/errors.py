@@ -25,7 +25,6 @@ class MlemProjectNotFound(MlemError):
     _message = "{MLEM_CONFIG_FILE_NAME} file wasn't found when searching through the path. Search has started from here: path={path}, fs={fs}, rev={rev}"
 
     def __init__(self, path, fs=None, rev=None) -> None:
-
         self.path = path
         self.fs = fs
         self.rev = rev
@@ -55,7 +54,6 @@ class RevisionNotFound(LocationNotFound):
         path,
         fs=None,
     ) -> None:
-
         self.path = path
         self.fs = fs
         self.rev = rev
@@ -88,7 +86,6 @@ class UnsupportedDataBatchLoadingType(ValueError, MlemError):
         self,
         data_type,
     ) -> None:
-
         self.data_type = data_type
         self.message = self._message.format(data_type=data_type)
         super().__init__(self.message)

@@ -316,7 +316,8 @@ class ModelType(ABC, MlemABC, WithRequirements):
         """Checks if method with this name exists
 
         :param method_name: name of the method.
-        If not provided, this model must have only one method and it will be used"""
+        If not provided, this model must have only one method and it will be used
+        """
         if method_name is None:
             if len(self.methods) > 1:
                 raise WrongMethodError(

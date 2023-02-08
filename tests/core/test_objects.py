@@ -61,7 +61,7 @@ class MyMlemDeployment(MlemDeployment):
         pass
 
     def get_status(self, raise_on_error=True) -> DeployStatus:
-        pass
+        return DeployStatus.NOT_DEPLOYED
 
     def _get_client(self, state):
         pass

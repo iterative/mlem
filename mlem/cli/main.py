@@ -503,7 +503,7 @@ def wrap_mlem_cli_call(f, pass_from_parent: Optional[List[str]]):
                             and (o not in ikwargs or ikwargs[o] is None)
                         }
                     )
-                with (cli_echo() if not ctx.obj["quiet"] else no_echo()):
+                with cli_echo() if not ctx.obj["quiet"] else no_echo():
                     f(*iargs, **ikwargs)
             except (ClickException, Exit, Abort) as e:
                 error = f"{e.__class__.__module__}.{e.__class__.__name__}"

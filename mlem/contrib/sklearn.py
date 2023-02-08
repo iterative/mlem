@@ -41,7 +41,6 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
         methods_sample_data: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> ModelType:
-
         predict_sample_data = (methods_sample_data or {}).get(
             "predict", sample_data
         )
