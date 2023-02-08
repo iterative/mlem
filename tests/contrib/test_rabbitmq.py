@@ -63,7 +63,6 @@ def rmq_server(model_meta_saved_single, rmq_instance):
         queue_prefix="aaa",
     )
     for _ in range(10):
-
         t = ServeThread(model_meta_saved_single, server)
         t.start()
         time.sleep(0.5)

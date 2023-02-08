@@ -34,7 +34,6 @@ def test_deserialization_and_cache():
 
 
 def test_laziness():
-
     payload = {"field": {"value": "string"}}
 
     obj = parse_obj_as(Model, payload)

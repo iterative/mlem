@@ -134,7 +134,6 @@ def find_implementations(
             continue
 
         for obj in module.__dict__.values():
-
             # pylint: disable=too-many-boolean-expressions
             if (
                 isinstance(obj, type)
