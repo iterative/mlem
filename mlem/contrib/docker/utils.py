@@ -175,7 +175,6 @@ def container_logs(
     until=None,
     **kwargs,
 ) -> Generator[str, None, None]:
-
     log = container.logs(
         stdout=stdout,
         stderr=stderr,

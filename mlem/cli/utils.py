@@ -200,7 +200,8 @@ def _get_type_name_alias(type_):
 
 def anything(type_):
     """Creates special type that is named as original type or collection type
-    It returns original object on creation and is needed for nice typename in cli option help"""
+    It returns original object on creation and is needed for nice typename in cli option help
+    """
     return type(
         _get_type_name_alias(type_), (), {"__new__": lambda cls, value: value}
     )
@@ -570,7 +571,6 @@ def _iter_errors(
 ):
     for error in errors:
         if isinstance(error, ErrorWrapper):
-
             if loc:
                 error_loc = loc + error.loc_tuple()
             else:

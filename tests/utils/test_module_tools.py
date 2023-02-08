@@ -216,7 +216,6 @@ def test_get_object_requirements__classvar_in_model():
 
 
 def test_get_requirements_notebook():
-
     from nbloader import Notebook
 
     loaded_notebook = Notebook(TEST_NOTEBOOK_NAME)

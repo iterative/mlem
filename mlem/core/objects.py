@@ -1088,7 +1088,14 @@ class StateManager(MlemABC):
 
     @abstractmethod
     def lock_state(self, deployment: "MlemDeployment") -> ContextManager:
-        raise NotImplementedError
+        class Dummy(ContextManager):
+            def __enter__(self):
+                pass
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        return Dummy()
 
 
 class LocalFileStateManager(StateManager):
@@ -1207,8 +1214,8 @@ class FSSpecStateManager(StateManager):
         return super().lock_state(deployment)
 
 
-EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)
-ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)
+EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)  # type: ignore[valid-type]
+ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)  # type: ignore[valid-type]
 
 ET = TypeVar("ET", bound=MlemEnv)
 
