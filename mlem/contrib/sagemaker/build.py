@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from ...core.objects import MlemModel
 from ...ui import EMOJI_BUILD, EMOJI_KEY, echo, set_offset
-from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
+from ..docker.base import DockerEnv, DockerImageOptions, RemoteRegistry
 from ..docker.helpers import build_model_image
 
 IMAGE_NAME = "mlem-sagemaker-runner"
@@ -81,13 +81,15 @@ class ECRegistry(RemoteRegistry):
     def get_host(self) -> Optional[str]:
         return f"{self.account}.dkr.ecr.{self.region}.amazonaws.com"
 
-    def image_exists(self, client, image: DockerImage):
+    def image_exists(self, client, image: DockerImageOptions):
         images = self.ecr_client.list_images(repositoryName=image.name)[
             "imageIds"
         ]
         return len(images) > 0
 
-    def delete_image(self, client, image: DockerImage, force=False, **kwargs):
+    def delete_image(
+        self, client, image: DockerImageOptions, force=False, **kwargs
+    ):
         return self.ecr_client.batch_delete_image(
             repositoryName=image.name,
             imageIds=[{"imageTag": image.tag}],
