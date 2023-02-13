@@ -1,4 +1,4 @@
-from typing import ClassVar, List
+from typing import ClassVar, List, Type, TypeVar
 
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
@@ -9,6 +9,8 @@ from jinja2 import (
     select_autoescape,
 )
 from pydantic import BaseModel
+
+T = TypeVar("T", bound="TemplateModel")
 
 
 class TemplateModel(BaseModel):
@@ -38,3 +40,10 @@ class TemplateModel(BaseModel):
         fs = fs or LocalFileSystem()
         with fs.open(path, "w") as f:
             f.write(self.generate(**additional))
+
+    @classmethod
+    def from_model(cls: Type[T], obj, templates_dir: List[str] = None) -> T:
+        args = {
+            f: getattr(obj, f) for f in cls.__fields__ if f != "templates_dir"
+        }
+        return cls(templates_dir=templates_dir or [], **args)
