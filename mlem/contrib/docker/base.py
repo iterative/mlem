@@ -349,8 +349,8 @@ class DockerContainer(
 
     container_name: Optional[str] = None
     """Name to use for container"""
-    image_name: Optional[str] = None
-    """Name to use for image"""
+    image: Optional[DockerImageOptions] = None
+    """Image configuration"""
     ports: List[str] = []
     """Publish container ports. See https://docs.docker.com/config/containers/container-networking/#published-ports"""
     params: Dict[str, str] = {}
@@ -396,7 +396,7 @@ class DockerContainer(
 
     @property
     def ensure_image_name(self):
-        return self.image_name or self.container_name
+        return self.image.name if self.image else self.container_name
 
     def _get_client(self, state: DockerContainerState):
         raise NotImplementedError
@@ -410,8 +410,9 @@ class DockerContainer(
                 from .helpers import build_model_image
 
                 image_name = (
-                    self.image_name
-                    or self.container_name
+                    self.image.name
+                    if self.image
+                    else self.container_name
                     or generate_docker_container_name()
                 )
                 echo(EMOJI_BUILD + f"Creating docker image {image_name}")
