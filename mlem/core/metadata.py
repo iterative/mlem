@@ -138,6 +138,7 @@ def load(
     rev: Optional[str] = None,
     batch_size: Optional[int] = None,
     follow_links: bool = True,
+    try_migrations: bool = False,
 ) -> Any:
     """Load python object saved by MLEM
 
@@ -158,6 +159,7 @@ def load(
         rev=rev,
         follow_links=follow_links,
         load_value=batch_size is None,
+        try_migrations=try_migrations,
     )
     if isinstance(meta, MlemData) and batch_size:
         return meta.read_batch(batch_size)
@@ -175,6 +177,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
+    try_migrations: bool = False,
     *,
     force_type: Literal[None] = None,
 ) -> MlemObject:
@@ -189,6 +192,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
+    try_migrations: bool = False,
     *,
     force_type: Optional[Type[T]] = None,
 ) -> T:
@@ -203,6 +207,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
+    try_migrations: bool = False,
     *,
     force_type: Optional[Type[T]] = None,
 ) -> T:
@@ -216,6 +221,7 @@ def load_meta(
             actual object link points to. Defaults to True.
         load_value: Load actual python object incorporated in MlemObject. Defaults to False.
         fs: filesystem to load from. If not provided, will be inferred from path
+        try_migrations: If loading older versions of metadata, try to apply migrations
         force_type: type of meta to be loaded. Defaults to MlemObject (any mlem meta)
     Returns:
         MlemObject: Saved MlemObject
@@ -232,6 +238,7 @@ def load_meta(
     meta = cls.read(
         location=find_meta_location(location),
         follow_links=follow_links,
+        try_migrations=try_migrations,
     )
     log_meta_params(meta, add_object_type=True)
     if load_value:
@@ -274,14 +281,21 @@ def find_meta_location(location: Location) -> Location:
 
 
 def list_objects(
-    path: str = ".", fs: Optional[AbstractFileSystem] = None, recursive=True
+    path: str = ".",
+    fs: Optional[AbstractFileSystem] = None,
+    recursive=True,
+    try_migrations=False,
 ) -> Dict[Type[MlemObject], List[MlemObject]]:
     loc = Location.resolve(path, fs=fs)
     result = defaultdict(list)
     postfix = f"/**{MLEM_EXT}" if recursive else f"/*{MLEM_EXT}"
     for filepath in loc.fs.glob(loc.fullpath + postfix, detail=False):
         meta = load_meta(
-            filepath, fs=loc.fs, load_value=False, follow_links=False
+            filepath,
+            fs=loc.fs,
+            load_value=False,
+            follow_links=False,
+            try_migrations=try_migrations,
         )
         type_ = meta.__class__
         if isinstance(meta, MlemLink):

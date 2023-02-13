@@ -150,6 +150,7 @@ class MlemObject(MlemABC):
         cls: Type[T],
         location: Location,
         follow_links: bool = True,
+        try_migrations: bool = False,
     ) -> T:
         """
         Read object in (path, fs)
@@ -170,6 +171,10 @@ class MlemObject(MlemABC):
         )
         with location.open() as f:
             payload = safe_load(f)
+        if try_migrations:
+            from mlem.api.migrations import apply_migrations
+
+            payload, _ = apply_migrations(payload)
         res = parse_obj_as(MlemObject, payload).bind(location)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
