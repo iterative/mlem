@@ -9,6 +9,7 @@ from typing import ClassVar, Dict, Optional
 
 import streamlit
 import streamlit_pydantic
+from pydantic import BaseModel
 
 from mlem.core.errors import MlemError
 from mlem.core.requirements import LibRequirementsMixin, Requirements
@@ -21,27 +22,37 @@ TEMPLATE_PY = "_template.py"
 SCRIPT_PY = "script.py"
 
 
-class StreamlitScript(TemplateModel):
+class StreamlitScript(BaseModel):
+    server_host: str = "0.0.0.0"
+    """Hostname for running FastAPI backend"""
+    server_port: int = 8081
+    """Port for running FastAPI backend"""
+    page_title: str = "MLEM Streamlit UI"
+    """Title of the page in browser"""
+    title: str = "MLEM Streamlit UI"
+    """Title of the page"""
+    description: str = ""
+    """Additional text after title"""
+    args: Dict[str, str]
+    """Additional args for custom template"""
+
+
+class StreamlitTemplate(StreamlitScript, TemplateModel):
     TEMPLATE_FILE: ClassVar = TEMPLATE_PY
     TEMPLATE_DIR: ClassVar = os.path.dirname(__file__)
 
-    server_host: str = "0.0.0.0"
-    server_port: str = "8080"
-    page_title: str = "MLEM Streamlit UI"
-    title: str = "MLEM Streamlit UI"
-    description: str = ""
+    def prepare_dict(self):
+        d = super().prepare_dict()
+        d.update(self.args)
+        return d
 
 
-class StreamlitServer(Server, LibRequirementsMixin):
+class StreamlitServer(Server, StreamlitScript, LibRequirementsMixin):
     """Streamlit UI server"""
 
     type: ClassVar = "streamlit"
     libraries: ClassVar = (streamlit, streamlit_pydantic)
 
-    server_host: str = "0.0.0.0"
-    """Hostname for running FastAPI backend"""
-    server_port: int = 8080
-    """Port for running FastAPI backend"""
     run_server: bool = True
     """Whether to run backend server or use existing one"""
     ui_host: str = "0.0.0.0"
@@ -88,9 +99,8 @@ class StreamlitServer(Server, LibRequirementsMixin):
         if self.template is not None:
             shutil.copy(self.template, os.path.join(dirname, TEMPLATE_PY))
             templates_dir = [dirname]
-        StreamlitScript(
-            server_host=self.server_host,
-            server_port=str(self.server_port),
+        StreamlitTemplate.from_model(
+            self,
             templates_dir=templates_dir,
         ).write(path)
 
