@@ -117,6 +117,7 @@ class MlemConfig(MlemConfigBase):
     EMOJIS: bool = True
     STATE: Dict = {}
     SERVER: Dict = {}
+    DEEP_INSPECTION: bool = False
 
     @property
     def storage(self):

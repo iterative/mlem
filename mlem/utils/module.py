@@ -23,6 +23,7 @@ from isort.settings import Config
 from pydantic.main import ModelMetaclass
 
 import mlem
+from mlem.config import LOCAL_CONFIG
 from mlem.core.requirements import (
     CustomRequirement,
     InstallableRequirement,
@@ -36,7 +37,6 @@ logger = logging.getLogger(__name__)
 PYTHON_BASE = os.path.dirname(threading.__file__)
 #  pylint: disable=no-member,protected-access
 IGNORE_TYPES_REQ = (type(Requirements._abc_impl),)  # type: ignore
-DEEP_INSPECTION = False
 
 
 def check_pypi_module(
@@ -602,9 +602,11 @@ class RequirementAnalyzer(dill.Pickler):
         if id(obj) in self.seen or isinstance(obj, IGNORE_TYPES_REQ):
             return None
         self.seen.add(id(obj))
+        base_module = get_object_base_module(obj)
         if (
-            get_object_base_module(obj) in self._modules
-            and not DEEP_INSPECTION
+            base_module in self._modules
+            and not is_local_module(base_module)
+            and not LOCAL_CONFIG.DEEP_INSPECTION
         ):
             return None
         self.add_requirement(obj)
