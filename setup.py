@@ -68,7 +68,7 @@ extras = {
     "onnx": ["onnx"],
     "onnxruntime": [
         "protobuf==3.20.1",
-        "onnxruntime",
+        "onnxruntime<1.14",
     ],  # TODO - see if it can be merged with onnx
     "catboost": ["catboost"],
     "xgboost": ["xgboost"],
