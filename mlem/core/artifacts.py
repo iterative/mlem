@@ -319,7 +319,6 @@ class LocalArtifact(FSSpecArtifact):
     type: ClassVar = "local"
 
     def relative(self, fs: AbstractFileSystem, path: str) -> "FSSpecArtifact":
-
         if isinstance(fs, LocalFileSystem):
             return LocalArtifact(
                 uri=posixpath.join(path, self.uri),

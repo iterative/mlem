@@ -91,7 +91,9 @@ class DockerRegistry(MlemABC):
         :param image: image name"""
         return image
 
-    def image_exists(self, client: docker.DockerClient, image: "DockerImage"):
+    def image_exists(
+        self, client: docker.DockerClient, image: "DockerImageOptions"
+    ):
         """Check if image exists in this registry
 
         :param client: DockerClient to use
@@ -105,7 +107,7 @@ class DockerRegistry(MlemABC):
     def delete_image(
         self,
         client: docker.DockerClient,
-        image: "DockerImage",
+        image: "DockerImageOptions",
         force: bool = False,
         **kwargs,
     ):
@@ -133,11 +135,11 @@ class DockerIORegistry(DockerRegistry):
         client.images.push(tag)
         echo(EMOJI_UPLOAD + f"Pushed image {tag} to docker.io")
 
-    def image_exists(self, client, image: "DockerImage"):
+    def image_exists(self, client, image: "DockerImageOptions"):
         return image_exists_at_dockerhub(image.uri)
 
     def delete_image(
-        self, client, image: "DockerImage", force=False, **kwargs
+        self, client, image: "DockerImageOptions", force=False, **kwargs
     ):
         logger.warning("Skipping deleting image %s from docker.io", image.name)
 
@@ -215,7 +217,7 @@ class RemoteRegistry(DockerRegistry):
             return None
         return r.headers["Docker-Content-Digest"]
 
-    def image_exists(self, client, image: "DockerImage"):
+    def image_exists(self, client, image: "DockerImageOptions"):
         name = image.fullname
         digest = self._get_digest(name, image.tag)
         if digest is None:
@@ -231,7 +233,7 @@ class RemoteRegistry(DockerRegistry):
         )
 
     def delete_image(
-        self, client, image: "DockerImage", force=False, **kwargs
+        self, client, image: "DockerImageOptions", force=False, **kwargs
     ):
         name = image.fullname
         digest = self._get_digest(name, image.tag)
@@ -246,7 +248,7 @@ class DockerDaemon(MlemABC):
     host: str = (
         ""  # TODO: https://github.com/iterative/mlem/issues/38 credentials
     )
-    """adress of the docker daemon (empty string for local)"""
+    """Address of the docker daemon (empty string for local)"""
 
     @contextlib.contextmanager
     def client(self) -> Iterator[docker.DockerClient]:
@@ -255,10 +257,7 @@ class DockerDaemon(MlemABC):
             yield c
 
 
-class DockerImage(BaseModel):
-    """:class:`.Image.Params` implementation for docker images
-    full uri for image looks like registry.host/repository/name:tag"""
-
+class DockerImageOptions(BaseModel):
     name: str
     """name of the image"""
     tag: str = "latest"
@@ -267,8 +266,6 @@ class DockerImage(BaseModel):
     """repository of the image"""
     registry: DockerRegistry = DockerRegistry()
     """DockerRegistry instance with this image"""
-    image_id: Optional[str] = None
-    """internal docker id of this image"""
 
     @property
     def fullname(self):
@@ -289,6 +286,14 @@ class DockerImage(BaseModel):
     def delete(self, client: docker.DockerClient, force=False, **kwargs):
         """Deletes image from registry"""
         self.registry.delete_image(client, self, force, **kwargs)
+
+
+class DockerImage(DockerImageOptions):
+    """Docker image parameters
+    full uri for image looks like registry.host/repository/name:tag"""
+
+    image_id: Optional[str] = None
+    """Internal docker id of this image"""
 
 
 class DockerEnv(MlemEnv):
@@ -344,8 +349,8 @@ class DockerContainer(
 
     container_name: Optional[str] = None
     """Name to use for container"""
-    image_name: Optional[str] = None
-    """Name to use for image"""
+    image: Optional[DockerImageOptions] = None
+    """Image configuration"""
     ports: List[str] = []
     """Publish container ports. See https://docs.docker.com/config/containers/container-networking/#published-ports"""
     params: Dict[str, str] = {}
@@ -391,7 +396,7 @@ class DockerContainer(
 
     @property
     def ensure_image_name(self):
-        return self.image_name or self.container_name
+        return self.image.name if self.image else self.container_name
 
     def _get_client(self, state: DockerContainerState):
         raise NotImplementedError
@@ -405,12 +410,14 @@ class DockerContainer(
                 from .helpers import build_model_image
 
                 image_name = (
-                    self.image_name
-                    or self.container_name
+                    self.image.name
+                    if self.image
+                    else self.container_name
                     or generate_docker_container_name()
                 )
                 echo(EMOJI_BUILD + f"Creating docker image {image_name}")
                 with set_offset(2):
+                    env = self.get_env()
                     state.image = build_model_image(
                         model,
                         image_name,
@@ -418,7 +425,8 @@ class DockerContainer(
                         or project_config(
                             self.loc.project if self.is_saved else None
                         ).server,
-                        self.get_env(),
+                        env.daemon,
+                        env.registry,
                         force_overwrite=True,
                         **self.args.dict(),
                     )
@@ -542,10 +550,10 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
     """Build docker image from model"""
 
     type: ClassVar[str] = "docker"
-    image: DockerImage
+    image: DockerImageOptions
     """Image parameters"""
-    env: DockerEnv = DockerEnv()
-    """Where to build and push image. Defaults to local docker daemon"""
+    daemon: DockerDaemon = DockerDaemon(host="")
+    """Docker daemon to use"""
     force_overwrite: bool = True
     """Ignore existing image with same name"""
     push: bool = True
@@ -568,7 +576,7 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
         tag = self.image.uri
         logger.debug("Building docker image %s from %s...", tag, context_dir)
         echo(EMOJI_BUILD + f"Building docker image {tag}...")
-        with self.env.daemon.client() as client:
+        with self.daemon.client() as client:
             if self.push:
                 self.image.registry.login(client)
             if not self.force_overwrite and self.image.exists(client):
@@ -585,13 +593,14 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
                     rm=True,
                     platform=self.args.platform,
                 )
-                self.image.image_id = image.id
+                docker_image = DockerImage(**self.image.dict())
+                docker_image.image_id = image.id
                 echo(EMOJI_OK + f"Built docker image {tag}")
 
                 if self.push:
-                    self.image.registry.push(client, tag)
+                    docker_image.registry.push(client, tag)
 
-                return self.image
+                return docker_image
             except errors.BuildError as e:
                 print_docker_logs(e.build_log, logging.ERROR)
                 raise

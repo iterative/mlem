@@ -451,9 +451,8 @@ class ArraySerializer(DataSerializer[ArrayType]):
 
     def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         subname = prefix + "__root__"
-        item_type = List[
-            data_type.dtype.get_serializer().get_model(subname)
-        ]  # type: ignore[index]
+        model = data_type.dtype.get_serializer().get_model(subname)
+        item_type = List[model]  # type: ignore[valid-type]
         return create_model(
             prefix + "Array",
             __root__=(item_type, ...),
@@ -823,7 +822,7 @@ class DictWriter(DataWriter):
             )
         res = {}
         readers = {}
-        for (key, dtype) in data.item_types.items():
+        for key, dtype in data.item_types.items():
             dtype_reader, art = dtype.get_writer().write(
                 dtype.copy().bind(data.data[key]),
                 storage,
@@ -849,7 +848,7 @@ class DictReader(DataReader[DictType]):
     def read(self, artifacts: Artifacts) -> DictType:
         artifacts = flatdict.FlatterDict(artifacts, delimiter="/")
         data_dict = {}
-        for (key, dtype_reader) in self.item_readers.items():
+        for key, dtype_reader in self.item_readers.items():
             v_data_type = dtype_reader.read(artifacts.get(str(key), {}))  # type: ignore[arg-type]
             data_dict[key] = v_data_type.data
         return self.data_type.copy().bind(data_dict)

@@ -46,7 +46,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
     __parent__: ClassVar[Optional[Type["PolyModel"]]] = None
     __is_root__: ClassVar[bool]
 
-    class Config:
+    class Config(BaseConfig):
         """
         Attributes:
             type_root: set to True for root of your hierarchy (parent model)
@@ -60,7 +60,7 @@ class PolyModel(LazyModel, metaclass=PolyModelMetaclass):
         default_type: Optional[str] = None
 
     if TYPE_CHECKING:
-        __config__: ClassVar[Config, BaseConfig]
+        __config__: ClassVar[Type[Config]] = Config
 
     @classmethod
     def validate(cls, value):

@@ -22,7 +22,6 @@ model_03 = (
 
 @pytest.mark.parametrize("old_data", [model_03])
 def test_single(tmpdir, old_data):
-
     path = tmpdir / "model.mlem"
     old_payload, new_object = old_data
     path.write_text(safe_dump(old_payload), encoding="utf8")
@@ -62,3 +61,14 @@ def test_directory(tmpdir, old_data, new_data, recursive):
             assert load_meta(subdir_path) != new_data
         except ValidationError:
             pass
+
+
+@pytest.mark.parametrize("old_data,new_data", [model_03])
+def test_load_with_migration(tmpdir, old_data, new_data):
+    path = tmpdir / "model.mlem"
+    path.write_text(safe_dump(old_data), encoding="utf8")
+
+    meta = load_meta(path, try_migrations=True)
+
+    assert isinstance(meta, MlemObject)
+    assert meta == new_data

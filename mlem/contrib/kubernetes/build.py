@@ -4,7 +4,7 @@ from mlem.core.objects import MlemModel
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_BUILD, echo, set_offset
 
-from ..docker.base import DockerDaemon, DockerEnv, DockerRegistry
+from ..docker.base import DockerDaemon, DockerRegistry
 from ..docker.helpers import build_model_image
 
 
@@ -23,7 +23,8 @@ def build_k8s_docker(
             meta,
             image_name,
             server,
-            DockerEnv(registry=registry, daemon=daemon),
+            daemon=daemon,
+            registry=registry,
             tag=meta.meta_hash(),
             force_overwrite=True,
             platform=platform,

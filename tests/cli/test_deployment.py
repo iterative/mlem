@@ -157,7 +157,6 @@ def test_deploy_meta_link_env_project(mlem_project, mock_env_path):
 
 
 def test_deploy_meta_link_env_no_project(tmpdir, mock_env_path):
-
     deployment = MlemDeploymentMock(
         env=MlemLink(path=mock_env_path, link_type="env"),
     )
@@ -291,7 +290,6 @@ def test_deploy_apply(
 
 
 def add_mock_declare(type_: Type[MlemObject]):
-
     typer = [
         g.typer_instance
         for g in declare.registered_groups
@@ -320,7 +318,6 @@ def _deploy_and_check(
     add_args="",
     env_param_value: Optional[str] = "env_val",
 ):
-
     if load_deploy:
         status_res = runner.invoke(
             f"deploy status {deploy_path}", raise_on_error=True

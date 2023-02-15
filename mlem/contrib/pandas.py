@@ -373,7 +373,7 @@ class DataFrameSerializer(PandasSerializer, DataSerializer[DataFrameType]):
 
     def get_model(self, data_type, prefix: str = "") -> Type[BaseModel]:
         # TODO: https://github.com/iterative/mlem/issues/33
-        row_type = List[data_type.row_type()]  # type: ignore[index]
+        row_type = List[data_type.row_type()]  # type: ignore[valid-type,index]
         return create_model(prefix + "DataFrame", values=(row_type, ...))
 
 

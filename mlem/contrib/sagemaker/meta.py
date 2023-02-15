@@ -373,7 +373,6 @@ class SagemakerDeployment(MlemDeployment[SagemakerDeployState, SagemakerEnv]):
             if state.model_location is not None:
                 delete_model_file_from_s3(session, state.model_location)
             if state.endpoint_name is not None:
-
                 client = session.sagemaker_client
                 endpoint_conf = session.sagemaker_client.describe_endpoint(
                     EndpointName=state.endpoint_name

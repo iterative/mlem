@@ -150,6 +150,7 @@ class MlemObject(MlemABC):
         cls: Type[T],
         location: Location,
         follow_links: bool = True,
+        try_migrations: bool = False,
     ) -> T:
         """
         Read object in (path, fs)
@@ -170,6 +171,10 @@ class MlemObject(MlemABC):
         )
         with location.open() as f:
             payload = safe_load(f)
+        if try_migrations:
+            from mlem.api.migrations import apply_migrations
+
+            payload, _ = apply_migrations(payload)
         res = parse_obj_as(MlemObject, payload).bind(location)
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
@@ -1088,7 +1093,14 @@ class StateManager(MlemABC):
 
     @abstractmethod
     def lock_state(self, deployment: "MlemDeployment") -> ContextManager:
-        raise NotImplementedError
+        class Dummy(ContextManager):
+            def __enter__(self):
+                pass
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        return Dummy()
 
 
 class LocalFileStateManager(StateManager):
@@ -1207,8 +1219,8 @@ class FSSpecStateManager(StateManager):
         return super().lock_state(deployment)
 
 
-EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)
-ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)
+EnvLink: TypeAlias = MlemLink.typed_link(MlemEnv)  # type: ignore[valid-type]
+ModelLink: TypeAlias = MlemLink.typed_link(MlemModel)  # type: ignore[valid-type]
 
 ET = TypeVar("ET", bound=MlemEnv)
 

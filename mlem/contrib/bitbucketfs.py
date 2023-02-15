@@ -22,7 +22,6 @@ BITBUCKET_ORG = "https://bitbucket.org"
 
 
 class BitbucketWrapper:
-
     tree_endpoint = "/api/internal/repositories/{repo}/tree/{rev}/{path}"
     repo_endpoint = "/api/2.0/repositories/{repo}"
     refs_endpoint = "/api/2.0/repositories/{repo}/refs"
@@ -190,7 +189,6 @@ class BitBucketFileSystem(
         return {
             "path": path,
             "sha": sha,
-            "protocol": protocol,
             "repo": repo,
         }
 

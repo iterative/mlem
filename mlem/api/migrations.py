@@ -30,16 +30,21 @@ def migrate(path: str, project: Optional[str] = None, recursive: bool = False):
         _migrate_one(loc)
 
 
-def _migrate_one(location: Location):
-    with location.open("r") as f:
-        payload = safe_load(f)
-
+def apply_migrations(payload: dict):
     changed = False
     for migration in _migrations:
         migrated = migration(payload)
         if migrated is not None:
             payload = migrated
             changed = True
+    return payload, changed
+
+
+def _migrate_one(location: Location):
+    with location.open("r") as f:
+        payload = safe_load(f)
+
+    payload, changed = apply_migrations(payload)
 
     if changed:
         echo(f"Migrated MLEM Object at {location}")
