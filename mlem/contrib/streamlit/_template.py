@@ -8,7 +8,7 @@ streamlit.set_page_config(
 )
 
 
-@streamlit.cache(hash_funcs={HTTPClient: lambda x: 0})
+@streamlit.cache_resource
 def get_client():
     return HTTPClient(
         host="{{server_host}}", port=int("{{server_port}}"), raw=True
