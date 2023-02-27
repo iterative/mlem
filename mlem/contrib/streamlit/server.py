@@ -33,7 +33,7 @@ class StreamlitScript(BaseModel):
     """Title of the page"""
     description: str = ""
     """Additional text after title"""
-    args: Dict[str, str]
+    args: Dict[str, str] = {}
     """Additional args for custom template"""
 
 
