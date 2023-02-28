@@ -4,6 +4,7 @@ Extension type: serving
 FastAPIServer implementation
 """
 import logging
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from types import ModuleType
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
@@ -24,6 +25,7 @@ from mlem.runtime.interface import (
     InterfaceArgument,
     InterfaceMethod,
 )
+from mlem.runtime.middleware import Middleware, Middlewares
 from mlem.runtime.server import Server
 from mlem.ui import EMOJI_NAILS, echo
 from mlem.utils.module import get_object_requirements
@@ -48,6 +50,12 @@ def _create_schema_route(app: FastAPI, interface: Interface):
     app.add_api_route("/interface.json", lambda: schema, tags=["schema"])
 
 
+class FastAPIMiddleware(Middleware, ABC):
+    @abstractmethod
+    def on_app_init(self, app: FastAPI):
+        raise NotImplementedError
+
+
 class FastAPIServer(Server, LibRequirementsMixin):
     """Serves model with http"""
 
@@ -69,6 +77,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
         arg_serializers: Dict[str, DataTypeSerializer],
         executor: Callable,
         response_serializer: DataTypeSerializer,
+        middlewares: Middlewares,
     ):
         deserialized_model = create_model(
             "Model", **{a: (Any, ...) for a in args}
@@ -98,7 +107,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
             def bin_handler(model: schema_model):  # type: ignore[valid-type]
                 values = {a: getattr(model, a) for a in args}
+                values = middlewares.on_request(values)
                 result = executor(**values)
+                result = middlewares.on_response(values, result)
                 with response_serializer.dump(result) as buffer:
                     return StreamingResponse(
                         buffer, media_type="application/octet-stream"
@@ -112,7 +123,9 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         def handler(model: schema_model):  # type: ignore[valid-type]
             values = {a: getattr(model, a) for a in args}
+            values = middlewares.on_request(values)
             result = executor(**values)
+            result = middlewares.on_response(values, result)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
@@ -126,12 +139,15 @@ class FastAPIServer(Server, LibRequirementsMixin):
         arg_name: str,
         executor: Callable,
         response_serializer: DataTypeSerializer,
+        middlewares: Middlewares,
     ):
         if response_serializer.serializer.is_binary:
 
             def bin_handler(file: UploadFile):
                 arg = serializer.deserialize(_SpooledFileIOWrapper(file.file))
+                arg = middlewares.on_request(arg)
                 result = executor(**{arg_name: arg})
+                result = middlewares.on_response(arg, result)
                 with response_serializer.dump(result) as buffer:
                     return StreamingResponse(
                         buffer, media_type="application/octet-stream"
@@ -145,15 +161,20 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
         def handler(file: UploadFile):
             arg = serializer.deserialize(file.file)
+            arg = middlewares.on_request(arg)
             result = executor(**{arg_name: arg})
-
+            result = middlewares.on_response(arg, result)
             response = response_serializer.serialize(result)
             return parse_obj_as(response_model, response)
 
         return handler, response_model, None
 
     def _create_handler(
-        self, method_name: str, signature: InterfaceMethod, executor: Callable
+        self,
+        method_name: str,
+        signature: InterfaceMethod,
+        executor: Callable,
+        middlewares: Middlewares,
     ) -> Tuple[Optional[Callable], Optional[Type], Optional[Response]]:
         serializers, response_serializer = self._get_serializers(signature)
         echo(EMOJI_NAILS + f"Adding route for /{method_name}")
@@ -169,6 +190,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
                 arg_name,
                 executor,
                 response_serializer,
+                middlewares,
             )
         return self._create_handler_executor(
             method_name,
@@ -176,6 +198,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
             serializers,
             executor,
             response_serializer,
+            middlewares,
         )
 
     def app_init(self, interface: Interface):
@@ -184,11 +207,15 @@ class FastAPIServer(Server, LibRequirementsMixin):
         app.add_api_route(
             "/", lambda: RedirectResponse("/docs"), include_in_schema=False
         )
+        for mid in self.middlewares.__root__:
+            mid.on_init()
+            if isinstance(mid, FastAPIMiddleware):
+                mid.on_app_init(app)
 
         for method, signature in interface.iter_methods():
             executor = interface.get_method_executor(method)
             handler, response_model, response_class = self._create_handler(
-                method, signature, executor
+                method, signature, executor, self.middlewares
             )
 
             app.add_api_route(

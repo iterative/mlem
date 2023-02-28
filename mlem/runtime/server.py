@@ -15,6 +15,7 @@ from mlem.runtime.interface import (
     InterfaceDescriptor,
     InterfaceMethod,
 )
+from mlem.runtime.middleware import Middlewares
 from mlem.utils.module import get_object_requirements
 
 MethodMapping = Dict[str, str]
@@ -118,6 +119,8 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
     abs_name: ClassVar[str] = "server"
     env_vars: ClassVar[Optional[Dict[str, str]]] = None
     additional_source_files: ClassVar[Optional[List[str]]] = None
+
+    middlewares: Middlewares = Middlewares()
 
     # @validator("interface")
     # @classmethod

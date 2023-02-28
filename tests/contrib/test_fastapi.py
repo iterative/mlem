@@ -4,18 +4,24 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import create_model
 from pydantic.main import BaseModel, ModelMetaclass
 
 from mlem.constants import PREDICT_ARG_NAME, PREDICT_METHOD_NAME
-from mlem.contrib.fastapi import FastAPIServer, rename_recursively
+from mlem.contrib.fastapi import (
+    FastAPIMiddleware,
+    FastAPIServer,
+    rename_recursively,
+)
 from mlem.contrib.numpy import NumpyNdarrayType
 from mlem.core.data_type import DataAnalyzer, FileSerializer
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
 from mlem.runtime.client import Client
 from mlem.runtime.interface import Interface, InterfaceMethod, ModelInterface
+from mlem.runtime.middleware import Middlewares
 from mlem.runtime.server import ServerInterface
 from tests.contrib.test_pandas import pandas_assert
 
@@ -83,6 +89,7 @@ def test_create_handler(f_signature, executor):
         PREDICT_METHOD_NAME,
         InterfaceMethod.from_signature(f_signature),
         executor,
+        server.middlewares,
     )
     assert (
         response_model.__name__
@@ -101,7 +108,7 @@ def test_create_handler_primitive():
 
     server = FastAPIServer()
     handler, response_model, _ = server._create_handler(
-        PREDICT_METHOD_NAME, signature, f
+        PREDICT_METHOD_NAME, signature, f, server.middlewares
     )
     request_model = handler.__annotations__["model"]
     assert request_model.__fields__["data"].type_ is str
@@ -253,3 +260,52 @@ def test_serve_processors_model(
         response.json()
     )
     assert resp == 4
+
+
+class TestFastAPIMiddleware(FastAPIMiddleware):
+    add: int
+    mult: int
+
+    def on_app_init(self, app: FastAPI):
+        app.add_api_route("/kek", lambda: "ok")
+
+    def on_init(self):
+        pass
+
+    def on_request(self, request):
+        request["data"] += self.add
+        return request
+
+    def on_response(self, request, response):
+        return response * self.mult
+
+
+def test_fastapi_middleware(create_mlem_client, create_client):
+    model = MlemModel.from_obj(lambda x: x, sample_data=10)
+    model_interface = ModelInterface.from_model(model)
+
+    server = FastAPIServer(
+        standardize=True,
+        middlewares=Middlewares(
+            __root__=[TestFastAPIMiddleware(add=1, mult=10)]
+        ),
+    )
+    interface = ServerInterface.create(server, model_interface)
+    client = create_client(server, interface)
+
+    docs = client.get("/openapi.json")
+    assert docs.status_code == 200, docs.json()
+
+    kek = client.get("/kek")
+    assert kek.status_code == 200
+    assert kek.text == '"ok"'
+
+    mlem_client: Client = create_mlem_client(client)
+    remote_interface = mlem_client.interface
+    dt = remote_interface.__root__["predict"].args[0].data_type
+    response = client.post("/predict", json={"data": dt.serialize(1)})
+    assert response.status_code == 200
+    resp = remote_interface.__root__["predict"].returns.data_type.deserialize(
+        response.json()
+    )
+    assert resp == 20
