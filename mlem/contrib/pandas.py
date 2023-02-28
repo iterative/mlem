@@ -307,7 +307,7 @@ def has_index(df: pd.DataFrame):
 
 def _reset_index(df: pd.DataFrame):
     """Transforms indexes to columns"""
-    index_name = df.index.name or "__index__"  # save it for future renaming
+    index_name = df.index.name or ""  # save it for future renaming
     cols = set(df.columns)
     df = df.reset_index()  # can rename indexes if they didnt have a name
     index_cols = [
@@ -459,7 +459,10 @@ class PandasFormat:
             write_kwargs.update(self.write_args)
         write_kwargs.update(kwargs)
 
-        if has_index(df):
+        if (
+            has_index(df)
+            and PANDAS_FORMATS["stata"].write_func != self.write_func
+        ):
             df = reset_index(df)
 
         with storage.open(path) as (f, art):
