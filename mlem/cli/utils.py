@@ -198,26 +198,34 @@ def _get_type_name_alias(type_):
     return type_.__name__ if type_ is not None else "any"
 
 
-def anything(type_):
+def anything(type_, allow_none: bool):
     """Creates special type that is named as original type or collection type
     It returns original object on creation and is needed for nice typename in cli option help
     """
-    return type(
-        _get_type_name_alias(type_), (), {"__new__": lambda cls, value: value}
-    )
+
+    def new(cls, value):  # pylint: disable=unused-argument
+        """Just return the value"""
+        if allow_none and value == "None":
+            return None
+        return value
+
+    return type(_get_type_name_alias(type_), (), {"__new__": new})
 
 
 def optional(type_):
     """Creates special type that is named as original type or collection type
     It allows use string `None` to indicate None value"""
+
+    def new(cls, value):  # pylint: disable=unused-argument
+        """Check if value is string None"""
+        if value == "None":
+            return None
+        return type_(value)
+
     return type(
         _get_type_name_alias(type_),
         (),
-        {
-            "__new__": lambda cls, value: None
-            if value == "None"
-            else type_(value)
-        },
+        {"__new__": new},
     )
 
 
@@ -231,6 +239,7 @@ def parse_type_field(
     allow_none: bool,
     default: Any,
     root_cls: Type[BaseModel],
+    force_not_set: bool,
 ) -> Iterator[CliTypeField]:
     """Recursively creates CliTypeFields from field description"""
     if is_list or is_mapping:
@@ -278,7 +287,7 @@ def parse_type_field(
         allow_none=allow_none,
         path=path,
         type_=type_,
-        default=default,
+        default=default if not force_not_set else NOT_SET,
         help=help_,
         is_list=is_list,
         is_mapping=is_mapping,
@@ -333,22 +342,24 @@ def iterate_type_fields(
                     display_as_type(field_type), __root__=(field_type, ...)
                 )
             if field_type is Any:
-                field_type = anything(field_type)
+                field_type = anything(field_type, field.allow_none)
 
         if not isinstance(field_type, type):
             # skip too complicated stuff
             continue
 
+        required = not force_not_req and bool(field.required)
         yield from parse_type_field(
             path=fullname,
             type_=field_type,
             help_=get_field_help(cls, name),
             is_list=field.shape in LIST_LIKE_SHAPES,
             is_mapping=field.shape in MAPPING_LIKE_SHAPES,
-            required=not force_not_req and bool(field.required),
+            required=required,
             allow_none=field.allow_none,
-            default=field.default,
+            default=field.default if required else NOT_SET,
             root_cls=root_cls,
+            force_not_set=force_not_req,
         )
 
 
@@ -381,11 +392,18 @@ def _options_from_model(
             continue
         if issubclass(field.type_, MlemABC) and field.type_.__is_root__:
             yield from _options_from_mlem_abc(
-                ctx, field, path, force_not_set=force_not_set
+                ctx,
+                field,
+                path,
+                force_not_set=force_not_set or field.default == NOT_SET,
             )
             continue
 
-        yield _option_from_field(field, path, force_not_set=force_not_set)
+        yield _option_from_field(
+            field,
+            path,
+            force_not_set=force_not_set or field.default == NOT_SET,
+        )
 
 
 def _options_from_mlem_abc(
@@ -506,12 +524,12 @@ def _option_from_field(
     """Create cli option from field descriptor"""
     type_ = override_type or field.type_
     if force_not_set:
-        type_ = anything(type_)
+        type_ = anything(type_, field.allow_none)
     elif field.allow_none:
         type_ = optional(type_)
     option = SetViaFileTyperOption(
         param_decls=[f"--{path}", path.replace(".", "_")],
-        type=type_ if not force_not_set else anything(type_),
+        type=type_ if not force_not_set else anything(type_, field.allow_none),
         required=field.required and not force_not_set,
         default=field.default
         if not field.is_list and not field.is_mapping and not force_not_set
@@ -531,7 +549,10 @@ def abc_fields_parameters(type_name: str, mlem_abc: Type[MlemABC]):
             cls = load_impl_ext(mlem_abc.abs_name, type_name=type_name)
         except ImportError:
             return
-        yield from _options_from_model(cls, ctx)
+        yield from _options_from_model(
+            cls,
+            ctx,
+        )
 
     return generator
 
