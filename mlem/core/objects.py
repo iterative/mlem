@@ -1310,6 +1310,7 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
                     else None,
                     rev=self.loc.rev if not os.path.isabs(self.env) else None,
                     link_type=MlemEnv.object_type,
+                    location=self.location,
                 )
                 self.env_cache = link.load_link(force_type=MlemEnv)
             elif isinstance(self.env, MlemEnv):
