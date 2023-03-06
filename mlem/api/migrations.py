@@ -52,6 +52,18 @@ def _migrate_one(location: Location):
             safe_dump(payload, f)
 
 
+def _migrate_to_028(meta: dict) -> Optional[dict]:
+    if "object_type" not in meta:
+        return None
+
+    if "description" in meta:
+        meta.pop("description")
+
+    if "labels" in meta:
+        meta.pop("labels")
+    return meta
+
+
 def _migrate_to_040(meta: dict) -> Optional[dict]:
     if "object_type" not in meta or meta["object_type"] != "model":
         return None
@@ -67,4 +79,7 @@ def _migrate_to_040(meta: dict) -> Optional[dict]:
     return meta
 
 
-_migrations: List[Callable[[dict], Optional[dict]]] = [_migrate_to_040]
+_migrations: List[Callable[[dict], Optional[dict]]] = [
+    _migrate_to_028,
+    _migrate_to_040,
+]

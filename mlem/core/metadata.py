@@ -138,7 +138,7 @@ def load(
     rev: Optional[str] = None,
     batch_size: Optional[int] = None,
     follow_links: bool = True,
-    try_migrations: bool = False,
+    try_migrations: bool = True,
 ) -> Any:
     """Load python object saved by MLEM
 
@@ -177,7 +177,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
-    try_migrations: bool = False,
+    try_migrations: bool = True,
     *,
     force_type: Literal[None] = None,
 ) -> MlemObject:
@@ -192,7 +192,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
-    try_migrations: bool = False,
+    try_migrations: bool = True,
     *,
     force_type: Optional[Type[T]] = None,
 ) -> T:
@@ -207,7 +207,7 @@ def load_meta(
     follow_links: bool = True,
     load_value: bool = False,
     fs: Optional[AbstractFileSystem] = None,
-    try_migrations: bool = False,
+    try_migrations: bool = True,
     *,
     force_type: Optional[Type[T]] = None,
 ) -> T:
