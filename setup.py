@@ -110,7 +110,6 @@ for e in [
     "webdav",
     "webhdfs",
     "webhdfs_kerberos",
-    "lint",
 ]:
     extras[f"dvc-{e}"] = [f"dvc[{e}]~=2.0"]
 
