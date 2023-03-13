@@ -2,6 +2,7 @@ import tempfile
 from typing import ClassVar, Optional
 
 from pydantic import BaseModel
+from tomlkit import parse
 
 from mlem import ui
 from mlem.api import build
@@ -111,7 +112,13 @@ class FlyioApp(MlemDeployment, FlyioSettings):
                 args["access-token"] = self.get_env().access_token
             run_flyctl("launch", workdir=tempdir, kwargs=args)
             state.fly_toml = read_fly_toml(tempdir)
-
+            port = getattr(self.server, "port", None) or getattr(
+                self.server, "ui_port", None
+            )
+            if port:  # tell flyio to expose specific port
+                fly_toml = parse(state.fly_toml)
+                fly_toml["services"][0]["internal_port"] = port
+                state.fly_toml = fly_toml.as_string()
             status = get_status(workdir=tempdir)
             state.app_name = status.Name
             state.hostname = status.Hostname
