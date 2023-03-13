@@ -1,9 +1,10 @@
 import logging
 import os
-from typing import ClassVar
+from typing import ClassVar, Dict
 
 from pydantic import validator
 
+from mlem.core.requirements import Requirements
 from mlem.runtime import Interface
 from mlem.runtime.server import Server
 
@@ -33,3 +34,14 @@ class HerokuServer(Server):
             getattr(self.server, self.server.port_field),
         )
         return self.server.serve(interface)
+
+    def get_requirements(self) -> Requirements:
+        return self.server.get_requirements()
+
+    def get_env_vars(self) -> Dict[str, str]:
+        env_vars = super().get_env_vars()
+        env_vars.update(self.server.get_env_vars())
+        return env_vars
+
+    def get_sources(self) -> Dict[str, bytes]:
+        return self.server.get_sources()
