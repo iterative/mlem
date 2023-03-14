@@ -3,8 +3,9 @@ from typing import ClassVar, Optional
 
 from mlem.core.objects import MlemModel
 
+from ...runtime.server import Server
 from ...ui import EMOJI_BUILD, echo, set_offset
-from ..docker.base import DockerEnv, DockerImage, RemoteRegistry
+from ..docker.base import DockerImage, RemoteRegistry
 from ..docker.helpers import build_model_image
 from .server import HerokuServer
 
@@ -41,23 +42,21 @@ class HerokuRemoteRegistry(RemoteRegistry):
 
 def build_heroku_docker(
     meta: MlemModel,
+    server: Server,
     app_name: str,
     process_type: str = "web",
     api_key: str = None,
     push: bool = True,
 ) -> DockerImage:
-    docker_env = DockerEnv(
-        registry=HerokuRemoteRegistry(
-            host="registry.heroku.com", api_key=api_key
-        )
-    )
     echo(EMOJI_BUILD + "Creating docker image for heroku")
     with set_offset(2):
         return build_model_image(
             meta,
             process_type,
-            server=HerokuServer(),
-            env=docker_env,
+            server=HerokuServer(server=server),
+            registry=HerokuRemoteRegistry(
+                host="registry.heroku.com", api_key=api_key
+            ),
             repository=app_name,
             force_overwrite=True,
             # heroku does not support arm64 images built on Mac M1 devices

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from threading import Thread
 from time import sleep
-from typing import ClassVar, Dict, Optional
+from typing import ClassVar, Dict, List, Optional
 
 import streamlit
 import streamlit_pydantic
@@ -52,6 +52,7 @@ class StreamlitServer(Server, StreamlitScript, LibRequirementsMixin):
 
     type: ClassVar = "streamlit"
     libraries: ClassVar = (streamlit, streamlit_pydantic)
+    port_field: ClassVar = "ui_port"
 
     run_server: bool = True
     """Whether to run backend server or use existing one"""
@@ -159,3 +160,6 @@ class StreamlitServer(Server, StreamlitScript, LibRequirementsMixin):
                 sources[template] = f.read()
             self.template = template
         return sources
+
+    def get_ports(self) -> List[int]:
+        return [self.ui_port, self.server_port]
