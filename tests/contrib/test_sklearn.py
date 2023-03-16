@@ -3,7 +3,7 @@ import posixpath
 import lightgbm as lgb
 import numpy as np
 import pytest
-from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -20,6 +20,14 @@ from mlem.core.model import Argument, ModelAnalyzer
 from mlem.core.objects import MlemModel
 from mlem.core.requirements import UnixPackageRequirement
 from tests.conftest import long
+
+
+@pytest.fixture
+def text_inp_data():
+    return [
+        "This is the first document.",
+        "This document is the second document.",
+    ]
 
 
 @pytest.fixture
@@ -44,6 +52,13 @@ def regressor(inp_data, out_data):
     lr = LinearRegression()
     lr.fit(inp_data, out_data)
     return lr
+
+
+@pytest.fixture
+def count_vectorizer(text_inp_data):
+    vectorizer = CountVectorizer()
+    vectorizer.fit(text_inp_data)
+    return vectorizer
 
 
 @pytest.fixture
@@ -94,33 +109,50 @@ def test_hook(model_fixture, inp_data, request):
 
 
 @pytest.mark.parametrize(
-    "transformer_fixture", ["transformer", "onehotencoder"]
+    "transformer_fixture", ["transformer", "onehotencoder", "count_vectorizer"]
 )
-def test_hook_transformer(transformer_fixture, inp_data, request):
+def test_hook_transformer(
+    transformer_fixture, inp_data, text_inp_data, request
+):
     transformer = request.getfixturevalue(transformer_fixture)
-    data_type = DataAnalyzer.analyze(inp_data)
-    model_type = ModelAnalyzer.analyze(transformer, sample_data=inp_data)
+    if transformer_fixture == "count_vectorizer":
+        input_data = text_inp_data
+        argname = "raw_documents"
+    else:
+        input_data = inp_data
+        argname = "X"
+    data_type = DataAnalyzer.analyze(input_data)
+    model_type = ModelAnalyzer.analyze(transformer, sample_data=input_data)
     assert isinstance(model_type, SklearnTransformer)
     assert TRANSFORM_METHOD_NAME in model_type.methods
     signature = model_type.methods[TRANSFORM_METHOD_NAME]
     cols = len(transformer.get_feature_names_out())
-    rows = len(inp_data)
-    returns = ScipySparseMatrix(dtype="float64", shape=(rows, cols))
+    rows = len(input_data)
+    if transformer_fixture == "count_vectorizer":
+        returns = ScipySparseMatrix(dtype="int64", shape=(rows, cols))
+    else:
+        returns = ScipySparseMatrix(dtype="float64", shape=(rows, cols))
     assert signature.name == TRANSFORM_METHOD_NAME
-    assert signature.args[0] == Argument(name="X", type_=data_type)
+    assert signature.args[0] == Argument(name=argname, type_=data_type)
     assert signature.returns == returns
 
 
 @pytest.mark.parametrize(
-    "transformer_fixture", ["transformer", "onehotencoder"]
+    "transformer_fixture", ["transformer", "onehotencoder", "count_vectorizer"]
 )
-def test_model_type__transform(transformer_fixture, inp_data, request):
+def test_model_type__transform(
+    transformer_fixture, inp_data, text_inp_data, request
+):
     transformer = request.getfixturevalue(transformer_fixture)
-    model_type = ModelAnalyzer.analyze(transformer, sample_data=inp_data)
+    if transformer_fixture == "count_vectorizer":
+        input_data = text_inp_data
+    else:
+        input_data = inp_data
+    model_type = ModelAnalyzer.analyze(transformer, sample_data=input_data)
 
     np.testing.assert_array_almost_equal(
-        transformer.transform(inp_data).todense(),
-        model_type.call_method("transform", inp_data).todense(),
+        transformer.transform(input_data).todense(),
+        model_type.call_method("transform", input_data).todense(),
     )
 
 
