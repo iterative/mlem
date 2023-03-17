@@ -331,7 +331,7 @@ def get_module_as_requirement(
     if validate_pypi:
         mod_name = get_package_name(mod)
         check_pypi_module(mod_name, mod_version, raise_on_error=True)
-    return InstallableRequirement(module=mod.__name__, version=mod_version)
+    return InstallableRequirement.from_module(mod)
 
 
 def get_local_module_reqs(mod) -> List[ModuleType]:
