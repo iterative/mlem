@@ -1,5 +1,7 @@
 FROM {{ base_image }}
 WORKDIR /app
+{% for name, value in arg.items() %}ARG {{ name }}
+{% endfor %}
 {% include "pre_install.j2" ignore missing %}
 {% include "install_req.j2" %}
 {% include "post_install.j2" ignore missing %}

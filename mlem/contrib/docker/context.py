@@ -244,6 +244,8 @@ class DockerBuildArgs(BaseModel):
     """a path to mlem .whl file. If it is empty, mlem will be installed from pip"""
     platform: Optional[str] = None
     """platform to build docker for, see docs.docker.com/desktop/multi-arch/"""
+    build_arg: List[str] = []
+    """args to use at build time https://docs.docker.com/engine/reference/commandline/build/#build-arg"""
 
     def get_base_image(self):
         if self.base_image is None:
@@ -268,6 +270,17 @@ class DockerBuildArgs(BaseModel):
                 value = getattr(other, field)
                 if value is not None:
                     setattr(self, field, value)
+
+
+def get_build_args(build_arg) -> Dict[str, Optional[str]]:
+    args = {}
+    for arg in build_arg:
+        if "=" in arg:
+            key, value = arg.split("=", 1)
+            args[key] = value
+        else:
+            args[arg] = os.getenv(arg)
+    return args
 
 
 class DockerModelDirectory(BaseModel):
@@ -370,7 +383,9 @@ class DockerModelDirectory(BaseModel):
             dockerfile = DockerfileGenerator(
                 **self.docker_args.dict()
             ).generate(
-                env=env, packages=[p.package_name for p in unix_packages or []]
+                env=env,
+                arg=get_build_args(self.docker_args.build_arg),
+                packages=[p.package_name for p in unix_packages or []],
             )
             df.write(dockerfile)
 
