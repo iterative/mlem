@@ -122,6 +122,7 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
     port_field: ClassVar[Optional[str]] = None
 
     middlewares: Middlewares = Middlewares()
+    """Middlewares to add to server"""
 
     # @validator("interface")
     # @classmethod

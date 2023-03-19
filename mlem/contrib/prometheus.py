@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import ClassVar, Optional
 
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -7,7 +7,12 @@ from mlem.contrib.fastapi import FastAPIMiddleware
 
 
 class PrometheusFastAPIMiddleware(FastAPIMiddleware):
+    """Middleware for FastAPI server that exposes endpoint with Prometheus metrics"""
+
+    type: ClassVar = "prometheus_fastapi"
+
     instrumentator: Optional[Instrumentator]
+    """Instrumentator instance to use. If not provided, a new one will be created"""
 
     class Config:
         arbitrary_types_allowed = True
