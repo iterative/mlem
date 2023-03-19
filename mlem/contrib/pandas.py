@@ -305,6 +305,11 @@ def has_index(df: pd.DataFrame):
     return not isinstance(df.index, pd.RangeIndex)
 
 
+def has_named_index(df: pd.DataFrame):
+    """Returns true if all index columns are named"""
+    return df.index.name or all(df.index.names)
+
+
 def _reset_index(df: pd.DataFrame):
     """Transforms indexes to columns"""
     index_name = df.index.name or ""  # save it for future renaming
@@ -459,8 +464,19 @@ class PandasFormat:
             write_kwargs.update(self.write_args)
         write_kwargs.update(kwargs)
 
+        # sometimes index may be consumed by model or used at feature engineering step,
+        # so we keep it instead of dropping if it's non-trivial
         if has_index(df):
-            df = reset_index(df)
+            if PANDAS_FORMATS[
+                "stata"
+            ].write_func == self.write_func and not has_named_index(df):
+                logging.info(
+                    "Stata format doesn't allow saving columns with empty names, so you must name the index."
+                    "Use `df.index.name = 'index'` to name it or df.reset_index(drop=True) to drop it instead."
+                )
+                df = df.reset_index(drop=True)
+            else:
+                df = reset_index(df)
 
         with storage.open(path) as (f, art):
             if self.string_buffer:

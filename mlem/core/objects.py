@@ -171,11 +171,17 @@ class MlemObject(MlemABC):
         )
         with location.open() as f:
             payload = safe_load(f)
-        if try_migrations:
+        try:
+            res = parse_obj_as(MlemObject, payload).bind(location)
+        except ValidationError as e:
+            if not try_migrations:
+                raise e
+
             from mlem.api.migrations import apply_migrations
 
             payload, _ = apply_migrations(payload)
-        res = parse_obj_as(MlemObject, payload).bind(location)
+            res = parse_obj_as(MlemObject, payload).bind(location)
+
         if follow_links and isinstance(res, MlemLink):
             link = res.load_link()
             if not isinstance(link, cls):
@@ -1310,6 +1316,7 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
                     else None,
                     rev=self.loc.rev if not os.path.isabs(self.env) else None,
                     link_type=MlemEnv.object_type,
+                    location=self.location,
                 )
                 self.env_cache = link.load_link(force_type=MlemEnv)
             elif isinstance(self.env, MlemEnv):

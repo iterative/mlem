@@ -12,7 +12,9 @@ from mlem.core.objects import (
 )
 from mlem.runtime.client import Client, HTTPClient
 
+from ...config import project_config
 from ...core.errors import DeploymentError
+from ...runtime.server import Server
 from ...ui import EMOJI_OK, echo
 from ..docker.base import DockerImage
 from .build import build_heroku_docker
@@ -77,6 +79,8 @@ class HerokuDeployment(MlemDeployment[HerokuState, HerokuEnv]):
     """Stack to use"""
     team: Optional[str] = None
     """Heroku team"""
+    server: Optional[Server] = None
+    """Server to use"""
 
     def _get_client(self, state: HerokuState) -> Client:
         return HTTPClient(
@@ -95,7 +99,13 @@ class HerokuDeployment(MlemDeployment[HerokuState, HerokuEnv]):
             redeploy = False
             if state.image is None or self.model_changed(model):
                 state.image = build_heroku_docker(
-                    model, state.app.name, api_key=self.get_env().api_key
+                    model,
+                    self.server
+                    or project_config(
+                        self.loc.project if self.is_saved else None
+                    ).server,
+                    state.app.name,
+                    api_key=self.get_env().api_key,
                 )
                 state.update_model(model)
                 self.update_state(state)

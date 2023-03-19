@@ -4,11 +4,14 @@ import time
 
 import pytest
 import requests
+import testcontainers.core.container
 from docker import DockerClient
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
+from testcontainers.core.waiting_utils import wait_for_logs
 
 from mlem.api.commands import deploy
+from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.heroku.build import (
     DEFAULT_HEROKU_REGISTRY,
     build_heroku_docker,
@@ -28,6 +31,7 @@ from mlem.contrib.heroku.utils import (
 )
 from mlem.core.errors import DeploymentError
 from mlem.core.objects import DeployStatus, MlemModel
+from mlem.runtime.client import HTTPClient
 from tests.conftest import flaky, long
 
 heroku = pytest.mark.skipif(
@@ -97,11 +101,20 @@ def test_create_app(heroku_app_name, heroku_env, model):
 
 @long
 def test_build_heroku_docker(model: MlemModel, uses_docker_build):
-    image_meta = build_heroku_docker(model, "test_build", push=False)
+    image_meta = build_heroku_docker(
+        model, FastAPIServer(), "test_build", push=False
+    )
     client = DockerClient.from_env()
     image = client.images.get(image_meta.image_id)
     assert image is not None
     assert f"{DEFAULT_HEROKU_REGISTRY}/test_build/web:latest" in image.tags
+
+    with testcontainers.core.container.DockerContainer(
+        image_meta.uri
+    ).with_env("PORT", "4567").with_bind_ports(4567, 80) as c:
+        wait_for_logs(c, ".*Uvicorn running on.*")
+        client = HTTPClient(port=80)
+        assert client.interface is not None
 
 
 def test_state_ensured_app():

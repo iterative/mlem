@@ -61,6 +61,7 @@ class FastAPIServer(Server, LibRequirementsMixin):
 
     libraries: ClassVar[List[ModuleType]] = [uvicorn, fastapi]
     type: ClassVar[str] = "fastapi"
+    port_field: ClassVar = "port"
 
     host: str = "0.0.0.0"
     """Network interface to use"""

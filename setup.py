@@ -93,7 +93,7 @@ extras = {
     "kubernetes": ["docker", "kubernetes"],
     "dvc": ["dvc~=2.0"],
     "git": ["pygit2"],
-    "flyio": ["docker", "fastapi", "uvicorn"],
+    "flyio": ["docker", "fastapi", "uvicorn", "tomlkit"],
     "torchvision": ["torchvision"],
     "pil": ["Pillow", "numpy"],
 }

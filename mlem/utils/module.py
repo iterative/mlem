@@ -454,7 +454,7 @@ def add_closure_inspection(f):
         try:
             try:
                 source = dill.source.getsource(obj)
-            except OSError:
+            except (OSError, IndexError):
                 source = inspect.getsource(obj)
             tree = ast.parse(lstrip_lines(source))
             ImportFromVisitor(pickler, obj).visit(tree)

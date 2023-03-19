@@ -119,6 +119,7 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
     abs_name: ClassVar[str] = "server"
     env_vars: ClassVar[Optional[Dict[str, str]]] = None
     additional_source_files: ClassVar[Optional[List[str]]] = None
+    port_field: ClassVar[Optional[str]] = None
 
     middlewares: Middlewares = Middlewares()
 
@@ -160,6 +161,11 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
         return super().get_requirements() + get_object_requirements(
             [self.request_serializer, self.response_serializer, self.methods]
         )
+
+    def get_ports(self) -> List[int]:
+        if self.port_field is not None:
+            return [getattr(self, self.port_field)]
+        return []
 
 
 class ServerInterface(Interface):

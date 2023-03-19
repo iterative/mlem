@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from ...core.objects import MlemModel
 from ...ui import EMOJI_BUILD, EMOJI_KEY, echo, set_offset
-from ..docker.base import DockerEnv, DockerImageOptions, RemoteRegistry
+from ..docker.base import DockerImageOptions, RemoteRegistry
 from ..docker.helpers import build_model_image
 
 IMAGE_NAME = "mlem-sagemaker-runner"
@@ -119,10 +119,8 @@ def build_sagemaker_docker(
 ):
     from .runtime import SageMakerServer  # circular import
 
-    docker_env = DockerEnv(
-        registry=ECRegistry(account=account, region=region).with_aws_vars(
-            aws_vars
-        )
+    ec_registry = ECRegistry(account=account, region=region).with_aws_vars(
+        aws_vars
     )
     ecr_repo_check(region, repository, aws_vars.get_session())
     echo(EMOJI_BUILD + "Creating docker image for sagemaker")
@@ -132,7 +130,8 @@ def build_sagemaker_docker(
             name=repository,
             tag=image_name,
             server=SageMakerServer(method=method),
-            env=docker_env,
+            registry=ec_registry,
             force_overwrite=True,
             templates_dir=[os.path.dirname(__file__)],
+            platform="linux/amd64",
         )

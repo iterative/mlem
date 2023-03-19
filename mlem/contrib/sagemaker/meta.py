@@ -327,7 +327,9 @@ class SagemakerDeployment(MlemDeployment[SagemakerDeployState, SagemakerEnv]):
         with self.lock_state():
             state: SagemakerDeployState = self.get_state()
             redeploy = self.model_changed(model)
-            state.previous = state.previous or SagemakerDeployState()
+            state.previous = state.previous or SagemakerDeployState(
+                declaration=self
+            )
 
             session, aws_vars = self.get_env().get_session_and_aws_vars(
                 state.region

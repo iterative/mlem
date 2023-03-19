@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from mlem.cli.declare import create_declare_mlem_object_subcommand, declare
 from mlem.contrib.docker import DockerDirBuilder
+from mlem.contrib.docker.base import DockerRegistry, RemoteRegistry
 from mlem.contrib.docker.context import DockerBuildArgs
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.contrib.heroku.meta import HerokuEnv
@@ -400,6 +401,70 @@ all_test_params.extend(
             "--field.0 10",
             id="root_list_nested",
         ),
+    )
+)
+
+
+class MockOptionalFieldWithNonOptionalSubfield(_MockBuilder):
+    """mock"""
+
+    f: Optional[SimpleValue] = None
+
+
+all_test_params.append(
+    pytest.param(
+        MockOptionalFieldWithNonOptionalSubfield(),
+        "",
+        id="non_optional_subfield_empty",
+    )
+)
+all_test_params.append(
+    pytest.param(
+        MockOptionalFieldWithNonOptionalSubfield(f=SimpleValue(value="a")),
+        "--f.value a",
+        id="non_optional_subfield_full",
+    )
+)
+
+
+class ThreeValues(BaseModel):
+    value: str
+    with_def: str = "value"
+    opt: Optional[str] = None
+    with_def_model: SimpleValue = SimpleValue(value="value")
+    with_def_abc: DockerRegistry = DockerRegistry()
+
+
+class MockOptionalFieldWithOptionalAndNonOptionalSubfield(_MockBuilder):
+    """mock"""
+
+    f: Optional[ThreeValues] = None
+
+
+all_test_params.append(
+    pytest.param(
+        MockOptionalFieldWithOptionalAndNonOptionalSubfield(),
+        "",
+        id="optional_and_non_optional_subfield_empty",
+    )
+)
+all_test_params.append(
+    pytest.param(
+        MockOptionalFieldWithOptionalAndNonOptionalSubfield(
+            f=ThreeValues(value="a")
+        ),
+        "--f.value a",
+        id="optional_and_non_optional_subfield_full",
+    )
+)
+
+all_test_params.append(
+    pytest.param(
+        MockOptionalFieldWithOptionalAndNonOptionalSubfield(
+            f=ThreeValues(value="a", with_def_abc=RemoteRegistry(host="aaa"))
+        ),
+        "--f.value a --f.with_def_abc remote --f.with_def_abc.host aaa",
+        id="optional_and_non_optional_subfield_full_abc",
     )
 )
 

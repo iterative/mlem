@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Union
 
 import sklearn
 from sklearn.base import ClassifierMixin, RegressorMixin
-from sklearn.feature_extraction.text import TransformerMixin
+from sklearn.feature_extraction.text import TransformerMixin, _VectorizerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing._encoders import _BaseEncoder
 
@@ -141,7 +141,7 @@ class SklearnTransformer(SklearnModel):
     Model Type implementation for sklearn transformers
     """
 
-    valid_types: ClassVar = (TransformerMixin, _BaseEncoder)
+    valid_types: ClassVar = (TransformerMixin, _BaseEncoder, _VectorizerMixin)
     type: ClassVar = "sklearn_transformer"
 
     @classmethod
@@ -159,8 +159,8 @@ class SklearnTransformer(SklearnModel):
         methods = {
             TRANSFORM_METHOD_NAME: Signature.from_method(
                 obj.transform,
+                sample_data,
                 auto_infer=sample_data is not None,
-                X=sample_data,
             ),
         }
 

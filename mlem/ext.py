@@ -131,7 +131,9 @@ class ExtensionLoader:
         Extension("mlem.contrib.git", ["pygit2"], True),
         Extension("mlem.contrib.scipy", ["scipy"], False),
         Extension(
-            "mlem.contrib.flyio", ["docker", "fastapi", "uvicorn"], False
+            "mlem.contrib.flyio",
+            ["docker", "fastapi", "uvicorn", "tomlkit"],
+            False,
         ),
         Extension("mlem.contrib.torchvision", ["torchvision"], False),
         Extension("mlem.contrib.pil", ["Pillow", "numpy"], False),

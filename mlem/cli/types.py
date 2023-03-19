@@ -33,6 +33,7 @@ def _add_examples(
                     allow_none=False,
                     default=None,
                     root_cls=root_cls,
+                    force_not_set=False,
                 ),
                 root_cls=root_cls,
                 parent_help=f"Element of {field.path}",

@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import parse_obj_as
+from pytest_lazyfixture import lazy_fixture
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
@@ -27,6 +28,7 @@ from mlem.contrib.pandas import (
     PandasWriter,
     SeriesType,
     get_pandas_batch_formats,
+    has_index,
     pd_type_from_string,
     python_type_from_pd_string_repr,
     python_type_from_pd_type,
@@ -510,6 +512,20 @@ def test_import_data_csv(tmpdir, write_csv, file_ext, type_, data):
     _check_data(meta, target_path)
 
 
+def test_import_data_stata(tmpdir, data):
+    path = str(tmpdir / "mydata.stata")
+    data.to_stata(path, write_index=False)
+    meta = import_object(
+        path, target=path, type_="pandas[stata]", copy_data=True
+    )
+    pandas_assert(
+        data.astype(
+            "int32"
+        ),  # TODO: int32 converts to int64 for some reason for stata
+        meta.get_value(),
+    )
+
+
 @long
 def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
     project_path = s3_tmp_path("test_csv_import")
@@ -617,6 +633,28 @@ def test_signature_req(data):
     sig = Signature.from_method(f, auto_infer=True, x=data)
 
     assert set(get_object_requirements(sig).modules) == {"pandas"}
+
+
+@pytest.mark.parametrize(
+    "df",
+    [
+        lazy_fixture("data"),
+        lazy_fixture("data2"),
+    ],
+)
+def test_does_not_have_index(df):
+    assert not has_index(df)
+
+
+@pytest.mark.parametrize(
+    "df",
+    [
+        PD_DATA_FRAME_INDEX,
+        PD_DATA_FRAME_MULTIINDEX,
+    ],
+)
+def test_has_index(df):
+    assert has_index(df)
 
 
 # Copyright 2019 Zyfra
