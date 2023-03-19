@@ -110,6 +110,7 @@ def test_all_ext_docstring(mod):
     module = import_module(mod)
     assert module.__doc__ is not None
     assert get_ext_type(mod) in {
+        "middleware",
         "model",
         "deployment",
         "data",

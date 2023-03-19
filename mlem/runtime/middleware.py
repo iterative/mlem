@@ -27,6 +27,7 @@ class Middleware(MlemABC):
 
 class Middlewares(BaseModel):
     __root__: List[Middleware] = []
+    """Middlewares to add to server"""
 
     def on_init(self):
         for middleware in self.__root__:

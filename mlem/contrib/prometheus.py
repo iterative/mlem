@@ -1,3 +1,8 @@
+"""Instrumenting FastAPI app to expose metrics for prometheus
+Extension type: middleware
+
+Exposes /metrics endpoint
+"""
 from typing import ClassVar, Optional
 
 from fastapi import FastAPI
@@ -7,7 +12,7 @@ from mlem.contrib.fastapi import FastAPIMiddleware
 
 
 class PrometheusFastAPIMiddleware(FastAPIMiddleware):
-    """Middleware for FastAPI server that exposes endpoint with Prometheus metrics"""
+    """Middleware for FastAPI server that exposes /metrics endpoint to be scraped by Prometheus"""
 
     type: ClassVar = "prometheus_fastapi"
 
