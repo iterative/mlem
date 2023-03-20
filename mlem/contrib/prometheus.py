@@ -21,6 +21,7 @@ class PrometheusFastAPIMiddleware(FastAPIMiddleware):
 
     class Config:
         arbitrary_types_allowed = True
+        exclude = {"instrumentator"}
 
     def on_app_init(self, app: FastAPI):
         @app.on_event("startup")
