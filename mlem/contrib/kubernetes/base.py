@@ -22,6 +22,7 @@ from ..docker.base import (
     DockerRegistry,
     generate_docker_container_name,
 )
+from ..docker.context import get_build_args
 from .build import build_k8s_docker
 from .context import K8sYamlBuildArgs, K8sYamlGenerator
 from .utils import create_k8s_resources, namespace_deleted, pod_is_running
@@ -78,6 +79,8 @@ class K8sDeployment(
     """Path for kube config file of the cluster"""
     templates_dir: List[str] = []
     """List of dirs where templates reside"""
+    build_arg: List[str] = []
+    """args to use at build time https://docs.docker.com/engine/reference/commandline/build/#build-arg"""
 
     def load_kube_config(self):
         config.load_kube_config(
@@ -134,6 +137,7 @@ class K8sDeployment(
                     registry=self.get_registry(),
                     daemon=self.daemon,
                     server=self.get_server(),
+                    build_arg=get_build_args(self.build_arg),
                 )
                 state.update_model(model)
                 redeploy = True

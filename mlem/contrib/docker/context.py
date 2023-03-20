@@ -277,7 +277,7 @@ def get_build_args(build_arg) -> Dict[str, Optional[str]]:
     for arg in build_arg:
         if "=" in arg:
             key, value = arg.split("=", 1)
-            args[key] = value
+            args[key] = os.getenv(arg) or value
         else:
             args[arg] = os.getenv(arg)
     return args
