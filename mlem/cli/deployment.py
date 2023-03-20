@@ -44,7 +44,7 @@ from mlem.core.objects import (
     MlemModel,
 )
 from mlem.telemetry import pass_telemetry_params
-from mlem.ui import echo, no_echo, set_echo
+from mlem.ui import EMOJI_STOP, echo, no_echo, set_echo
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +116,9 @@ def create_deploy_run_command(type_name):
         model_rev: Optional[str] = option_model_rev,
         project: Optional[str] = option_project,
         file_conf: List[str] = option_file_conf("deployment"),
+        force: bool = Option(
+            False, is_flag=True, help="Force re-create if parameters changed"
+        ),
         **__kwargs__,
     ):
         from mlem.api.commands import deploy
@@ -139,9 +142,18 @@ def create_deploy_run_command(type_name):
         try:
             meta = load_meta(path, project=project, force_type=MlemDeployment)
             if meta != _meta:
-                raise DeploymentError(
-                    f"Different deployment meta already exists at {meta.loc}. Please use `mlem deployment run --load <path> ...`"
-                )
+                if not meta.is_state_empty:
+                    if not force:
+                        raise DeploymentError(
+                            f"Different deployment meta already exists at {meta.loc}. Please use `mlem deployment run --load <path> ...`"
+                        )
+                    echo(
+                        EMOJI_STOP
+                        + "Removing old deployment since parameters changed"
+                    )
+                    meta.remove()
+                with wrap_build_error(type_name, MlemDeployment):
+                    meta = _meta.dump(path, project=project)
         except MlemObjectNotFound:
             with wrap_build_error(type_name, MlemDeployment):
                 meta = _meta.dump(path, project=project)

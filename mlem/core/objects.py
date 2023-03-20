@@ -1277,6 +1277,10 @@ class MlemDeployment(MlemObject, Generic[ST, ET]):
             self, self.state_type
         ) or self.state_type(declaration=self)
 
+    @property
+    def is_state_empty(self):
+        return self._state_manager.get_state(self, self.state_type) is None
+
     def lock_state(self):
         return self._state_manager.lock_state(self)
 
