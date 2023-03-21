@@ -159,8 +159,16 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
         return arg_serializers, returns
 
     def get_requirements(self) -> Requirements:
-        return super().get_requirements() + get_object_requirements(
-            [self.request_serializer, self.response_serializer, self.methods]
+        return (
+            super().get_requirements()
+            + get_object_requirements(
+                [
+                    self.request_serializer,
+                    self.response_serializer,
+                    self.methods,
+                ]
+            )
+            + self.middlewares.get_requirements()
         )
 
     def get_ports(self) -> List[int]:

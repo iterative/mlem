@@ -46,6 +46,16 @@ def module_imported(module_name):
     return sys.modules.get(module_name) is not None
 
 
+def import_string_with_local(path):
+    try:
+        # this is needed because if run from cli curdir is not checked for
+        # modules to import
+        sys.path.append(".")
+        return import_string(path)
+    finally:
+        sys.path.remove(".")
+
+
 # Copyright 2019 Zyfra
 # Copyright 2021 Iterative
 #
