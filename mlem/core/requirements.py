@@ -25,6 +25,7 @@ from typing import (
     Union,
 )
 
+from importlib_metadata import Distribution, PackageNotFoundError
 from pydantic import BaseModel, root_validator
 
 from mlem.core.base import MlemABC
@@ -86,6 +87,12 @@ class InstallableRequirement(PythonRequirement):
     """Pip package name for this module, if it is different from module name"""
     extra_index: Optional[str] = None
     """Extra index to use for this package"""
+    source_url: Optional[str] = None
+    """URL to download package from"""
+    vcs: Optional[str] = None
+    """Version control system"""
+    vcs_commit: Optional[str] = None
+    """Commit hash to checkout from VCS"""
 
     @root_validator
     def set_package_name(cls, values):  # pylint: disable=no-self-argument
@@ -112,6 +119,8 @@ class InstallableRequirement(PythonRequirement):
         """
         if self.version is not None:
             return f"{self.package}=={self.version}"
+        if self.vcs_commit is not None:
+            return f"{self.vcs}+{self.source_url}@{self.vcs_commit}"
         return self.package
 
     @classmethod
@@ -134,10 +143,37 @@ class InstallableRequirement(PythonRequirement):
         """
         from mlem.utils.module import get_module_version
 
+        # similar package resolution exists in mlem/contrib/docker/context.py
+        source_url = None
+        vcs = None
+        rev = None
+
+        try:
+            pkg_info = json.loads(
+                Distribution.from_name(mod.__name__).read_text(
+                    "direct_url.json"
+                )
+            )
+        except (PackageNotFoundError, json.JSONDecodeError, TypeError):
+            pass
+        else:
+            if "url" in pkg_info:
+                source_url = pkg_info["url"]
+                # installed from local source:
+                if source_url.startswith("file://"):
+                    return CustomRequirement.from_module(mod)  # type: ignore
+                # installed from git branch (probably):
+                if "vcs_info" in pkg_info:
+                    rev = pkg_info["vcs_info"]["commit_id"]
+                    vcs = pkg_info["vcs_info"]["vcs"]
+
         return InstallableRequirement(
             module=mod.__name__,
-            version=get_module_version(mod),
+            version=None if rev else get_module_version(mod),
             package_name=package_name,
+            source_url=source_url,
+            vcs_commit=rev,
+            vcs=vcs,
         )
 
     @classmethod

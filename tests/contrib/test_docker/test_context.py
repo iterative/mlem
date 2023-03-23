@@ -21,6 +21,8 @@ def test_dockerfile_generator_custom_python_version():
     dockerfile = _cut_empty_lines(
         f"""FROM python:AAAA-slim
 WORKDIR /app
+# install Git in case something in requirements.txt will be installed from Git repo
+RUN apt-get update && apt-get -y upgrade && apt-get install --no-install-recommends -y git && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install -r requirements.txt && pip cache purge
 COPY mlem_requirements.txt .
@@ -40,6 +42,8 @@ def test_dockerfile_generator_unix_packages():
     dockerfile = _cut_empty_lines(
         f"""FROM python:3.6-slim
 WORKDIR /app
+# install Git in case something in requirements.txt will be installed from Git repo
+RUN kek git lol
 RUN kek aaa bbb lol
 COPY requirements.txt .
 RUN pip install -r requirements.txt && pip cache purge
@@ -72,6 +76,8 @@ def test_dockerfile_generator_super_custom():
         f"""FROM my-python:3.6
 WORKDIR /app
 RUN echo "pre_install"
+# install Git in case something in requirements.txt will be installed from Git repo
+RUN apt-get update && apt-get -y upgrade && apt-get install --no-install-recommends -y git && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install -r requirements.txt && pip cache purge
 RUN pip install mlem=={mlem.__version__} && pip cache purge
@@ -109,14 +115,18 @@ def test_use_wheel_installation(tmpdir):
     distr.write("wheel goes brrr")
     with use_mlem_source("whl"):
         os.environ["MLEM_DOCKER_WHEEL_PATH"] = str(os.path.basename(distr))
-        dockerfile = DockerfileGenerator().generate(env={}, packages=[])
+        dockerfile = DockerfileGenerator().generate(
+            env={}, packages=[], arg={}
+        )
         assert f"RUN pip install {MLEM_LOCAL_WHL}" in dockerfile
 
 
 def _generate_dockerfile(unix_packages=None, **kwargs):
     return _cut_empty_lines(
         DockerfileGenerator(**kwargs).generate(
-            env={}, packages=[p.package_name for p in unix_packages or []]
+            env={},
+            packages=[p.package_name for p in unix_packages or []],
+            arg={},
         )
     )
 
