@@ -1,5 +1,4 @@
 import shlex
-import sys
 from collections import defaultdict
 from inspect import isabstract
 from typing import (
@@ -22,7 +21,7 @@ from yaml import safe_load
 
 from mlem.core.errors import ExtensionRequirementError, UnknownImplementation
 from mlem.polydantic import PolyModel
-from mlem.utils.importing import import_string
+from mlem.utils.importing import import_string_with_local
 from mlem.utils.path import make_posix
 
 
@@ -64,18 +63,12 @@ def load_impl_ext(
 
     if type_name is not None and "." in type_name:
         try:
-            # this is needed because if run from cli curdir is not checked for
-            # modules to import
-            sys.path.append(".")
-
-            obj = import_string(type_name)
+            obj = import_string_with_local(type_name)
             if not issubclass(obj, MlemABC):
                 raise ValueError(f"{obj} is not subclass of MlemABC")
             return obj
         except ImportError:
             pass
-        finally:
-            sys.path.remove(".")
 
     eps = load_entrypoints()
     for ep in eps.values():

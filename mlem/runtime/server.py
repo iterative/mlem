@@ -15,6 +15,7 @@ from mlem.runtime.interface import (
     InterfaceDescriptor,
     InterfaceMethod,
 )
+from mlem.runtime.middleware import Middlewares
 from mlem.utils.module import get_object_requirements
 
 MethodMapping = Dict[str, str]
@@ -120,6 +121,9 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
     additional_source_files: ClassVar[Optional[List[str]]] = None
     port_field: ClassVar[Optional[str]] = None
 
+    middlewares: Middlewares = Middlewares()
+    """Middlewares to add to server"""
+
     # @validator("interface")
     # @classmethod
     # def validate_interface(cls, value):
@@ -155,8 +159,16 @@ class Server(MlemABC, ABC, WithRequirements, _ServerOptions):
         return arg_serializers, returns
 
     def get_requirements(self) -> Requirements:
-        return super().get_requirements() + get_object_requirements(
-            [self.request_serializer, self.response_serializer, self.methods]
+        return (
+            super().get_requirements()
+            + get_object_requirements(
+                [
+                    self.request_serializer,
+                    self.response_serializer,
+                    self.methods,
+                ]
+            )
+            + self.middlewares.get_requirements()
         )
 
     def get_ports(self) -> List[int]:

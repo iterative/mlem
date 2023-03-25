@@ -62,6 +62,7 @@ class SageMakerServer(FastAPIServer):
             "invocations",
             interface.get_method_signature(self.method),
             interface.get_method_executor(self.method),
+            self.middlewares,
         )
         app.add_api_route(
             "/invocations",
