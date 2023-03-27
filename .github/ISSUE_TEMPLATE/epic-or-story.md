@@ -45,9 +45,9 @@ $ mapper-run task.tar.gz --ray-cluster <ip>:<port>
 ### Must have (p1)
 - [ ] subissue2
 - [ ] step 2
- - info
- - info
- 
+  - info
+  - info
+
 ### Optional / followup (p2)
 - [ ] ⌛ step 3 wip
 - [ ] step 4
