@@ -79,7 +79,9 @@ class K8sDeployment(
     templates_dir: List[str] = []
     """List of dirs where templates reside"""
     build_arg: List[str] = []
-    """Args to use at build time https://docs.docker.com/engine/reference/commandline/build/#build-arg"""
+    """ARG vars to use at build time https://docs.docker.com/engine/reference/commandline/build/#build-arg"""
+    set_env: List[str] = []
+    """ENV vars to set in the image https://docs.docker.com/engine/reference/builder/#env"""
 
     def load_kube_config(self):
         config.load_kube_config(
@@ -137,6 +139,7 @@ class K8sDeployment(
                     daemon=self.daemon,
                     server=self.get_server(),
                     build_arg=self.build_arg,
+                    set_env=self.set_env,
                 )
                 state.update_model(model)
                 redeploy = True

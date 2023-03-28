@@ -178,3 +178,11 @@ class ExtensionRequirementError(MlemError, ImportError):
         super().__init__(
             f"Extension '{ext}' requires additional dependencies: {extra_install}`pip install {reqs_str}`"
         )
+
+
+class EnvVarNotSet(MlemError):
+    def __init__(self, name: str):
+        self.name = name
+        super().__init__(
+            f'"{name}" was supposed to be read from shell/env vars, but was not found there'
+        )
