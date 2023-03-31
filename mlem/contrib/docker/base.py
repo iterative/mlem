@@ -27,7 +27,7 @@ from mlem.config import LOCAL_CONFIG, project_config
 from mlem.contrib.docker.context import (
     DockerBuildArgs,
     DockerModelDirectory,
-    get_build_args,
+    parse_envs,
 )
 from mlem.contrib.docker.utils import (
     build_image_with_logs,
@@ -596,7 +596,7 @@ class DockerImageBuilder(MlemBuilder, _DockerBuildMixin):
                     tag=tag,
                     rm=True,
                     platform=self.args.platform,
-                    buildargs=get_build_args(self.args.build_arg),
+                    buildargs=parse_envs(self.args.build_arg),
                 )
                 docker_image = DockerImage(**self.image.dict())
                 docker_image.image_id = image.id

@@ -118,6 +118,20 @@ class FlyioApp(MlemDeployment, FlyioSettings):
             if port:  # tell flyio to expose specific port
                 fly_toml = parse(state.fly_toml)
                 fly_toml["services"][0]["internal_port"] = port
+                if self.server and self.server.middlewares:
+                    # set fly to collect metrics from prometheus if exposed
+                    from mlem.contrib.prometheus import (  # noqa
+                        PrometheusFastAPIMiddleware,
+                    )
+
+                    if any(
+                        isinstance(m, PrometheusFastAPIMiddleware)
+                        for m in self.server.middlewares.__root__
+                    ):
+                        fly_toml["metrics"] = {
+                            "port": port,
+                            "path": "/metrics",
+                        }
                 state.fly_toml = fly_toml.as_string()
             status = get_status(workdir=tempdir)
             state.app_name = status.Name

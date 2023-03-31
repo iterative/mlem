@@ -20,6 +20,7 @@ from yaml import safe_dump
 
 import mlem
 from mlem.config import MlemConfigBase, project_config
+from mlem.core.errors import EnvVarNotSet
 from mlem.core.objects import MlemModel
 from mlem.core.requirements import Requirements, UnixPackageRequirement
 from mlem.runtime.server import Server
@@ -245,7 +246,9 @@ class DockerBuildArgs(BaseModel):
     platform: Optional[str] = None
     """platform to build docker for, see docs.docker.com/desktop/multi-arch/"""
     build_arg: List[str] = []
-    """args to use at build time https://docs.docker.com/engine/reference/commandline/build/#build-arg"""
+    """ARG vars to use at build time https://docs.docker.com/engine/reference/commandline/build/#build-arg"""
+    set_env: List[str] = []
+    """ENV vars to set in the image https://docs.docker.com/engine/reference/builder/#env"""
 
     def get_base_image(self):
         if self.base_image is None:
@@ -272,15 +275,18 @@ class DockerBuildArgs(BaseModel):
                     setattr(self, field, value)
 
 
-def get_build_args(build_arg) -> Dict[str, Optional[str]]:
-    args = {}
-    for arg in build_arg:
-        if "=" in arg:
-            key, value = arg.split("=", 1)
-            args[key] = os.getenv(arg) or value
+def parse_envs(names_values) -> Dict[str, str]:
+    envs = {}
+    for name in names_values:
+        if "=" in name:
+            name, value = name.split("=", 1)
+            envs[name] = os.getenv(name) or value
         else:
-            args[arg] = os.getenv(arg)
-    return args
+            value = os.getenv(name)
+            if value is None:
+                raise EnvVarNotSet(name)
+            envs[name] = value
+    return envs
 
 
 class DockerModelDirectory(BaseModel):
@@ -320,6 +326,8 @@ class DockerModelDirectory(BaseModel):
         ]
         if len(used_extensions) > 0:
             envs["MLEM_EXTENSIONS"] = ",".join(used_extensions)
+
+        envs.update(parse_envs(self.docker_args.set_env))
         return envs
 
     def get_python_version(self):
@@ -384,7 +392,7 @@ class DockerModelDirectory(BaseModel):
                 **self.docker_args.dict()
             ).generate(
                 env=env,
-                arg=get_build_args(self.docker_args.build_arg),
+                arg=parse_envs(self.docker_args.build_arg),
                 packages=[p.package_name for p in unix_packages or []],
             )
             df.write(dockerfile)
