@@ -34,6 +34,7 @@ class PrometheusFastAPIMiddleware(FastAPIMiddleware):
 
     def on_app_init(self, app: FastAPI):
         self.instrumentator.instrument(app)
+
         @app.on_event("startup")
         async def _startup():
             self.instrumentator.expose(app)
