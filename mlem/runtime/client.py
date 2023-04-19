@@ -3,6 +3,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Any, BinaryIO, Callable, ClassVar, Optional
+from urllib.parse import urljoin
 
 import requests
 from pydantic import BaseModel, parse_obj_as
@@ -180,7 +181,7 @@ class HTTPClient(Client):
         return f"{prefix}{self.host}"
 
     def _interface_factory(self) -> InterfaceDescriptor:
-        resp = requests.get(f"{self.base_url}/interface.json")
+        resp = requests.get(urljoin(self.base_url, "interface.json"))
         if resp.status_code != 200:
             try:
                 resp.raise_for_status()
@@ -193,7 +194,7 @@ class HTTPClient(Client):
     def _call_method(
         self, name: str, args: Any, return_raw: bool
     ):  # pylint: disable=R1710
-        ret = requests.post(f"{self.base_url}/{name}", json=args)
+        ret = requests.post(urljoin(self.base_url, name), json=args)
         if ret.status_code == 200:  # pylint: disable=R1705
             if return_raw:
                 return ret.content
@@ -205,7 +206,7 @@ class HTTPClient(Client):
         return None
 
     def _call_method_binary(self, name: str, arg: Any, return_raw: bool):
-        ret = requests.post(f"{self.base_url}/{name}", files={"file": arg})
+        ret = requests.post(urljoin(self.base_url, name), files={"file": arg})
         if ret.status_code == 200:  # pylint: disable=R1705
             if return_raw:
                 return ret.content  # TODO: change to buffer
