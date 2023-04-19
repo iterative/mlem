@@ -1,5 +1,6 @@
 import ast
 import builtins
+import importlib
 import inspect
 import io
 import logging
@@ -12,7 +13,7 @@ from collections import defaultdict
 from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Union
 
 import dill
 import requests
@@ -30,7 +31,6 @@ from mlem.core.requirements import (
     Requirements,
 )
 from mlem.polydantic.core import PolyModelMetaclass
-from mlem.utils import importing
 
 logger = logging.getLogger(__name__)
 
@@ -341,25 +341,29 @@ def get_local_module_reqs(mod) -> List[ModuleType]:
     except (OSError, TypeError):
         logger.debug("Failed to get source of %s", str(mod))
         return []
-    imports: List[Tuple[str, Optional[str]]] = []
+    imports: List[ModuleType] = []
     for statement in tree.body:
         if isinstance(statement, ast.Import):
-            imports += [(n.name, None) for n in statement.names]
+            imports += [
+                importlib.import_module(n.name, None) for n in statement.names
+            ]
         elif isinstance(statement, ast.ImportFrom):
             if statement.level == 0:
                 imp = (statement.module or "", None)
             else:
-                imp = ("." + (statement.module or ""), mod.__package__)
-            imports.append(imp)
+                imp = (
+                    "." * statement.level + (statement.module or ""),
+                    mod.__package__,
+                )
+            imports.append(importlib.import_module(*imp))
 
-    result = [importing.import_module(i, p) for i, p in imports]
     if mod.__file__.endswith("__init__.py"):
         # add loaded subpackages
         prefix = mod.__name__ + "."
-        result += [
+        imports += [
             mod for name, mod in sys.modules.items() if name.startswith(prefix)
         ]
-    return result
+    return imports
 
 
 def lstrip_lines(lines: Union[str, List[str]], check=True) -> str:
@@ -396,9 +400,9 @@ class ImportFromVisitor(ast.NodeVisitor):
         )
         if node.level == 0:
             # TODO: https://github.com/iterative/mlem/issues/33
-            mod = importing.import_module(node.module)  # type: ignore
+            mod = importlib.import_module(node.module)  # type: ignore
         else:
-            mod = importing.import_module(
+            mod = importlib.import_module(
                 "." + node.module,  # type: ignore
                 get_object_module(self.obj).__package__,  # type: ignore
             )
@@ -406,7 +410,7 @@ class ImportFromVisitor(ast.NodeVisitor):
 
     def visit_Import(self, node: ast.Import):  # noqa
         for name in node.names:
-            mod = importing.import_module(name.name)
+            mod = importlib.import_module(name.name)
             self.pickler.add_requirement(mod)
 
     def visit_Name(self, node: ast.Name):  # noqa
