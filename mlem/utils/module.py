@@ -1,6 +1,5 @@
 import ast
 import builtins
-import importlib
 import inspect
 import io
 import logging
@@ -31,6 +30,7 @@ from mlem.core.requirements import (
     Requirements,
 )
 from mlem.polydantic.core import PolyModelMetaclass
+from mlem.utils import importing
 
 logger = logging.getLogger(__name__)
 
@@ -345,7 +345,7 @@ def get_local_module_reqs(mod) -> List[ModuleType]:
     for statement in tree.body:
         if isinstance(statement, ast.Import):
             imports += [
-                importlib.import_module(n.name, None) for n in statement.names
+                importing.import_module(n.name, None) for n in statement.names
             ]
         elif isinstance(statement, ast.ImportFrom):
             if statement.level == 0:
@@ -355,7 +355,7 @@ def get_local_module_reqs(mod) -> List[ModuleType]:
                     "." * statement.level + (statement.module or ""),
                     mod.__package__,
                 )
-            imports.append(importlib.import_module(*imp))
+            imports.append(importing.import_module(*imp))
 
     if mod.__file__.endswith("__init__.py"):
         # add loaded subpackages
@@ -400,9 +400,9 @@ class ImportFromVisitor(ast.NodeVisitor):
         )
         if node.level == 0:
             # TODO: https://github.com/iterative/mlem/issues/33
-            mod = importlib.import_module(node.module)  # type: ignore
+            mod = importing.import_module(node.module)  # type: ignore
         else:
-            mod = importlib.import_module(
+            mod = importing.import_module(
                 "." + node.module,  # type: ignore
                 get_object_module(self.obj).__package__,  # type: ignore
             )
@@ -410,7 +410,7 @@ class ImportFromVisitor(ast.NodeVisitor):
 
     def visit_Import(self, node: ast.Import):  # noqa
         for name in node.names:
-            mod = importlib.import_module(name.name)
+            mod = importing.import_module(name.name)
             self.pickler.add_requirement(mod)
 
     def visit_Name(self, node: ast.Name):  # noqa
