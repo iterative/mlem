@@ -12,7 +12,7 @@ from collections import defaultdict
 from functools import lru_cache, wraps
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Union
 
 import dill
 import requests
@@ -341,25 +341,29 @@ def get_local_module_reqs(mod) -> List[ModuleType]:
     except (OSError, TypeError):
         logger.debug("Failed to get source of %s", str(mod))
         return []
-    imports: List[Tuple[str, Optional[str]]] = []
+    imports: List[ModuleType] = []
     for statement in tree.body:
         if isinstance(statement, ast.Import):
-            imports += [(n.name, None) for n in statement.names]
+            imports += [
+                importing.import_module(n.name, None) for n in statement.names
+            ]
         elif isinstance(statement, ast.ImportFrom):
             if statement.level == 0:
                 imp = (statement.module or "", None)
             else:
-                imp = ("." + (statement.module or ""), mod.__package__)
-            imports.append(imp)
+                imp = (
+                    "." * statement.level + (statement.module or ""),
+                    mod.__package__,
+                )
+            imports.append(importing.import_module(*imp))
 
-    result = [importing.import_module(i, p) for i, p in imports]
     if mod.__file__.endswith("__init__.py"):
         # add loaded subpackages
         prefix = mod.__name__ + "."
-        result += [
+        imports += [
             mod for name, mod in sys.modules.items() if name.startswith(prefix)
         ]
-    return result
+    return imports
 
 
 def lstrip_lines(lines: Union[str, List[str]], check=True) -> str:
