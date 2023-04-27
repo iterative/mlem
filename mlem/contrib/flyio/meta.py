@@ -44,7 +44,7 @@ class FlyioConfig(MlemConfigBase):
 
 class FlyioSettings(BaseModel):
     org: Optional[str] = None
-    """Organization name"""
+    """Organization slug (run `flyctl orgs list` to find out the right one)"""
     region: Optional[str] = None
     """Region name"""
 
