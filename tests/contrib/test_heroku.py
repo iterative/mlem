@@ -217,6 +217,7 @@ def no_heroku_env():
         HEROKU_CONFIG.API_KEY = conf_tmp
 
 
+@heroku
 def test_suggest_login(no_heroku_env, heroku_app_name, heroku_env):
     with pytest.raises(
         DeploymentError,

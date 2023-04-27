@@ -5,7 +5,7 @@ from mlem.constants import MLEM_CONFIG_FILE_NAME
 from mlem.contrib.fastapi import FastAPIServer
 from mlem.core.artifacts import FSSpecStorage, LocalStorage
 from mlem.core.meta_io import get_fs
-from tests.conftest import long
+from tests.conftest import long, need_aws_auth
 
 
 def test_loading_storage(set_mlem_project_root):
@@ -21,6 +21,7 @@ def test_loading_empty(set_mlem_project_root):
     assert isinstance(config.storage, LocalStorage)
 
 
+@need_aws_auth
 @long
 def test_loading_remote(s3_tmp_path, s3_storage_fs):
     project = s3_tmp_path("remote_conf")

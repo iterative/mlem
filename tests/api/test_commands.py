@@ -17,7 +17,7 @@ from mlem.core.metadata import load
 from mlem.core.model import ModelIO
 from mlem.core.objects import MAIN_PROCESSOR_NAME, MlemLink, MlemModel
 from mlem.runtime.client import HTTPClient
-from tests.conftest import MLEM_TEST_REPO, long
+from tests.conftest import MLEM_TEST_REPO, long, need_aws_auth
 
 IMPORT_MODEL_FILENAME = "mymodel"
 
@@ -120,6 +120,7 @@ def test_init(tmpdir):
 
 
 @long
+@need_aws_auth
 def test_init_remote(s3_tmp_path, s3_storage_fs):
     path = s3_tmp_path("init")
     init(path)
@@ -205,6 +206,7 @@ def test_import_model_pickle__no_copy_in_mlem_project(
 
 
 @long
+@need_aws_auth
 def test_import_model_pickle_remote(
     s3_tmp_path, s3_storage_fs, write_model_pickle, tmpdir, train
 ):
@@ -223,6 +225,7 @@ def test_import_model_pickle_remote(
 
 
 @long
+@need_aws_auth
 def test_import_model_pickle_remote_in_project(
     s3_tmp_path, s3_storage_fs, write_model_pickle, train
 ):
