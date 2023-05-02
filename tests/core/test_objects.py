@@ -32,6 +32,7 @@ from tests.conftest import (
     MLEM_TEST_REPO,
     flaky,
     long,
+    need_aws_auth,
     need_test_repo_auth,
     need_test_repo_ssh_auth,
 )
@@ -194,6 +195,7 @@ def test_model_cloning_to_project(model_single_path, mlem_project):
 
 
 @long
+@need_aws_auth
 def test_model_cloning_to_remote(model_path, s3_tmp_path, s3_storage_fs):
     model = load_meta(model_path)
     path = s3_tmp_path("model_cloning_to_remote")

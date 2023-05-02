@@ -10,10 +10,11 @@ from mlem.core.artifacts import (
     LocalArtifact,
     LocalStorage,
 )
-from tests.conftest import long, resource_path
+from tests.conftest import long, need_aws_auth, resource_path
 
 
 @long
+@need_aws_auth
 def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
     target = os.path.basename(s3_tmp_path("upload"))
     resource = resource_path(__file__, "file.txt")
@@ -30,6 +31,7 @@ def test_fsspec_backend_s3_upload(tmpdir, s3_tmp_path, s3_storage):
 
 
 @long
+@need_aws_auth
 def test_fsspec_backend_s3_open(s3_tmp_path, s3_storage):
     target = os.path.basename(s3_tmp_path("open"))
     with s3_storage.open(target) as (f, artifact):

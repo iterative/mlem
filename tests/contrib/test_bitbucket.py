@@ -19,7 +19,7 @@ MLEM_TEST_REPO_URI = f"https://bitbucket.org/{MLEM_TEST_REPO_PROJECT}"
 def fs_no_auth():
     username = os.environ.get("BITBUCKET_USERNAME", None)
     try:
-        del os.environ["BITBUCKET_USERNAME"]
+        os.environ.pop("BITBUCKET_USERNAME", None)
         yield BitBucketFileSystem(MLEM_TEST_REPO_PROJECT)
     finally:
         if username:

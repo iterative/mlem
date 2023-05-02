@@ -46,7 +46,7 @@ from mlem.core.metadata import load, save
 from mlem.core.model import Signature
 from mlem.core.objects import MlemData
 from mlem.utils.module import get_object_requirements
-from tests.conftest import data_write_read_check, long
+from tests.conftest import data_write_read_check, long, need_aws_auth
 
 PD_DATA_FRAME = pd.DataFrame(
     [
@@ -527,6 +527,7 @@ def test_import_data_stata(tmpdir, data):
 
 
 @long
+@need_aws_auth
 def test_import_data_csv_remote(s3_tmp_path, s3_storage_fs, write_csv):
     project_path = s3_tmp_path("test_csv_import")
     path = posixpath.join(project_path, "data.csv")

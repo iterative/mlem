@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable, Set, Type
 
+import boto3
 import git
 import numpy as np
 import pandas as pd
@@ -73,6 +74,11 @@ need_test_repo_auth = pytest.mark.skipif(
 need_test_repo_ssh_auth = pytest.mark.skipif(
     not _check_github_test_repo_ssh_auth(),
     reason="No ssh credentials for remote repo",
+)
+
+need_aws_auth = pytest.mark.skipif(
+    boto3.Session().get_credentials() is None,
+    reason="AWS credentials missing",
 )
 
 
