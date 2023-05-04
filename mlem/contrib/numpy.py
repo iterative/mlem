@@ -124,7 +124,10 @@ class NumpyNdarrayType(
     @classmethod
     def process(cls, obj, **kwargs) -> DataType:
         return NumpyNdarrayType(
-            shape=cls._abstract_shape(obj.shape), dtype=obj.dtype.name
+            shape=cls._abstract_shape(obj.shape)
+            if not kwargs.get("is_dynamic")
+            else tuple(None for _ in obj.shape),
+            dtype=obj.dtype.name,
         )
 
     @classmethod
@@ -259,3 +262,11 @@ class NumpyArrayReader(DataReader):
         self, artifacts: Artifacts, batch_size: int
     ) -> Iterator[DataType]:
         raise NotImplementedError
+
+
+def apply_shape_pattern(
+    abs_shape: Tuple[Optional[int], ...], shape: Tuple[int, ...]
+):
+    return tuple(
+        s if s is not None else shape[i] for i, s in enumerate(abs_shape)
+    )

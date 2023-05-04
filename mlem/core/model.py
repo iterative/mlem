@@ -131,7 +131,7 @@ class Argument(BaseModel):
                     f"auto_infer=True, but no value for {name} argument"
                 )
             type_ = DataAnalyzer.analyze(
-                defaults.get(name, call_kwargs.get(name))
+                call_kwargs.get(name, defaults.get(name))
             )
         else:
             type_ = UnspecifiedDataType()

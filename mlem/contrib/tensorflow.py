@@ -14,7 +14,10 @@ import tensorflow as tf
 from pydantic import conlist, create_model
 from tensorflow.python.keras.saving.saved_model_experimental import sequential
 
-from mlem.contrib.numpy import python_type_from_np_string_repr
+from mlem.contrib.numpy import (
+    apply_shape_pattern,
+    python_type_from_np_string_repr,
+)
 from mlem.core.artifacts import Artifacts, Storage
 from mlem.core.data_type import (
     DataHook,
@@ -60,7 +63,9 @@ class TFTensorDataType(
         return getattr(tf, self.dtype)
 
     def check_shape(self, tensor, exc_type):
-        if tuple(tensor.shape)[1:] != self.shape[1:]:
+        if tuple(tensor.shape) != apply_shape_pattern(
+            self.shape, tensor.shape
+        ):
             raise exc_type(
                 f"given tensor is of shape: {(None,) + tuple(tensor.shape)[1:]}, expected: {self.shape}"
             )
@@ -85,7 +90,9 @@ class TFTensorDataType(
     @classmethod
     def process(cls, obj: tf.Tensor, **kwargs) -> DataType:
         return TFTensorDataType(
-            shape=(None,) + tuple(obj.shape)[1:],
+            shape=(None,) + tuple(obj.shape)[1:]
+            if not kwargs.get("is_dynamic")
+            else tuple(None for _ in obj.shape),
             dtype=obj.dtype.name,
         )
 
