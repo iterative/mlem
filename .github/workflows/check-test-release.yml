@@ -99,6 +99,11 @@ jobs:
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         HEROKU_TEAM: iterative-sandbox
+    - name: Run Flyctl tests
+      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
+      run: |
+        curl -L https://fly.io/install.sh | sh
+        pytest -k 'flyctl'
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
