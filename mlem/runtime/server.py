@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import ClassVar, Dict, List, Optional, Set, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
 
 from pydantic import BaseModel
 
@@ -184,6 +184,7 @@ class ServerInterface(Interface):
     interface: Interface
     method_mapping: MethodMapping
     args_mapping: MethodArgsMapping
+    meta: Any
 
     @classmethod
     def create(cls, server: Server, interface: Interface):
@@ -200,12 +201,14 @@ class ServerInterface(Interface):
                 }
                 for m in methods
             }
+        meta = getattr(getattr(interface, "model", None), "params", None)
 
         return cls(
             options=server,
             interface=interface,
             method_mapping=methods,
             args_mapping=args,
+            meta=meta,
         )
 
     @classmethod

@@ -99,6 +99,7 @@ class VersionedInterfaceDescriptor(BaseModel):
     methods: InterfaceDescriptor
     version: str = mlem.version.__version__
     """mlem version"""
+    meta: Any
 
 
 class Interface(ABC, MlemABC):
@@ -111,6 +112,7 @@ class Interface(ABC, MlemABC):
         type_root = True
 
     abs_name: ClassVar[str] = "interface"
+    meta: Any
 
     @abstractmethod
     def get_method_executor(self, method_name: str):
@@ -203,7 +205,9 @@ class Interface(ABC, MlemABC):
 
     def get_versioned_descriptor(self) -> VersionedInterfaceDescriptor:
         return VersionedInterfaceDescriptor(
-            version=mlem.__version__, methods=self.get_descriptor()
+            version=mlem.__version__,
+            methods=self.get_descriptor(),
+            meta=self.meta,
         )
 
 
@@ -267,7 +271,7 @@ def _check_no_signature(data):
 
 
 class ModelInterface(Interface):
-    """Interface that descibes model methods"""
+    """Interface that describes model methods"""
 
     type: ClassVar[str] = "model"
     model: MlemModel
