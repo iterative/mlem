@@ -145,6 +145,20 @@ def test_endpoint(f_client, f_interface: Interface, create_mlem_client, train):
     assert response.json() == [0] * 50 + [1] * 50 + [2] * 50
 
 
+def test_params_exposed_to_interface():
+    model = MlemModel.from_obj(
+        lambda x: x, sample_data="sample", params={"a": "b"}
+    )
+    interface = ModelInterface.from_model(model)
+
+    app = FastAPIServer().app_init(interface)
+    client = TestClient(app)
+
+    docs = client.get("/interface.json")
+    assert docs.status_code == 200, docs.json()
+    assert docs.json()["meta"] == {"a": "b"}
+
+
 @pytest.mark.parametrize(
     "data",
     [

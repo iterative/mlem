@@ -358,3 +358,6 @@ class ModelInterface(Interface):
             a.name: a.type_
             for a in self.model.model_type.methods[method_name].args
         }
+
+    def get_model_meta(self):
+        return self.model.params
