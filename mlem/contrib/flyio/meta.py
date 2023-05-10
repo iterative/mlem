@@ -110,8 +110,6 @@ class FlyioApp(MlemDeployment, FlyioSettings):
                 args["generate-name"] = True
             if self.get_env().access_token:
                 args["access-token"] = self.get_env().access_token
-            if self.org:
-                args["org"] = self.org
             run_flyctl("launch", workdir=tempdir, kwargs=args)
             state.fly_toml = read_fly_toml(tempdir)
             port = getattr(self.server, "port", None) or getattr(

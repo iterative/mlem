@@ -112,7 +112,6 @@ class Interface(ABC, MlemABC):
         type_root = True
 
     abs_name: ClassVar[str] = "interface"
-    meta: Any
 
     @abstractmethod
     def get_method_executor(self, method_name: str):
@@ -203,11 +202,14 @@ class Interface(ABC, MlemABC):
             }
         )
 
+    def get_model_meta(self):
+        return None
+
     def get_versioned_descriptor(self) -> VersionedInterfaceDescriptor:
         return VersionedInterfaceDescriptor(
             version=mlem.__version__,
             methods=self.get_descriptor(),
-            meta=self.meta,
+            meta=self.get_model_meta(),
         )
 
 
