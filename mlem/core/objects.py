@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import hashlib
 import itertools
+import json
 import os
 import posixpath
 import time
@@ -50,6 +51,7 @@ from mlem.core.errors import (
     MlemError,
     MlemObjectNotFound,
     MlemObjectNotSavedError,
+    SerializationError,
     WrongABCType,
     WrongMetaSubType,
     WrongMetaType,
@@ -91,8 +93,18 @@ class MlemObject(MlemABC):
     object_type: ClassVar[str]
     location: Optional[Location] = None
     """MlemObject location [transient]"""
-    params: Dict[str, str] = {}
+    params: Dict[str, Any] = {}
     """Arbitrary map of additional parameters"""
+
+    @validator("params")
+    def params_are_serializable(  # pylint: disable=no-self-argument
+        cls, value  # noqa: B902
+    ):
+        try:
+            json.dumps(value)
+        except TypeError as e:
+            raise SerializationError(f"Can't serialize object: {value}") from e
+        return value
 
     @property
     def loc(self) -> Location:
@@ -751,7 +763,7 @@ class MlemModel(_WithArtifacts):
         model: Any,
         sample_data: Any = None,
         methods_sample_data: Dict[str, Any] = None,
-        params: Dict[str, str] = None,
+        params: Dict[str, Any] = None,
         preprocess: Union[Any, Dict[str, Any]] = None,
         postprocess: Union[Any, Dict[str, Any]] = None,
     ) -> "MlemModel":
@@ -931,7 +943,7 @@ class MlemData(_WithArtifacts):
     def from_data(
         cls,
         data: Any,
-        params: Dict[str, str] = None,
+        params: Dict[str, Any] = None,
     ) -> "MlemData":
         data_type = DataType.create(
             data,

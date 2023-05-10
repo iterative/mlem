@@ -3,6 +3,7 @@ import posixpath
 import shutil
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -16,7 +17,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from mlem.api import init
 from mlem.contrib.heroku.meta import HerokuEnv
-from mlem.core.errors import InvalidArgumentError
+from mlem.core.errors import InvalidArgumentError, SerializationError
 from mlem.core.meta_io import MLEM_EXT
 from mlem.core.metadata import (
     list_objects,
@@ -42,9 +43,16 @@ from tests.conftest import (
 @pytest.mark.parametrize("obj", [lazy_fixture("model"), lazy_fixture("train")])
 def test_save_with_meta_fields(obj, tmpdir):
     path = str(tmpdir / "obj")
-    save(obj, path, params={"a": "b"})
+    save(obj, path, params={"a": {"b": ["c", "d", 1]}})
     new = load_meta(path)
-    assert new.params == {"a": "b"}
+    assert new.params == {"a": {"b": ["c", "d", 1]}}
+
+
+@pytest.mark.parametrize("obj", [lazy_fixture("model")])
+def test_save_with_meta_fields_fails(obj, tmpdir):
+    path = str(tmpdir / "obj")
+    with pytest.raises(SerializationError):
+        save(obj, path, params={"a": datetime.now()})
 
 
 def test_saving_with_project(model, tmpdir):
