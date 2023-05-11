@@ -110,7 +110,7 @@ jobs:
       uses: medyagh/setup-minikube@master
     - name: Run tests
       timeout-minutes: 40
-      run: pytest -k 'not heroku and not flyctl'
+      run: pytest -k 'not heroku and not flyio'
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
