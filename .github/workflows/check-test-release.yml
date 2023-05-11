@@ -99,17 +99,18 @@ jobs:
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         HEROKU_TEAM: iterative-sandbox
-    - name: Run Flyctl tests
+    - name: Setup Flyio
+      uses: superfly/flyctl-actions/setup-flyctl@master
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
-      run: |
-        curl -L https://fly.io/install.sh | sh
-        pytest -k 'flyctl'
+    - name: Run Flyio tests
+      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
+      run: pytest -k 'flyio'
     - name: Start minikube
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
     - name: Run tests
       timeout-minutes: 40
-      run: pytest -k 'not heroku'
+      run: pytest -k 'not heroku and not flyio'
       env:
         GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

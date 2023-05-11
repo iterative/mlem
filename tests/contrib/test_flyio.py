@@ -5,7 +5,7 @@ from mlem.contrib.flyio.meta import FlyioApp
 from mlem.contrib.flyio.utils import FlyioStatusModel
 
 
-def test_create_app(tmp_path: Path):
+def test_flyio_create_app(tmp_path: Path):
     flyio_app = FlyioApp(org="org", app_name="test")
     flyio_app.dump(str(tmp_path))
     state = flyio_app.get_state()
