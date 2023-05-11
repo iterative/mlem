@@ -26,6 +26,7 @@ def test_flyio_create_app(tmp_path: Path):
         workdir=ANY,
         kwargs={
             "auto-confirm": True,
+            "reuse-app": True,
             "region": "lax",
             "no-deploy": True,
             "name": "test",

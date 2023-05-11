@@ -99,6 +99,7 @@ class FlyioApp(MlemDeployment, FlyioSettings):
         ) as tempdir:
             args = {
                 "auto-confirm": True,
+                "reuse-app": True,
                 "region": self.region
                 or self.get_env().region
                 or project_config("", section=FlyioConfig).region,
