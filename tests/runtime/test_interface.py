@@ -70,6 +70,7 @@ def test_interface_descriptor__to_dict(interface: Interface):
 
     assert d.dict() == {
         "version": mlem.__version__,
+        "meta": None,
         "methods": {
             "method1": {
                 "args": [

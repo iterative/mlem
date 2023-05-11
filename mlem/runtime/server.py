@@ -335,3 +335,6 @@ class ServerInterface(Interface):
             ],
             returns=self._get_response(method_name, signature.returns),
         )
+
+    def get_model_meta(self):
+        return getattr(getattr(self.interface, "model", None), "params", None)

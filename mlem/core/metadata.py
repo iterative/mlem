@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 def get_object_metadata(
     obj: Any,
     sample_data=None,
-    params: Dict[str, str] = None,
+    params: Dict[str, Any] = None,
     preprocess: Union[Any, Dict[str, Any]] = None,
     postprocess: Union[Any, Dict[str, Any]] = None,
 ) -> Union[MlemData, MlemModel]:
@@ -97,7 +97,7 @@ def save(
     project: Optional[str] = None,
     sample_data=None,
     fs: Optional[AbstractFileSystem] = None,
-    params: Dict[str, str] = None,
+    params: Dict[str, Any] = None,
     preprocess: Union[Any, Dict[str, Any]] = None,
     postprocess: Union[Any, Dict[str, Any]] = None,
 ) -> MlemObject:
