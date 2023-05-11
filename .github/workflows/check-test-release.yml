@@ -77,7 +77,7 @@ jobs:
     - name: Install Mac-specific dependencies
       if: matrix.os == 'macos-latest'
       run: |
-        brew install hdf5 wget c-blosc
+        brew install hdf5 wget c-blosc ninja
         wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
         brew install ./libomp.rb
     - name: Install
