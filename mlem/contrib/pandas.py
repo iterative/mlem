@@ -270,6 +270,8 @@ class SeriesType(WithDefaultSerializer, _PandasDataType):
             ext = ext.lstrip(".")
             if ext in PANDAS_SERIES_FORMATS:
                 fmt = ext
+            elif ext in ["xls", "xlsx"]:
+                fmt = "excel"
         return PandasSeriesWriter(format=fmt)
 
 
@@ -367,6 +369,8 @@ class DataFrameType(WithDefaultSerializer, _PandasDataType):
             ext = ext.lstrip(".")
             if ext in PANDAS_FORMATS:
                 fmt = ext
+            elif ext in ["xls", "xlsx"]:
+                fmt = "excel"
         return PandasWriter(format=fmt)
 
 
