@@ -1,4 +1,5 @@
 import json
+import logging
 import os.path
 import subprocess
 from typing import Any, Dict
@@ -10,9 +11,20 @@ from mlem.core.errors import DeploymentError
 FLY_TOML = "fly.toml"
 
 
+logger = logging.getLogger(__name__)
+
+
 def check_flyctl_exec():
     try:
-        run_flyctl("version", wrap_error=False)
+        cmd = run_flyctl("version --json", wrap_error=False)
+        output = json.loads(cmd.decode())
+        version = output.get("Version", None)
+        if not version or version.split(".")[1] != "1":
+            logger.warning(
+                "If flyio deployment is causing problems, the `flyctl` version may be the cause. "
+                f"You have {version} installed. Try to install `flyctl` 0.1.x."
+            )
+        return output
     except subprocess.SubprocessError as e:
         raise DeploymentError(
             "flyctl executable is not available. Please install it using <https://fly.io/docs/hands-on/install-flyctl/>"

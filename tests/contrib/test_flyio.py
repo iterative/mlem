@@ -2,7 +2,15 @@ from pathlib import Path
 from unittest.mock import ANY, patch
 
 from mlem.contrib.flyio.meta import FlyioApp
-from mlem.contrib.flyio.utils import FlyioStatusModel
+from mlem.contrib.flyio.utils import FlyioStatusModel, check_flyctl_exec
+
+
+def test_check_flyctl_exec():
+    output = check_flyctl_exec()
+    version = output["Version"]
+    assert (
+        version.split(".")[1] == "1"
+    ), f"flyctl version was bumped ({version} now), this may cause problems with deployment"
 
 
 def test_flyio_create_app(tmp_path: Path):
