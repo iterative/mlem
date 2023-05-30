@@ -565,6 +565,12 @@ class RequirementAnalyzer(dill.Pickler):
         )
 
     def add_requirement(self, obj_or_module):
+        # if callable(obj_or_module):
+        # from sklearn.preprocessing import FunctionTransformer
+        # from sklearn.pipeline import Pipeline
+        # if isinstance(obj_or_module, Pipeline):
+        #     import ipdb; ipdb.set_trace()
+
         if not isinstance(obj_or_module, ModuleType):
             try:
                 module = get_object_module(obj_or_module)
