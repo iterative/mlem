@@ -91,7 +91,7 @@ extras = {
     "docker": ["docker"],
     "heroku": ["docker", "fastapi", "uvicorn"],
     "kubernetes": ["docker", "kubernetes"],
-    "dvc": ["dvc~=2.0"],
+    "dvc": ["dvc~=3.1"],
     "git": ["pygit2"],
     "flyio": ["docker", "fastapi", "uvicorn", "tomlkit"],
     "torchvision": ["torchvision"],
