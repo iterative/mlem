@@ -3,6 +3,7 @@ import posixpath
 import lightgbm as lgb
 import numpy as np
 import pytest
+from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -52,6 +53,13 @@ def regressor(inp_data, out_data):
     lr = LinearRegression()
     lr.fit(inp_data, out_data)
     return lr
+
+
+@pytest.fixture
+def outlier(inp_data):
+    model = IsolationForest()
+    model.fit(inp_data)
+    return model
 
 
 @pytest.fixture
@@ -195,7 +203,9 @@ def test_hook_lgb(lgbm_model, inp_data):
     assert signature.returns == returns
 
 
-@pytest.mark.parametrize("model", ["classifier", "regressor", "pipeline"])
+@pytest.mark.parametrize(
+    "model", ["classifier", "regressor", "pipeline", "outlier"]
+)
 def test_model_type__predict(model, inp_data, request):
     model = request.getfixturevalue(model)
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)
@@ -221,7 +231,14 @@ def test_model_type__reg_predict_proba(regressor, inp_data):
         model_type.call_method("predict_proba", inp_data)
 
 
-@pytest.mark.parametrize("model", ["classifier", "regressor"])
+def test_model_type__outlier_predict_proba(outlier, inp_data):
+    model_type = ModelAnalyzer.analyze(outlier, sample_data=inp_data)
+
+    with pytest.raises(ValueError):
+        model_type.call_method("predict_proba", inp_data)
+
+
+@pytest.mark.parametrize("model", ["classifier", "regressor", "outlier"])
 def test_model_type__dump_load(tmpdir, model, inp_data, request):
     model = request.getfixturevalue(model)
     model_type = ModelAnalyzer.analyze(model, sample_data=inp_data)

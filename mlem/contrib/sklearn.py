@@ -6,7 +6,7 @@ ModelType implementations for any sklearn-compatible classes as well as `Pipelin
 from typing import Any, ClassVar, Dict, List, Optional, Union
 
 import sklearn
-from sklearn.base import ClassifierMixin, RegressorMixin
+from sklearn.base import ClassifierMixin, OutlierMixin, RegressorMixin
 from sklearn.feature_extraction.text import TransformerMixin, _VectorizerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing._encoders import _BaseEncoder
@@ -28,7 +28,7 @@ class SklearnModel(ModelType, ModelHook, IsInstanceHookMixin):
     """ModelType implementation for `scikit-learn` models"""
 
     type: ClassVar[str] = "sklearn"
-    valid_types: ClassVar = (RegressorMixin, ClassifierMixin)
+    valid_types: ClassVar = (RegressorMixin, ClassifierMixin, OutlierMixin)
 
     io: ModelIO = SimplePickleIO()
     """IO"""
