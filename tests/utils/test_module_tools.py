@@ -1,6 +1,7 @@
 import os
 import subprocess
 from typing import ClassVar
+import regex
 
 import nbformat
 import numpy
@@ -220,11 +221,11 @@ def test_get_requirements_notebook():
 
     loaded_notebook = Notebook(TEST_NOTEBOOK_NAME)
 
-    kek = loaded_notebook.run_all()
-    res = kek.ns["res"]
+    notebook = loaded_notebook.run_all()
+    res = notebook.ns["res"]
 
     assert isinstance(res, Requirements)
-    assert res.modules == ["numpy"]
+    assert sorted(res.modules) == sorted(["regex", "numpy"])
 
 
 def _run_jup(command):
@@ -249,7 +250,9 @@ def test_get_requirements_notebook_run():
     with open(TEST_NOTEBOOK_NAME, encoding="utf8") as f:
         nb = nbformat.read(f, as_version=4)
 
-    assert nb["cells"][1]["outputs"][0].text.strip() == get_module_repr(numpy)
+    res = nb["cells"][1]["outputs"][0].text.strip()
+    assert get_module_repr(numpy) in res
+    assert get_module_repr(regex) in res
 
 
 # Copyright 2019 Zyfra

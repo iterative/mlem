@@ -8,6 +8,7 @@ import re
 import sys
 import threading
 import warnings
+import importlib.metadata
 from collections import defaultdict
 from functools import lru_cache, wraps
 from pickle import PickleError
@@ -249,15 +250,22 @@ def get_module_version(mod: ModuleType) -> Optional[str]:
     :param mod: module object to use
     :return: version as `str` or `None` if version could not be determined
     """
-    for attr in "__version__", "VERSION":
-        if hasattr(mod, attr):
-            return str(getattr(mod, attr))
-    if mod.__file__ is None:
-        return None
-    for name in os.listdir(os.path.dirname(mod.__file__)):
-        m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
-        if m:
-            return m.group(1)
+    # try using importlib package -> distro mapping and distro metadata
+    package_to_distros = packages_distributions()
+    try:
+        if mod.__name__ in package_to_distros:
+            for distro_name in package_to_distros[mod.__name__]:
+                distro = importlib.metadata.distribution(distro_name)
+                return distro.version
+    except importlib.metadata.PackageNotFoundError:
+        pass
+
+    # if there's a package-file, try to get it from there
+    if mod.__file__ is not None:
+        for name in os.listdir(os.path.dirname(mod.__file__)):
+            m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
+            if m:
+                return m.group(1)
     return None
 
 
@@ -502,7 +510,7 @@ def save_type_with_classvars(pickler: "RequirementAnalyzer", obj):
 
 class RequirementAnalyzer(dill.Pickler):
     """Special pickler implementation that collects requirements while pickling
-    (and not pickling actualy)"""
+    (and not actually pickling)"""
 
     ignoring = (
         "dill",
