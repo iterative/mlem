@@ -1,11 +1,11 @@
 import os
 import subprocess
 from typing import ClassVar
-import regex
 
 import nbformat
 import numpy
 import pytest
+import regex
 from pydantic import BaseModel
 
 from mlem.core.requirements import Requirements

@@ -8,9 +8,9 @@ import re
 import sys
 import threading
 import warnings
-from importlib.metadata import distribution, PackageNotFoundError
 from collections import defaultdict
 from functools import lru_cache, wraps
+from importlib.metadata import PackageNotFoundError, distribution
 from pickle import PickleError
 from types import FunctionType, LambdaType, MethodType, ModuleType
 from typing import Dict, List, Optional, Set, Union

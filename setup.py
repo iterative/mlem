@@ -59,7 +59,7 @@ tests = [
     "nbloader",
     # We're using regex to test requirement version extraction
     # edge case, see: https://github.com/iterative/mlem/issues/688
-    'regex==2023.6.3',
+    "regex==2023.6.3",
 ]
 
 extras = {
@@ -78,7 +78,7 @@ extras = {
     "lightgbm": ["lightgbm"],
     "fastapi": ["uvicorn", "fastapi"],
     "prometheus": ["prometheus-fastapi-instrumentator"],
-    "streamlit": ["uvicorn", "fastapi", "streamlit>=1.14.0", "streamlit_pydantic"],
+    "streamlit": ["uvicorn", "fastapi", "streamlit", "streamlit_pydantic"],
     "sagemaker": ["docker", "boto3", "sagemaker"],
     "torch": ["torch"],
     "tensorflow": ["tensorflow"],
