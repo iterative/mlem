@@ -8,7 +8,7 @@ import re
 import sys
 import threading
 import warnings
-import importlib.metadata
+from importlib.metadata import distribution, PackageNotFoundError
 from collections import defaultdict
 from functools import lru_cache, wraps
 from pickle import PickleError
@@ -255,9 +255,9 @@ def get_module_version(mod: ModuleType) -> Optional[str]:
     try:
         if mod.__name__ in package_to_distros:
             for distro_name in package_to_distros[mod.__name__]:
-                distro = importlib.metadata.distribution(distro_name)
+                distro = distribution(distro_name)
                 return distro.version
-    except importlib.metadata.PackageNotFoundError:
+    except PackageNotFoundError:
         pass
 
     # if there's a package-file, try to get it from there
