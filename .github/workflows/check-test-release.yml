@@ -36,6 +36,8 @@ jobs:
       with:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
+    - name: Freeing up disk space
+      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
     - uses: actions/setup-python@v4
       with:
         python-version: '3.x'
