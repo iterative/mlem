@@ -24,7 +24,6 @@ jobs:
     steps:
     - run: echo ✓
   check:
-    needs: authorize
     name: Check
     runs-on: ubuntu-latest
     steps:
@@ -49,8 +48,8 @@ jobs:
         key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
     - run: pip install -U pre-commit tox
     - run: SKIP=pylint pre-commit run -a --show-diff-on-failure
-  test:
-    needs: authorize
+  test-short:
+    needs: check
     name: Test ${{ matrix.os }} with py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -91,6 +90,40 @@ jobs:
         pip install pre-commit .[tests]
     - if: contains(matrix.os, 'ubuntu') && matrix.python == '3.10'
       run: pre-commit run pylint -a -v --show-diff-on-failure
+    - name: Run short tests
+      timeout-minutes: 40
+      run: pytest -k 'not heroku and not flyio'
+      env:
+        GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        GITHUB_MATRIX_OS: ${{ matrix.os }}
+        GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
+        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
+        BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
+    - name: "Upload coverage to Codecov"
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+  test-framework:
+    needs: [authorize, test-short]
+    name: Test ${{ matrix.os }} with py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.8", "3.9", "3.10"]
+        exclude:
+        # no HDF5 support installed for tables
+        - os: windows-latest
+          python: "3.9"
+        # catboost building problems
+        - os: macos-latest
+          python: "3.8"
+      fail-fast: false
+    steps:
     - name: Run Heroku tests
       if: |
         contains(matrix.os, 'ubuntu') &&
@@ -113,26 +146,9 @@ jobs:
     - name: Start minikube
       if: contains(matrix.os, 'ubuntu') && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
-    - name: Run tests
-      timeout-minutes: 40
-      run: pytest -k 'not heroku and not flyio'
-      env:
-        GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        GITHUB_MATRIX_OS: ${{ matrix.os }}
-        GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
-        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
-        BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
-    - name: "Upload coverage to Codecov"
-      uses: codecov/codecov-action@v3
-      with:
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
   deploy:
     name: PyPI Deploy
-    needs: [check, test]
+    needs: [check, test-short, test-framework]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
