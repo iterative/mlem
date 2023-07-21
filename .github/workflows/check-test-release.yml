@@ -89,11 +89,11 @@ jobs:
       run: |
         pip install --upgrade pip setuptools wheel
         pip install pre-commit .[tests]
-    - if: matrix.os == 'ubuntu-latest' && matrix.python == '3.10'
+    - if: contains(matrix.os, 'ubuntu') && matrix.python == '3.10'
       run: pre-commit run pylint -a -v --show-diff-on-failure
     - name: Run Heroku tests
       if: |
-        matrix.os == 'ubuntu-latest' &&
+        contains(matrix.os, 'ubuntu') &&
         matrix.python == '3.8' &&
         (
           github.event_name == 'schedule' ||
@@ -106,12 +106,12 @@ jobs:
         HEROKU_TEAM: iterative-sandbox
     - name: Setup Flyio
       uses: superfly/flyctl-actions/setup-flyctl@master
-      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
+      if: contains(matrix.os, 'ubuntu') && matrix.python == '3.9'
     - name: Run Flyio tests
-      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
+      if: contains(matrix.os, 'ubuntu') && matrix.python == '3.9'
       run: pytest -k 'flyio'
     - name: Start minikube
-      if: matrix.os == 'ubuntu-latest' && matrix.python == '3.9'
+      if: contains(matrix.os, 'ubuntu') && matrix.python == '3.9'
       uses: medyagh/setup-minikube@master
     - name: Run tests
       timeout-minutes: 40
