@@ -261,7 +261,7 @@ def get_module_version(mod: ModuleType) -> Optional[str]:
         pass
 
     # if there's a package-file, try to get it from there
-    if mod.__file__ is not None:
+    if mod.__file__ is not None:  # pragma: no branch
         for name in os.listdir(os.path.dirname(mod.__file__)):
             m = re.match(re.escape(mod.__name__) + "-(.+)\\.dist-info", name)
             if m:
