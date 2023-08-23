@@ -7,7 +7,7 @@ install_requires = [
     "dill",
     "requests",
     "isort>=5.10",
-    "pydantic>=1.9.0,<2",
+    "pydantic>=2.3,<3",
     "typer",
     "click<8.2",
     "rich",
