@@ -133,6 +133,10 @@ jobs:
   deploy:
     name: PyPI Deploy
     needs: [check, test]
+    environment: pypi
+    permissions:
+      contents: write
+      id-token: write
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -146,8 +150,9 @@ jobs:
       uses: casperdcl/deploy-pypi@v2
       with:
         build: true
-        password: ${{ secrets.PYPI_TOKEN }}
-        upload: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags') }}
+        upload: false
+    - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@release/v1
     - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
       name: Release
       run: |
