@@ -67,7 +67,7 @@ extras = {
     "scipy": ["scipy"],
     "onnx": ["onnx"],
     "onnxruntime": [
-        "protobuf==3.20.1",
+        "protobuf==4.24.3",
         "onnxruntime<1.14",
     ],  # TODO - see if it can be merged with onnx
     "catboost": ["catboost"],
