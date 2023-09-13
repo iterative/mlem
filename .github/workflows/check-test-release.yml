@@ -117,13 +117,13 @@ jobs:
       timeout-minutes: 40
       run: pytest -k 'not heroku and not flyio'
       env:
-        GITHUB_USERNAME: ${{ secrets.GH_USERNAME }}
+        GITHUB_USERNAME: ${{ vars.GH_USERNAME }}
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         GITHUB_MATRIX_OS: ${{ matrix.os }}
         GITHUB_MATRIX_PYTHON: ${{ matrix.python }}
-        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
+        BITBUCKET_USERNAME: ${{ vars.BITBUCKET_USERNAME }}
         BITBUCKET_PASSWORD: ${{ secrets.BITBUCKET_PASSWORD }}
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v3
