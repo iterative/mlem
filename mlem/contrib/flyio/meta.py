@@ -113,28 +113,35 @@ class FlyioApp(MlemDeployment, FlyioSettings):
                 args["access-token"] = self.get_env().access_token
             if self.org:
                 args["org"] = self.org
+            port = getattr(self.server, "ui_port", None) or self.server.port
+            if port:
+                args["internal-port"] = port
             run_flyctl("launch", workdir=tempdir, kwargs=args)
             state.fly_toml = read_fly_toml(tempdir)
-            port = getattr(self.server, "port", None) or getattr(
-                self.server, "ui_port", None
-            )
-            if port:  # tell flyio to expose specific port
+            if getattr(self.server, "server_port", None):
                 fly_toml = parse(state.fly_toml)
-                fly_toml["services"][0]["internal_port"] = port
-                if self.server and self.server.middlewares:
-                    # set fly to collect metrics from prometheus if exposed
-                    from mlem.contrib.prometheus import (  # noqa
-                        PrometheusFastAPIMiddleware,
-                    )
+                fly_toml["services.ports"] = {
+                    "handlers": ["http"],
+                    "port": self.server.server_port,
+                    "force_https": True,
+                }
+                state.fly_toml = fly_toml.as_string()
+            if getattr(self.server, "middlewares", None):
+                # set fly to collect metrics from prometheus if exposed
+                fly_toml = parse(state.fly_toml)
+                from mlem.contrib.prometheus import (  # noqa
+                    PrometheusFastAPIMiddleware,
+                )
 
-                    if any(
-                        isinstance(m, PrometheusFastAPIMiddleware)
-                        for m in self.server.middlewares.__root__
-                    ):
-                        fly_toml["metrics"] = {
-                            "port": port,
-                            "path": "/metrics",
-                        }
+                if any(
+                    isinstance(m, PrometheusFastAPIMiddleware)
+                    for m in self.server.middlewares.__root__
+                ):
+                    fly_toml["metrics"] = {
+                        "port": getattr(self.server, "server_port", None)
+                        or self.server.port,
+                        "path": "/metrics",
+                    }
                 state.fly_toml = fly_toml.as_string()
             status = get_status(workdir=tempdir)
             state.app_name = status.Name

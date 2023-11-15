@@ -145,7 +145,9 @@ def create_deploy_run_command(type_name):
                 if not meta.is_state_empty:
                     if not force:
                         raise DeploymentError(
-                            f"Different deployment meta already exists at {meta.loc}. Please use `mlem deployment run --load <path> ...`"
+                            f"The deployment file you specified ('{meta.loc.basename}') already describes a different deployment."
+                            " Please add `--force` to overwrite it,"
+                            " or use `mlem deployment run --load <path> ...` to reuse it."
                         )
                     echo(
                         EMOJI_STOP
