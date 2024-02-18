@@ -67,7 +67,7 @@ class Hook(ABC, Generic[T]):
                 )
         else:
             logger.debug(
-                "Not registerting %s to any Analyzer because it's an abstract class",
+                "Not registering %s to any Analyzer because it's an abstract class",
                 cls.__name__,
             )
         super(Hook, cls).__init_subclass__(*args, **kwargs)

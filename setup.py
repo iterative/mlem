@@ -57,6 +57,9 @@ tests = [
     "jupyter",
     "nbconvert",
     "nbloader",
+    # We're using regex to test requirement version extraction
+    # edge case, see: https://github.com/iterative/mlem/issues/688
+    "regex==2023.6.3",
 ]
 
 extras = {
