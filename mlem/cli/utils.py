@@ -536,6 +536,7 @@ def _option_from_field(
         else NOT_SET,
         help=field.help,
         show_default=not field.required,
+        is_flag=type_ is bool,
     )
     option.name = path
     return option
