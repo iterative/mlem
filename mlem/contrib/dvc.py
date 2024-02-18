@@ -21,6 +21,7 @@ from mlem.core.artifacts import (
     get_local_file_info,
 )
 from mlem.core.meta_io import get_fs
+from mlem.core.registry import ArtifactInRegistry
 
 BATCH_SIZE = 10**5
 
@@ -32,7 +33,7 @@ def find_dvc_repo_root(path: str):
     while True:
         if os.path.isdir(os.path.join(_path, ".dvc")):
             return _path
-        if _path == "/":
+        if _path == "/" or not _path:
             break
         _path = os.path.dirname(_path)
     raise NotDvcRepoError(f"Path {path} is not in dvc repo")
@@ -118,3 +119,43 @@ class DVCArtifact(LocalArtifact):
     def relative(self, fs: AbstractFileSystem, path: str) -> "DVCArtifact":
         relative = super().relative(fs, path)
         return DVCArtifact(uri=relative.uri, size=self.size, hash=self.hash)
+
+
+def find_artifact_name_by_path(path):
+    if not os.path.abspath(path):
+        raise ValueError(f"Path {path} is not absolute")
+
+    from dvc.repo import Repo
+
+    root = find_dvc_repo_root(path)
+    relpath = os.path.relpath(path, root)
+    if relpath.endswith(".mlem"):
+        relpath = relpath[:-5]
+    repo = Repo(root)
+    for _dvcyaml, artifacts in repo.artifacts.read().items():
+        for name, value in artifacts.items():
+            if value.path == relpath:
+                return root, name
+    return root, None
+
+
+def find_version(root, name):
+    from gto.api import _show_versions
+
+    version = _show_versions(root, name, ref="HEAD")
+    if version:
+        return version[0]["version"]
+
+
+class DVCArtifactInRegistry(ArtifactInRegistry):
+    """Artifact registered within an Artifact Registry."""
+
+    type: ClassVar = "dvc"
+    uri: str
+    """Local path to file"""
+
+    @property
+    def version(self):
+        root, name = find_artifact_name_by_path(self.uri)
+        if name:
+            return find_version(root, name)

@@ -338,3 +338,6 @@ class ServerInterface(Interface):
 
     def get_model_meta(self):
         return getattr(getattr(self.interface, "model", None), "params", None)
+
+    def get_model_version(self):
+        return self.interface.model_version

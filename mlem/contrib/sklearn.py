@@ -103,6 +103,11 @@ class SklearnPipelineType(SklearnModel):
         methods_sample_data: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> ModelType:
+        if not hasattr(obj, "predict"):
+            # assuming the Pipeline has only transform steps
+            return SklearnTransformer.process(
+                obj, sample_data, methods_sample_data, **kwargs
+            )
         methods_sample_data = methods_sample_data or {}
         mt = SklearnPipelineType(io=SimplePickleIO(), methods={}).bind(obj)
         predict = obj.predict

@@ -1,4 +1,5 @@
 import inspect
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, Iterator, List, Optional, Tuple
 
@@ -17,6 +18,8 @@ from mlem.core.errors import MlemError
 from mlem.core.metadata import load_meta
 from mlem.core.model import Argument, Signature
 from mlem.core.objects import MlemModel
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionError(MlemError):
@@ -100,6 +103,9 @@ class VersionedInterfaceDescriptor(BaseModel):
     version: str = mlem.version.__version__
     """mlem version"""
     meta: Any
+    """model params"""
+    model_version: Optional[str] = None
+    """model version"""
 
 
 class Interface(ABC, MlemABC):
@@ -112,6 +118,7 @@ class Interface(ABC, MlemABC):
         type_root = True
 
     abs_name: ClassVar[str] = "interface"
+    model_version: Optional[str] = None
 
     @abstractmethod
     def get_method_executor(self, method_name: str):
@@ -205,11 +212,15 @@ class Interface(ABC, MlemABC):
     def get_model_meta(self):
         return None
 
+    def get_model_version(self):
+        return None
+
     def get_versioned_descriptor(self) -> VersionedInterfaceDescriptor:
         return VersionedInterfaceDescriptor(
             version=mlem.__version__,
             methods=self.get_descriptor(),
             meta=self.get_model_meta(),
+            model_version=self.get_model_version(),
         )
 
 
@@ -299,7 +310,18 @@ class ModelInterface(Interface):
 
     @classmethod
     def from_model(cls, model: MlemModel):
-        return cls(model=model)
+        import os
+
+        from mlem.contrib.dvc import DVCArtifactInRegistry
+
+        try:
+            model_version = DVCArtifactInRegistry(
+                uri=os.path.join(model.loc.project or "", model.loc.path)
+            ).version
+        except Exception:
+            logger.info("Cannot get model version")
+            model_version = None
+        return cls(model=model, model_version=model_version)
 
     @property
     def is_single_model(self):
@@ -361,3 +383,6 @@ class ModelInterface(Interface):
 
     def get_model_meta(self):
         return self.model.params
+
+    def get_model_version(self):
+        return self.model_version
